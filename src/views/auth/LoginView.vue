@@ -3,8 +3,8 @@ import { useAuthStore } from '@/stores/auth.store'
 import { ref } from 'vue'
 import { useRouter } from 'vue-router'
 
-const email = ref('jc@gmail.com')
-const password = ref('123456')
+const email = ref('')
+const password = ref('')
 const showPassword = ref(false)
 const loading = ref(false)
 const errorMessage = ref('')
@@ -23,7 +23,7 @@ const login = async () => {
     await authStore.login(email.value, password.value)
     const payload = authStore.tokenPayload
 
-    if (payload?.developer || payload?.multi_company) {
+    if (payload?.super_admin || payload?.developer || payload?.multi_company) {
       router.push('/companies')
     } else {
       router.push('/dashboard')

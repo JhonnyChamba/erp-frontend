@@ -1,14 +1,16 @@
 import { defineStore } from 'pinia'
 import { listBranchesRequest, userCompanyRequest } from '@/services/auth.service'
 
+export interface CompanySummary {
+	id: number
+	razon_social: string
+	ruc: string
+	nombre_comercial: string
+}
+
 export const useListCompanyUserStore = defineStore('listCompanyUser', {
 	state: () => ({
-		companies: [] as Array<{
-			id: number
-			razon_social: string
-			ruc: string
-			nombre_comercial: string
-		}>,
+		companies: [] as CompanySummary[],
 		total: 0,
 		page: 1,
 		limit: 10,
@@ -24,36 +26,41 @@ export const useListCompanyUserStore = defineStore('listCompanyUser', {
 			this.loading = true
 			this.error = null
 			try {
-				const data = await userCompanyRequest({
+				const response = await userCompanyRequest({
 					page: params.page ?? this.page,
 					limit: params.limit ?? this.limit,
 				})
-				this.companies = data
-				return data   // <-- aquí devuelves los datos
+
+				const rawList = Array.isArray(response) ? response : (response?.data || [])
+				this.companies = rawList.map((item: any) => {
+					const comp = item.company || item
+					return {
+						id: comp.id,
+						razon_social: comp.business_name || comp.razon_social || '',
+						ruc: comp.ruc || '',
+						nombre_comercial: comp.trade_name || comp.nombre_comercial || '',
+					}
+				})
+
+				if (response?.meta) {
+					this.total = response.meta.total ?? this.companies.length
+					this.page = response.meta.page ?? this.page
+					this.limit = response.meta.limit ?? this.limit
+				} else {
+					this.total = this.companies.length
+				}
+
+				return response
 			} catch (err: any) {
 				this.error = err.message || 'Error al cargar empresas'
-				throw err    // opcional, para propagar error si quieres
+				throw err
 			} finally {
 				this.loading = false
 			}
 		},
 
 		async findOneCompanies(params: { page?: number, limit?: number }) {
-			this.loading = true
-			this.error = null
-			try {
-				const data = await userCompanyRequest({
-					page: params.page ?? this.page,
-					limit: params.limit ?? this.limit,
-				})
-				this.companies = data
-				return data   // <-- aquí devuelves los datos
-			} catch (err: any) {
-				this.error = err.message || 'Error al cargar empresas'
-				throw err    // opcional, para propagar error si quieres
-			} finally {
-				this.loading = false
-			}
+			return this.fetchCompanies(params)
 		}
 	}
 })
@@ -102,6 +109,5 @@ export const useBranchStore = defineStore('branch', {
 				this.loading = false
 			}
 		}
-
 	}
 })

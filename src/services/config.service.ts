@@ -17,7 +17,9 @@ export interface UserItem {
   last_name_user: string
   email: string
   developer?: boolean
+  super_admin?: boolean
   multi_company?: boolean
+  companyIds?: number[]
   enabled?: boolean
   created_at?: string
   theme_color?: string
@@ -82,6 +84,10 @@ export const createUser = async (payload: {
   last_name_user: string
   email: string
   password: string
+  developer?: boolean
+  super_admin?: boolean
+  multi_company?: boolean
+  companyIds?: number[]
   theme_color?: string
 }) => {
   const { data } = await api.post('/users', payload)

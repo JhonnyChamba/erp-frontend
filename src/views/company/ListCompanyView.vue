@@ -1,9 +1,11 @@
 <script setup lang="ts">
 import { useBranchStore, useListCompanyUserStore } from '@/stores/ListCompanyUser.store'
+import { useAuthStore } from '@/stores/auth.store'
 import { ref, onMounted, computed } from 'vue'
 import { useRouter } from 'vue-router'
 
 const router = useRouter()
+const authStore = useAuthStore()
 
 interface Company {
   id: number
@@ -25,6 +27,12 @@ const branches = computed(() => branchStore.branches)
 const page = computed(() => branchStore.page)
 const total = computed(() => branchStore.total)
 const limit = computed(() => branchStore.limit)
+const userName = computed(() => authStore.tokenPayload?.user_name || 'Usuario')
+
+const logout = () => {
+  authStore.logout()
+  router.replace('/login')
+}
 
 
 // ===============================
@@ -32,14 +40,8 @@ const limit = computed(() => branchStore.limit)
 // ===============================
 const fetchCompanies = async () => {
   try {
-    const response = await companyStore.fetchCompanies({ page: 1, limit: 100 })
-    companies.value = response.data.map((item: any) => ({
-      id: item.company.id,
-      razon_social: item.company.business_name,
-      ruc: item.company.ruc,
-      nombre_comercial: item.company.trade_name
-    }))
-
+    await companyStore.fetchCompanies({ page: 1, limit: 100 })
+    companies.value = companyStore.companies
   } catch (error) {
     console.error('Error al obtener empresas', error)
   }
@@ -49,19 +51,36 @@ const fetchCompanies = async () => {
 // ===============================
 // SUCURSALES
 // ===============================
+const loadingCompanyId = ref<number | null>(null)
+
 const selectCompany = async (company: Company) => {
   selectedCompany.value = company
   selectedCompanyId.value = company.id
-  showBranchesModal.value = true
+  loadingCompanyId.value = company.id
 
   try {
-    await branchStore.fetchBranches({
+    const response = await branchStore.fetchBranches({
       companyId: company.id,
       page: 1,
       limit: 10
     })
+
+    const branchList = response?.data || branchStore.branches || []
+
+    if (branchList.length === 0) {
+      // Si no tiene sucursales, pasar directo al Dashboard
+      selectBranch(null)
+      return
+    }
+
+    // Si tiene sucursales disponibles, abrir modal para seleccionar
+    showBranchesModal.value = true
   } catch (error) {
     console.error('Error al obtener sucursales', error)
+    // En caso de error, permitir el acceso directo para no bloquear
+    selectBranch(null)
+  } finally {
+    loadingCompanyId.value = null
   }
 }
 
@@ -71,9 +90,19 @@ const selectBranch = (branch: any) => {
   }
   if (branch) {
     localStorage.setItem('selectedBranch', JSON.stringify(branch))
+  } else {
+    localStorage.setItem(
+      'selectedBranch',
+      JSON.stringify({
+        id: 0,
+        code: '001',
+        name: 'Matriz / Principal',
+        address: ''
+      })
+    )
   }
   showBranchesModal.value = false
-  router.push('/dashboard')
+  router.replace('/dashboard')
 }
 
 // Paginación
@@ -159,6 +188,14 @@ onMounted(async () => {
                 <span class="hide-menu ps-1">Dashboard</span>
               </a>
             </li>
+            <li class="sidebar-item mt-3 pt-3 border-top border-dark-subtle">
+              <a class="sidebar-link text-danger d-flex align-items-center gap-2 cursor-pointer" href="javascript:void(0)" @click="logout">
+                <span class="aside-icon p-2 bg-danger-subtle text-danger rounded-1">
+                  <iconify-icon icon="solar:logout-2-line-duotone" class="fs-6"></iconify-icon>
+                </span>
+                <span class="hide-menu ps-1 fw-semibold">Cerrar Sesión</span>
+              </a>
+            </li>
           </ul>
 
         </nav>
@@ -174,15 +211,39 @@ onMounted(async () => {
       <div class="body-wrapper">
         <div class="container-fluid">
           <div class="card">
-            <div class="card-header text-bg-primary">
-              <h5 class="mb-0 text-white">Empresas</h5>
+            <div class="card-header text-bg-primary d-flex align-items-center justify-content-between py-3 px-4">
+              <div class="d-flex align-items-center gap-2">
+                <iconify-icon icon="solar:buildings-bold" class="fs-5 text-white"></iconify-icon>
+                <h5 class="mb-0 text-white fw-bold">Empresas Asignadas</h5>
+              </div>
+              <button
+                class="btn btn-sm btn-danger d-flex align-items-center gap-2 rounded-pill px-3 py-1 shadow-sm"
+                @click="logout"
+                title="Cerrar sesión"
+              >
+                <iconify-icon icon="solar:logout-2-line-duotone" class="fs-5"></iconify-icon>
+                <span class="fw-semibold">Cerrar Sesión</span>
+              </button>
             </div>
             <div class="card-body">
               <div class="row">
+                <div v-if="companies.length === 0" class="col-12 text-center py-5">
+                  <div class="p-4 bg-dark-subtle rounded-4 border border-secondary-subtle d-inline-block">
+                    <iconify-icon icon="solar:buildings-2-linear" class="display-3 text-secondary mb-3"></iconify-icon>
+                    <h4 class="text-white mb-2">No se encontraron empresas</h4>
+                    <p class="text-secondary fs-3 mb-0">No tienes empresas asociadas a tu cuenta. Contacta a un administrador.</p>
+                  </div>
+                </div>
+
                 <div class="col-lg-4 mb-3" v-for="company in companies" :key="company.id">
-                  <div class="card border-top border-info alert-dismissible fade show alert p-0 card-hover rounded-4"
-                    style="cursor: pointer;"
-                    @click="selectCompany(company)">
+                  <div
+                    class="card border-top border-info alert-dismissible fade show alert p-0 card-hover rounded-4"
+                    :style="{
+                      cursor: loadingCompanyId === company.id ? 'wait' : 'pointer',
+                      opacity: loadingCompanyId && loadingCompanyId !== company.id ? '0.6' : '1'
+                    }"
+                    @click="loadingCompanyId ? null : selectCompany(company)"
+                  >
                     <div class="card-body">
                       <div class="d-flex align-items-center justify-content-between">
                         <div>
@@ -190,8 +251,11 @@ onMounted(async () => {
                           <p class="card-subtitle">{{ company.ruc }}</p>
                           <p class="card-subtitle text-muted">{{ company.nombre_comercial }}</p>
                         </div>
-                        <span class="text-dark display-6">
-                          <i class="fas fa-building"></i>
+                        <span class="text-primary display-6">
+                          <div v-if="loadingCompanyId === company.id" class="spinner-border text-info" role="status">
+                            <span class="visually-hidden">Cargando...</span>
+                          </div>
+                          <i v-else class="fas fa-building text-dark"></i>
                         </span>
                       </div>
                     </div>

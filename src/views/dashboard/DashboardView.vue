@@ -12,7 +12,13 @@ let chartProducts: any = null
 let chartNetsells: any = null
 let chartCustomers: any = null
 
+const handleBackBlock = () => {
+  window.history.pushState(null, '', window.location.href)
+}
+
 onMounted(() => {
+  window.history.pushState(null, '', window.location.href)
+  window.addEventListener('popstate', handleBackBlock)
   const comp = localStorage.getItem('selectedCompany')
   if (comp) {
     try { selectedCompany.value = JSON.parse(comp) } catch (e) {}
@@ -34,6 +40,7 @@ onMounted(() => {
 })
 
 onBeforeUnmount(() => {
+  window.removeEventListener('popstate', handleBackBlock)
   if (chartTotalOrders) chartTotalOrders.destroy()
   if (chartProducts) chartProducts.destroy()
   if (chartNetsells) chartNetsells.destroy()

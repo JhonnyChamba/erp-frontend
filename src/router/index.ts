@@ -68,9 +68,10 @@ const router = createRouter({
   routes
 })
 
-// Guardia de navegación: Redirige a /login si no hay token
+// Guardia de navegación: Protección de rutas y control de retroceso
 router.beforeEach((to) => {
   const token = localStorage.getItem('token')
+  const selectedCompany = localStorage.getItem('selectedCompany')
   const isPublic = to.meta.public
 
   if (!token && !isPublic) {
@@ -78,6 +79,11 @@ router.beforeEach((to) => {
   }
 
   if (token && to.path === '/login') {
+    return { path: '/dashboard' }
+  }
+
+  // Si ya tiene empresa seleccionada y está en el ERP, bloquear volver a /companies con el botón atrás del navegador
+  if (token && selectedCompany && to.path === '/companies' && to.query.cambiar !== 'true') {
     return { path: '/dashboard' }
   }
 })

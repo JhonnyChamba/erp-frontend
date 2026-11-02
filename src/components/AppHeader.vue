@@ -6,9 +6,7 @@ import { useRouter } from 'vue-router'
 const authStore = useAuthStore()
 const router = useRouter()
 
-const emit = defineEmits<{
-  (e: 'toggle-sidebar'): void
-}>()
+const emit = defineEmits(['toggle-sidebar'])
 
 const selectedCompany = ref<any>(null)
 const selectedBranch = ref<any>(null)
@@ -33,11 +31,11 @@ const logout = () => {
   authStore.logout()
   localStorage.removeItem('selectedCompany')
   localStorage.removeItem('selectedBranch')
-  router.push('/login')
+  router.replace('/login')
 }
 
 const changeCompany = () => {
-  router.push('/companies')
+  router.push({ path: '/companies', query: { cambiar: 'true' } })
 }
 </script>
 
@@ -87,8 +85,8 @@ const changeCompany = () => {
         </div>
       </div>
 
-      <!-- LADO DERECHO: ACCIONES + PERFIL DE USUARIO -->
-      <div class="d-flex align-items-center gap-3">
+      <!-- LADO DERECHO: ACCIONES + PERFIL DE USUARIO + BOTÓN SALIR -->
+      <div class="d-flex align-items-center gap-2 gap-md-3">
         
         <!-- Notificaciones -->
         <button class="nav-link p-2 rounded-circle hover-bg d-flex align-items-center justify-content-center text-white" type="button">
@@ -135,6 +133,16 @@ const changeCompany = () => {
           </div>
         </div>
 
+        <!-- Botón Salir Directo -->
+        <button
+          class="btn btn-sm btn-outline-danger d-flex align-items-center gap-1 rounded-pill px-3 py-1 ms-1"
+          @click="logout"
+          title="Cerrar Sesión"
+        >
+          <iconify-icon icon="solar:logout-2-line-duotone" class="fs-4"></iconify-icon>
+          <span class="d-none d-sm-inline fw-semibold">Salir</span>
+        </button>
+
       </div>
     </nav>
   </header>
@@ -148,4 +156,4 @@ const changeCompany = () => {
   font-size: 0.75rem;
   padding: 0.15rem 0.5rem;
 }
-</style>
+</style>

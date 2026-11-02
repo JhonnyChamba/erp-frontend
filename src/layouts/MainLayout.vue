@@ -266,7 +266,7 @@
 </template>
 
 <script setup lang="ts">
-import { reactive, ref, computed, onMounted } from 'vue'
+import { reactive, ref, computed, onMounted, onBeforeUnmount } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import AppHeader from '@/components/AppHeader.vue'
 import AppFooter from '@/components/AppFooter.vue'
@@ -289,11 +289,21 @@ const open = reactive({
   configuracion: true
 })
 
+const handlePopState = () => {
+  window.history.pushState(null, '', window.location.href)
+}
+
 onMounted(() => {
   const payload = authStore.tokenPayload
   if (payload?.user_name) {
     userName.value = payload.user_name
   }
+  window.history.pushState(null, '', window.location.href)
+  window.addEventListener('popstate', handlePopState)
+})
+
+onBeforeUnmount(() => {
+  window.removeEventListener('popstate', handlePopState)
 })
 
 const toggleSidebar = () => {
@@ -306,14 +316,18 @@ const toggle = (menu: 'ventas' | 'contactos' | 'configuracion') => {
 }
 
 const go = (path: string) => {
-  router.push(path)
+  if (path === '/companies') {
+    router.push({ path: '/companies', query: { cambiar: 'true' } })
+  } else {
+    router.push(path)
+  }
 }
 
 const logout = () => {
   authStore.logout()
   localStorage.removeItem('selectedCompany')
   localStorage.removeItem('selectedBranch')
-  router.push('/login')
+  router.replace('/login')
 }
 </script>
 

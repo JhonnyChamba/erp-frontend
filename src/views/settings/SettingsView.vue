@@ -112,12 +112,21 @@ const formUser = ref({
   last_name_user: '',
   email: '',
   password: '',
+  super_admin: false,
+  multi_company: false,
+  companyIds: [] as number[],
   theme_color: 'Blue_Theme',
 })
 
-const openCreateUser = () => {
+const openCreateUser = async () => {
   isEditingUser.value = false
   editingUserId.value = null
+  if (companies.value.length === 0) {
+    try {
+      const res = await getCompanies({ page: 1, limit: 100 })
+      companies.value = Array.isArray(res?.data) ? res.data : Array.isArray(res) ? res : []
+    } catch (e) {}
+  }
   formUser.value = {
     companyId: currentCompanyId.value,
     num_document: '',
@@ -125,14 +134,23 @@ const openCreateUser = () => {
     last_name_user: '',
     email: '',
     password: '',
+    super_admin: false,
+    multi_company: false,
+    companyIds: [currentCompanyId.value],
     theme_color: 'Blue_Theme',
   }
   showUserModal.value = true
 }
 
-const openEditUser = (user: UserItem) => {
+const openEditUser = async (user: UserItem) => {
   isEditingUser.value = true
   editingUserId.value = user.id
+  if (companies.value.length === 0) {
+    try {
+      const res = await getCompanies({ page: 1, limit: 100 })
+      companies.value = Array.isArray(res?.data) ? res.data : Array.isArray(res) ? res : []
+    } catch (e) {}
+  }
   formUser.value = {
     companyId: currentCompanyId.value,
     num_document: user.num_document || '',
@@ -140,6 +158,9 @@ const openEditUser = (user: UserItem) => {
     last_name_user: user.last_name_user || '',
     email: user.email || '',
     password: '',
+    super_admin: user.super_admin || user.developer || false,
+    multi_company: user.multi_company || false,
+    companyIds: user.companyIds && user.companyIds.length > 0 ? user.companyIds.map(Number) : [currentCompanyId.value],
     theme_color: user.theme_color || 'Blue_Theme',
   }
   showUserModal.value = true
@@ -260,20 +281,28 @@ const submitUser = async () => {
         name_user: formUser.value.name_user,
         last_name_user: formUser.value.last_name_user,
         email: formUser.value.email,
+        super_admin: formUser.value.super_admin,
+        developer: formUser.value.super_admin,
+        multi_company: formUser.value.multi_company,
+        companyIds: formUser.value.multi_company ? formUser.value.companyIds.map(Number) : [],
         theme_color: formUser.value.theme_color || 'Blue_Theme',
       }
       if (formUser.value.password) {
         payload.password = formUser.value.password
       }
       await updateUser(editingUserId.value, payload)
-      successMsg.value = 'Usuario y configuración de tema actualizados exitosamente.'
+      successMsg.value = 'Usuario y configuración actualizados exitosamente.'
 
       // Si el usuario editado es el actual logueado, aplicar y persistir el tema inmediatamente
       if (authStore.tokenPayload?.user_id === editingUserId.value) {
         authStore.applyTheme(formUser.value.theme_color)
       }
     } else {
-      await createUser(formUser.value)
+      await createUser({
+        ...formUser.value,
+        developer: formUser.value.super_admin,
+        companyIds: formUser.value.multi_company ? formUser.value.companyIds.map(Number) : [],
+      })
       successMsg.value = 'Usuario registrado exitosamente.'
     }
     showUserModal.value = false
@@ -284,6 +313,9 @@ const submitUser = async () => {
       last_name_user: '',
       email: '',
       password: '',
+      super_admin: false,
+      multi_company: false,
+      companyIds: [currentCompanyId.value],
       theme_color: 'Blue_Theme',
     }
     await loadCurrentTabData()
@@ -539,9 +571,15 @@ const submitSubscription = async () => {
               <td class="text-white">{{ user.name_user }} {{ user.last_name_user }}</td>
               <td class="text-info">{{ user.email }}</td>
               <td>
-                <span v-if="user.developer" class="badge bg-primary-subtle text-primary me-1">Developer</span>
-                <span v-if="user.multi_company" class="badge bg-warning-subtle text-warning">Multi-Empresa</span>
-                <span v-if="!user.developer && !user.multi_company" class="badge bg-secondary-subtle text-secondary">Usuario</span>
+                <span v-if="user.super_admin || user.developer" class="badge bg-danger-subtle text-danger border border-danger-subtle me-1">
+                  <iconify-icon icon="solar:shield-star-bold" class="me-1"></iconify-icon>Super Admin
+                </span>
+                <span v-if="user.multi_company" class="badge bg-warning-subtle text-warning border border-warning-subtle me-1">
+                  <iconify-icon icon="solar:buildings-bold" class="me-1"></iconify-icon>Multi-Empresa
+                </span>
+                <span v-if="!user.super_admin && !user.developer && !user.multi_company" class="badge bg-secondary-subtle text-secondary">
+                  Estándar
+                </span>
               </td>
               <td>
                 <span class="badge d-inline-flex align-items-center gap-2 px-2 py-1 rounded-pill" :style="getThemeBadgeStyle(user.theme_color)">
@@ -798,6 +836,88 @@ const submitSubscription = async () => {
                     :placeholder="isEditingUser ? '•••••••• (Sin cambios)' : 'Contraseña segura'"
                     :required="!isEditingUser"
                   />
+                </div>
+
+                <!-- PRIVILEGIOS: SUPER ADMIN & MULTI-EMPRESA -->
+                <div class="mb-3 pt-3 border-top border-dark-subtle">
+                  <label class="form-label text-white fw-semibold mb-2">Permisos & Modo de Acceso</label>
+                  <div class="row g-2 mb-3">
+                    <!-- Switch Super Admin -->
+                    <div class="col-md-6">
+                      <div class="form-check form-switch bg-dark-subtle p-3 rounded border border-secondary-subtle d-flex align-items-center justify-content-between">
+                        <label class="form-check-label text-white ms-0 cursor-pointer" for="switchSuperAdmin">
+                          <div class="fw-bold d-flex align-items-center gap-1 text-danger">
+                            <iconify-icon icon="solar:shield-star-bold"></iconify-icon> Super Admin
+                          </div>
+                          <small class="text-secondary d-block fs-1">Acceso total al sistema y empresas</small>
+                        </label>
+                        <input
+                          v-model="formUser.super_admin"
+                          class="form-check-input fs-5 m-0 cursor-pointer"
+                          type="checkbox"
+                          id="switchSuperAdmin"
+                        />
+                      </div>
+                    </div>
+
+                    <!-- Switch Multi Empresa -->
+                    <div class="col-md-6">
+                      <div class="form-check form-switch bg-dark-subtle p-3 rounded border border-secondary-subtle d-flex align-items-center justify-content-between">
+                        <label class="form-check-label text-white ms-0 cursor-pointer" for="switchMultiCompany">
+                          <div class="fw-bold d-flex align-items-center gap-1 text-warning">
+                            <iconify-icon icon="solar:buildings-bold"></iconify-icon> Multi-Empresa
+                          </div>
+                          <small class="text-secondary d-block fs-1">Gestionar más de una empresa</small>
+                        </label>
+                        <input
+                          v-model="formUser.multi_company"
+                          class="form-check-input fs-5 m-0 cursor-pointer"
+                          type="checkbox"
+                          id="switchMultiCompany"
+                        />
+                      </div>
+                    </div>
+                  </div>
+
+                  <!-- SELECCIÓN DE EMPRESAS (SÓLO SI MULTI_COMPANY ESTÁ EN TRUE) -->
+                  <div v-if="formUser.multi_company" class="p-3 bg-dark-subtle rounded border border-warning-subtle mb-3">
+                    <div class="d-flex align-items-center justify-content-between mb-2">
+                      <label class="form-label text-warning fw-semibold d-flex align-items-center gap-2 mb-0">
+                        <iconify-icon icon="solar:checklist-minimalistic-bold" class="fs-4"></iconify-icon>
+                        <span>Empresas con Acceso Habilitado</span>
+                      </label>
+                      <span class="badge bg-warning-subtle text-warning border border-warning-subtle">
+                        {{ formUser.companyIds.length }} seleccionada(s)
+                      </span>
+                    </div>
+                    <p class="text-secondary fs-2 mb-2">
+                      Selecciona las empresas que este usuario podrá visualizar y operar al iniciar sesión:
+                    </p>
+
+                    <div class="row g-2 overflow-y-auto" style="max-height: 180px;">
+                      <div
+                        v-for="company in companies"
+                        :key="company.id"
+                        class="col-md-6"
+                      >
+                        <label
+                          class="d-flex align-items-center gap-2 p-2 rounded border cursor-pointer w-100 h-100"
+                          :class="formUser.companyIds.includes(company.id) ? 'bg-primary-subtle border-primary text-white' : 'bg-dark border-secondary-subtle text-secondary'"
+                        >
+                          <input
+                            type="checkbox"
+                            class="form-check-input m-0 cursor-pointer"
+                            :value="company.id"
+                            v-model="formUser.companyIds"
+                          />
+                          <div class="text-truncate">
+                            <span class="d-block fw-semibold text-truncate fs-2">{{ company.business_name || company.trade_name }}</span>
+                            <small class="text-secondary font-monospace fs-1">RUC: {{ company.ruc }}</small>
+                          </div>
+                        </label>
+                      </div>
+                    </div>
+                  </div>
                 </div>
 
                 <!-- SELECTOR DE COLOR DE TEMA (SPIKE ADMIN THEME COLORS) -->

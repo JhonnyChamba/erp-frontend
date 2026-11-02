@@ -2,11 +2,13 @@ import { loginRequest } from '../services/auth.service'
 import { defineStore } from 'pinia'
 import { jwtDecode } from 'jwt-decode'
 
-interface TokenPayload {
+export interface TokenPayload {
   user_id: number
   user_name: string
   developer: boolean
+  super_admin?: boolean
   multi_company: boolean
+  company_id?: number
   theme_color?: string
 }
 
@@ -52,6 +54,8 @@ export const useAuthStore = defineStore('auth', {
     logout() {
       this.token = null
       localStorage.removeItem('token')
+      localStorage.removeItem('selectedCompany')
+      localStorage.removeItem('selectedBranch')
     }
   }
 })
