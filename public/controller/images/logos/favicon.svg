@@ -1,0 +1,30 @@
+<svg width="64" height="64" viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="favGrad1" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#00A3FF"/>
+      <stop offset="100%" stop-color="#00F0FF"/>
+    </linearGradient>
+    <linearGradient id="favGrad2" x1="0%" y1="100%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#1E40AF"/>
+      <stop offset="100%" stop-color="#38BDF8"/>
+    </linearGradient>
+    <linearGradient id="favBg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#1E293B"/>
+      <stop offset="100%" stop-color="#0F172A"/>
+    </linearGradient>
+  </defs>
+
+  <rect width="64" height="64" rx="18" fill="url(#favBg)" stroke="#334155" stroke-width="2"/>
+  
+  <!-- Columna izquierda D -->
+  <rect x="15" y="15" width="9" height="34" rx="4.5" fill="url(#favGrad1)"/>
+  
+  <!-- Curva superior D -->
+  <path d="M24 15H36C43.7 15 50 21.3 50 29C50 33 48.3 36.6 45.5 39.1L35 28.5V23.5H24V15Z" fill="url(#favGrad1)"/>
+  
+  <!-- Flecha inferior D -->
+  <path d="M24 40.5H36C38.8 40.5 41.3 39.4 43.2 37.6L31 49H24V40.5Z" fill="url(#favGrad2)"/>
+  
+  <!-- Punto de brillo -->
+  <circle cx="43" cy="20" r="4.5" fill="#00F0FF"/>
+</svg>

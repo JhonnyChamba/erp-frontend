@@ -7,11 +7,13 @@ interface TokenPayload {
   user_name: string
   developer: boolean
   multi_company: boolean
+  theme_color?: string
 }
 
 export const useAuthStore = defineStore('auth', {
   state: () => ({
-    token: localStorage.getItem('token') as string | null
+    token: localStorage.getItem('token') as string | null,
+    currentTheme: localStorage.getItem('userTheme') || 'Blue_Theme',
   }),
 
   getters: {
@@ -28,6 +30,13 @@ export const useAuthStore = defineStore('auth', {
   },
 
   actions: {
+    applyTheme(themeName?: string) {
+      const theme = themeName || this.tokenPayload?.theme_color || localStorage.getItem('userTheme') || 'Blue_Theme'
+      this.currentTheme = theme
+      localStorage.setItem('userTheme', theme)
+      document.documentElement.setAttribute('data-color-theme', theme)
+    },
+
     async login(email: string, password: string) {
       const data = await loginRequest(email, password)
 
@@ -35,6 +44,8 @@ export const useAuthStore = defineStore('auth', {
 
       if (this.token) {
         localStorage.setItem('token', this.token)
+        const theme = data.theme_color || this.tokenPayload?.theme_color || 'Blue_Theme'
+        this.applyTheme(theme)
       }
     },
 

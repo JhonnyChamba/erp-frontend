@@ -1,6 +1,9 @@
 <script setup lang="ts">
 import { useBranchStore, useListCompanyUserStore } from '@/stores/ListCompanyUser.store'
 import { ref, onMounted, computed } from 'vue'
+import { useRouter } from 'vue-router'
+
+const router = useRouter()
 
 interface Company {
   id: number
@@ -14,6 +17,7 @@ const companyStore = useListCompanyUserStore()
 const branchStore = useBranchStore()
 
 const showBranchesModal = ref(false)
+const selectedCompany = ref<Company | null>(null)
 const selectedCompanyId = ref<number | null>(null)
 
 // ✅ Usamos el estado del store (NO refs duplicadas)
@@ -29,9 +33,6 @@ const limit = computed(() => branchStore.limit)
 const fetchCompanies = async () => {
   try {
     const response = await companyStore.fetchCompanies({ page: 1, limit: 100 })
-    console.log(response);
-    console.log(response.data);
-
     companies.value = response.data.map((item: any) => ({
       id: item.company.id,
       razon_social: item.company.business_name,
@@ -48,19 +49,31 @@ const fetchCompanies = async () => {
 // ===============================
 // SUCURSALES
 // ===============================
-const selectCompany = async (companyId: number) => {
-  selectedCompanyId.value = companyId
-  showBranchesModal.value = true // 🔥 primero abrimos
+const selectCompany = async (company: Company) => {
+  selectedCompany.value = company
+  selectedCompanyId.value = company.id
+  showBranchesModal.value = true
 
   try {
     await branchStore.fetchBranches({
-      companyId,
+      companyId: company.id,
       page: 1,
       limit: 10
     })
   } catch (error) {
-    console.error(error)
+    console.error('Error al obtener sucursales', error)
   }
+}
+
+const selectBranch = (branch: any) => {
+  if (selectedCompany.value) {
+    localStorage.setItem('selectedCompany', JSON.stringify(selectedCompany.value))
+  }
+  if (branch) {
+    localStorage.setItem('selectedBranch', JSON.stringify(branch))
+  }
+  showBranchesModal.value = false
+  router.push('/dashboard')
 }
 
 // Paginación
@@ -85,22 +98,6 @@ const prevPage = async () => {
 onMounted(async () => {
   await fetchCompanies()
 })
-
-
-const selectModule = async (companyId: number) => {
-  selectedCompanyId.value = companyId
-  showBranchesModal.value = true // 🔥 primero abrimos
-
-  try {
-    await branchStore.fetchBranches({
-      companyId,
-      page: 1,
-      limit: 10
-    })
-  } catch (error) {
-    console.error(error)
-  }
-}
 </script>
 
 <style>
@@ -184,13 +181,14 @@ const selectModule = async (companyId: number) => {
               <div class="row">
                 <div class="col-lg-4 mb-3" v-for="company in companies" :key="company.id">
                   <div class="card border-top border-info alert-dismissible fade show alert p-0 card-hover rounded-4"
-                    @click="selectCompany(company.id)">
+                    style="cursor: pointer;"
+                    @click="selectCompany(company)">
                     <div class="card-body">
                       <div class="d-flex align-items-center justify-content-between">
                         <div>
                           <h4 class="card-title fs-4">{{ company.razon_social }}</h4>
                           <p class="card-subtitle">{{ company.ruc }}</p>
-                          <p class="card-subtitle">{{ company.nombre_comercial }}</p>
+                          <p class="card-subtitle text-muted">{{ company.nombre_comercial }}</p>
                         </div>
                         <span class="text-dark display-6">
                           <i class="fas fa-building"></i>
@@ -209,37 +207,73 @@ const selectModule = async (companyId: number) => {
   </div>
 
   <Teleport to="body">
-    <div v-if="showBranchesModal" class="modal fade show d-block" style="background: rgba(0,0,0,0.6);">
-      <div class="modal-dialog modal-dialog-scrollable modal-lg">
-        <div class="modal-content rounded-4 shadow-lg">
+    <div
+      v-if="showBranchesModal"
+      class="modal fade show d-block"
+      style="background: rgba(0, 0, 0, 0.65); z-index: 1055;"
+      tabindex="-1"
+      @click.self="showBranchesModal = false"
+    >
+      <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable modal-lg">
+        <div class="modal-content rounded-4 shadow-lg border-0">
 
           <!-- HEADER -->
           <div class="modal-header bg-primary text-white">
-            <h5 class="modal-title">Sucursales</h5>
+            <div>
+              <h5 class="modal-title text-white mb-0">Sucursales Disponibles</h5>
+              <small class="text-white-50" v-if="selectedCompany">
+                {{ selectedCompany.razon_social }} (RUC: {{ selectedCompany.ruc }})
+              </small>
+            </div>
             <button type="button" class="btn-close btn-close-white" @click="showBranchesModal = false"></button>
           </div>
 
           <!-- BODY -->
-          <div class="modal-body">
-            <div class="table-responsive">
-              <table class="table table-hover align-middle">
+          <div class="modal-body p-4">
+            <div v-if="branchStore.loading" class="text-center py-5">
+              <div class="spinner-border text-primary" role="status"></div>
+              <p class="text-muted mt-2 mb-0">Cargando sucursales...</p>
+            </div>
+
+            <div v-else class="table-responsive">
+              <table class="table table-hover align-middle mb-0">
                 <thead class="table-dark">
                   <tr>
-                    <th width="20%">Código</th>
+                    <th width="15%">Código</th>
                     <th width="40%">Nombre</th>
-                    <th width="40%">Dirección</th>
+                    <th width="30%">Dirección</th>
+                    <th width="15%" class="text-end">Acción</th>
                   </tr>
                 </thead>
                 <tbody>
-                  <tr v-for="branch in branches" :key="branch.id" style="cursor:pointer"
-                    @click="selectModule(1)">
-                    <td>{{ branch.code }}</td>
-                    <td>{{ branch.name }}</td>
-                    <td>{{ branch.address }}</td>
+                  <tr
+                    v-for="branch in branches"
+                    :key="branch.id"
+                    style="cursor: pointer;"
+                    @click="selectBranch(branch)"
+                  >
+                    <td>
+                      <span class="badge bg-primary-subtle text-primary fw-bold">{{ branch.code }}</span>
+                    </td>
+                    <td class="fw-semibold text-dark">{{ branch.name }}</td>
+                    <td class="text-muted">{{ branch.address }}</td>
+                    <td class="text-end">
+                      <button
+                        class="btn btn-sm btn-primary rounded-pill px-3"
+                        @click.stop="selectBranch(branch)"
+                      >
+                        Ingresar
+                      </button>
+                    </td>
                   </tr>
                   <tr v-if="branches.length === 0">
-                    <td colspan="3" class="text-center text-muted">
-                      No hay sucursales registradas
+                    <td colspan="4" class="text-center text-muted py-4">
+                      No hay sucursales registradas para esta empresa.
+                      <div class="mt-2">
+                        <button class="btn btn-sm btn-outline-primary" @click="selectBranch(null)">
+                          Continuar al Dashboard
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 </tbody>
@@ -252,7 +286,7 @@ const selectModule = async (companyId: number) => {
             <button class="btn btn-outline-secondary" :disabled="page === 1" @click="prevPage">
               Anterior
             </button>
-            <span class="fw-semibold">
+            <span class="fw-semibold text-muted">
               Página {{ page }}
             </span>
             <button class="btn btn-outline-primary" :disabled="page * limit >= total" @click="nextPage">

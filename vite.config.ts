@@ -7,8 +7,14 @@ import vueDevTools from 'vite-plugin-vue-devtools'
 // https://vite.dev/config/
 export default defineConfig({
   plugins: [
-    vue(),
-    vueDevTools(),
+    vue({
+      template: {
+        compilerOptions: {
+          isCustomElement: (tag) => tag === 'iconify-icon',
+        },
+      },
+    }),
+    // vueDevTools(), // Desactivado para no mostrar la barra flotante de depuración
   ],
   resolve: {
     alias: {

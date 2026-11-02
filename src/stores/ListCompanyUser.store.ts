@@ -36,6 +36,24 @@ export const useListCompanyUserStore = defineStore('listCompanyUser', {
 			} finally {
 				this.loading = false
 			}
+		},
+
+		async findOneCompanies(params: { page?: number, limit?: number }) {
+			this.loading = true
+			this.error = null
+			try {
+				const data = await userCompanyRequest({
+					page: params.page ?? this.page,
+					limit: params.limit ?? this.limit,
+				})
+				this.companies = data
+				return data   // <-- aquí devuelves los datos
+			} catch (err: any) {
+				this.error = err.message || 'Error al cargar empresas'
+				throw err    // opcional, para propagar error si quieres
+			} finally {
+				this.loading = false
+			}
 		}
 	}
 })
@@ -70,8 +88,6 @@ export const useBranchStore = defineStore('branch', {
 					page: params.page ?? this.page,
 					limit: params.limit ?? this.limit,
 				})
-
-				console.log(response);
 
 				this.branches = response.data
 				this.total = response.meta.total
