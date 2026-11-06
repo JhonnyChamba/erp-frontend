@@ -89,6 +89,9 @@ const errorMsg = ref('')
 // Contexto de empresa seleccionada
 const selectedCompany = ref<any>(null)
 const currentCompanyId = computed(() => selectedCompany.value?.id || 1)
+const isCurrentUserSuperAdmin = computed(() =>
+  Boolean(authStore.tokenPayload?.super_admin || authStore.tokenPayload?.developer)
+)
 
 // Listas de datos
 const companies = ref<CompanyItem[]>([])
@@ -285,7 +288,7 @@ const openEditUser = async (user: UserItem) => {
     }
   }
 
-  const isSuper = Boolean(user.super_admin || user.developer)
+  const isSuper = isCurrentUserSuperAdmin.value ? Boolean(user.super_admin || user.developer) : false
   formUser.value = {
     companyId: currentCompanyId.value,
     num_document: user.num_document || '',
@@ -448,7 +451,7 @@ const submitCompany = async () => {
   errorMsg.value = ''
   try {
     await createCompany(formCompany.value)
-    successMsg.value = 'Empresa creada exitosamente.'
+    successMsg.value = 'Empresa y rol Administrador creados exitosamente.'
     showCompanyModal.value = false
     formCompany.value = { ruc: '', business_name: '', trade_name: '', description: '' }
     await loadCurrentTabData()
@@ -465,7 +468,7 @@ const submitUser = async () => {
   errorMsg.value = ''
   try {
     formUser.value.companyId = currentCompanyId.value
-    const isSuper = Boolean(formUser.value.super_admin)
+    const isSuper = isCurrentUserSuperAdmin.value ? Boolean(formUser.value.super_admin) : false
     const isMulti = isSuper ? false : Boolean(formUser.value.multi_company)
 
     const companyRolesPayload = isSuper
@@ -1081,7 +1084,7 @@ const submitSubscription = async () => {
         moduleIds: formSubscription.value.moduleIds.map(Number),
         subModuleIds: formSubscription.value.subModuleIds.map(Number),
       })
-      successMsg.value = 'Suscripción y accesos a módulos actualizados con éxito.'
+      successMsg.value = 'Suscripción actualizada y accesos sincronizados con el rol Administrador.'
     } else {
       await createSubscription({
         companyId: currentCompanyId.value,
@@ -1091,8 +1094,9 @@ const submitSubscription = async () => {
         moduleIds: formSubscription.value.moduleIds.map(Number),
         subModuleIds: formSubscription.value.subModuleIds.map(Number),
       })
-      successMsg.value = 'Suscripción y módulos habilitados con éxito.'
+      successMsg.value = 'Suscripción creada y accesos asignados automáticamente al rol Administrador.'
     }
+    delete rolesByCompany.value[currentCompanyId.value]
     showSubscriptionModal.value = false
     await loadCurrentTabData()
   } catch (err: any) {
@@ -1826,8 +1830,8 @@ const submitSubscription = async () => {
                 <div class="mb-3 pt-3 border-top border-dark-subtle">
                   <label class="form-label text-white fw-semibold mb-2">Permisos, Empresas y Asignación de Rol</label>
                   <div class="row g-2 mb-3">
-                    <!-- Switch Super Admin (Deshabilitado si Multi-Empresa está activo) -->
-                    <div :class="formUser.super_admin ? 'col-12' : 'col-md-6'">
+                    <!-- Switch Super Admin (Visible solo cuando el usuario logueado es Super Admin; deshabilitado si Multi-Empresa está activo) -->
+                    <div v-if="isCurrentUserSuperAdmin" :class="formUser.super_admin ? 'col-12' : 'col-md-6'">
                       <div
                         class="form-check form-switch bg-dark-subtle p-3 rounded border d-flex align-items-center justify-content-between"
                         :class="[
@@ -1859,7 +1863,7 @@ const submitSubscription = async () => {
                     </div>
 
                     <!-- Switch Multi Empresa (Desaparece si es Super Admin) -->
-                    <div v-if="!formUser.super_admin" class="col-md-6">
+                    <div v-if="!formUser.super_admin" :class="isCurrentUserSuperAdmin ? 'col-md-6' : 'col-12'">
                       <div
                         class="form-check form-switch bg-dark-subtle p-3 rounded border d-flex align-items-center justify-content-between"
                         :class="formUser.multi_company ? 'border-warning' : 'border-secondary-subtle'"
