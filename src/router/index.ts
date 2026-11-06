@@ -39,9 +39,14 @@ const routes = [
         component: () => import('@/views/sales/InvoiceView.vue')
       },
       {
+        path: 'inventario',
+        name: 'inventario',
+        component: () => import('@/views/inventory/InventoryView.vue')
+      },
+      {
         path: 'inventario/:sub',
         name: 'inventario-submodule',
-        component: () => import('@/views/sales/InvoiceView.vue')
+        component: () => import('@/views/inventory/InventoryView.vue')
       },
       {
         path: 'contabilidad/:sub',

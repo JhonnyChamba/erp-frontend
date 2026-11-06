@@ -111,7 +111,9 @@ const changeCompany = () => {
             />
             <div class="d-none d-md-block text-start pe-2">
               <span class="d-block fw-bold fs-2 text-white lh-1">{{ userName }}</span>
-              <small class="text-secondary fs-1">Administrador</small>
+              <small class="text-info fs-1">
+                {{ authStore.accessInfo?.roleName || (authStore.tokenPayload?.super_admin ? 'Super Admin' : 'Usuario') }}
+              </small>
             </div>
             <iconify-icon icon="solar:alt-arrow-down-line-duotone" class="text-secondary fs-4"></iconify-icon>
           </a>

@@ -84,9 +84,10 @@ const selectCompany = async (company: Company) => {
   }
 }
 
-const selectBranch = (branch: any) => {
+const selectBranch = async (branch: any) => {
   if (selectedCompany.value) {
     localStorage.setItem('selectedCompany', JSON.stringify(selectedCompany.value))
+    await authStore.fetchCompanyAccess(selectedCompany.value.id)
   }
   if (branch) {
     localStorage.setItem('selectedBranch', JSON.stringify(branch))
