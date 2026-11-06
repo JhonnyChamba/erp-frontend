@@ -203,7 +203,7 @@ export const getModules = async (params: { page?: number; limit?: number } = {})
 }
 
 export const createModule = async (payload: {
-  code: string
+  code?: string
   desc_icon: string
   description: string
 }) => {
@@ -228,7 +228,7 @@ export const getSubModules = async (params: { moduleId?: number; page?: number; 
 
 export const createSubModule = async (payload: {
   moduleId: number
-  code: string
+  code?: string
   desc_icon: string
   description: string
   url_desc: string

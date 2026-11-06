@@ -261,12 +261,14 @@ const loadCurrentTabData = async () => {
       const res = await getRoles(currentCompanyId.value, { page: 1, limit: 50 })
       roles.value = Array.isArray(res?.data) ? res.data : Array.isArray(res) ? res : []
     } else if (activeTab.value === 'modules') {
-      const [modsRes, subModsRes] = await Promise.all([
+      const [modsRes, subModsRes, allSubModsRes] = await Promise.all([
         getModules({ page: 1, limit: 100 }),
         getSubModules({ moduleId: filterModuleId.value, page: 1, limit: 100 }).catch(() => ({ data: [] })),
+        getSubModules({ page: 1, limit: 200 }).catch(() => ({ data: [] })),
       ])
       modulesList.value = Array.isArray(modsRes?.data) ? modsRes.data : Array.isArray(modsRes) ? modsRes : []
       subModulesList.value = Array.isArray(subModsRes?.data) ? subModsRes.data : Array.isArray(subModsRes) ? subModsRes : []
+      allSubModulesList.value = Array.isArray(allSubModsRes?.data) ? allSubModsRes.data : Array.isArray(allSubModsRes) ? allSubModsRes : []
     } else if (activeTab.value === 'subscriptions') {
       const [plansRes, subsRes, modsRes, allSubModsRes] = await Promise.all([
         getPlans({ page: 1, limit: 50 }),
@@ -438,11 +440,43 @@ const onFilterModuleChange = async () => {
   }
 }
 
+// Calcula el siguiente código secuencial tomando el último registrado y sumando 1
+const computeNextSequentialCode = (
+  items: { id: number; code: string }[],
+  defaultPrefix: string
+): string => {
+  if (!items || items.length === 0) {
+    return `${defaultPrefix}001`
+  }
+  const sorted = [...items].sort((a, b) => (b.id || 0) - (a.id || 0))
+  const last = sorted[0]
+  const match = String(last?.code || '').trim().match(/^(.*?)(\d+)$/)
+
+  let prefix = defaultPrefix
+  let padLen = 3
+  let nextNum = (last?.id || items.length) + 1
+
+  if (match && match[2]) {
+    prefix = match[1] ?? defaultPrefix
+    padLen = match[2].length
+    nextNum = parseInt(match[2], 10) + 1
+  }
+
+  const existingCodes = new Set(items.map((i) => String(i.code || '').toUpperCase()))
+  let candidate = `${prefix}${String(nextNum).padStart(padLen, '0')}`
+  while (existingCodes.has(candidate.toUpperCase())) {
+    nextNum++
+    candidate = `${prefix}${String(nextNum).padStart(padLen, '0')}`
+  }
+
+  return candidate
+}
+
 const openCreateModule = () => {
   isEditingModule.value = false
   editingModuleId.value = null
   formModule.value = {
-    code: '',
+    code: computeNextSequentialCode(modulesList.value, 'MOD-'),
     desc_icon: 'solar:widget-4-line-duotone',
     description: '',
     enabled: true,
@@ -496,9 +530,11 @@ const openCreateSubModule = (preselectedModuleId?: number) => {
   editingSubModuleId.value = null
   const defaultModId =
     preselectedModuleId || filterModuleId.value || modulesList.value[0]?.id || 0
+  const sourceList =
+    allSubModulesList.value.length > 0 ? allSubModulesList.value : subModulesList.value
   formSubModule.value = {
     moduleId: defaultModId,
-    code: '',
+    code: computeNextSequentialCode(sourceList, 'SUB-'),
     desc_icon: 'solar:round-alt-arrow-right-line-duotone',
     description: '',
     url_desc: '/',
@@ -1581,15 +1617,22 @@ const submitSubscription = async () => {
             <form @submit.prevent="submitModule">
               <div class="modal-body p-4">
                 <div class="mb-3">
-                  <label class="form-label text-white-50">Código del Módulo (Máx. 20 caracteres)</label>
+                  <label class="form-label text-white-50 d-flex justify-content-between align-items-center">
+                    <span>Código Único del Módulo</span>
+                    <span class="badge bg-primary-subtle text-primary border border-primary-subtle fs-1">
+                      Autogenerado (+1)
+                    </span>
+                  </label>
                   <input
                     v-model="formModule.code"
                     type="text"
                     maxlength="20"
-                    class="form-control bg-dark-subtle border-secondary text-white text-uppercase"
-                    placeholder="Ej. MOD_VENTAS, MOD_INVENTARIO"
-                    required
+                    class="form-control bg-dark border-secondary text-info fw-bold font-monospace text-uppercase"
+                    readonly
                   />
+                  <small class="text-secondary fs-1">
+                    Se calcula automáticamente tomando el último módulo registrado + 1 para validaciones de acceso.
+                  </small>
                 </div>
                 <div class="mb-3">
                   <label class="form-label text-white-50">Nombre / Descripción del Módulo</label>
@@ -1688,14 +1731,16 @@ const submitSubscription = async () => {
 
                 <div class="row">
                   <div class="col-md-5 mb-3">
-                    <label class="form-label text-white-50">Código (Máx. 20)</label>
+                    <label class="form-label text-white-50 d-flex justify-content-between align-items-center">
+                      <span>Código Único</span>
+                      <span class="badge bg-info-subtle text-info border border-info-subtle fs-1">Auto (+1)</span>
+                    </label>
                     <input
                       v-model="formSubModule.code"
                       type="text"
                       maxlength="20"
-                      class="form-control bg-dark-subtle border-secondary text-white text-uppercase"
-                      placeholder="Ej. SUB_FACTURAS"
-                      required
+                      class="form-control bg-dark border-secondary text-info fw-bold font-monospace text-uppercase"
+                      readonly
                     />
                   </div>
                   <div class="col-md-7 mb-3">
