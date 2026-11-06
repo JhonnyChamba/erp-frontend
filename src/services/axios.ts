@@ -11,5 +11,14 @@ api.interceptors.request.use((config) => {
   if (token) {
     config.headers.Authorization = `Bearer ${token}`
   }
+  const selectedCompanyRaw = localStorage.getItem('selectedCompany')
+  if (selectedCompanyRaw) {
+    try {
+      const comp = JSON.parse(selectedCompanyRaw)
+      if (comp?.id) {
+        config.headers['x-company-id'] = String(comp.id)
+      }
+    } catch (_) {}
+  }
   return config
 })

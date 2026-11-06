@@ -29,8 +29,23 @@ const routes = [
         component: () => import('@/views/dashboard/DashboardView.vue')
       },
       {
-        path: 'ventas/facturas',
-        name: 'facturas',
+        path: 'ventas/:sub',
+        name: 'ventas-submodule',
+        component: () => import('@/views/sales/InvoiceView.vue')
+      },
+      {
+        path: 'compras/:sub',
+        name: 'compras-submodule',
+        component: () => import('@/views/sales/InvoiceView.vue')
+      },
+      {
+        path: 'inventario/:sub',
+        name: 'inventario-submodule',
+        component: () => import('@/views/sales/InvoiceView.vue')
+      },
+      {
+        path: 'contabilidad/:sub',
+        name: 'contabilidad-submodule',
         component: () => import('@/views/sales/InvoiceView.vue')
       },
       {
@@ -54,6 +69,11 @@ const routes = [
         path: 'configuracion',
         name: 'configuracion',
         component: () => import('@/views/settings/SettingsView.vue')
+      },
+      {
+        path: ':moduleSlug/:subSlug',
+        name: 'dynamic-submodule',
+        component: () => import('@/views/sales/InvoiceView.vue')
       }
     ]
   },

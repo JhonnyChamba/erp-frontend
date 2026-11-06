@@ -34,7 +34,7 @@
                 <router-link
                   to="/dashboard"
                   class="sidebar-link d-flex align-items-center gap-3 px-3 py-2 rounded-3 text-decoration-none"
-                  :class="{ 'active-menu': currentRoute === '/dashboard' }"
+                  :class="currentRoute === '/dashboard' ? 'active-menu' : 'text-white-50 hover-link'"
                 >
                   <iconify-icon icon="solar:screencast-2-line-duotone" class="fs-5 text-primary"></iconify-icon>
                   <span class="hide-menu fw-medium">Dashboard</span>
@@ -52,188 +52,112 @@
                 </a>
               </li>
 
-              <!-- OPERACIONES ERP -->
-              <li class="nav-small-cap text-uppercase text-secondary fs-1 fw-bold mb-2 ps-2">
-                Módulos ERP
-              </li>
+              <!-- MÓDULOS OPERATIVOS DINÁMICOS (SEGÚN SUSCRIPCIÓN DE LA EMPRESA Y ROL DEL USUARIO) -->
+              <template v-if="operationalModules.length > 0">
+                <li class="nav-small-cap text-uppercase text-secondary fs-1 fw-bold mb-2 ps-2">
+                  Módulos ERP
+                </li>
 
-              <!-- VENTAS DESPLEGABLE -->
-              <li class="sidebar-item mb-1">
-                <a
-                  href="javascript:void(0)"
-                  class="sidebar-link d-flex align-items-center justify-content-between px-3 py-2 rounded-3 text-decoration-none text-white-50 hover-link"
-                  @click="toggle('ventas')"
+                <li
+                  v-for="mod in operationalModules"
+                  :key="mod.code"
+                  class="sidebar-item mb-1"
                 >
-                  <div class="d-flex align-items-center gap-3">
-                    <iconify-icon icon="solar:cart-large-2-line-duotone" class="fs-5 text-warning"></iconify-icon>
-                    <span class="hide-menu fw-medium text-white">Ventas</span>
-                  </div>
-                  <iconify-icon
-                    :icon="open.ventas ? 'solar:alt-arrow-up-line-duotone' : 'solar:alt-arrow-down-line-duotone'"
-                    class="fs-3 text-secondary arrow-toggle-icon"
-                  ></iconify-icon>
-                </a>
+                  <a
+                    href="javascript:void(0)"
+                    class="sidebar-link d-flex align-items-center justify-content-between px-3 py-2 rounded-3 text-decoration-none text-white-50 hover-link"
+                    @click="toggleModule(mod.code)"
+                  >
+                    <div class="d-flex align-items-center gap-3">
+                      <iconify-icon :icon="mod.icon || 'solar:widget-4-line-duotone'" class="fs-5 text-info"></iconify-icon>
+                      <span class="hide-menu fw-medium text-white">{{ mod.description }}</span>
+                    </div>
+                    <iconify-icon
+                      v-if="mod.children && mod.children.length > 0"
+                      :icon="isOpen(mod.code) ? 'solar:alt-arrow-up-line-duotone' : 'solar:alt-arrow-down-line-duotone'"
+                      class="fs-3 text-secondary arrow-toggle-icon"
+                    ></iconify-icon>
+                  </a>
 
-                <ul v-show="open.ventas" class="list-unstyled ps-4 pt-1 mb-2">
-                  <li class="sidebar-item mb-1">
-                    <router-link
-                      to="/ventas/facturas"
-                      class="d-flex align-items-center gap-2 py-1 px-2 rounded text-decoration-none text-white-50 hover-sublink"
-                      :class="{ 'text-primary fw-bold': currentRoute === '/ventas/facturas' }"
+                  <ul
+                    v-if="mod.children && mod.children.length > 0"
+                    v-show="isOpen(mod.code)"
+                    class="list-unstyled ps-4 pt-1 mb-2"
+                  >
+                    <li
+                      v-for="sub in mod.children"
+                      :key="sub.code"
+                      class="sidebar-item mb-1"
                     >
-                      <iconify-icon icon="solar:round-alt-arrow-right-line-duotone" class="fs-3"></iconify-icon>
-                      <span class="hide-menu">Facturas</span>
-                    </router-link>
-                  </li>
-                  <li class="sidebar-item">
-                    <a href="javascript:void(0)" class="d-flex align-items-center gap-2 py-1 px-2 rounded text-decoration-none text-white-50 hover-sublink">
-                      <iconify-icon icon="solar:round-alt-arrow-right-line-duotone" class="fs-3"></iconify-icon>
-                      <span class="hide-menu">Notas de Venta</span>
-                    </a>
-                  </li>
-                </ul>
-              </li>
+                      <router-link
+                        :to="sub.url"
+                        class="d-flex align-items-center gap-2 py-1 px-2 rounded text-decoration-none text-white-50 hover-sublink"
+                        :class="{ 'text-primary fw-bold': isSubActive(sub.url) }"
+                      >
+                        <iconify-icon :icon="sub.icon || 'solar:round-alt-arrow-right-line-duotone'" class="fs-3"></iconify-icon>
+                        <span class="hide-menu">{{ sub.description }}</span>
+                      </router-link>
+                    </li>
+                  </ul>
+                </li>
+              </template>
 
-              <!-- COMPRAS -->
-              <li class="sidebar-item mb-1">
-                <a href="javascript:void(0)" class="sidebar-link d-flex align-items-center gap-3 px-3 py-2 rounded-3 text-decoration-none text-white-50 hover-link">
-                  <iconify-icon icon="solar:bag-check-line-duotone" class="fs-5 text-success"></iconify-icon>
-                  <span class="hide-menu fw-medium">Compras</span>
-                </a>
-              </li>
+              <!-- MÓDULOS DE SISTEMA / CONFIGURACIÓN DINÁMICOS -->
+              <template v-if="systemModules.length > 0">
+                <li class="nav-small-cap text-uppercase text-secondary fs-1 fw-bold mt-3 mb-2 ps-2">
+                  Sistema
+                </li>
 
-              <!-- CONTACTOS / TERCEROS (MÓDULO GENERAL CON SUB-MÓDULOS) -->
-              <li class="sidebar-item mb-1">
-                <a
-                  href="javascript:void(0)"
-                  class="sidebar-link d-flex align-items-center justify-content-between px-3 py-2 rounded-3 text-decoration-none text-white-50 hover-link"
-                  @click="toggle('contactos')"
+                <li
+                  v-for="mod in systemModules"
+                  :key="mod.code"
+                  class="sidebar-item mb-1"
                 >
-                  <div class="d-flex align-items-center gap-3">
-                    <iconify-icon icon="solar:users-group-two-rounded-line-duotone" class="fs-5 text-info"></iconify-icon>
-                    <span class="hide-menu fw-medium text-white">Contactos</span>
-                  </div>
-                  <iconify-icon
-                    :icon="open.contactos ? 'solar:alt-arrow-up-line-duotone' : 'solar:alt-arrow-down-line-duotone'"
-                    class="fs-3 text-secondary arrow-toggle-icon"
-                  ></iconify-icon>
-                </a>
+                  <a
+                    href="javascript:void(0)"
+                    class="sidebar-link d-flex align-items-center justify-content-between px-3 py-2 rounded-3 text-decoration-none text-white-50 hover-link"
+                    @click="toggleModule(mod.code)"
+                  >
+                    <div class="d-flex align-items-center gap-3">
+                      <iconify-icon :icon="mod.icon || 'solar:settings-line-duotone'" class="fs-5 text-danger"></iconify-icon>
+                      <span class="hide-menu fw-medium text-white">{{ mod.description }}</span>
+                    </div>
+                    <iconify-icon
+                      v-if="mod.children && mod.children.length > 0"
+                      :icon="isOpen(mod.code) ? 'solar:alt-arrow-up-line-duotone' : 'solar:alt-arrow-down-line-duotone'"
+                      class="fs-3 text-secondary arrow-toggle-icon"
+                    ></iconify-icon>
+                  </a>
 
-                <ul v-show="open.contactos" class="list-unstyled ps-4 pt-1 mb-2">
-                  <li class="sidebar-item mb-1">
-                    <router-link
-                      to="/contactos?tab=clientes"
-                      class="d-flex align-items-center gap-2 py-1 px-2 rounded text-decoration-none text-white-50 hover-sublink"
-                      :class="{ 'text-primary fw-bold': currentRoute === '/contactos' && currentTab === 'clientes' }"
+                  <ul
+                    v-if="mod.children && mod.children.length > 0"
+                    v-show="isOpen(mod.code)"
+                    class="list-unstyled ps-4 pt-1 mb-2"
+                  >
+                    <li
+                      v-for="sub in mod.children"
+                      :key="sub.code"
+                      class="sidebar-item mb-1"
                     >
-                      <iconify-icon icon="solar:round-alt-arrow-right-line-duotone" class="fs-3"></iconify-icon>
-                      <span class="hide-menu">Clientes</span>
-                    </router-link>
-                  </li>
-                  <li class="sidebar-item mb-1">
-                    <router-link
-                      to="/contactos?tab=proveedores"
-                      class="d-flex align-items-center gap-2 py-1 px-2 rounded text-decoration-none text-white-50 hover-sublink"
-                      :class="{ 'text-primary fw-bold': currentRoute === '/contactos' && currentTab === 'proveedores' }"
-                    >
-                      <iconify-icon icon="solar:round-alt-arrow-right-line-duotone" class="fs-3"></iconify-icon>
-                      <span class="hide-menu">Proveedores</span>
-                    </router-link>
-                  </li>
-                  <li class="sidebar-item">
-                    <router-link
-                      to="/contactos?tab=vendedores"
-                      class="d-flex align-items-center gap-2 py-1 px-2 rounded text-decoration-none text-white-50 hover-sublink"
-                      :class="{ 'text-primary fw-bold': currentRoute === '/contactos' && currentTab === 'vendedores' }"
-                    >
-                      <iconify-icon icon="solar:round-alt-arrow-right-line-duotone" class="fs-3"></iconify-icon>
-                      <span class="hide-menu">Vendedores</span>
-                    </router-link>
-                  </li>
-                </ul>
-              </li>
-
-              <!-- CONFIGURACIÓN (NUEVO MÓDULO) -->
-              <li class="nav-small-cap text-uppercase text-secondary fs-1 fw-bold mt-3 mb-2 ps-2">
-                Sistema
-              </li>
-
-              <li class="sidebar-item mb-1">
-                <a
-                  href="javascript:void(0)"
-                  class="sidebar-link d-flex align-items-center justify-content-between px-3 py-2 rounded-3 text-decoration-none text-white-50 hover-link"
-                  @click="toggle('configuracion')"
-                >
-                  <div class="d-flex align-items-center gap-3">
-                    <iconify-icon icon="solar:settings-line-duotone" class="fs-5 text-danger"></iconify-icon>
-                    <span class="hide-menu fw-medium text-white">Configuración</span>
-                  </div>
-                  <iconify-icon
-                    :icon="open.configuracion ? 'solar:alt-arrow-up-line-duotone' : 'solar:alt-arrow-down-line-duotone'"
-                    class="fs-3 text-secondary arrow-toggle-icon"
-                  ></iconify-icon>
-                </a>
-
-                <ul v-show="open.configuracion" class="list-unstyled ps-4 pt-1 mb-2">
-                  <li class="sidebar-item mb-1">
-                    <router-link
-                      to="/configuracion?tab=companies"
-                      class="d-flex align-items-center gap-2 py-1 px-2 rounded text-decoration-none text-white-50 hover-sublink"
-                      :class="{ 'text-primary fw-bold': currentRoute === '/configuracion' && route.query.tab === 'companies' }"
-                    >
-                      <iconify-icon icon="solar:buildings-3-line-duotone" class="fs-4"></iconify-icon>
-                      <span class="hide-menu">Empresas</span>
-                    </router-link>
-                  </li>
-                  <li class="sidebar-item mb-1">
-                    <router-link
-                      to="/configuracion?tab=users"
-                      class="d-flex align-items-center gap-2 py-1 px-2 rounded text-decoration-none text-white-50 hover-sublink"
-                      :class="{ 'text-primary fw-bold': currentRoute === '/configuracion' && route.query.tab === 'users' }"
-                    >
-                      <iconify-icon icon="solar:users-group-two-rounded-line-duotone" class="fs-4"></iconify-icon>
-                      <span class="hide-menu">Usuarios</span>
-                    </router-link>
-                  </li>
-                  <li class="sidebar-item mb-1">
-                    <router-link
-                      to="/configuracion?tab=roles"
-                      class="d-flex align-items-center gap-2 py-1 px-2 rounded text-decoration-none text-white-50 hover-sublink"
-                      :class="{ 'text-primary fw-bold': currentRoute === '/configuracion' && route.query.tab === 'roles' }"
-                    >
-                      <iconify-icon icon="solar:shield-check-line-duotone" class="fs-4"></iconify-icon>
-                      <span class="hide-menu">Roles</span>
-                    </router-link>
-                  </li>
-                  <li class="sidebar-item mb-1">
-                    <router-link
-                      to="/configuracion?tab=modules"
-                      class="d-flex align-items-center gap-2 py-1 px-2 rounded text-decoration-none text-white-50 hover-sublink"
-                      :class="{ 'text-primary fw-bold': currentRoute === '/configuracion' && route.query.tab === 'modules' }"
-                    >
-                      <iconify-icon icon="solar:widget-4-line-duotone" class="fs-4"></iconify-icon>
-                      <span class="hide-menu">Módulos</span>
-                    </router-link>
-                  </li>
-                  <li class="sidebar-item">
-                    <router-link
-                      to="/configuracion?tab=subscriptions"
-                      class="d-flex align-items-center gap-2 py-1 px-2 rounded text-decoration-none text-white-50 hover-sublink"
-                      :class="{ 'text-primary fw-bold': currentRoute === '/configuracion' && route.query.tab === 'subscriptions' }"
-                    >
-                      <iconify-icon icon="solar:card-line-duotone" class="fs-4"></iconify-icon>
-                      <span class="hide-menu">Suscripciones</span>
-                    </router-link>
-                  </li>
-                </ul>
-              </li>
+                      <router-link
+                        :to="sub.url"
+                        class="d-flex align-items-center gap-2 py-1 px-2 rounded text-decoration-none text-white-50 hover-sublink"
+                        :class="{ 'text-primary fw-bold': isSubActive(sub.url) }"
+                      >
+                        <iconify-icon :icon="sub.icon || 'solar:round-alt-arrow-right-line-duotone'" class="fs-4"></iconify-icon>
+                        <span class="hide-menu">{{ sub.description }}</span>
+                      </router-link>
+                    </li>
+                  </ul>
+                </li>
+              </template>
 
             </ul>
           </nav>
         </div>
       </div>
 
-      <!-- WIDGET DE USUARIO EN EL PIE DEL SIDEBAR (COMO EN LA IMAGEN) -->
+      <!-- WIDGET DE USUARIO EN EL PIE DEL SIDEBAR -->
       <div class="sidebar-profile-widget p-3 border-top border-dark-subtle m-2 rounded-3 bg-dark-subtle d-flex align-items-center justify-content-between">
         <div class="d-flex align-items-center gap-2">
           <img
@@ -244,8 +168,10 @@
             class="rounded-circle border border-primary border-2"
           />
           <div class="overflow-hidden user-info-text">
-            <h6 class="mb-0 text-white fs-2 text-truncate" style="max-width: 100px;">{{ userName }}</h6>
-            <small class="text-secondary fs-1">Admin</small>
+            <h6 class="mb-0 text-white fs-2 text-truncate" style="max-width: 115px;">{{ userName }}</h6>
+            <small class="text-info fs-1 d-block text-truncate" style="max-width: 115px;">
+              {{ activeRoleLabel }}
+            </small>
           </div>
         </div>
         <button class="btn btn-link text-danger p-1" @click="logout" title="Cerrar sesión">
@@ -276,7 +202,7 @@
 </template>
 
 <script setup lang="ts">
-import { reactive, ref, computed, onMounted, onBeforeUnmount } from 'vue'
+import { reactive, ref, computed, onMounted, onBeforeUnmount, watch } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import AppHeader from '@/components/AppHeader.vue'
 import AppFooter from '@/components/AppFooter.vue'
@@ -288,29 +214,87 @@ const authStore = useAuthStore()
 
 const isMiniSidebar = ref(false)
 const mobileSidebarOpen = ref(false)
-const userName = ref('Mike Nielsen')
+const userName = ref('Usuario')
 
 const currentRoute = computed(() => route.path)
-const currentTab = computed(() => (route.query.tab as string) || '')
+const openModules = reactive<Record<string, boolean>>({})
 
-const open = reactive({
-  ventas: false,
-  contactos: true,
-  configuracion: true
+const activeRoleLabel = computed(() => {
+  if (authStore.accessInfo?.roleName) {
+    return authStore.accessInfo.roleName
+  }
+  if (authStore.tokenPayload?.super_admin || authStore.tokenPayload?.developer) {
+    return 'Super Admin'
+  }
+  return 'Usuario'
 })
+
+const operationalModules = computed(() => {
+  const menu = authStore.accessInfo?.menu || []
+  return menu.filter(
+    (m) =>
+      m.code !== 'MOD-006' &&
+      !m.description.toLowerCase().includes('configuraci')
+  )
+})
+
+const systemModules = computed(() => {
+  const menu = authStore.accessInfo?.menu || []
+  return menu.filter(
+    (m) =>
+      m.code === 'MOD-006' ||
+      m.description.toLowerCase().includes('configuraci')
+  )
+})
+
+const isSubActive = (subUrl: string) => {
+  if (!subUrl) return false
+  if (subUrl.includes('?')) {
+    return route.fullPath.toLowerCase() === subUrl.toLowerCase()
+  }
+  return route.path.toLowerCase() === subUrl.toLowerCase()
+}
+
+const isOpen = (moduleCode: string) => {
+  if (openModules[moduleCode] !== undefined) {
+    return openModules[moduleCode]
+  }
+  const found = (authStore.accessInfo?.menu || []).find((m) => m.code === moduleCode)
+  if (found?.children?.some((sub) => isSubActive(sub.url))) {
+    return true
+  }
+  return moduleCode === 'MOD-006'
+}
+
+const toggleModule = (moduleCode: string) => {
+  openModules[moduleCode] = !isOpen(moduleCode)
+}
 
 const handlePopState = () => {
   window.history.pushState(null, '', window.location.href)
 }
 
-onMounted(() => {
+onMounted(async () => {
   const payload = authStore.tokenPayload
   if (payload?.user_name) {
     userName.value = payload.user_name
   }
+  await authStore.fetchCompanyAccess()
   window.history.pushState(null, '', window.location.href)
   window.addEventListener('popstate', handlePopState)
 })
+
+watch(
+  () => route.fullPath,
+  () => {
+    const menu = authStore.accessInfo?.menu || []
+    for (const mod of menu) {
+      if (mod.children?.some((sub) => isSubActive(sub.url))) {
+        openModules[mod.code] = true
+      }
+    }
+  }
+)
 
 onBeforeUnmount(() => {
   window.removeEventListener('popstate', handlePopState)
@@ -319,10 +303,6 @@ onBeforeUnmount(() => {
 const toggleSidebar = () => {
   isMiniSidebar.value = !isMiniSidebar.value
   document.body.setAttribute('data-sidebartype', isMiniSidebar.value ? 'mini-sidebar' : 'full')
-}
-
-const toggle = (menu: 'ventas' | 'contactos' | 'configuracion') => {
-  open[menu] = !open[menu]
 }
 
 const go = (path: string) => {
@@ -466,4 +446,3 @@ const logout = () => {
   display: block !important;
 }
 </style>
-

@@ -537,7 +537,7 @@ const submitUser = async () => {
       successMsg.value = 'Usuario registrado exitosamente.'
     }
     showUserModal.value = false
-    await loadCurrentTabData()
+    await Promise.all([loadCurrentTabData(), authStore.fetchCompanyAccess(currentCompanyId.value)])
   } catch (err: any) {
     errorMsg.value = err.response?.data?.message || 'Error al guardar el usuario'
   } finally {
@@ -749,7 +749,7 @@ const submitRole = async () => {
       successMsg.value = 'Rol y detalle de accesos creados exitosamente.'
     }
     showRoleModal.value = false
-    await loadCurrentTabData()
+    await Promise.all([loadCurrentTabData(), authStore.fetchCompanyAccess(currentCompanyId.value)])
   } catch (err: any) {
     errorMsg.value = err.response?.data?.message || 'Error al guardar el rol'
   } finally {
@@ -861,7 +861,7 @@ const submitModule = async () => {
       successMsg.value = 'Módulo creado exitosamente.'
     }
     showModuleModal.value = false
-    await loadCurrentTabData()
+    await Promise.all([loadCurrentTabData(), authStore.fetchCompanyAccess(currentCompanyId.value)])
   } catch (err: any) {
     errorMsg.value = err.response?.data?.message || 'Error al guardar el módulo'
   } finally {
@@ -930,7 +930,7 @@ const submitSubModule = async () => {
       successMsg.value = 'Submódulo creado exitosamente.'
     }
     showSubModuleModal.value = false
-    await loadCurrentTabData()
+    await Promise.all([loadCurrentTabData(), authStore.fetchCompanyAccess(currentCompanyId.value)])
   } catch (err: any) {
     errorMsg.value = err.response?.data?.message || 'Error al guardar el submódulo'
   } finally {
@@ -1098,7 +1098,7 @@ const submitSubscription = async () => {
     }
     delete rolesByCompany.value[currentCompanyId.value]
     showSubscriptionModal.value = false
-    await loadCurrentTabData()
+    await Promise.all([loadCurrentTabData(), authStore.fetchCompanyAccess(currentCompanyId.value)])
   } catch (err: any) {
     errorMsg.value = err.response?.data?.message || 'Error al guardar la suscripción'
   } finally {
