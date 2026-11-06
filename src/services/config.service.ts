@@ -261,8 +261,44 @@ export const getSubModules = async (params: { moduleId?: number; page?: number; 
   if (params.moduleId) {
     queryParams.moduleId = params.moduleId
   }
-  const { data } = await api.get('/subModule', { params: queryParams })
-  return data
+  try {
+    const { data } = await api.get('/subModule', { params: queryParams })
+    return data
+  } catch (err: any) {
+    // Fallback por si el backend local aún no se ha reiniciado y exige moduleId obligatorio
+    if (!params.moduleId && err?.response?.status === 400) {
+      const modsRes = await getModules({ page: 1, limit: 100 })
+      const mods: ModuleItem[] = Array.isArray(modsRes?.data)
+        ? modsRes.data
+        : Array.isArray(modsRes)
+        ? modsRes
+        : []
+      const allSubs: SubModuleItem[] = []
+      await Promise.all(
+        mods.map(async (m) => {
+          try {
+            const { data } = await api.get('/subModule', {
+              params: { moduleId: m.id, page: 1, limit: 100 },
+            })
+            const list: SubModuleItem[] = Array.isArray(data?.data)
+              ? data.data
+              : Array.isArray(data)
+              ? data
+              : []
+            for (const item of list) {
+              allSubs.push({
+                ...item,
+                moduleId: item.moduleId ?? m.id,
+              })
+            }
+          } catch (_) {}
+        })
+      )
+      allSubs.sort((a, b) => (b.id || 0) - (a.id || 0))
+      return { data: allSubs, meta: { total: allSubs.length, page: 1, limit: queryParams.limit } }
+    }
+    throw err
+  }
 }
 
 export const createSubModule = async (payload: {
