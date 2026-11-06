@@ -32,6 +32,7 @@ export interface SidebarModuleItem {
 export interface UserCompanyAccessInfo {
   companyId: number
   isSuperAdmin: boolean
+  isMultiCompany?: boolean
   roleId: number | null
   roleCode: string | null
   roleName: string | null
@@ -59,6 +60,17 @@ export const useAuthStore = defineStore('auth', {
         console.log('Error decoding token:', error)
         return null
       }
+    },
+
+    canSwitchCompany(): boolean {
+      if (this.accessInfo) {
+        return Boolean(this.accessInfo.isSuperAdmin || this.accessInfo.isMultiCompany)
+      }
+      return Boolean(
+        this.tokenPayload?.super_admin ||
+          this.tokenPayload?.developer ||
+          this.tokenPayload?.multi_company
+      )
     },
   },
 

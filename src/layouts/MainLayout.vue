@@ -41,7 +41,7 @@
                 </router-link>
               </li>
 
-              <li class="sidebar-item mb-3">
+              <li v-if="authStore.canSwitchCompany" class="sidebar-item mb-3">
                 <a
                   href="javascript:void(0)"
                   @click="go('/companies')"

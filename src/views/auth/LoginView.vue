@@ -26,6 +26,16 @@ const login = async () => {
     if (payload?.super_admin || payload?.developer || payload?.multi_company) {
       router.push('/companies')
     } else {
+      const assignedCompId = payload?.company_id || 1
+      localStorage.setItem(
+        'selectedCompany',
+        JSON.stringify({
+          id: assignedCompId,
+          razon_social: 'Deskounta',
+          nombre_comercial: 'Deskounta',
+        })
+      )
+      await authStore.fetchCompanyAccess(assignedCompId)
       router.push('/dashboard')
     }
   } catch (error: any) {

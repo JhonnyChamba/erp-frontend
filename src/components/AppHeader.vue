@@ -65,7 +65,12 @@ const changeCompany = () => {
           <span class="text-info-emphasis fs-2">
             {{ selectedBranch?.name ? `${selectedBranch.name} (${selectedBranch.code})` : 'Sucursal General' }}
           </span>
-          <button class="btn btn-xs btn-outline-primary ms-2 rounded-pill px-2 py-0 fs-1" @click="changeCompany" title="Cambiar Empresa / Sucursal">
+          <button
+            v-if="authStore.canSwitchCompany"
+            class="btn btn-xs btn-outline-primary ms-2 rounded-pill px-2 py-0 fs-1"
+            @click="changeCompany"
+            title="Cambiar Empresa / Sucursal"
+          >
             Cambiar
           </button>
         </div>
@@ -121,13 +126,15 @@ const changeCompany = () => {
           <div class="dropdown-menu dropdown-menu-end shadow-lg rounded-3 py-2 border-0 bg-dark" aria-labelledby="drop2" style="min-width: 200px;">
             <div class="px-3 py-2 border-bottom border-dark-subtle">
               <span class="d-block text-white fw-bold">{{ userName }}</span>
-              <small class="text-muted">jc@gmail.com</small>
+              <small class="text-muted">{{ authStore.accessInfo?.roleName || 'Usuario Activo' }}</small>
             </div>
-            <a class="dropdown-item d-flex align-items-center gap-2 py-2 text-white-50" href="javascript:void(0)" @click="changeCompany">
-              <iconify-icon icon="solar:buildings-3-line-duotone" class="fs-5 text-primary"></iconify-icon>
-              <span>Cambiar Sucursal</span>
-            </a>
-            <div class="dropdown-divider border-dark-subtle"></div>
+            <template v-if="authStore.canSwitchCompany">
+              <a class="dropdown-item d-flex align-items-center gap-2 py-2 text-white-50" href="javascript:void(0)" @click="changeCompany">
+                <iconify-icon icon="solar:buildings-3-line-duotone" class="fs-5 text-primary"></iconify-icon>
+                <span>Cambiar Sucursal</span>
+              </a>
+              <div class="dropdown-divider border-dark-subtle"></div>
+            </template>
             <a class="dropdown-item d-flex align-items-center gap-2 py-2 text-danger" href="javascript:void(0)" @click="logout">
               <iconify-icon icon="solar:logout-2-line-duotone" class="fs-5"></iconify-icon>
               <span>Cerrar Sesión</span>
