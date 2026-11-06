@@ -13,6 +13,7 @@ import {
   createPlan,
   getSubscriptions,
   createSubscription,
+  updateSubscription,
   getModules,
   createModule,
   updateModule,
@@ -115,6 +116,9 @@ const isEditingModule = ref(false)
 const editingModuleId = ref<number | null>(null)
 const isEditingSubModule = ref(false)
 const editingSubModuleId = ref<number | null>(null)
+const isEditingSubscription = ref(false)
+const editingSubscriptionId = ref<number | null>(null)
+const allSubModulesList = ref<SubModuleItem[]>([])
 
 // Iconos sugeridos para módulos y submódulos (Solar Iconify)
 const suggestedIcons = [
@@ -237,6 +241,9 @@ const formSubscription = ref({
   planId: 1,
   begin_date: todayStr,
   end_date: nextYearStr,
+  enabled: true,
+  moduleIds: [] as number[],
+  subModuleIds: [] as number[],
 })
 
 const loadCurrentTabData = async () => {
@@ -261,12 +268,16 @@ const loadCurrentTabData = async () => {
       modulesList.value = Array.isArray(modsRes?.data) ? modsRes.data : Array.isArray(modsRes) ? modsRes : []
       subModulesList.value = Array.isArray(subModsRes?.data) ? subModsRes.data : Array.isArray(subModsRes) ? subModsRes : []
     } else if (activeTab.value === 'subscriptions') {
-      const [plansRes, subsRes] = await Promise.all([
+      const [plansRes, subsRes, modsRes, allSubModsRes] = await Promise.all([
         getPlans({ page: 1, limit: 50 }),
         getSubscriptions(currentCompanyId.value, { page: 1, limit: 50 }).catch(() => ({ data: [] })),
+        getModules({ page: 1, limit: 100 }).catch(() => ({ data: [] })),
+        getSubModules({ page: 1, limit: 200 }).catch(() => ({ data: [] })),
       ])
       plans.value = Array.isArray(plansRes?.data) ? plansRes.data : Array.isArray(plansRes) ? plansRes : []
       subscriptions.value = Array.isArray(subsRes?.data) ? subsRes.data : Array.isArray(subsRes) ? subsRes : []
+      modulesList.value = Array.isArray(modsRes?.data) ? modsRes.data : Array.isArray(modsRes) ? modsRes : []
+      allSubModulesList.value = Array.isArray(allSubModsRes?.data) ? allSubModsRes.data : Array.isArray(allSubModsRes) ? allSubModsRes : []
     }
   } catch (err: any) {
     console.error('Error cargando datos de configuración:', err)
@@ -564,18 +575,151 @@ const submitPlan = async () => {
   }
 }
 
-// =================== GUARDAR SUSCRIPCIÓN ===================
+// =================== GUARDAR SUSCRIPCIÓN Y ACCESO A MÓDULOS ===================
+const getPlanNameById = (planId?: number) => {
+  if (!planId) return 'Sin Plan'
+  const found = plans.value.find((p) => p.id === planId)
+  return found ? `${found.description} ($${found.price})` : `Plan #${planId}`
+}
+
+const getSubModulesForModule = (modId: number) => {
+  return allSubModulesList.value.filter((sm) => sm.moduleId === modId && sm.enabled !== false)
+}
+
+const getSubModuleNameById = (subModId: number) => {
+  const found = allSubModulesList.value.find((sm) => sm.id === subModId)
+  return found ? found.description : `Submódulo #${subModId}`
+}
+
+const toggleSubscriptionModule = (modId: number) => {
+  const idx = formSubscription.value.moduleIds.indexOf(modId)
+  const childSubModIds = getSubModulesForModule(modId).map((sm) => sm.id)
+
+  if (idx >= 0) {
+    // Desmarcar módulo y sus submódulos hijos
+    formSubscription.value.moduleIds.splice(idx, 1)
+    formSubscription.value.subModuleIds = formSubscription.value.subModuleIds.filter(
+      (id) => !childSubModIds.includes(id)
+    )
+  } else {
+    // Marcar módulo y todos sus submódulos hijos por defecto
+    formSubscription.value.moduleIds.push(modId)
+    for (const smId of childSubModIds) {
+      if (!formSubscription.value.subModuleIds.includes(smId)) {
+        formSubscription.value.subModuleIds.push(smId)
+      }
+    }
+  }
+}
+
+const toggleSubscriptionSubModule = (subMod: SubModuleItem) => {
+  const idx = formSubscription.value.subModuleIds.indexOf(subMod.id)
+  if (idx >= 0) {
+    formSubscription.value.subModuleIds.splice(idx, 1)
+  } else {
+    formSubscription.value.subModuleIds.push(subMod.id)
+    // Asegurar que el módulo padre quede habilitado si se marca un submódulo hijo
+    if (subMod.moduleId && !formSubscription.value.moduleIds.includes(subMod.moduleId)) {
+      formSubscription.value.moduleIds.push(subMod.moduleId)
+    }
+  }
+}
+
+const selectAllSubscriptionAccess = () => {
+  formSubscription.value.moduleIds = modulesList.value
+    .filter((m) => m.enabled !== false)
+    .map((m) => m.id)
+  formSubscription.value.subModuleIds = allSubModulesList.value
+    .filter((sm) => sm.enabled !== false)
+    .map((sm) => sm.id)
+}
+
+const clearAllSubscriptionAccess = () => {
+  formSubscription.value.moduleIds = []
+  formSubscription.value.subModuleIds = []
+}
+
+const openCreateSubscription = async () => {
+  isEditingSubscription.value = false
+  editingSubscriptionId.value = null
+  if (modulesList.value.length === 0 || allSubModulesList.value.length === 0) {
+    try {
+      const [modsRes, subModsRes] = await Promise.all([
+        getModules({ page: 1, limit: 100 }),
+        getSubModules({ page: 1, limit: 200 }),
+      ])
+      modulesList.value = Array.isArray(modsRes?.data) ? modsRes.data : Array.isArray(modsRes) ? modsRes : []
+      allSubModulesList.value = Array.isArray(subModsRes?.data) ? subModsRes.data : Array.isArray(subModsRes) ? subModsRes : []
+    } catch (e) {}
+  }
+  formSubscription.value = {
+    companyId: currentCompanyId.value,
+    planId: plans.value[0]?.id || 1,
+    begin_date: todayStr,
+    end_date: nextYearStr,
+    enabled: true,
+    moduleIds: modulesList.value.filter((m) => m.enabled !== false).map((m) => m.id),
+    subModuleIds: allSubModulesList.value.filter((sm) => sm.enabled !== false).map((sm) => sm.id),
+  }
+  showSubscriptionModal.value = true
+}
+
+const openEditSubscription = async (sub: SubscriptionItem) => {
+  isEditingSubscription.value = true
+  editingSubscriptionId.value = sub.id
+  if (modulesList.value.length === 0 || allSubModulesList.value.length === 0) {
+    try {
+      const [modsRes, subModsRes] = await Promise.all([
+        getModules({ page: 1, limit: 100 }),
+        getSubModules({ page: 1, limit: 200 }),
+      ])
+      modulesList.value = Array.isArray(modsRes?.data) ? modsRes.data : Array.isArray(modsRes) ? modsRes : []
+      allSubModulesList.value = Array.isArray(subModsRes?.data) ? subModsRes.data : Array.isArray(subModsRes) ? subModsRes : []
+    } catch (e) {}
+  }
+  formSubscription.value = {
+    companyId: currentCompanyId.value,
+    planId: sub.planId || plans.value[0]?.id || 1,
+    begin_date: sub.begin_date ? String(sub.begin_date).slice(0, 10) : todayStr,
+    end_date: sub.end_date ? String(sub.end_date).slice(0, 10) : nextYearStr,
+    enabled: sub.enabled !== false,
+    moduleIds: Array.isArray(sub.moduleIds) ? sub.moduleIds.map(Number) : [],
+    subModuleIds: Array.isArray(sub.subModuleIds) ? sub.subModuleIds.map(Number) : [],
+  }
+  showSubscriptionModal.value = true
+}
+
 const submitSubscription = async () => {
   loading.value = true
   errorMsg.value = ''
   try {
     formSubscription.value.companyId = currentCompanyId.value
-    await createSubscription(formSubscription.value)
-    successMsg.value = 'Suscripción activada con éxito.'
+    if (isEditingSubscription.value && editingSubscriptionId.value) {
+      await updateSubscription(editingSubscriptionId.value, {
+        companyId: currentCompanyId.value,
+        planId: formSubscription.value.planId,
+        begin_date: formSubscription.value.begin_date,
+        end_date: formSubscription.value.end_date,
+        enabled: formSubscription.value.enabled,
+        moduleIds: formSubscription.value.moduleIds.map(Number),
+        subModuleIds: formSubscription.value.subModuleIds.map(Number),
+      })
+      successMsg.value = 'Suscripción y accesos a módulos actualizados con éxito.'
+    } else {
+      await createSubscription({
+        companyId: currentCompanyId.value,
+        planId: formSubscription.value.planId,
+        begin_date: formSubscription.value.begin_date,
+        end_date: formSubscription.value.end_date,
+        moduleIds: formSubscription.value.moduleIds.map(Number),
+        subModuleIds: formSubscription.value.subModuleIds.map(Number),
+      })
+      successMsg.value = 'Suscripción y módulos habilitados con éxito.'
+    }
     showSubscriptionModal.value = false
     await loadCurrentTabData()
   } catch (err: any) {
-    errorMsg.value = err.response?.data?.message || 'Error al asignar suscripción'
+    errorMsg.value = err.response?.data?.message || 'Error al guardar la suscripción'
   } finally {
     loading.value = false
   }
@@ -1103,9 +1247,9 @@ const submitSubscription = async () => {
         <div class="d-flex justify-content-between align-items-center mb-4">
           <div>
             <h5 class="fw-bold text-white mb-1">Suscripciones Activas</h5>
-            <small class="text-secondary">Vigencia y plan contratado por la empresa activa</small>
+            <small class="text-secondary">Vigencia, plan contratado y acceso a módulos/submódulos de la empresa activa</small>
           </div>
-          <button class="btn btn-outline-primary rounded-pill px-4 d-flex align-items-center gap-2" @click="showSubscriptionModal = true">
+          <button class="btn btn-outline-primary rounded-pill px-4 d-flex align-items-center gap-2" @click="openCreateSubscription">
             <iconify-icon icon="solar:card-recive-line-duotone" class="fs-5"></iconify-icon>
             <span>Asignar Suscripción</span>
           </button>
@@ -1115,27 +1259,58 @@ const submitSubscription = async () => {
           <table class="table table-hover align-middle mb-0">
             <thead class="table-dark">
               <tr>
-                <th>#</th>
-                <th>Plan ID</th>
-                <th>Fecha Inicio</th>
-                <th>Fecha Fin</th>
-                <th>Estado</th>
+                <th width="5%">#</th>
+                <th width="16%">Plan Contratado</th>
+                <th width="12%">Fecha Inicio</th>
+                <th width="12%">Fecha Fin</th>
+                <th width="37%">Módulos & Submódulos con Acceso</th>
+                <th width="10%">Estado</th>
+                <th width="8%" class="text-end">Acciones</th>
               </tr>
             </thead>
             <tbody>
               <tr v-for="sub in subscriptions" :key="sub.id">
                 <td><span class="badge bg-dark-subtle text-white">{{ sub.id }}</span></td>
-                <td><span class="badge bg-info text-dark fw-bold">Plan #{{ sub.planId }}</span></td>
+                <td><span class="badge bg-info text-dark fw-bold">{{ getPlanNameById(sub.planId) }}</span></td>
                 <td class="text-white">{{ new Date(sub.begin_date).toLocaleDateString() }}</td>
                 <td class="text-white">{{ new Date(sub.end_date).toLocaleDateString() }}</td>
+                <td>
+                  <div v-if="(sub.moduleIds && sub.moduleIds.length > 0) || (sub.subModuleIds && sub.subModuleIds.length > 0)" class="d-flex flex-wrap gap-1">
+                    <span
+                      v-for="modId in sub.moduleIds"
+                      :key="'m-' + modId"
+                      class="badge bg-primary-subtle text-primary border border-primary-subtle d-inline-flex align-items-center gap-1"
+                    >
+                      <iconify-icon icon="solar:widget-4-line-duotone"></iconify-icon>
+                      {{ getModuleNameById(modId) }}
+                    </span>
+                    <span
+                      v-if="sub.subModuleIds && sub.subModuleIds.length > 0"
+                      class="badge bg-info-subtle text-info border border-info-subtle"
+                      :title="sub.subModuleIds.map(getSubModuleNameById).join(', ')"
+                    >
+                      +{{ sub.subModuleIds.length }} submódulo(s)
+                    </span>
+                  </div>
+                  <span v-else class="text-secondary fs-2 fst-italic">Sin módulos asignados</span>
+                </td>
                 <td>
                   <span class="badge" :class="sub.enabled !== false ? 'bg-success-subtle text-success' : 'bg-danger-subtle text-danger'">
                     {{ sub.enabled !== false ? 'Vigente' : 'Expirada' }}
                   </span>
                 </td>
+                <td class="text-end">
+                  <button
+                    class="btn btn-sm btn-outline-info rounded-circle p-1"
+                    title="Editar Suscripción y Módulos Habilitados"
+                    @click="openEditSubscription(sub)"
+                  >
+                    <iconify-icon icon="solar:pen-2-line-duotone" class="fs-4"></iconify-icon>
+                  </button>
+                </td>
               </tr>
               <tr v-if="subscriptions.length === 0">
-                <td colspan="5" class="text-center text-muted py-4">Esta empresa no tiene suscripciones registradas.</td>
+                <td colspan="7" class="text-center text-muted py-4">Esta empresa no tiene suscripciones registradas.</td>
               </tr>
             </tbody>
           </table>
@@ -1652,39 +1827,187 @@ const submitSubscription = async () => {
       </div>
     </Teleport>
 
-    <!-- 5. MODAL ASIGNAR SUSCRIPCIÓN -->
+    <!-- 5. MODAL ASIGNAR / EDITAR SUSCRIPCIÓN Y ACCESO A MÓDULOS -->
     <Teleport to="body">
       <div v-if="showSubscriptionModal" class="modal fade show d-block" style="background: rgba(0,0,0,0.65); z-index: 1060;" @click.self="showSubscriptionModal = false">
-        <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-dialog modal-dialog-centered modal-lg">
           <div class="modal-content rounded-4 shadow-lg border-0 bg-dark text-white">
             <div class="modal-header bg-primary text-white">
-              <h5 class="modal-title text-white">Asignar Suscripción a la Empresa</h5>
+              <h5 class="modal-title text-white d-flex align-items-center gap-2">
+                <iconify-icon icon="solar:card-recive-line-duotone" class="fs-5"></iconify-icon>
+                <span>{{ isEditingSubscription ? 'Editar Suscripción y Módulos de Acceso' : 'Asignar Suscripción y Módulos a la Empresa' }}</span>
+              </h5>
               <button type="button" class="btn-close btn-close-white" @click="showSubscriptionModal = false"></button>
             </div>
             <form @submit.prevent="submitSubscription">
               <div class="modal-body p-4">
-                <div class="mb-3">
-                  <label class="form-label text-white-50">Plan a Contratar</label>
-                  <select v-model.number="formSubscription.planId" class="form-select bg-dark-subtle border-secondary text-white" required>
-                    <option v-for="plan in plans" :key="plan.id" :value="plan.id">
-                      {{ plan.description }} - ${{ plan.price }} ({{ plan.billing_cycle }})
-                    </option>
-                  </select>
-                </div>
                 <div class="row">
                   <div class="col-md-6 mb-3">
+                    <label class="form-label text-white-50">Plan a Contratar</label>
+                    <select v-model.number="formSubscription.planId" class="form-select bg-dark-subtle border-secondary text-white" required>
+                      <option v-for="plan in plans" :key="plan.id" :value="plan.id">
+                        {{ plan.description }} - ${{ plan.price }} ({{ plan.billing_cycle }})
+                      </option>
+                    </select>
+                  </div>
+                  <div class="col-md-3 mb-3">
                     <label class="form-label text-white-50">Fecha de Inicio</label>
                     <input v-model="formSubscription.begin_date" type="date" class="form-control bg-dark-subtle border-secondary text-white" required />
                   </div>
-                  <div class="col-md-6 mb-3">
+                  <div class="col-md-3 mb-3">
                     <label class="form-label text-white-50">Fecha de Fin</label>
                     <input v-model="formSubscription.end_date" type="date" class="form-control bg-dark-subtle border-secondary text-white" required />
                   </div>
                 </div>
+
+                <!-- SELECCIÓN DE MÓDULOS Y SUBMÓDULOS CON ACCESO -->
+                <div class="mt-2 pt-3 border-top border-dark-subtle">
+                  <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-2">
+                    <div>
+                      <label class="form-label text-white fw-semibold d-flex align-items-center gap-2 mb-0">
+                        <iconify-icon icon="solar:widget-4-line-duotone" class="text-primary fs-5"></iconify-icon>
+                        <span>Módulos y Submódulos con Acceso Habilitado</span>
+                      </label>
+                      <small class="text-secondary d-block fs-2">
+                        Marca los módulos principales y submódulos específicos a los que tendrá acceso esta empresa:
+                      </small>
+                    </div>
+
+                    <div class="d-flex align-items-center gap-2">
+                      <span class="badge bg-primary-subtle text-primary border border-primary-subtle">
+                        {{ formSubscription.moduleIds.length }} módulo(s) · {{ formSubscription.subModuleIds.length }} submódulo(s)
+                      </span>
+                      <button
+                        type="button"
+                        class="btn btn-sm btn-outline-info rounded-pill px-2 py-1 fs-1"
+                        @click="selectAllSubscriptionAccess"
+                      >
+                        Marcar todo
+                      </button>
+                      <button
+                        type="button"
+                        class="btn btn-sm btn-outline-secondary rounded-pill px-2 py-1 fs-1"
+                        @click="clearAllSubscriptionAccess"
+                      >
+                        Limpiar
+                      </button>
+                    </div>
+                  </div>
+
+                  <!-- Árbol de Módulos y Submódulos -->
+                  <div
+                    v-if="modulesList.length > 0"
+                    class="d-flex flex-column gap-2 overflow-y-auto pe-1 mt-2"
+                    style="max-height: 300px;"
+                  >
+                    <div
+                      v-for="mod in modulesList.filter((m) => m.enabled !== false)"
+                      :key="mod.id"
+                      class="p-3 rounded-3 border transition-all"
+                      :class="
+                        formSubscription.moduleIds.includes(mod.id)
+                          ? 'bg-dark-subtle border-primary'
+                          : 'bg-dark border-secondary-subtle opacity-75'
+                      "
+                    >
+                      <!-- Cabecera del Módulo Principal -->
+                      <div class="d-flex justify-content-between align-items-center">
+                        <label class="d-flex align-items-center gap-2 cursor-pointer mb-0">
+                          <input
+                            type="checkbox"
+                            class="form-check-input m-0 fs-5 cursor-pointer"
+                            :checked="formSubscription.moduleIds.includes(mod.id)"
+                            @change="toggleSubscriptionModule(mod.id)"
+                          />
+                          <iconify-icon
+                            :icon="mod.desc_icon || 'solar:widget-4-line-duotone'"
+                            class="fs-5 text-primary ms-1"
+                          ></iconify-icon>
+                          <span class="fw-bold text-white">{{ mod.description }}</span>
+                          <span class="badge bg-dark text-secondary font-monospace fs-1">{{ mod.code }}</span>
+                        </label>
+
+                        <span class="badge bg-dark-subtle text-secondary fs-1">
+                          {{
+                            getSubModulesForModule(mod.id).filter((sm) =>
+                              formSubscription.subModuleIds.includes(sm.id)
+                            ).length
+                          }}
+                          / {{ getSubModulesForModule(mod.id).length }} submódulos
+                        </span>
+                      </div>
+
+                      <!-- Submódulos hijos del Módulo Principal -->
+                      <div
+                        v-if="getSubModulesForModule(mod.id).length > 0"
+                        class="row g-2 mt-2 ps-4 pt-2 border-top border-secondary-subtle"
+                      >
+                        <div
+                          v-for="subMod in getSubModulesForModule(mod.id)"
+                          :key="subMod.id"
+                          class="col-md-6"
+                        >
+                          <label
+                            class="d-flex align-items-center gap-2 p-2 rounded border cursor-pointer w-100 h-100"
+                            :class="
+                              formSubscription.subModuleIds.includes(subMod.id)
+                                ? 'bg-info-subtle border-info text-white'
+                                : 'bg-dark border-secondary-subtle text-secondary'
+                            "
+                          >
+                            <input
+                              type="checkbox"
+                              class="form-check-input m-0 cursor-pointer"
+                              :checked="formSubscription.subModuleIds.includes(subMod.id)"
+                              @change="toggleSubscriptionSubModule(subMod)"
+                            />
+                            <iconify-icon
+                              :icon="subMod.desc_icon || 'solar:round-alt-arrow-right-line-duotone'"
+                              class="fs-4 text-info"
+                            ></iconify-icon>
+                            <div class="text-truncate">
+                              <span class="d-block fw-semibold text-truncate fs-2">{{ subMod.description }}</span>
+                              <small class="text-secondary font-monospace fs-1">{{ subMod.url_desc }}</small>
+                            </div>
+                          </label>
+                        </div>
+                      </div>
+                      <div v-else class="ps-4 mt-1">
+                        <small class="text-secondary fst-italic fs-1">
+                          Este módulo aún no tiene submódulos registrados.
+                        </small>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div v-else class="alert alert-warning mt-2 mb-0 py-2 fs-2">
+                    <iconify-icon icon="solar:info-circle-line-duotone" class="me-1 align-middle fs-4"></iconify-icon>
+                    No hay módulos registrados aún. Ve a la pestaña <strong>"Módulos & Submódulos"</strong> para crearlos primero.
+                  </div>
+                </div>
+
+                <!-- Switch Vigencia (Solo en edición) -->
+                <div
+                  v-if="isEditingSubscription"
+                  class="form-check form-switch bg-dark-subtle p-3 rounded border border-secondary-subtle d-flex align-items-center justify-content-between mt-3"
+                >
+                  <label class="form-check-label text-white ms-0" for="switchSubscriptionEnabled">
+                    <div class="fw-bold">Estado de la Suscripción</div>
+                    <small class="text-secondary d-block fs-1">Marcar suscripción como vigente o expirada</small>
+                  </label>
+                  <input
+                    v-model="formSubscription.enabled"
+                    class="form-check-input fs-5 m-0"
+                    type="checkbox"
+                    id="switchSubscriptionEnabled"
+                  />
+                </div>
               </div>
               <div class="modal-footer border-dark-subtle">
                 <button type="button" class="btn btn-outline-secondary" @click="showSubscriptionModal = false">Cancelar</button>
-                <button type="submit" class="btn btn-primary" :disabled="loading">Activar Suscripción</button>
+                <button type="submit" class="btn btn-primary px-4" :disabled="loading">
+                  {{ isEditingSubscription ? 'Guardar Cambios de Suscripción' : 'Activar Suscripción y Accesos' }}
+                </button>
               </div>
             </form>
           </div>

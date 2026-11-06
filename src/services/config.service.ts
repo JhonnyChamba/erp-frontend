@@ -51,6 +51,8 @@ export interface SubscriptionItem {
   planId: number
   companyId: number
   enabled?: boolean
+  moduleIds?: number[]
+  subModuleIds?: number[]
 }
 
 export interface ModuleItem {
@@ -169,8 +171,26 @@ export const createSubscription = async (payload: {
   planId: number
   begin_date: string
   end_date: string
+  moduleIds?: number[]
+  subModuleIds?: number[]
 }) => {
   const { data } = await api.post('/subscriptions', payload)
+  return data
+}
+
+export const updateSubscription = async (
+  id: number,
+  payload: {
+    companyId: number
+    planId?: number
+    begin_date?: string
+    end_date?: string
+    enabled?: boolean
+    moduleIds?: number[]
+    subModuleIds?: number[]
+  }
+) => {
+  const { data } = await api.patch(`/subscriptions/${id}`, payload)
   return data
 }
 
