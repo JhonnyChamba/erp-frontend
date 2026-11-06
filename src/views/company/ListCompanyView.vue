@@ -181,11 +181,19 @@ onMounted(async () => {
               <span class="hide-menu">Home</span>
             </li>
             <li class="sidebar-item">
-              <a class="sidebar-link sidebar-link primary-hover-bg" href="" id="get-url" aria-expanded="false">
+              <a class="sidebar-link primary-hover-bg cursor-pointer" href="javascript:void(0)" @click="router.push('/dashboard')" id="get-url" aria-expanded="false">
                 <span class="aside-icon p-2 bg-primary-subtle rounded-1">
                   <iconify-icon icon="solar:screencast-2-line-duotone" class="fs-6"></iconify-icon>
                 </span>
                 <span class="hide-menu ps-1">Dashboard</span>
+              </a>
+            </li>
+            <li class="sidebar-item">
+              <a class="sidebar-link primary-hover-bg cursor-pointer" href="javascript:void(0)" @click="router.push('/configuracion')" aria-expanded="false">
+                <span class="aside-icon p-2 bg-info-subtle text-info rounded-1">
+                  <iconify-icon icon="solar:settings-line-duotone" class="fs-6"></iconify-icon>
+                </span>
+                <span class="hide-menu ps-1">Configuración</span>
               </a>
             </li>
             <li class="sidebar-item mt-3 pt-3 border-top border-dark-subtle">
@@ -231,7 +239,15 @@ onMounted(async () => {
                   <div class="p-4 bg-dark-subtle rounded-4 border border-secondary-subtle d-inline-block">
                     <iconify-icon icon="solar:buildings-2-linear" class="display-3 text-secondary mb-3"></iconify-icon>
                     <h4 class="text-white mb-2">No se encontraron empresas</h4>
-                    <p class="text-secondary fs-3 mb-0">No tienes empresas asociadas a tu cuenta. Contacta a un administrador.</p>
+                    <p class="text-secondary fs-3 mb-3">Aún no hay empresas registradas o asociadas a tu cuenta.</p>
+                    <div class="d-flex justify-content-center gap-2">
+                      <button class="btn btn-primary rounded-pill px-4" @click="router.push('/configuracion')">
+                        Ir a Configuración para crear empresa
+                      </button>
+                      <button class="btn btn-outline-secondary rounded-pill px-4" @click="router.push('/dashboard')">
+                        Ir al Dashboard
+                      </button>
+                    </div>
                   </div>
                 </div>
 
