@@ -53,6 +53,26 @@ export interface SubscriptionItem {
   enabled?: boolean
 }
 
+export interface ModuleItem {
+  id: number
+  code: string
+  desc_icon: string
+  description: string
+  enabled?: boolean
+  createdAt?: string
+}
+
+export interface SubModuleItem {
+  id: number
+  moduleId: number
+  code: string
+  desc_icon: string
+  description: string
+  url_desc: string
+  enabled?: boolean
+  createdAt?: string
+}
+
 // EMPRESAS
 export const getCompanies = async (params: { page?: number; limit?: number } = {}) => {
   const { data } = await api.get('/company', { params: { page: params.page || 1, limit: params.limit || 20 } })
@@ -151,5 +171,53 @@ export const createSubscription = async (payload: {
   end_date: string
 }) => {
   const { data } = await api.post('/subscriptions', payload)
+  return data
+}
+
+// MÓDULOS
+export const getModules = async (params: { page?: number; limit?: number } = {}) => {
+  const { data } = await api.get('/module', {
+    params: { page: params.page || 1, limit: params.limit || 50 },
+  })
+  return data
+}
+
+export const createModule = async (payload: {
+  code: string
+  desc_icon: string
+  description: string
+}) => {
+  const { data } = await api.post('/module', payload)
+  return data
+}
+
+export const updateModule = async (id: number, payload: Partial<ModuleItem>) => {
+  const { data } = await api.patch(`/module/${id}`, payload)
+  return data
+}
+
+// SUBMÓDULOS
+export const getSubModules = async (params: { moduleId?: number; page?: number; limit?: number } = {}) => {
+  const queryParams: any = { page: params.page || 1, limit: params.limit || 50 }
+  if (params.moduleId) {
+    queryParams.moduleId = params.moduleId
+  }
+  const { data } = await api.get('/subModule', { params: queryParams })
+  return data
+}
+
+export const createSubModule = async (payload: {
+  moduleId: number
+  code: string
+  desc_icon: string
+  description: string
+  url_desc: string
+}) => {
+  const { data } = await api.post('/subModule', payload)
+  return data
+}
+
+export const updateSubModule = async (id: number, payload: Partial<SubModuleItem>) => {
+  const { data } = await api.patch(`/subModule/${id}`, payload)
   return data
 }

@@ -13,11 +13,19 @@ import {
   createPlan,
   getSubscriptions,
   createSubscription,
+  getModules,
+  createModule,
+  updateModule,
+  getSubModules,
+  createSubModule,
+  updateSubModule,
   type CompanyItem,
   type UserItem,
   type RoleItem,
   type PlanItem,
   type SubscriptionItem,
+  type ModuleItem,
+  type SubModuleItem,
 } from '@/services/config.service'
 import { useAuthStore } from '@/stores/auth.store'
 
@@ -67,8 +75,8 @@ const closeUserModal = () => {
   document.documentElement.setAttribute('data-color-theme', currentTheme)
 }
 
-// Pestaña activa ('companies' | 'users' | 'roles' | 'subscriptions')
-const activeTab = ref<'companies' | 'users' | 'roles' | 'subscriptions'>('companies')
+// Pestaña activa ('companies' | 'users' | 'roles' | 'modules' | 'subscriptions')
+const activeTab = ref<'companies' | 'users' | 'roles' | 'modules' | 'subscriptions'>('companies')
 
 // Estado de carga y mensajes
 const loading = ref(false)
@@ -83,6 +91,9 @@ const currentCompanyId = computed(() => selectedCompany.value?.id || 1)
 const companies = ref<CompanyItem[]>([])
 const users = ref<UserItem[]>([])
 const roles = ref<RoleItem[]>([])
+const modulesList = ref<ModuleItem[]>([])
+const subModulesList = ref<SubModuleItem[]>([])
+const filterModuleId = ref<number | undefined>(undefined)
 const plans = ref<PlanItem[]>([])
 const subscriptions = ref<SubscriptionItem[]>([])
 
@@ -90,12 +101,34 @@ const subscriptions = ref<SubscriptionItem[]>([])
 const showCompanyModal = ref(false)
 const showUserModal = ref(false)
 const showRoleModal = ref(false)
+const showModuleModal = ref(false)
+const showSubModuleModal = ref(false)
 const showPlanModal = ref(false)
 const showSubscriptionModal = ref(false)
 
 // Estado de edición de usuario
 const isEditingUser = ref(false)
 const editingUserId = ref<number | null>(null)
+
+// Estado de edición de módulo y submódulo
+const isEditingModule = ref(false)
+const editingModuleId = ref<number | null>(null)
+const isEditingSubModule = ref(false)
+const editingSubModuleId = ref<number | null>(null)
+
+// Iconos sugeridos para módulos y submódulos (Solar Iconify)
+const suggestedIcons = [
+  { icon: 'solar:widget-4-line-duotone', label: 'Módulo' },
+  { icon: 'solar:cart-large-2-line-duotone', label: 'Ventas' },
+  { icon: 'solar:bag-4-line-duotone', label: 'Compras' },
+  { icon: 'solar:box-minimalistic-line-duotone', label: 'Inventario' },
+  { icon: 'solar:calculator-line-duotone', label: 'Contabilidad' },
+  { icon: 'solar:wallet-money-line-duotone', label: 'Tesorería' },
+  { icon: 'solar:users-group-rounded-line-duotone', label: 'RRHH / Clientes' },
+  { icon: 'solar:document-text-line-duotone', label: 'Facturación' },
+  { icon: 'solar:chart-2-line-duotone', label: 'Reportes' },
+  { icon: 'solar:settings-line-duotone', label: 'Configuración' },
+]
 
 // Formularios
 const formCompany = ref({
@@ -172,6 +205,22 @@ const formRole = ref({
   description: '',
 })
 
+const formModule = ref({
+  code: '',
+  desc_icon: 'solar:widget-4-line-duotone',
+  description: '',
+  enabled: true,
+})
+
+const formSubModule = ref({
+  moduleId: 0,
+  code: '',
+  desc_icon: 'solar:round-alt-arrow-right-line-duotone',
+  description: '',
+  url_desc: '',
+  enabled: true,
+})
+
 const formPlan = ref({
   price: '29.99',
   billing_cycle: 'monthly',
@@ -204,6 +253,13 @@ const loadCurrentTabData = async () => {
     } else if (activeTab.value === 'roles') {
       const res = await getRoles(currentCompanyId.value, { page: 1, limit: 50 })
       roles.value = Array.isArray(res?.data) ? res.data : Array.isArray(res) ? res : []
+    } else if (activeTab.value === 'modules') {
+      const [modsRes, subModsRes] = await Promise.all([
+        getModules({ page: 1, limit: 100 }),
+        getSubModules({ moduleId: filterModuleId.value, page: 1, limit: 100 }).catch(() => ({ data: [] })),
+      ])
+      modulesList.value = Array.isArray(modsRes?.data) ? modsRes.data : Array.isArray(modsRes) ? modsRes : []
+      subModulesList.value = Array.isArray(subModsRes?.data) ? subModsRes.data : Array.isArray(subModsRes) ? subModsRes : []
     } else if (activeTab.value === 'subscriptions') {
       const [plansRes, subsRes] = await Promise.all([
         getPlans({ page: 1, limit: 50 }),
@@ -220,7 +276,7 @@ const loadCurrentTabData = async () => {
   }
 }
 
-const switchTab = (tab: 'companies' | 'users' | 'roles' | 'subscriptions') => {
+const switchTab = (tab: 'companies' | 'users' | 'roles' | 'modules' | 'subscriptions') => {
   activeTab.value = tab
   router.replace({ query: { ...route.query, tab } })
   loadCurrentTabData()
@@ -230,7 +286,7 @@ const switchTab = (tab: 'companies' | 'users' | 'roles' | 'subscriptions') => {
 watch(
   () => route.query.tab,
   (newTab) => {
-    if (newTab && ['companies', 'users', 'roles', 'subscriptions'].includes(newTab as string)) {
+    if (newTab && ['companies', 'users', 'roles', 'modules', 'subscriptions'].includes(newTab as string)) {
       activeTab.value = newTab as any
       loadCurrentTabData()
     }
@@ -339,6 +395,153 @@ const submitRole = async () => {
     await loadCurrentTabData()
   } catch (err: any) {
     errorMsg.value = err.response?.data?.message || 'Error al crear el rol'
+  } finally {
+    loading.value = false
+  }
+}
+
+// =================== GESTIÓN DE MÓDULOS Y SUBMÓDULOS ===================
+const getModuleNameById = (modId?: number) => {
+  if (!modId) return 'Sin Módulo'
+  const found = modulesList.value.find((m) => m.id === modId)
+  return found ? `${found.code} - ${found.description}` : `Módulo #${modId}`
+}
+
+const onFilterModuleChange = async () => {
+  loading.value = true
+  try {
+    const subModsRes = await getSubModules({
+      moduleId: filterModuleId.value,
+      page: 1,
+      limit: 100,
+    })
+    subModulesList.value = Array.isArray(subModsRes?.data)
+      ? subModsRes.data
+      : Array.isArray(subModsRes)
+      ? subModsRes
+      : []
+  } catch (err: any) {
+    errorMsg.value = err.response?.data?.message || 'Error al filtrar submódulos'
+  } finally {
+    loading.value = false
+  }
+}
+
+const openCreateModule = () => {
+  isEditingModule.value = false
+  editingModuleId.value = null
+  formModule.value = {
+    code: '',
+    desc_icon: 'solar:widget-4-line-duotone',
+    description: '',
+    enabled: true,
+  }
+  showModuleModal.value = true
+}
+
+const openEditModule = (mod: ModuleItem) => {
+  isEditingModule.value = true
+  editingModuleId.value = mod.id
+  formModule.value = {
+    code: mod.code || '',
+    desc_icon: mod.desc_icon || 'solar:widget-4-line-duotone',
+    description: mod.description || '',
+    enabled: mod.enabled !== false,
+  }
+  showModuleModal.value = true
+}
+
+const submitModule = async () => {
+  loading.value = true
+  errorMsg.value = ''
+  try {
+    if (isEditingModule.value && editingModuleId.value) {
+      await updateModule(editingModuleId.value, {
+        code: formModule.value.code,
+        desc_icon: formModule.value.desc_icon,
+        description: formModule.value.description,
+        enabled: formModule.value.enabled,
+      })
+      successMsg.value = 'Módulo actualizado exitosamente.'
+    } else {
+      await createModule({
+        code: formModule.value.code,
+        desc_icon: formModule.value.desc_icon,
+        description: formModule.value.description,
+      })
+      successMsg.value = 'Módulo creado exitosamente.'
+    }
+    showModuleModal.value = false
+    await loadCurrentTabData()
+  } catch (err: any) {
+    errorMsg.value = err.response?.data?.message || 'Error al guardar el módulo'
+  } finally {
+    loading.value = false
+  }
+}
+
+const openCreateSubModule = (preselectedModuleId?: number) => {
+  isEditingSubModule.value = false
+  editingSubModuleId.value = null
+  const defaultModId =
+    preselectedModuleId || filterModuleId.value || modulesList.value[0]?.id || 0
+  formSubModule.value = {
+    moduleId: defaultModId,
+    code: '',
+    desc_icon: 'solar:round-alt-arrow-right-line-duotone',
+    description: '',
+    url_desc: '/',
+    enabled: true,
+  }
+  showSubModuleModal.value = true
+}
+
+const openEditSubModule = (subMod: SubModuleItem) => {
+  isEditingSubModule.value = true
+  editingSubModuleId.value = subMod.id
+  formSubModule.value = {
+    moduleId: subMod.moduleId || modulesList.value[0]?.id || 0,
+    code: subMod.code || '',
+    desc_icon: subMod.desc_icon || 'solar:round-alt-arrow-right-line-duotone',
+    description: subMod.description || '',
+    url_desc: subMod.url_desc || '/',
+    enabled: subMod.enabled !== false,
+  }
+  showSubModuleModal.value = true
+}
+
+const submitSubModule = async () => {
+  if (!formSubModule.value.moduleId) {
+    errorMsg.value = 'Debes seleccionar un módulo principal para el submódulo.'
+    return
+  }
+  loading.value = true
+  errorMsg.value = ''
+  try {
+    if (isEditingSubModule.value && editingSubModuleId.value) {
+      await updateSubModule(editingSubModuleId.value, {
+        moduleId: Number(formSubModule.value.moduleId),
+        code: formSubModule.value.code,
+        desc_icon: formSubModule.value.desc_icon,
+        description: formSubModule.value.description,
+        url_desc: formSubModule.value.url_desc,
+        enabled: formSubModule.value.enabled,
+      })
+      successMsg.value = 'Submódulo actualizado exitosamente.'
+    } else {
+      await createSubModule({
+        moduleId: Number(formSubModule.value.moduleId),
+        code: formSubModule.value.code,
+        desc_icon: formSubModule.value.desc_icon,
+        description: formSubModule.value.description,
+        url_desc: formSubModule.value.url_desc,
+      })
+      successMsg.value = 'Submódulo creado exitosamente.'
+    }
+    showSubModuleModal.value = false
+    await loadCurrentTabData()
+  } catch (err: any) {
+    errorMsg.value = err.response?.data?.message || 'Error al guardar el submódulo'
   } finally {
     loading.value = false
   }
@@ -454,6 +657,17 @@ const submitSubscription = async () => {
           >
             <iconify-icon icon="solar:shield-check-line-duotone" class="fs-5"></iconify-icon>
             <span>Roles</span>
+          </button>
+        </li>
+
+        <li class="nav-item me-2">
+          <button
+            class="nav-link rounded-pill px-4 py-2 d-flex align-items-center gap-2 fs-3 text-decoration-none"
+            :class="{ 'active bg-primary text-white': activeTab === 'modules', 'text-white-50 hover-tab': activeTab !== 'modules' }"
+            @click="switchTab('modules')"
+          >
+            <iconify-icon icon="solar:widget-4-line-duotone" class="fs-5"></iconify-icon>
+            <span>Módulos & Submódulos</span>
           </button>
         </li>
 
@@ -663,6 +877,186 @@ const submitSubscription = async () => {
           </tbody>
         </table>
       </div>
+    </div>
+
+    <!-- ======================================================== -->
+    <!-- TAB 3.5: MÓDULOS & SUBMÓDULOS                            -->
+    <!-- ======================================================== -->
+    <div v-if="activeTab === 'modules'" class="d-flex flex-column gap-4">
+      
+      <!-- SUBSECTION 1: MÓDULOS PRINCIPALES (tab_module) -->
+      <div class="card rounded-4 border-0 shadow-sm p-4 bg-navy-card">
+        <div class="d-flex flex-wrap justify-content-between align-items-center gap-3 mb-4">
+          <div>
+            <h5 class="fw-bold text-white mb-1 d-flex align-items-center gap-2">
+              <iconify-icon icon="solar:widget-4-line-duotone" class="text-primary fs-5"></iconify-icon>
+              <span>Módulos Principales del Sistema</span>
+            </h5>
+            <small class="text-secondary">Agrupadores principales del menú lateral (Ej. Ventas, Compras, Contabilidad, Inventario)</small>
+          </div>
+          <button class="btn btn-primary rounded-pill px-4 d-flex align-items-center gap-2" @click="openCreateModule">
+            <iconify-icon icon="solar:add-circle-line-duotone" class="fs-5"></iconify-icon>
+            <span>Nuevo Módulo</span>
+          </button>
+        </div>
+
+        <div v-if="loading" class="text-center py-4">
+          <div class="spinner-border text-primary" role="status"></div>
+          <p class="text-muted mt-2">Cargando módulos...</p>
+        </div>
+
+        <div v-else class="table-responsive">
+          <table class="table table-hover align-middle mb-0">
+            <thead class="table-dark">
+              <tr>
+                <th width="8%">#</th>
+                <th width="12%">Icono</th>
+                <th width="18%">Código</th>
+                <th width="34%">Nombre / Descripción</th>
+                <th width="12%">Estado</th>
+                <th width="16%" class="text-end">Acciones</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr v-for="mod in modulesList" :key="mod.id">
+                <td><span class="badge bg-dark-subtle text-white">{{ mod.id }}</span></td>
+                <td>
+                  <div class="d-inline-flex align-items-center gap-2 bg-dark-subtle px-2 py-1 rounded border border-secondary-subtle">
+                    <iconify-icon :icon="mod.desc_icon || 'solar:widget-4-line-duotone'" class="fs-5 text-primary"></iconify-icon>
+                    <small class="text-secondary font-monospace d-none d-lg-inline">{{ mod.desc_icon }}</small>
+                  </div>
+                </td>
+                <td><span class="badge bg-primary-subtle text-primary border border-primary-subtle fw-bold">{{ mod.code }}</span></td>
+                <td class="text-white fw-semibold">{{ mod.description }}</td>
+                <td>
+                  <span class="badge" :class="mod.enabled !== false ? 'bg-success-subtle text-success' : 'bg-danger-subtle text-danger'">
+                    {{ mod.enabled !== false ? 'Activo' : 'Inactivo' }}
+                  </span>
+                </td>
+                <td class="text-end">
+                  <div class="d-inline-flex gap-1">
+                    <button
+                      class="btn btn-sm btn-outline-primary rounded-pill px-2 py-1 d-inline-flex align-items-center gap-1"
+                      title="Agregar Submódulo a este Módulo"
+                      @click="openCreateSubModule(mod.id)"
+                    >
+                      <iconify-icon icon="solar:add-circle-line-duotone" class="fs-4"></iconify-icon>
+                      <span class="d-none d-md-inline fs-1">Submódulo</span>
+                    </button>
+                    <button
+                      class="btn btn-sm btn-outline-info rounded-circle p-1"
+                      title="Editar Módulo"
+                      @click="openEditModule(mod)"
+                    >
+                      <iconify-icon icon="solar:pen-2-line-duotone" class="fs-4"></iconify-icon>
+                    </button>
+                  </div>
+                </td>
+              </tr>
+              <tr v-if="modulesList.length === 0">
+                <td colspan="6" class="text-center text-muted py-4">
+                  No hay módulos registrados aún. Haz clic en <strong>"Nuevo Módulo"</strong> para crear el primero.
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- SUBSECTION 2: SUBMÓDULOS Y RUTAS (tab_sub_module) -->
+      <div class="card rounded-4 border-0 shadow-sm p-4 bg-navy-card">
+        <div class="d-flex flex-wrap justify-content-between align-items-center gap-3 mb-4">
+          <div>
+            <h5 class="fw-bold text-white mb-1 d-flex align-items-center gap-2">
+              <iconify-icon icon="solar:layers-minimalistic-line-duotone" class="text-info fs-5"></iconify-icon>
+              <span>Submódulos (Vistas y Rutas Hijas)</span>
+            </h5>
+            <small class="text-secondary">Opciones internas asociadas a cada módulo principal y su ruta URL</small>
+          </div>
+
+          <div class="d-flex flex-wrap align-items-center gap-2">
+            <!-- Filtro por Módulo Padre -->
+            <div class="d-flex align-items-center gap-2">
+              <small class="text-secondary text-nowrap">Filtrar por módulo:</small>
+              <select
+                v-model="filterModuleId"
+                class="form-select form-select-sm bg-dark-subtle border-secondary text-white rounded-pill px-3"
+                style="min-width: 200px;"
+                @change="onFilterModuleChange"
+              >
+                <option :value="undefined">Todos los módulos</option>
+                <option v-for="mod in modulesList" :key="mod.id" :value="mod.id">
+                  {{ mod.code }} - {{ mod.description }}
+                </option>
+              </select>
+            </div>
+
+            <button
+              class="btn btn-info text-dark fw-semibold rounded-pill px-4 d-flex align-items-center gap-2"
+              :disabled="modulesList.length === 0"
+              @click="openCreateSubModule()"
+            >
+              <iconify-icon icon="solar:add-circle-line-duotone" class="fs-5"></iconify-icon>
+              <span>Nuevo Submódulo</span>
+            </button>
+          </div>
+        </div>
+
+        <div class="table-responsive">
+          <table class="table table-hover align-middle mb-0">
+            <thead class="table-dark">
+              <tr>
+                <th width="6%">#</th>
+                <th width="20%">Módulo Padre</th>
+                <th width="10%">Icono</th>
+                <th width="14%">Código</th>
+                <th width="22%">Descripción</th>
+                <th width="14%">Ruta (URL)</th>
+                <th width="7%">Estado</th>
+                <th width="7%" class="text-end">Acciones</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr v-for="subMod in subModulesList" :key="subMod.id">
+                <td><span class="badge bg-dark-subtle text-white">{{ subMod.id }}</span></td>
+                <td>
+                  <span class="badge bg-primary-subtle text-primary border border-primary-subtle">
+                    {{ getModuleNameById(subMod.moduleId) }}
+                  </span>
+                </td>
+                <td>
+                  <span class="d-inline-flex align-items-center justify-content-center p-1 bg-dark-subtle rounded border border-secondary-subtle">
+                    <iconify-icon :icon="subMod.desc_icon || 'solar:round-alt-arrow-right-line-duotone'" class="fs-5 text-info"></iconify-icon>
+                  </span>
+                </td>
+                <td><span class="badge bg-info-subtle text-info border border-info-subtle fw-bold">{{ subMod.code }}</span></td>
+                <td class="text-white fw-semibold">{{ subMod.description }}</td>
+                <td><code class="text-warning bg-dark-subtle px-2 py-1 rounded">{{ subMod.url_desc }}</code></td>
+                <td>
+                  <span class="badge" :class="subMod.enabled !== false ? 'bg-success-subtle text-success' : 'bg-danger-subtle text-danger'">
+                    {{ subMod.enabled !== false ? 'Activo' : 'Inactivo' }}
+                  </span>
+                </td>
+                <td class="text-end">
+                  <button
+                    class="btn btn-sm btn-outline-info rounded-circle p-1"
+                    title="Editar Submódulo"
+                    @click="openEditSubModule(subMod)"
+                  >
+                    <iconify-icon icon="solar:pen-2-line-duotone" class="fs-4"></iconify-icon>
+                  </button>
+                </td>
+              </tr>
+              <tr v-if="subModulesList.length === 0">
+                <td colspan="8" class="text-center text-muted py-4">
+                  No hay submódulos registrados{{ filterModuleId ? ' para el módulo seleccionado' : '' }}.
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
     </div>
 
     <!-- ======================================================== -->
@@ -990,6 +1384,217 @@ const submitSubscription = async () => {
               <div class="modal-footer border-dark-subtle">
                 <button type="button" class="btn btn-outline-secondary" @click="showRoleModal = false">Cancelar</button>
                 <button type="submit" class="btn btn-primary" :disabled="loading">Guardar Rol</button>
+              </div>
+            </form>
+          </div>
+        </div>
+      </div>
+    </Teleport>
+
+    <!-- 3.5 MODAL NUEVO / EDITAR MÓDULO -->
+    <Teleport to="body">
+      <div v-if="showModuleModal" class="modal fade show d-block" style="background: rgba(0,0,0,0.65); z-index: 1060;" @click.self="showModuleModal = false">
+        <div class="modal-dialog modal-dialog-centered">
+          <div class="modal-content rounded-4 shadow-lg border-0 bg-dark text-white">
+            <div class="modal-header bg-primary text-white">
+              <h5 class="modal-title text-white d-flex align-items-center gap-2">
+                <iconify-icon icon="solar:widget-4-line-duotone" class="fs-5"></iconify-icon>
+                <span>{{ isEditingModule ? 'Editar Módulo Principal' : 'Crear Nuevo Módulo' }}</span>
+              </h5>
+              <button type="button" class="btn-close btn-close-white" @click="showModuleModal = false"></button>
+            </div>
+            <form @submit.prevent="submitModule">
+              <div class="modal-body p-4">
+                <div class="mb-3">
+                  <label class="form-label text-white-50">Código del Módulo (Máx. 20 caracteres)</label>
+                  <input
+                    v-model="formModule.code"
+                    type="text"
+                    maxlength="20"
+                    class="form-control bg-dark-subtle border-secondary text-white text-uppercase"
+                    placeholder="Ej. MOD_VENTAS, MOD_INVENTARIO"
+                    required
+                  />
+                </div>
+                <div class="mb-3">
+                  <label class="form-label text-white-50">Nombre / Descripción del Módulo</label>
+                  <input
+                    v-model="formModule.description"
+                    type="text"
+                    maxlength="150"
+                    class="form-control bg-dark-subtle border-secondary text-white"
+                    placeholder="Ej. Ventas y Facturación"
+                    required
+                  />
+                </div>
+                <div class="mb-3">
+                  <label class="form-label text-white-50 d-flex justify-content-between align-items-center">
+                    <span>Icono del Módulo (Iconify Solar)</span>
+                    <span class="d-inline-flex align-items-center gap-1 badge bg-primary-subtle text-primary">
+                      <iconify-icon :icon="formModule.desc_icon || 'solar:widget-4-line-duotone'" class="fs-4"></iconify-icon>
+                      Vista previa
+                    </span>
+                  </label>
+                  <input
+                    v-model="formModule.desc_icon"
+                    type="text"
+                    class="form-control bg-dark-subtle border-secondary text-white font-monospace mb-2"
+                    placeholder="Ej. solar:cart-large-2-line-duotone"
+                    required
+                  />
+                  <!-- Selector rápido de iconos -->
+                  <div class="d-flex flex-wrap gap-1 mt-1">
+                    <button
+                      v-for="item in suggestedIcons"
+                      :key="item.icon"
+                      type="button"
+                      class="btn btn-sm rounded-pill d-inline-flex align-items-center gap-1 px-2 py-1"
+                      :class="formModule.desc_icon === item.icon ? 'btn-primary text-white' : 'btn-outline-secondary text-white-50'"
+                      @click="formModule.desc_icon = item.icon"
+                    >
+                      <iconify-icon :icon="item.icon" class="fs-4"></iconify-icon>
+                      <span class="fs-1">{{ item.label }}</span>
+                    </button>
+                  </div>
+                </div>
+
+                <div v-if="isEditingModule" class="form-check form-switch bg-dark-subtle p-3 rounded border border-secondary-subtle d-flex align-items-center justify-content-between">
+                  <label class="form-check-label text-white ms-0" for="switchModuleEnabled">
+                    <div class="fw-bold">Estado del Módulo</div>
+                    <small class="text-secondary d-block fs-1">Habilitar o deshabilitar este módulo en el sistema</small>
+                  </label>
+                  <input
+                    v-model="formModule.enabled"
+                    class="form-check-input fs-5 m-0"
+                    type="checkbox"
+                    id="switchModuleEnabled"
+                  />
+                </div>
+              </div>
+              <div class="modal-footer border-dark-subtle">
+                <button type="button" class="btn btn-outline-secondary" @click="showModuleModal = false">Cancelar</button>
+                <button type="submit" class="btn btn-primary px-4" :disabled="loading">
+                  {{ isEditingModule ? 'Actualizar Módulo' : 'Guardar Módulo' }}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      </div>
+    </Teleport>
+
+    <!-- 3.6 MODAL NUEVO / EDITAR SUBMÓDULO -->
+    <Teleport to="body">
+      <div v-if="showSubModuleModal" class="modal fade show d-block" style="background: rgba(0,0,0,0.65); z-index: 1060;" @click.self="showSubModuleModal = false">
+        <div class="modal-dialog modal-dialog-centered">
+          <div class="modal-content rounded-4 shadow-lg border-0 bg-dark text-white">
+            <div class="modal-header bg-info text-dark">
+              <h5 class="modal-title text-dark fw-bold d-flex align-items-center gap-2">
+                <iconify-icon icon="solar:layers-minimalistic-line-duotone" class="fs-5"></iconify-icon>
+                <span>{{ isEditingSubModule ? 'Editar Submódulo' : 'Crear Nuevo Submódulo' }}</span>
+              </h5>
+              <button type="button" class="btn-close" @click="showSubModuleModal = false"></button>
+            </div>
+            <form @submit.prevent="submitSubModule">
+              <div class="modal-body p-4">
+                <div class="mb-3">
+                  <label class="form-label text-white-50">Módulo Principal (Padre)</label>
+                  <select
+                    v-model.number="formSubModule.moduleId"
+                    class="form-select bg-dark-subtle border-secondary text-white"
+                    required
+                  >
+                    <option :value="0" disabled>Selecciona un módulo principal...</option>
+                    <option v-for="mod in modulesList" :key="mod.id" :value="mod.id">
+                      {{ mod.code }} - {{ mod.description }}
+                    </option>
+                  </select>
+                </div>
+
+                <div class="row">
+                  <div class="col-md-5 mb-3">
+                    <label class="form-label text-white-50">Código (Máx. 20)</label>
+                    <input
+                      v-model="formSubModule.code"
+                      type="text"
+                      maxlength="20"
+                      class="form-control bg-dark-subtle border-secondary text-white text-uppercase"
+                      placeholder="Ej. SUB_FACTURAS"
+                      required
+                    />
+                  </div>
+                  <div class="col-md-7 mb-3">
+                    <label class="form-label text-white-50">Ruta / URL del Submódulo</label>
+                    <input
+                      v-model="formSubModule.url_desc"
+                      type="text"
+                      class="form-control bg-dark-subtle border-secondary text-white font-monospace"
+                      placeholder="Ej. /ventas/facturas"
+                      required
+                    />
+                  </div>
+                </div>
+
+                <div class="mb-3">
+                  <label class="form-label text-white-50">Nombre / Descripción del Submódulo</label>
+                  <input
+                    v-model="formSubModule.description"
+                    type="text"
+                    maxlength="150"
+                    class="form-control bg-dark-subtle border-secondary text-white"
+                    placeholder="Ej. Emisión de Facturas Electrónicas"
+                    required
+                  />
+                </div>
+
+                <div class="mb-3">
+                  <label class="form-label text-white-50 d-flex justify-content-between align-items-center">
+                    <span>Icono del Submódulo</span>
+                    <span class="d-inline-flex align-items-center gap-1 badge bg-info-subtle text-info">
+                      <iconify-icon :icon="formSubModule.desc_icon || 'solar:round-alt-arrow-right-line-duotone'" class="fs-4"></iconify-icon>
+                      Vista previa
+                    </span>
+                  </label>
+                  <input
+                    v-model="formSubModule.desc_icon"
+                    type="text"
+                    class="form-control bg-dark-subtle border-secondary text-white font-monospace mb-2"
+                    placeholder="Ej. solar:document-text-line-duotone"
+                    required
+                  />
+                  <div class="d-flex flex-wrap gap-1 mt-1">
+                    <button
+                      v-for="item in suggestedIcons"
+                      :key="item.icon"
+                      type="button"
+                      class="btn btn-sm rounded-pill d-inline-flex align-items-center gap-1 px-2 py-1"
+                      :class="formSubModule.desc_icon === item.icon ? 'btn-info text-dark fw-semibold' : 'btn-outline-secondary text-white-50'"
+                      @click="formSubModule.desc_icon = item.icon"
+                    >
+                      <iconify-icon :icon="item.icon" class="fs-4"></iconify-icon>
+                      <span class="fs-1">{{ item.label }}</span>
+                    </button>
+                  </div>
+                </div>
+
+                <div v-if="isEditingSubModule" class="form-check form-switch bg-dark-subtle p-3 rounded border border-secondary-subtle d-flex align-items-center justify-content-between">
+                  <label class="form-check-label text-white ms-0" for="switchSubModuleEnabled">
+                    <div class="fw-bold">Estado del Submódulo</div>
+                    <small class="text-secondary d-block fs-1">Habilitar o deshabilitar este submódulo</small>
+                  </label>
+                  <input
+                    v-model="formSubModule.enabled"
+                    class="form-check-input fs-5 m-0"
+                    type="checkbox"
+                    id="switchSubModuleEnabled"
+                  />
+                </div>
+              </div>
+              <div class="modal-footer border-dark-subtle">
+                <button type="button" class="btn btn-outline-secondary" @click="showSubModuleModal = false">Cancelar</button>
+                <button type="submit" class="btn btn-info text-dark fw-semibold px-4" :disabled="loading">
+                  {{ isEditingSubModule ? 'Actualizar Submódulo' : 'Guardar Submódulo' }}
+                </button>
               </div>
             </form>
           </div>

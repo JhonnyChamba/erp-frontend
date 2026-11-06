@@ -205,6 +205,16 @@
                       <span class="hide-menu">Roles</span>
                     </router-link>
                   </li>
+                  <li class="sidebar-item mb-1">
+                    <router-link
+                      to="/configuracion?tab=modules"
+                      class="d-flex align-items-center gap-2 py-1 px-2 rounded text-decoration-none text-white-50 hover-sublink"
+                      :class="{ 'text-primary fw-bold': currentRoute === '/configuracion' && route.query.tab === 'modules' }"
+                    >
+                      <iconify-icon icon="solar:widget-4-line-duotone" class="fs-4"></iconify-icon>
+                      <span class="hide-menu">Módulos</span>
+                    </router-link>
+                  </li>
                   <li class="sidebar-item">
                     <router-link
                       to="/configuracion?tab=subscriptions"
