@@ -9,6 +9,7 @@ import {
   updateUser,
   getRoles,
   createRole,
+  updateRole,
   getPlans,
   createPlan,
   getSubscriptions,
@@ -23,6 +24,7 @@ import {
   type CompanyItem,
   type UserItem,
   type RoleItem,
+  type RoleAccessDetail,
   type PlanItem,
   type SubscriptionItem,
   type ModuleItem,
@@ -107,9 +109,12 @@ const showSubModuleModal = ref(false)
 const showPlanModal = ref(false)
 const showSubscriptionModal = ref(false)
 
-// Estado de edición de usuario
+// Estado de edición de usuario y rol
 const isEditingUser = ref(false)
 const editingUserId = ref<number | null>(null)
+const isEditingRole = ref(false)
+const editingRoleId = ref<number | null>(null)
+const rolesByCompany = ref<Record<number, RoleItem[]>>({})
 
 // Estado de edición de módulo y submódulo
 const isEditingModule = ref(false)
@@ -152,18 +157,84 @@ const formUser = ref({
   super_admin: false,
   multi_company: false,
   companyIds: [] as number[],
+  roleId: null as number | null,
+  companyRolesMap: {} as Record<number, number | null>,
   theme_color: 'Blue_Theme',
 })
+
+const ensureRolesForCompany = async (compId: number) => {
+  if (!compId) return
+  try {
+    const res = await getRoles(compId, { page: 1, limit: 100 })
+    const list = Array.isArray(res?.data) ? res.data : Array.isArray(res) ? res : []
+    rolesByCompany.value = {
+      ...rolesByCompany.value,
+      [compId]: list,
+    }
+  } catch (e) {
+    rolesByCompany.value = {
+      ...rolesByCompany.value,
+      [compId]: [],
+    }
+  }
+}
+
+const getCompanyNameById = (compId: number) => {
+  const found = companies.value.find((c) => Number(c.id) === Number(compId))
+  return found ? found.trade_name || found.business_name : `Empresa #${compId}`
+}
+
+const onSuperAdminChange = () => {
+  if (formUser.value.super_admin) {
+    formUser.value.multi_company = false
+    formUser.value.roleId = null
+    formUser.value.companyIds = []
+    formUser.value.companyRolesMap = {}
+  } else {
+    formUser.value.companyIds = [currentCompanyId.value]
+  }
+}
+
+const onMultiCompanyChange = async () => {
+  if (formUser.value.multi_company) {
+    formUser.value.super_admin = false
+    if (formUser.value.companyIds.length === 0) {
+      formUser.value.companyIds = [currentCompanyId.value]
+    }
+    for (const cId of formUser.value.companyIds) {
+      await ensureRolesForCompany(cId)
+      if (formUser.value.companyRolesMap[cId] === undefined) {
+        const firstRole = rolesByCompany.value[cId]?.[0]?.id ?? null
+        formUser.value.companyRolesMap[cId] = firstRole
+      }
+    }
+  }
+}
+
+const onToggleUserCompany = async (compId: number) => {
+  const isSelected = formUser.value.companyIds.includes(compId)
+  if (isSelected) {
+    await ensureRolesForCompany(compId)
+    if (formUser.value.companyRolesMap[compId] === undefined) {
+      formUser.value.companyRolesMap[compId] = rolesByCompany.value[compId]?.[0]?.id ?? null
+    }
+  } else {
+    delete formUser.value.companyRolesMap[compId]
+  }
+}
 
 const openCreateUser = async () => {
   isEditingUser.value = false
   editingUserId.value = null
-  if (companies.value.length === 0) {
-    try {
-      const res = await getCompanies({ page: 1, limit: 100 })
-      companies.value = Array.isArray(res?.data) ? res.data : Array.isArray(res) ? res : []
-    } catch (e) {}
-  }
+  await Promise.all([
+    companies.value.length === 0
+      ? getCompanies({ page: 1, limit: 100 }).then((res) => {
+          companies.value = Array.isArray(res?.data) ? res.data : Array.isArray(res) ? res : []
+        }).catch(() => {})
+      : Promise.resolve(),
+    ensureRolesForCompany(currentCompanyId.value),
+  ])
+  const defaultRole = rolesByCompany.value[currentCompanyId.value]?.[0]?.id ?? null
   formUser.value = {
     companyId: currentCompanyId.value,
     num_document: '',
@@ -174,6 +245,8 @@ const openCreateUser = async () => {
     super_admin: false,
     multi_company: false,
     companyIds: [currentCompanyId.value],
+    roleId: defaultRole,
+    companyRolesMap: { [currentCompanyId.value]: defaultRole },
     theme_color: 'Blue_Theme',
   }
   showUserModal.value = true
@@ -188,6 +261,31 @@ const openEditUser = async (user: UserItem) => {
       companies.value = Array.isArray(res?.data) ? res.data : Array.isArray(res) ? res : []
     } catch (e) {}
   }
+
+  const targetCompanyIds =
+    user.companyIds && user.companyIds.length > 0
+      ? user.companyIds.map(Number)
+      : [currentCompanyId.value]
+
+  const allCompToLoad = Array.from(new Set([currentCompanyId.value, ...targetCompanyIds]))
+  await Promise.all(allCompToLoad.map((cId) => ensureRolesForCompany(cId)))
+
+  const roleMap: Record<number, number | null> = {}
+  if (Array.isArray(user.companyRoles)) {
+    for (const cr of user.companyRoles) {
+      roleMap[Number(cr.companyId)] = cr.roleId ? Number(cr.roleId) : null
+    }
+  }
+  for (const cId of targetCompanyIds) {
+    if (roleMap[cId] === undefined) {
+      roleMap[cId] =
+        cId === currentCompanyId.value && user.roleId
+          ? Number(user.roleId)
+          : rolesByCompany.value[cId]?.[0]?.id ?? null
+    }
+  }
+
+  const isSuper = Boolean(user.super_admin || user.developer)
   formUser.value = {
     companyId: currentCompanyId.value,
     num_document: user.num_document || '',
@@ -195,9 +293,13 @@ const openEditUser = async (user: UserItem) => {
     last_name_user: user.last_name_user || '',
     email: user.email || '',
     password: '',
-    super_admin: user.super_admin || user.developer || false,
-    multi_company: user.multi_company || false,
-    companyIds: user.companyIds && user.companyIds.length > 0 ? user.companyIds.map(Number) : [currentCompanyId.value],
+    super_admin: isSuper,
+    multi_company: isSuper ? false : Boolean(user.multi_company),
+    companyIds: isSuper ? [] : targetCompanyIds,
+    roleId: isSuper
+      ? null
+      : user.roleId ?? roleMap[currentCompanyId.value] ?? rolesByCompany.value[currentCompanyId.value]?.[0]?.id ?? null,
+    companyRolesMap: isSuper ? {} : roleMap,
     theme_color: user.theme_color || 'Blue_Theme',
   }
   showUserModal.value = true
@@ -207,6 +309,9 @@ const formRole = ref({
   companyId: 1,
   code: '',
   description: '',
+  enabled: true,
+  moduleAccess: {} as Record<number, boolean>,
+  subModuleAccess: {} as Record<number, boolean>,
 })
 
 const formModule = ref({
@@ -255,11 +360,28 @@ const loadCurrentTabData = async () => {
       const res = await getCompanies({ page: 1, limit: 50 })
       companies.value = Array.isArray(res?.data) ? res.data : Array.isArray(res) ? res : []
     } else if (activeTab.value === 'users') {
-      const res = await getUsers(currentCompanyId.value, { page: 1, limit: 50 })
-      users.value = Array.isArray(res?.data) ? res.data : Array.isArray(res) ? res : []
+      const [usersRes, compsRes] = await Promise.all([
+        getUsers(currentCompanyId.value, { page: 1, limit: 50 }),
+        getCompanies({ page: 1, limit: 100 }).catch(() => ({ data: [] })),
+        ensureRolesForCompany(currentCompanyId.value),
+      ])
+      users.value = Array.isArray(usersRes?.data) ? usersRes.data : Array.isArray(usersRes) ? usersRes : []
+      companies.value = Array.isArray(compsRes?.data) ? compsRes.data : Array.isArray(compsRes) ? compsRes : []
     } else if (activeTab.value === 'roles') {
-      const res = await getRoles(currentCompanyId.value, { page: 1, limit: 50 })
-      roles.value = Array.isArray(res?.data) ? res.data : Array.isArray(res) ? res : []
+      const [rolesRes, subsRes, modsRes, allSubModsRes] = await Promise.all([
+        getRoles(currentCompanyId.value, { page: 1, limit: 50 }),
+        getSubscriptions(currentCompanyId.value, { page: 1, limit: 50 }).catch(() => ({ data: [] })),
+        getModules({ page: 1, limit: 100 }).catch(() => ({ data: [] })),
+        getSubModules({ page: 1, limit: 200 }).catch(() => ({ data: [] })),
+      ])
+      roles.value = Array.isArray(rolesRes?.data) ? rolesRes.data : Array.isArray(rolesRes) ? rolesRes : []
+      rolesByCompany.value = {
+        ...rolesByCompany.value,
+        [currentCompanyId.value]: roles.value,
+      }
+      subscriptions.value = Array.isArray(subsRes?.data) ? subsRes.data : Array.isArray(subsRes) ? subsRes : []
+      modulesList.value = Array.isArray(modsRes?.data) ? modsRes.data : Array.isArray(modsRes) ? modsRes : []
+      allSubModulesList.value = Array.isArray(allSubModsRes?.data) ? allSubModsRes.data : Array.isArray(allSubModsRes) ? allSubModsRes : []
     } else if (activeTab.value === 'modules') {
       const [modsRes, subModsRes, allSubModsRes] = await Promise.all([
         getModules({ page: 1, limit: 100 }),
@@ -343,6 +465,31 @@ const submitUser = async () => {
   errorMsg.value = ''
   try {
     formUser.value.companyId = currentCompanyId.value
+    const isSuper = Boolean(formUser.value.super_admin)
+    const isMulti = isSuper ? false : Boolean(formUser.value.multi_company)
+
+    const companyRolesPayload = isSuper
+      ? []
+      : isMulti
+      ? formUser.value.companyIds.map((cId) => ({
+          companyId: Number(cId),
+          roleId: formUser.value.companyRolesMap[Number(cId)]
+            ? Number(formUser.value.companyRolesMap[Number(cId)])
+            : null,
+        }))
+      : [
+          {
+            companyId: currentCompanyId.value,
+            roleId: formUser.value.roleId ? Number(formUser.value.roleId) : null,
+          },
+        ]
+
+    const effectiveRoleId = isSuper
+      ? null
+      : isMulti
+      ? formUser.value.companyRolesMap[currentCompanyId.value] ?? null
+      : formUser.value.roleId ?? null
+
     if (isEditingUser.value && editingUserId.value) {
       const payload: any = {
         companyId: currentCompanyId.value,
@@ -350,10 +497,12 @@ const submitUser = async () => {
         name_user: formUser.value.name_user,
         last_name_user: formUser.value.last_name_user,
         email: formUser.value.email,
-        super_admin: formUser.value.super_admin,
-        developer: formUser.value.super_admin,
-        multi_company: formUser.value.multi_company,
-        companyIds: formUser.value.multi_company ? formUser.value.companyIds.map(Number) : [],
+        super_admin: isSuper,
+        developer: isSuper,
+        multi_company: isMulti,
+        companyIds: isSuper ? [] : isMulti ? formUser.value.companyIds.map(Number) : [currentCompanyId.value],
+        roleId: effectiveRoleId,
+        companyRoles: companyRolesPayload,
         theme_color: formUser.value.theme_color || 'Blue_Theme',
       }
       if (formUser.value.password) {
@@ -368,25 +517,23 @@ const submitUser = async () => {
       }
     } else {
       await createUser({
-        ...formUser.value,
-        developer: formUser.value.super_admin,
-        companyIds: formUser.value.multi_company ? formUser.value.companyIds.map(Number) : [],
+        companyId: currentCompanyId.value,
+        num_document: formUser.value.num_document,
+        name_user: formUser.value.name_user,
+        last_name_user: formUser.value.last_name_user,
+        email: formUser.value.email,
+        password: formUser.value.password,
+        super_admin: isSuper,
+        developer: isSuper,
+        multi_company: isMulti,
+        companyIds: isSuper ? [] : isMulti ? formUser.value.companyIds.map(Number) : [currentCompanyId.value],
+        roleId: effectiveRoleId,
+        companyRoles: companyRolesPayload,
+        theme_color: formUser.value.theme_color || 'Blue_Theme',
       })
       successMsg.value = 'Usuario registrado exitosamente.'
     }
     showUserModal.value = false
-    formUser.value = {
-      companyId: currentCompanyId.value,
-      num_document: '',
-      name_user: '',
-      last_name_user: '',
-      email: '',
-      password: '',
-      super_admin: false,
-      multi_company: false,
-      companyIds: [currentCompanyId.value],
-      theme_color: 'Blue_Theme',
-    }
     await loadCurrentTabData()
   } catch (err: any) {
     errorMsg.value = err.response?.data?.message || 'Error al guardar el usuario'
@@ -395,19 +542,213 @@ const submitUser = async () => {
   }
 }
 
-// =================== GUARDAR ROL ===================
+// =================== GESTIÓN DE ROLES (CABECERA Y DETALLE DE MÓDULOS) ===================
+// Módulos Madre a los que tiene acceso la empresa activa según su suscripción vigente
+const companyAccessibleModules = computed(() => {
+  const activeSubs = subscriptions.value.filter((s) => s.enabled !== false)
+  const subscribedModIds = new Set<number>()
+  for (const s of activeSubs) {
+    for (const mId of s.moduleIds || []) {
+      subscribedModIds.add(Number(mId))
+    }
+  }
+  const activeSystemMods = modulesList.value.filter((m) => m.enabled !== false)
+  if (subscribedModIds.size > 0) {
+    return activeSystemMods.filter((m) => subscribedModIds.has(Number(m.id)))
+  }
+  return activeSystemMods
+})
+
+// Submódulos Hijas a los que tiene acceso la empresa activa para un módulo padre dado
+const getCompanyAccessibleSubModules = (modId: number) => {
+  const activeSubs = subscriptions.value.filter((s) => s.enabled !== false)
+  const subscribedSubModIds = new Set<number>()
+  for (const s of activeSubs) {
+    for (const smId of s.subModuleIds || []) {
+      subscribedSubModIds.add(Number(smId))
+    }
+  }
+  const childSubMods = allSubModulesList.value.filter(
+    (sm) => Number(sm.moduleId) === Number(modId) && sm.enabled !== false
+  )
+  if (subscribedSubModIds.size > 0) {
+    return childSubMods.filter((sm) => subscribedSubModIds.has(Number(sm.id)))
+  }
+  return childSubMods
+}
+
+const toggleRoleModuleAccess = (modId: number, val: boolean) => {
+  formRole.value.moduleAccess[modId] = val
+  const children = getCompanyAccessibleSubModules(modId)
+  for (const sm of children) {
+    formRole.value.subModuleAccess[sm.id] = val
+  }
+}
+
+const toggleRoleSubModuleAccess = (subMod: SubModuleItem, val: boolean) => {
+  formRole.value.subModuleAccess[subMod.id] = val
+  if (val && subMod.moduleId) {
+    formRole.value.moduleAccess[subMod.moduleId] = true
+  }
+}
+
+const setAllRoleAccess = (val: boolean) => {
+  for (const mod of companyAccessibleModules.value) {
+    formRole.value.moduleAccess[mod.id] = val
+    for (const sm of getCompanyAccessibleSubModules(mod.id)) {
+      formRole.value.subModuleAccess[sm.id] = val
+    }
+  }
+}
+
+const openCreateRole = async () => {
+  isEditingRole.value = false
+  editingRoleId.value = null
+  if (modulesList.value.length === 0 || allSubModulesList.value.length === 0) {
+    try {
+      const [subsRes, modsRes, subModsRes] = await Promise.all([
+        getSubscriptions(currentCompanyId.value, { page: 1, limit: 50 }).catch(() => ({ data: [] })),
+        getModules({ page: 1, limit: 100 }),
+        getSubModules({ page: 1, limit: 200 }),
+      ])
+      subscriptions.value = Array.isArray(subsRes?.data) ? subsRes.data : Array.isArray(subsRes) ? subsRes : []
+      modulesList.value = Array.isArray(modsRes?.data) ? modsRes.data : Array.isArray(modsRes) ? modsRes : []
+      allSubModulesList.value = Array.isArray(subModsRes?.data) ? subModsRes.data : Array.isArray(subModsRes) ? subModsRes : []
+    } catch (e) {}
+  }
+
+  const modMap: Record<number, boolean> = {}
+  const subModMap: Record<number, boolean> = {}
+  for (const mod of companyAccessibleModules.value) {
+    modMap[mod.id] = true
+    for (const sm of getCompanyAccessibleSubModules(mod.id)) {
+      subModMap[sm.id] = true
+    }
+  }
+
+  formRole.value = {
+    companyId: currentCompanyId.value,
+    code: computeNextSequentialCode(roles.value, 'ROL-'),
+    description: '',
+    enabled: true,
+    moduleAccess: modMap,
+    subModuleAccess: subModMap,
+  }
+  showRoleModal.value = true
+}
+
+const openEditRole = async (role: RoleItem) => {
+  isEditingRole.value = true
+  editingRoleId.value = role.id
+  if (modulesList.value.length === 0 || allSubModulesList.value.length === 0) {
+    try {
+      const [subsRes, modsRes, subModsRes] = await Promise.all([
+        getSubscriptions(currentCompanyId.value, { page: 1, limit: 50 }).catch(() => ({ data: [] })),
+        getModules({ page: 1, limit: 100 }),
+        getSubModules({ page: 1, limit: 200 }),
+      ])
+      subscriptions.value = Array.isArray(subsRes?.data) ? subsRes.data : Array.isArray(subsRes) ? subsRes : []
+      modulesList.value = Array.isArray(modsRes?.data) ? modsRes.data : Array.isArray(modsRes) ? modsRes : []
+      allSubModulesList.value = Array.isArray(subModsRes?.data) ? subModsRes.data : Array.isArray(subModsRes) ? subModsRes : []
+    } catch (e) {}
+  }
+
+  const modSet = new Set((role.moduleIds || []).map(Number))
+  const subModSet = new Set((role.subModuleIds || []).map(Number))
+
+  const modMap: Record<number, boolean> = {}
+  const subModMap: Record<number, boolean> = {}
+
+  for (const mod of companyAccessibleModules.value) {
+    modMap[mod.id] = modSet.has(Number(mod.id))
+    for (const sm of getCompanyAccessibleSubModules(mod.id)) {
+      subModMap[sm.id] = subModSet.has(Number(sm.id))
+    }
+  }
+
+  // Si existen detalles explícitos con hasAccess boolean, respetarlos
+  if (Array.isArray(role.details) && role.details.length > 0) {
+    for (const d of role.details) {
+      if (d.moduleId) {
+        modMap[Number(d.moduleId)] = Boolean(d.hasAccess)
+      }
+      if (d.subModuleId) {
+        subModMap[Number(d.subModuleId)] = Boolean(d.hasAccess)
+      }
+    }
+  }
+
+  formRole.value = {
+    companyId: currentCompanyId.value,
+    code: role.code || '',
+    description: role.description || '',
+    enabled: role.enabled !== false,
+    moduleAccess: modMap,
+    subModuleAccess: subModMap,
+  }
+  showRoleModal.value = true
+}
+
 const submitRole = async () => {
   loading.value = true
   errorMsg.value = ''
   try {
     formRole.value.companyId = currentCompanyId.value
-    await createRole(formRole.value)
-    successMsg.value = 'Rol creado exitosamente.'
+
+    const selectedModIds: number[] = []
+    const selectedSubModIds: number[] = []
+    const detailsPayload: RoleAccessDetail[] = []
+
+    for (const mod of companyAccessibleModules.value) {
+      const hasModAccess = Boolean(formRole.value.moduleAccess[mod.id])
+      if (hasModAccess) {
+        selectedModIds.push(Number(mod.id))
+      }
+      detailsPayload.push({
+        moduleId: Number(mod.id),
+        subModuleId: null,
+        hasAccess: hasModAccess,
+      })
+
+      for (const sm of getCompanyAccessibleSubModules(mod.id)) {
+        const hasSubAccess = Boolean(formRole.value.subModuleAccess[sm.id])
+        if (hasSubAccess) {
+          selectedSubModIds.push(Number(sm.id))
+        }
+        detailsPayload.push({
+          moduleId: null,
+          subModuleId: Number(sm.id),
+          hasAccess: hasSubAccess,
+        })
+      }
+    }
+
+    if (isEditingRole.value && editingRoleId.value) {
+      await updateRole(editingRoleId.value, {
+        companyId: currentCompanyId.value,
+        code: formRole.value.code,
+        description: formRole.value.description,
+        enabled: formRole.value.enabled,
+        moduleIds: selectedModIds,
+        subModuleIds: selectedSubModIds,
+        details: detailsPayload,
+      })
+      successMsg.value = 'Rol y detalle de accesos actualizados exitosamente.'
+    } else {
+      await createRole({
+        companyId: currentCompanyId.value,
+        code: formRole.value.code,
+        description: formRole.value.description,
+        moduleIds: selectedModIds,
+        subModuleIds: selectedSubModIds,
+        details: detailsPayload,
+      })
+      successMsg.value = 'Rol y detalle de accesos creados exitosamente.'
+    }
     showRoleModal.value = false
-    formRole.value = { companyId: currentCompanyId.value, code: '', description: '' }
     await loadCurrentTabData()
   } catch (err: any) {
-    errorMsg.value = err.response?.data?.message || 'Error al crear el rol'
+    errorMsg.value = err.response?.data?.message || 'Error al guardar el rol'
   } finally {
     loading.value = false
   }
@@ -966,13 +1307,27 @@ const submitSubscription = async () => {
               <td class="text-info">{{ user.email }}</td>
               <td>
                 <span v-if="user.super_admin || user.developer" class="badge bg-danger-subtle text-danger border border-danger-subtle me-1">
-                  <iconify-icon icon="solar:shield-star-bold" class="me-1"></iconify-icon>Super Admin
+                  <iconify-icon icon="solar:shield-star-bold" class="me-1"></iconify-icon>Super Admin (Acceso Total)
                 </span>
-                <span v-if="user.multi_company" class="badge bg-warning-subtle text-warning border border-warning-subtle me-1">
-                  <iconify-icon icon="solar:buildings-bold" class="me-1"></iconify-icon>Multi-Empresa
+                <template v-else-if="user.multi_company">
+                  <span class="badge bg-warning-subtle text-warning border border-warning-subtle me-1">
+                    <iconify-icon icon="solar:buildings-bold" class="me-1"></iconify-icon>Multi-Empresa
+                  </span>
+                  <div v-if="user.companyRoles && user.companyRoles.length > 0" class="d-flex flex-wrap gap-1 mt-1">
+                    <span
+                      v-for="cr in user.companyRoles"
+                      :key="cr.companyId"
+                      class="badge bg-dark-subtle text-info border border-info-subtle fs-1"
+                    >
+                      {{ getCompanyNameById(cr.companyId) }}: <strong>{{ cr.roleName || 'Sin rol' }}</strong>
+                    </span>
+                  </div>
+                </template>
+                <span v-else-if="user.roleName" class="badge bg-primary-subtle text-primary border border-primary-subtle">
+                  <iconify-icon icon="solar:shield-check-bold" class="me-1"></iconify-icon>{{ user.roleName }}
                 </span>
-                <span v-if="!user.super_admin && !user.developer && !user.multi_company" class="badge bg-secondary-subtle text-secondary">
-                  Estándar
+                <span v-else class="badge bg-secondary-subtle text-secondary">
+                  Sin rol asignado
                 </span>
               </td>
               <td>
@@ -1005,15 +1360,15 @@ const submitSubscription = async () => {
     </div>
 
     <!-- ======================================================== -->
-    <!-- TAB 3: ROLES                                             -->
+    <!-- TAB 3: ROLES (CABECERA Y DETALLE POR EMPRESA)            -->
     <!-- ======================================================== -->
     <div v-if="activeTab === 'roles'" class="card rounded-4 border-0 shadow-sm p-4 bg-navy-card">
       <div class="d-flex justify-content-between align-items-center mb-4">
         <div>
-          <h5 class="fw-bold text-white mb-1">Roles de Usuario</h5>
-          <small class="text-secondary">Definición de roles y perfiles de acceso</small>
+          <h5 class="fw-bold text-white mb-1">Roles de Usuario ({{ selectedCompany?.razon_social || selectedCompany?.nombre_comercial || 'Empresa Activa' }})</h5>
+          <small class="text-secondary">Definición de roles (cabecera) y matriz booleana de acceso a módulos madre e hijas (detalle)</small>
         </div>
-        <button class="btn btn-primary rounded-pill px-4 d-flex align-items-center gap-2" @click="showRoleModal = true">
+        <button class="btn btn-primary rounded-pill px-4 d-flex align-items-center gap-2" @click="openCreateRole">
           <iconify-icon icon="solar:shield-plus-line-duotone" class="fs-5"></iconify-icon>
           <span>Nuevo Rol</span>
         </button>
@@ -1021,38 +1376,62 @@ const submitSubscription = async () => {
 
       <div v-if="loading" class="text-center py-5">
         <div class="spinner-border text-primary" role="status"></div>
-        <p class="text-muted mt-2">Cargando roles...</p>
+        <p class="text-muted mt-2">Cargando roles de la empresa...</p>
       </div>
 
       <div v-else class="table-responsive">
         <table class="table table-hover align-middle mb-0">
           <thead class="table-dark">
             <tr>
-              <th width="10%">#</th>
-              <th width="20%">Código</th>
-              <th width="50%">Descripción</th>
-              <th width="10%">Estado</th>
-              <th width="10%" class="text-end">Acciones</th>
+              <th width="6%">#</th>
+              <th width="14%">Código</th>
+              <th width="26%">Descripción del Rol</th>
+              <th width="36%">Detalle de Accesos (Módulos Madre e Hijas = true)</th>
+              <th width="9%">Estado</th>
+              <th width="9%" class="text-end">Acciones</th>
             </tr>
           </thead>
           <tbody>
             <tr v-for="role in roles" :key="role.id">
               <td><span class="badge bg-dark-subtle text-white">{{ role.id }}</span></td>
-              <td><span class="badge bg-primary text-white fw-bold">{{ role.code }}</span></td>
-              <td class="text-white">{{ role.description }}</td>
+              <td><span class="badge bg-primary text-white fw-bold font-monospace">{{ role.code }}</span></td>
+              <td class="text-white fw-semibold">{{ role.description }}</td>
+              <td>
+                <div v-if="(role.moduleIds && role.moduleIds.length > 0) || (role.subModuleIds && role.subModuleIds.length > 0)" class="d-flex flex-wrap gap-1">
+                  <span
+                    v-for="modId in role.moduleIds"
+                    :key="'rm-' + modId"
+                    class="badge bg-primary-subtle text-primary border border-primary-subtle d-inline-flex align-items-center gap-1"
+                  >
+                    <iconify-icon icon="solar:check-circle-bold"></iconify-icon>
+                    {{ getModuleNameById(modId) }}
+                  </span>
+                  <span
+                    v-if="role.subModuleIds && role.subModuleIds.length > 0"
+                    class="badge bg-info-subtle text-info border border-info-subtle"
+                  >
+                    +{{ role.subModuleIds.length }} submódulo(s) activos
+                  </span>
+                </div>
+                <span v-else class="text-secondary fs-2 fst-italic">Sin módulos en true</span>
+              </td>
               <td>
                 <span class="badge" :class="role.enabled !== false ? 'bg-success-subtle text-success' : 'bg-danger-subtle text-danger'">
                   {{ role.enabled !== false ? 'Activo' : 'Inactivo' }}
                 </span>
               </td>
               <td class="text-end">
-                <button class="btn btn-sm btn-outline-info rounded-circle p-1" title="Ver Permisos">
-                  <iconify-icon icon="solar:eye-line-duotone" class="fs-4"></iconify-icon>
+                <button
+                  class="btn btn-sm btn-outline-info rounded-circle p-1"
+                  title="Editar Cabecera y Detalle de Permisos del Rol"
+                  @click="openEditRole(role)"
+                >
+                  <iconify-icon icon="solar:pen-2-line-duotone" class="fs-4"></iconify-icon>
                 </button>
               </td>
             </tr>
             <tr v-if="roles.length === 0">
-              <td colspan="5" class="text-center text-muted py-5">No hay roles creados para esta empresa.</td>
+              <td colspan="6" class="text-center text-muted py-5">No hay roles creados para esta empresa.</td>
             </tr>
           </tbody>
         </table>
@@ -1443,83 +1822,173 @@ const submitSubscription = async () => {
                   />
                 </div>
 
-                <!-- PRIVILEGIOS: SUPER ADMIN & MULTI-EMPRESA -->
+                <!-- PRIVILEGIOS: SUPER ADMIN, MULTI-EMPRESA Y ROL POR EMPRESA -->
                 <div class="mb-3 pt-3 border-top border-dark-subtle">
-                  <label class="form-label text-white fw-semibold mb-2">Permisos & Modo de Acceso</label>
+                  <label class="form-label text-white fw-semibold mb-2">Permisos, Empresas y Asignación de Rol</label>
                   <div class="row g-2 mb-3">
-                    <!-- Switch Super Admin -->
-                    <div class="col-md-6">
-                      <div class="form-check form-switch bg-dark-subtle p-3 rounded border border-secondary-subtle d-flex align-items-center justify-content-between">
+                    <!-- Switch Super Admin (Deshabilitado si Multi-Empresa está activo) -->
+                    <div :class="formUser.super_admin ? 'col-12' : 'col-md-6'">
+                      <div
+                        class="form-check form-switch bg-dark-subtle p-3 rounded border d-flex align-items-center justify-content-between"
+                        :class="[
+                          formUser.super_admin ? 'border-danger' : 'border-secondary-subtle',
+                          formUser.multi_company ? 'opacity-50' : ''
+                        ]"
+                      >
                         <label class="form-check-label text-white ms-0 cursor-pointer" for="switchSuperAdmin">
                           <div class="fw-bold d-flex align-items-center gap-1 text-danger">
                             <iconify-icon icon="solar:shield-star-bold"></iconify-icon> Super Admin
                           </div>
-                          <small class="text-secondary d-block fs-1">Acceso total al sistema y empresas</small>
+                          <small class="text-secondary d-block fs-1">
+                            {{
+                              formUser.multi_company
+                                ? 'Desactivado porque el usuario es Multi-Empresa'
+                                : 'Acceso total a todas las empresas y módulos del sistema (no requiere rol)'
+                            }}
+                          </small>
                         </label>
                         <input
                           v-model="formUser.super_admin"
                           class="form-check-input fs-5 m-0 cursor-pointer"
                           type="checkbox"
                           id="switchSuperAdmin"
+                          :disabled="formUser.multi_company"
+                          @change="onSuperAdminChange"
                         />
                       </div>
                     </div>
 
-                    <!-- Switch Multi Empresa -->
-                    <div class="col-md-6">
-                      <div class="form-check form-switch bg-dark-subtle p-3 rounded border border-secondary-subtle d-flex align-items-center justify-content-between">
+                    <!-- Switch Multi Empresa (Desaparece si es Super Admin) -->
+                    <div v-if="!formUser.super_admin" class="col-md-6">
+                      <div
+                        class="form-check form-switch bg-dark-subtle p-3 rounded border d-flex align-items-center justify-content-between"
+                        :class="formUser.multi_company ? 'border-warning' : 'border-secondary-subtle'"
+                      >
                         <label class="form-check-label text-white ms-0 cursor-pointer" for="switchMultiCompany">
                           <div class="fw-bold d-flex align-items-center gap-1 text-warning">
                             <iconify-icon icon="solar:buildings-bold"></iconify-icon> Multi-Empresa
                           </div>
-                          <small class="text-secondary d-block fs-1">Gestionar más de una empresa</small>
+                          <small class="text-secondary d-block fs-1">Asignar varias empresas y un rol distinto en cada una</small>
                         </label>
                         <input
                           v-model="formUser.multi_company"
                           class="form-check-input fs-5 m-0 cursor-pointer"
                           type="checkbox"
                           id="switchMultiCompany"
+                          @change="onMultiCompanyChange"
                         />
                       </div>
                     </div>
                   </div>
 
-                  <!-- SELECCIÓN DE EMPRESAS (SÓLO SI MULTI_COMPANY ESTÁ EN TRUE) -->
-                  <div v-if="formUser.multi_company" class="p-3 bg-dark-subtle rounded border border-warning-subtle mb-3">
+                  <!-- CASO 1: SI ES SUPER ADMIN -> AVISO DE ACCESO TOTAL -->
+                  <div v-if="formUser.super_admin" class="p-3 bg-danger-subtle text-danger rounded border border-danger-subtle mb-2 d-flex align-items-center gap-2">
+                    <iconify-icon icon="solar:shield-star-bold" class="fs-5 flex-shrink-0"></iconify-icon>
+                    <span class="fs-2">
+                      Al ser <strong>Super Admin</strong>, este usuario tiene acceso absoluto a todas las empresas, módulos y submódulos sin restricción de rol.
+                    </span>
+                  </div>
+
+                  <!-- CASO 2: SI NO ES SUPER ADMIN Y NO ES MULTI-EMPRESA -> SELECTOR DE ROL EN LA EMPRESA ACTIVA -->
+                  <div v-else-if="!formUser.multi_company" class="p-3 bg-dark-subtle rounded border border-primary-subtle mb-3">
+                    <label class="form-label text-white fw-semibold d-flex align-items-center justify-content-between mb-2">
+                      <span class="d-flex align-items-center gap-2">
+                        <iconify-icon icon="solar:shield-user-line-duotone" class="text-primary fs-5"></iconify-icon>
+                        <span>Rol del Usuario en {{ selectedCompany?.razon_social || selectedCompany?.nombre_comercial || 'la Empresa Activa' }}</span>
+                      </span>
+                      <span class="badge bg-primary-subtle text-primary">Empresa #{{ currentCompanyId }}</span>
+                    </label>
+                    <select
+                      v-model="formUser.roleId"
+                      class="form-select bg-dark border-secondary text-white"
+                      required
+                    >
+                      <option :value="null" disabled>Selecciona un rol para esta empresa...</option>
+                      <option
+                        v-for="r in rolesByCompany[currentCompanyId] || []"
+                        :key="r.id"
+                        :value="r.id"
+                      >
+                        {{ r.code }} - {{ r.description }}
+                      </option>
+                    </select>
+                    <small
+                      v-if="(rolesByCompany[currentCompanyId] || []).length === 0"
+                      class="text-warning d-block mt-1 fs-1"
+                    >
+                      No hay roles registrados en esta empresa aún. Crea uno en la pestaña "Roles".
+                    </small>
+                  </div>
+
+                  <!-- CASO 3: SI ES MULTI-EMPRESA -> SELECCIÓN DE EMPRESAS Y ROL ESPECÍFICO POR CADA EMPRESA -->
+                  <div v-else class="p-3 bg-dark-subtle rounded border border-warning-subtle mb-3">
                     <div class="d-flex align-items-center justify-content-between mb-2">
                       <label class="form-label text-warning fw-semibold d-flex align-items-center gap-2 mb-0">
                         <iconify-icon icon="solar:checklist-minimalistic-bold" class="fs-4"></iconify-icon>
-                        <span>Empresas con Acceso Habilitado</span>
+                        <span>Empresas Habilitadas y Rol por Empresa</span>
                       </label>
                       <span class="badge bg-warning-subtle text-warning border border-warning-subtle">
-                        {{ formUser.companyIds.length }} seleccionada(s)
+                        {{ formUser.companyIds.length }} empresa(s) seleccionada(s)
                       </span>
                     </div>
                     <p class="text-secondary fs-2 mb-2">
-                      Selecciona las empresas que este usuario podrá visualizar y operar al iniciar sesión:
+                      Marca las empresas a las que tendrá acceso el usuario y elige qué rol desempeñará en cada una (Ej. Contable en una, Ventas en otra):
                     </p>
 
-                    <div class="row g-2 overflow-y-auto" style="max-height: 180px;">
+                    <div class="d-flex flex-column gap-2 overflow-y-auto pe-1" style="max-height: 240px;">
                       <div
                         v-for="company in companies"
                         :key="company.id"
-                        class="col-md-6"
+                        class="p-2 rounded border transition-all"
+                        :class="
+                          formUser.companyIds.includes(company.id)
+                            ? 'bg-primary-subtle border-primary text-white'
+                            : 'bg-dark border-secondary-subtle text-secondary'
+                        "
                       >
-                        <label
-                          class="d-flex align-items-center gap-2 p-2 rounded border cursor-pointer w-100 h-100"
-                          :class="formUser.companyIds.includes(company.id) ? 'bg-primary-subtle border-primary text-white' : 'bg-dark border-secondary-subtle text-secondary'"
-                        >
-                          <input
-                            type="checkbox"
-                            class="form-check-input m-0 cursor-pointer"
-                            :value="company.id"
-                            v-model="formUser.companyIds"
-                          />
-                          <div class="text-truncate">
-                            <span class="d-block fw-semibold text-truncate fs-2">{{ company.business_name || company.trade_name }}</span>
-                            <small class="text-secondary font-monospace fs-1">RUC: {{ company.ruc }}</small>
+                        <div class="row align-items-center g-2">
+                          <div class="col-md-6">
+                            <label class="d-flex align-items-center gap-2 cursor-pointer mb-0">
+                              <input
+                                type="checkbox"
+                                class="form-check-input m-0 cursor-pointer"
+                                :value="company.id"
+                                v-model="formUser.companyIds"
+                                @change="onToggleUserCompany(company.id)"
+                              />
+                              <div class="text-truncate">
+                                <span class="d-block fw-semibold text-truncate fs-2">
+                                  {{ company.business_name || company.trade_name }}
+                                </span>
+                                <small class="text-secondary font-monospace fs-1">RUC: {{ company.ruc }}</small>
+                              </div>
+                            </label>
                           </div>
-                        </label>
+
+                          <!-- Selector de Rol para esta empresa específica -->
+                          <div v-if="formUser.companyIds.includes(company.id)" class="col-md-6">
+                            <select
+                              v-model="formUser.companyRolesMap[company.id]"
+                              class="form-select form-select-sm bg-dark border-primary text-white"
+                              required
+                            >
+                              <option :value="null" disabled>Selecciona rol en {{ company.trade_name || company.business_name }}...</option>
+                              <option
+                                v-for="r in rolesByCompany[company.id] || []"
+                                :key="r.id"
+                                :value="r.id"
+                              >
+                                {{ r.code }} - {{ r.description }}
+                              </option>
+                            </select>
+                            <small
+                              v-if="(rolesByCompany[company.id] || []).length === 0"
+                              class="text-warning d-block fs-1 mt-1"
+                            >
+                              Esta empresa aún no tiene roles creados.
+                            </small>
+                          </div>
+                        </div>
                       </div>
                     </div>
                   </div>
@@ -1572,29 +2041,208 @@ const submitSubscription = async () => {
       </div>
     </Teleport>
 
-    <!-- 3. MODAL NUEVO ROL -->
+    <!-- 3. MODAL NUEVO / EDITAR ROL (CABECERA Y DETALLE DE ACCESOS) -->
     <Teleport to="body">
       <div v-if="showRoleModal" class="modal fade show d-block" style="background: rgba(0,0,0,0.65); z-index: 1060;" @click.self="showRoleModal = false">
-        <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-dialog modal-dialog-centered modal-lg">
           <div class="modal-content rounded-4 shadow-lg border-0 bg-dark text-white">
             <div class="modal-header bg-primary text-white">
-              <h5 class="modal-title text-white">Crear Rol de Usuario</h5>
+              <h5 class="modal-title text-white d-flex align-items-center gap-2">
+                <iconify-icon icon="solar:shield-check-line-duotone" class="fs-5"></iconify-icon>
+                <span>{{ isEditingRole ? 'Editar Rol (Cabecera y Detalle de Accesos)' : 'Registrar Nuevo Rol (Cabecera y Detalle)' }}</span>
+              </h5>
               <button type="button" class="btn-close btn-close-white" @click="showRoleModal = false"></button>
             </div>
             <form @submit.prevent="submitRole">
               <div class="modal-body p-4">
-                <div class="mb-3">
-                  <label class="form-label text-white-50">Código del Rol</label>
-                  <input v-model="formRole.code" type="text" class="form-control bg-dark-subtle border-secondary text-white text-uppercase" placeholder="Ej. ADMIN, VENDEDOR, CONTADOR" required />
+                <!-- CABECERA DEL ROL -->
+                <div class="p-3 rounded-3 bg-dark-subtle border border-secondary-subtle mb-3">
+                  <div class="d-flex justify-content-between align-items-center mb-2">
+                    <h6 class="fw-bold text-primary mb-0 d-flex align-items-center gap-1">
+                      <iconify-icon icon="solar:document-text-line-duotone"></iconify-icon>
+                      <span>1. Cabecera del Rol</span>
+                    </h6>
+                    <span class="badge bg-dark text-white border border-secondary-subtle">
+                      Empresa: {{ selectedCompany?.razon_social || selectedCompany?.nombre_comercial || 'Activa' }}
+                    </span>
+                  </div>
+                  <div class="row g-3">
+                    <div class="col-md-4">
+                      <label class="form-label text-white-50 d-flex justify-content-between align-items-center">
+                        <span>Código del Rol</span>
+                        <span class="badge bg-primary-subtle text-primary fs-1">Auto (+1)</span>
+                      </label>
+                      <input
+                        v-model="formRole.code"
+                        type="text"
+                        class="form-control bg-dark border-secondary text-info fw-bold font-monospace text-uppercase"
+                        readonly
+                      />
+                    </div>
+                    <div class="col-md-8">
+                      <label class="form-label text-white-50">Nombre / Descripción del Rol</label>
+                      <input
+                        v-model="formRole.description"
+                        type="text"
+                        class="form-control bg-dark border-secondary text-white"
+                        placeholder="Ej. Contador General, Vendedor, Administrador de Bodega"
+                        required
+                      />
+                    </div>
+                  </div>
                 </div>
-                <div class="mb-3">
-                  <label class="form-label text-white-50">Descripción del Rol</label>
-                  <input v-model="formRole.description" type="text" class="form-control bg-dark-subtle border-secondary text-white" placeholder="Ej. Acceso a ventas y facturación" required />
+
+                <!-- DETALLE DEL ROL: MÓDULOS MADRE E HIJAS DE LA EMPRESA CON BOOLEAN TRUE / FALSE -->
+                <div class="p-3 rounded-3 bg-dark-subtle border border-secondary-subtle">
+                  <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-2">
+                    <div>
+                      <h6 class="fw-bold text-info mb-0 d-flex align-items-center gap-1">
+                        <iconify-icon icon="solar:widget-4-line-duotone"></iconify-icon>
+                        <span>2. Detalle del Rol — Módulos Madre y Submódulos Hijas de la Empresa</span>
+                      </h6>
+                      <small class="text-secondary fs-1">
+                        Activa (<code>true</code>) o desactiva (<code>false</code>) los módulos y submódulos a los que tendrá acceso este rol:
+                      </small>
+                    </div>
+                    <div class="d-flex gap-1">
+                      <button
+                        type="button"
+                        class="btn btn-sm btn-outline-success rounded-pill px-2 py-1 fs-1"
+                        @click="setAllRoleAccess(true)"
+                      >
+                        Todos en true
+                      </button>
+                      <button
+                        type="button"
+                        class="btn btn-sm btn-outline-danger rounded-pill px-2 py-1 fs-1"
+                        @click="setAllRoleAccess(false)"
+                      >
+                        Todos en false
+                      </button>
+                    </div>
+                  </div>
+
+                  <div
+                    v-if="companyAccessibleModules.length > 0"
+                    class="d-flex flex-column gap-2 overflow-y-auto pe-1 mt-2"
+                    style="max-height: 310px;"
+                  >
+                    <div
+                      v-for="mod in companyAccessibleModules"
+                      :key="mod.id"
+                      class="p-3 rounded-3 border"
+                      :class="
+                        formRole.moduleAccess[mod.id]
+                          ? 'bg-dark border-primary'
+                          : 'bg-dark border-secondary-subtle opacity-75'
+                      "
+                    >
+                      <!-- Fila Módulo Madre -->
+                      <div class="d-flex justify-content-between align-items-center">
+                        <div class="d-flex align-items-center gap-2">
+                          <iconify-icon
+                            :icon="mod.desc_icon || 'solar:widget-4-line-duotone'"
+                            class="fs-5 text-primary"
+                          ></iconify-icon>
+                          <div>
+                            <span class="fw-bold text-white">{{ mod.description }}</span>
+                            <span class="badge bg-dark-subtle text-secondary font-monospace ms-2 fs-1">
+                              Madre · {{ mod.code }}
+                            </span>
+                          </div>
+                        </div>
+
+                        <!-- Switch Boolean True / False para Módulo Madre -->
+                        <div class="d-flex align-items-center gap-2">
+                          <span
+                            class="badge font-monospace"
+                            :class="
+                              formRole.moduleAccess[mod.id]
+                                ? 'bg-success-subtle text-success border border-success-subtle'
+                                : 'bg-danger-subtle text-danger border border-danger-subtle'
+                            "
+                          >
+                            {{ formRole.moduleAccess[mod.id] ? 'true' : 'false' }}
+                          </span>
+                          <div class="form-check form-switch m-0">
+                            <input
+                              type="checkbox"
+                              class="form-check-input fs-5 m-0 cursor-pointer"
+                              :checked="Boolean(formRole.moduleAccess[mod.id])"
+                              @change="toggleRoleModuleAccess(mod.id, ($event.target as HTMLInputElement).checked)"
+                            />
+                          </div>
+                        </div>
+                      </div>
+
+                      <!-- Submódulos Hijas de este Módulo Madre -->
+                      <div
+                        v-if="getCompanyAccessibleSubModules(mod.id).length > 0"
+                        class="mt-2 ps-4 pt-2 border-top border-secondary-subtle d-flex flex-column gap-1"
+                      >
+                        <div
+                          v-for="subMod in getCompanyAccessibleSubModules(mod.id)"
+                          :key="subMod.id"
+                          class="d-flex justify-content-between align-items-center p-2 rounded border"
+                          :class="
+                            formRole.subModuleAccess[subMod.id]
+                              ? 'bg-dark-subtle border-info-subtle text-white'
+                              : 'bg-dark border-secondary-subtle text-secondary'
+                          "
+                        >
+                          <div class="d-flex align-items-center gap-2 text-truncate">
+                            <iconify-icon
+                              :icon="subMod.desc_icon || 'solar:round-alt-arrow-right-line-duotone'"
+                              class="fs-4 text-info"
+                            ></iconify-icon>
+                            <div class="text-truncate">
+                              <span class="fw-semibold fs-2">{{ subMod.description }}</span>
+                              <small class="text-secondary font-monospace ms-2 fs-1">
+                                Hija · {{ subMod.code }} ({{ subMod.url_desc }})
+                              </small>
+                            </div>
+                          </div>
+
+                          <!-- Switch Boolean True / False para Submódulo Hija -->
+                          <div class="d-flex align-items-center gap-2 flex-shrink-0">
+                            <span
+                              class="badge font-monospace"
+                              :class="
+                                formRole.subModuleAccess[subMod.id]
+                                  ? 'bg-success-subtle text-success border border-success-subtle'
+                                  : 'bg-danger-subtle text-danger border border-danger-subtle'
+                              "
+                            >
+                              {{ formRole.subModuleAccess[subMod.id] ? 'true' : 'false' }}
+                            </span>
+                            <div class="form-check form-switch m-0">
+                              <input
+                                type="checkbox"
+                                class="form-check-input m-0 cursor-pointer"
+                                :checked="Boolean(formRole.subModuleAccess[subMod.id])"
+                                @change="toggleRoleSubModuleAccess(subMod, ($event.target as HTMLInputElement).checked)"
+                              />
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                      <div v-else class="ps-4 mt-1">
+                        <small class="text-secondary fst-italic fs-1">Sin submódulos hijas asociados.</small>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div v-else class="alert alert-warning mt-2 mb-0 py-2 fs-2">
+                    <iconify-icon icon="solar:info-circle-line-duotone" class="me-1 align-middle fs-4"></iconify-icon>
+                    Esta empresa aún no tiene módulos habilitados en su suscripción o en el sistema.
+                  </div>
                 </div>
               </div>
               <div class="modal-footer border-dark-subtle">
                 <button type="button" class="btn btn-outline-secondary" @click="showRoleModal = false">Cancelar</button>
-                <button type="submit" class="btn btn-primary" :disabled="loading">Guardar Rol</button>
+                <button type="submit" class="btn btn-primary px-4" :disabled="loading">
+                  {{ isEditingRole ? 'Actualizar Rol y Detalle' : 'Guardar Rol y Detalle' }}
+                </button>
               </div>
             </form>
           </div>

@@ -10,6 +10,12 @@ export interface CompanyItem {
   createdAt?: string
 }
 
+export interface UserCompanyRoleItem {
+  companyId: number
+  roleId?: number | null
+  roleName?: string | null
+}
+
 export interface UserItem {
   id: number
   num_document: string
@@ -20,9 +26,18 @@ export interface UserItem {
   super_admin?: boolean
   multi_company?: boolean
   companyIds?: number[]
+  roleId?: number | null
+  roleName?: string | null
+  companyRoles?: UserCompanyRoleItem[]
   enabled?: boolean
   created_at?: string
   theme_color?: string
+}
+
+export interface RoleAccessDetail {
+  moduleId?: number | null
+  subModuleId?: number | null
+  hasAccess: boolean
 }
 
 export interface RoleItem {
@@ -32,6 +47,9 @@ export interface RoleItem {
   companyId?: number
   enabled?: boolean
   created_at?: string
+  moduleIds?: number[]
+  subModuleIds?: number[]
+  details?: RoleAccessDetail[]
 }
 
 export interface PlanItem {
@@ -110,6 +128,8 @@ export const createUser = async (payload: {
   super_admin?: boolean
   multi_company?: boolean
   companyIds?: number[]
+  roleId?: number | null
+  companyRoles?: UserCompanyRoleItem[]
   theme_color?: string
 }) => {
   const { data } = await api.post('/users', payload)
@@ -134,10 +154,29 @@ export const getRoles = async (companyId: number, params: { page?: number; limit
 
 export const createRole = async (payload: {
   companyId: number
-  code: string
+  code?: string
   description: string
+  moduleIds?: number[]
+  subModuleIds?: number[]
+  details?: RoleAccessDetail[]
 }) => {
   const { data } = await api.post('/roles', payload)
+  return data
+}
+
+export const updateRole = async (
+  id: number,
+  payload: {
+    companyId: number
+    code?: string
+    description?: string
+    enabled?: boolean
+    moduleIds?: number[]
+    subModuleIds?: number[]
+    details?: RoleAccessDetail[]
+  }
+) => {
+  const { data } = await api.patch(`/roles/${id}`, payload)
   return data
 }
 
