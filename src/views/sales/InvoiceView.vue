@@ -6,6 +6,8 @@ import {
   getInvoices,
   createInvoice,
   cancelInvoice,
+  signInvoice,
+  getInvoiceXml,
   type InvoiceItem,
   type CreateInvoicePayload,
 } from '@/services/invoices.service'
@@ -348,6 +350,37 @@ const submitInvoice = async () => {
   }
 }
 
+// Firmar con el .p12 de la empresa y descargar el XML firmado
+const onSignInvoice = async (inv: InvoiceItem) => {
+  errorMsg.value = ''
+  try {
+    await signInvoice(inv.id, getActiveCompanyId())
+    successMsg.value = `Factura ${inv.invoice_number} firmada electrónicamente.`
+    await loadData()
+    if (viewingInvoice.value?.id === inv.id) {
+      viewingInvoice.value = invoices.value.find((i) => i.id === inv.id) || viewingInvoice.value
+    }
+  } catch (err: any) {
+    const m = err?.response?.data?.message
+    errorMsg.value = (Array.isArray(m) ? m.join(', ') : m) || 'No se pudo firmar la factura'
+  }
+}
+
+const downloadXml = async (inv: InvoiceItem) => {
+  errorMsg.value = ''
+  try {
+    const { file_name, xml } = await getInvoiceXml(inv.id, getActiveCompanyId())
+    const url = URL.createObjectURL(new Blob([xml], { type: 'text/xml;charset=utf-8' }))
+    const a = document.createElement('a')
+    a.href = url
+    a.download = file_name
+    a.click()
+    URL.revokeObjectURL(url)
+  } catch (err: any) {
+    errorMsg.value = err?.response?.data?.message || 'No se pudo descargar el XML'
+  }
+}
+
 // Anular factura
 const onCancelInvoice = async (inv: InvoiceItem) => {
   if (!confirm(`¿Estás seguro de anular la factura ${inv.invoice_number}?`)) return
@@ -574,6 +607,22 @@ watch(() => route.path, () => {
                 </td>
                 <td class="text-end">
                   <div class="d-inline-flex gap-1">
+                    <button
+                      v-if="inv.status === 'ISSUED' && inv.sign_status !== 'SIGNED'"
+                      class="btn btn-sm btn-outline-warning rounded-pill px-2"
+                      @click="onSignInvoice(inv)"
+                      title="Firmar electrónicamente"
+                    >
+                      <iconify-icon icon="solar:pen-new-square-line-duotone"></iconify-icon>
+                    </button>
+                    <button
+                      v-if="inv.sign_status === 'SIGNED'"
+                      class="btn btn-sm btn-outline-success rounded-pill px-2"
+                      @click="downloadXml(inv)"
+                      title="Descargar XML firmado"
+                    >
+                      <iconify-icon icon="solar:download-minimalistic-bold"></iconify-icon>
+                    </button>
                     <button class="btn btn-sm btn-outline-info rounded-pill px-2" @click="openDetailModal(inv)" title="Ver Detalle y RIDE">
                       <iconify-icon icon="solar:eye-line-duotone"></iconify-icon>
                     </button>
@@ -884,6 +933,22 @@ watch(() => route.path, () => {
         </div>
 
         <div class="modal-footer d-flex justify-content-end gap-2 p-3 border-top border-secondary">
+          <button
+            v-if="viewingInvoice.status === 'ISSUED' && viewingInvoice.sign_status !== 'SIGNED'"
+            class="btn btn-outline-warning d-flex align-items-center gap-2"
+            @click="onSignInvoice(viewingInvoice)"
+          >
+            <iconify-icon icon="solar:pen-new-square-line-duotone"></iconify-icon>
+            <span>Firmar XML</span>
+          </button>
+          <button
+            v-if="viewingInvoice.sign_status === 'SIGNED'"
+            class="btn btn-outline-success d-flex align-items-center gap-2"
+            @click="downloadXml(viewingInvoice)"
+          >
+            <iconify-icon icon="solar:download-minimalistic-bold"></iconify-icon>
+            <span>Descargar XML firmado</span>
+          </button>
           <button class="btn btn-outline-info d-flex align-items-center gap-2" @click="printRide(viewingInvoice)">
             <iconify-icon icon="solar:printer-bold-duotone"></iconify-icon>
             <span>Imprimir / PDF (RIDE)</span>

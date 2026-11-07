@@ -30,6 +30,7 @@ export interface InvoiceItem {
   customer_phone?: string
   payment_method: string
   access_key?: string
+  sign_status?: 'NOT_SIGNED' | 'SIGNED'
   status: 'DRAFT' | 'ISSUED' | 'AUTHORIZED' | 'CANCELED'
   subtotal_zero_tax: number
   subtotal_taxable: number
@@ -91,5 +92,19 @@ export const cancelInvoice = async (id: number, companyId?: number): Promise<Inv
     params: companyId ? { companyId } : {}
   })
   return data
+}
+
+export const signInvoice = async (id: number, companyId?: number) => {
+  const { data } = await api.post(`/sales/invoices/${id}/sign`, null, {
+    params: companyId ? { companyId } : {}
+  })
+  return data as { id: number; sign_status: string; file_name: string }
+}
+
+export const getInvoiceXml = async (id: number, companyId?: number) => {
+  const { data } = await api.get(`/sales/invoices/${id}/xml`, {
+    params: companyId ? { companyId } : {}
+  })
+  return data as { file_name: string; xml: string }
 }
 
