@@ -4,6 +4,7 @@ import { useRoute, useRouter } from 'vue-router'
 import {
   getCompanies,
   createCompany,
+  updateCompany,
   getUsers,
   createUser,
   updateUser,
@@ -143,12 +144,110 @@ const suggestedIcons = [
 ]
 
 // Formularios
-const formCompany = ref({
+const initialFormCompany = () => ({
   ruc: '',
   business_name: '',
   trade_name: '',
   description: '',
+  address_matriz: '',
+  phone: '',
+  email: '',
+  obligated_accounting: false,
+  special_taxpayer: '',
+  tax_regime: 'GENERAL',
+  sri_environment: '1',
+  default_establishment: '001',
+  default_emission_point: '001',
+  // Firma electrónica
+  cert_p12_base64: '',
+  cert_file_name: '',
+  cert_password: '',
+  cert_expires_at: '',
+  has_certificate: false,
+  remove_certificate: false,
+  // SMTP
+  smtp_host: '',
+  smtp_port: 587,
+  smtp_secure: true,
+  smtp_user: '',
+  smtp_password: '',
+  has_smtp_password: false,
+  smtp_from_name: '',
+  smtp_from_email: '',
 })
+const formCompany = ref(initialFormCompany())
+const isEditingCompany = ref(false)
+const editingCompanyId = ref<number | null>(null)
+const companyFormTab = ref<'general' | 'fiscal' | 'firma' | 'correo'>('general')
+
+const openCreateCompany = () => {
+  isEditingCompany.value = false
+  editingCompanyId.value = null
+  formCompany.value = initialFormCompany()
+  companyFormTab.value = 'general'
+  showCompanyModal.value = true
+}
+
+const openEditCompany = (comp: CompanyItem) => {
+  const f = comp.fiscal || {}
+  isEditingCompany.value = true
+  editingCompanyId.value = comp.id
+  formCompany.value = {
+    ...initialFormCompany(),
+    ruc: comp.ruc,
+    business_name: comp.business_name,
+    trade_name: comp.trade_name,
+    description: comp.description || '',
+    address_matriz: f.address_matriz || '',
+    phone: f.phone || '',
+    email: f.email || '',
+    obligated_accounting: Boolean(f.obligated_accounting),
+    special_taxpayer: f.special_taxpayer || '',
+    tax_regime: f.tax_regime || 'GENERAL',
+    sri_environment: f.sri_environment || '1',
+    default_establishment: f.default_establishment || '001',
+    default_emission_point: f.default_emission_point || '001',
+    cert_file_name: f.cert_file_name || '',
+    cert_expires_at: f.cert_expires_at || '',
+    has_certificate: Boolean(f.has_certificate),
+    smtp_host: f.smtp_host || '',
+    smtp_port: f.smtp_port || 587,
+    smtp_secure: f.smtp_secure !== false,
+    smtp_user: f.smtp_user || '',
+    has_smtp_password: Boolean(f.has_smtp_password),
+    smtp_from_name: f.smtp_from_name || '',
+    smtp_from_email: f.smtp_from_email || '',
+  }
+  companyFormTab.value = 'general'
+  showCompanyModal.value = true
+}
+
+// Lee el archivo .p12 y lo convierte a base64 (se envía al backend, que lo guarda)
+const onP12Selected = (e: Event) => {
+  const file = (e.target as HTMLInputElement).files?.[0]
+  if (!file) return
+  if (!/\.(p12|pfx)$/i.test(file.name)) {
+    errorMsg.value = 'El archivo de firma debe ser .p12 o .pfx'
+    return
+  }
+  const reader = new FileReader()
+  reader.onload = () => {
+    const result = String(reader.result || '')
+    formCompany.value.cert_p12_base64 = result.split(',')[1] || ''
+    formCompany.value.cert_file_name = file.name
+    formCompany.value.remove_certificate = false
+  }
+  reader.readAsDataURL(file)
+}
+
+const removeP12 = () => {
+  formCompany.value.cert_p12_base64 = ''
+  formCompany.value.cert_file_name = ''
+  formCompany.value.cert_password = ''
+  formCompany.value.cert_expires_at = ''
+  formCompany.value.has_certificate = false
+  formCompany.value.remove_certificate = true
+}
 
 const formUser = ref({
   companyId: 1,
@@ -450,13 +549,33 @@ const submitCompany = async () => {
   loading.value = true
   errorMsg.value = ''
   try {
-    await createCompany(formCompany.value)
-    successMsg.value = 'Empresa y rol Administrador creados exitosamente.'
+    const f = formCompany.value
+    if (f.cert_p12_base64 && !f.cert_password) {
+      errorMsg.value = 'Ingresa la contraseña de la firma electrónica (.p12).'
+      companyFormTab.value = 'firma'
+      return
+    }
+    const { has_certificate, has_smtp_password, ...rest } = f
+    const payload: any = { ...rest }
+    // No enviar vacíos de secretos para no sobrescribir los ya guardados
+    if (!payload.cert_p12_base64) { delete payload.cert_p12_base64; delete payload.cert_password }
+    if (!payload.smtp_password) delete payload.smtp_password
+    if (!payload.cert_file_name) delete payload.cert_file_name
+    if (!payload.remove_certificate) delete payload.remove_certificate
+
+    if (isEditingCompany.value && editingCompanyId.value) {
+      await updateCompany(editingCompanyId.value, payload)
+      successMsg.value = 'Empresa actualizada exitosamente.'
+    } else {
+      await createCompany(payload)
+      successMsg.value = 'Empresa y rol Administrador creados exitosamente.'
+    }
     showCompanyModal.value = false
-    formCompany.value = { ruc: '', business_name: '', trade_name: '', description: '' }
+    formCompany.value = initialFormCompany()
     await loadCurrentTabData()
   } catch (err: any) {
-    errorMsg.value = err.response?.data?.message || 'Error al crear la empresa'
+    const m = err.response?.data?.message
+    errorMsg.value = (Array.isArray(m) ? m.join(', ') : m) || 'Error al guardar la empresa'
   } finally {
     loading.value = false
   }
@@ -1221,7 +1340,7 @@ const submitSubscription = async () => {
           <h5 class="fw-bold text-white mb-1">Listado de Empresas</h5>
           <small class="text-secondary">Empresas registradas en la plataforma</small>
         </div>
-        <button class="btn btn-primary rounded-pill px-4 d-flex align-items-center gap-2" @click="showCompanyModal = true">
+        <button class="btn btn-primary rounded-pill px-4 d-flex align-items-center gap-2" @click="openCreateCompany">
           <iconify-icon icon="solar:add-circle-line-duotone" class="fs-5"></iconify-icon>
           <span>Nueva Empresa</span>
         </button>
@@ -1256,7 +1375,7 @@ const submitSubscription = async () => {
                 </span>
               </td>
               <td class="text-end">
-                <button class="btn btn-sm btn-outline-info rounded-circle p-1" title="Editar">
+                <button class="btn btn-sm btn-outline-info rounded-circle p-1" title="Editar" @click="openEditCompany(comp)">
                   <iconify-icon icon="solar:pen-2-line-duotone" class="fs-4"></iconify-icon>
                 </button>
               </td>
@@ -1742,37 +1861,152 @@ const submitSubscription = async () => {
     <!-- MODALES DE CREACIÓN                                      -->
     <!-- ======================================================== -->
 
-    <!-- 1. MODAL NUEVA EMPRESA -->
+    <!-- 1. MODAL NUEVA / EDITAR EMPRESA -->
     <Teleport to="body">
       <div v-if="showCompanyModal" class="modal fade show d-block" style="background: rgba(0,0,0,0.65); z-index: 1060;" @click.self="showCompanyModal = false">
-        <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable modal-lg">
           <div class="modal-content rounded-4 shadow-lg border-0 bg-dark text-white">
             <div class="modal-header bg-primary text-white">
-              <h5 class="modal-title text-white">Registrar Nueva Empresa</h5>
+              <h5 class="modal-title text-white">{{ isEditingCompany ? 'Editar Empresa' : 'Registrar Nueva Empresa' }}</h5>
               <button type="button" class="btn-close btn-close-white" @click="showCompanyModal = false"></button>
             </div>
             <form @submit.prevent="submitCompany">
+              <ul class="nav nav-pills gap-2 px-4 pt-3">
+                <li class="nav-item" v-for="t in [{k:'general',l:'General'},{k:'fiscal',l:'Datos SRI'},{k:'firma',l:'Firma electrónica'},{k:'correo',l:'Correo (SMTP)'}]" :key="t.k">
+                  <button type="button" class="nav-link py-1 px-3" :class="companyFormTab === t.k ? 'active' : 'text-white-50'" @click="companyFormTab = t.k as any">{{ t.l }}</button>
+                </li>
+              </ul>
               <div class="modal-body p-4">
-                <div class="mb-3">
-                  <label class="form-label text-white-50">RUC / Identificación Fiscal</label>
-                  <input v-model="formCompany.ruc" type="text" class="form-control bg-dark-subtle border-secondary text-white" placeholder="Ej. 1725620247001" required />
+                <!-- GENERAL -->
+                <div v-show="companyFormTab === 'general'" class="row g-3">
+                  <div class="col-md-6">
+                    <label class="form-label text-white-50">RUC *</label>
+                    <input v-model="formCompany.ruc" type="text" maxlength="13" class="form-control bg-dark-subtle border-secondary text-white" placeholder="1725620247001" required />
+                  </div>
+                  <div class="col-md-6">
+                    <label class="form-label text-white-50">Nombre Comercial *</label>
+                    <input v-model="formCompany.trade_name" type="text" class="form-control bg-dark-subtle border-secondary text-white" required />
+                  </div>
+                  <div class="col-12">
+                    <label class="form-label text-white-50">Razón Social *</label>
+                    <input v-model="formCompany.business_name" type="text" class="form-control bg-dark-subtle border-secondary text-white" required />
+                  </div>
+                  <div class="col-12">
+                    <label class="form-label text-white-50">Dirección de Matriz</label>
+                    <input v-model="formCompany.address_matriz" type="text" class="form-control bg-dark-subtle border-secondary text-white" />
+                  </div>
+                  <div class="col-md-6">
+                    <label class="form-label text-white-50">Teléfono</label>
+                    <input v-model="formCompany.phone" type="text" class="form-control bg-dark-subtle border-secondary text-white" />
+                  </div>
+                  <div class="col-md-6">
+                    <label class="form-label text-white-50">Correo de la empresa</label>
+                    <input v-model="formCompany.email" type="email" class="form-control bg-dark-subtle border-secondary text-white" />
+                  </div>
+                  <div class="col-12">
+                    <label class="form-label text-white-50">Descripción / Actividad económica *</label>
+                    <textarea v-model="formCompany.description" class="form-control bg-dark-subtle border-secondary text-white" rows="2" required></textarea>
+                  </div>
                 </div>
-                <div class="mb-3">
-                  <label class="form-label text-white-50">Razón Social</label>
-                  <input v-model="formCompany.business_name" type="text" class="form-control bg-dark-subtle border-secondary text-white" placeholder="Ej. Corporación Deskounta S.A." required />
+
+                <!-- SRI -->
+                <div v-show="companyFormTab === 'fiscal'" class="row g-3">
+                  <div class="col-md-6">
+                    <label class="form-label text-white-50">Ambiente SRI</label>
+                    <select v-model="formCompany.sri_environment" class="form-select bg-dark-subtle border-secondary text-white">
+                      <option value="1">1 - Pruebas</option>
+                      <option value="2">2 - Producción</option>
+                    </select>
+                  </div>
+                  <div class="col-md-6">
+                    <label class="form-label text-white-50">Régimen tributario</label>
+                    <select v-model="formCompany.tax_regime" class="form-select bg-dark-subtle border-secondary text-white">
+                      <option value="GENERAL">General</option>
+                      <option value="RIMPE_EMPRENDEDOR">RIMPE - Emprendedor</option>
+                      <option value="RIMPE_NEGOCIO_POPULAR">RIMPE - Negocio Popular</option>
+                    </select>
+                  </div>
+                  <div class="col-md-6">
+                    <label class="form-label text-white-50">Establecimiento por defecto</label>
+                    <input v-model="formCompany.default_establishment" type="text" maxlength="3" class="form-control bg-dark-subtle border-secondary text-white font-monospace" />
+                  </div>
+                  <div class="col-md-6">
+                    <label class="form-label text-white-50">Punto de emisión por defecto</label>
+                    <input v-model="formCompany.default_emission_point" type="text" maxlength="3" class="form-control bg-dark-subtle border-secondary text-white font-monospace" />
+                  </div>
+                  <div class="col-md-6">
+                    <label class="form-label text-white-50">Nº Resolución Contribuyente Especial</label>
+                    <input v-model="formCompany.special_taxpayer" type="text" class="form-control bg-dark-subtle border-secondary text-white" placeholder="Dejar vacío si no aplica" />
+                  </div>
+                  <div class="col-md-6 d-flex align-items-end">
+                    <div class="form-check form-switch">
+                      <input v-model="formCompany.obligated_accounting" class="form-check-input" type="checkbox" id="chkContab" />
+                      <label class="form-check-label text-white-50" for="chkContab">Obligado a llevar contabilidad</label>
+                    </div>
+                  </div>
                 </div>
-                <div class="mb-3">
-                  <label class="form-label text-white-50">Nombre Comercial</label>
-                  <input v-model="formCompany.trade_name" type="text" class="form-control bg-dark-subtle border-secondary text-white" placeholder="Ej. Deskounta" required />
+
+                <!-- FIRMA -->
+                <div v-show="companyFormTab === 'firma'" class="row g-3">
+                  <div class="col-12">
+                    <div v-if="formCompany.has_certificate || formCompany.cert_file_name" class="alert alert-success py-2 d-flex justify-content-between align-items-center">
+                      <span>Firma cargada: <strong>{{ formCompany.cert_file_name || 'certificado.p12' }}</strong></span>
+                      <button type="button" class="btn btn-sm btn-outline-danger" @click="removeP12">Quitar</button>
+                    </div>
+                    <div v-else class="alert alert-secondary py-2 mb-0">No hay firma electrónica cargada.</div>
+                  </div>
+                  <div class="col-12">
+                    <label class="form-label text-white-50">Archivo de firma (.p12 / .pfx)</label>
+                    <input type="file" accept=".p12,.pfx" class="form-control bg-dark-subtle border-secondary text-white" @change="onP12Selected" />
+                  </div>
+                  <div class="col-md-6">
+                    <label class="form-label text-white-50">Contraseña de la firma</label>
+                    <input v-model="formCompany.cert_password" type="password" autocomplete="new-password" class="form-control bg-dark-subtle border-secondary text-white" placeholder="Solo al cargar un archivo nuevo" />
+                  </div>
+                  <div class="col-md-6">
+                    <label class="form-label text-white-50">Fecha de caducidad</label>
+                    <input v-model="formCompany.cert_expires_at" type="date" class="form-control bg-dark-subtle border-secondary text-white" />
+                  </div>
+                  <small class="text-secondary">El archivo y su contraseña se guardan cifrados (AES-256) y nunca se devuelven al navegador.</small>
                 </div>
-                <div class="mb-3">
-                  <label class="form-label text-white-50">Descripción / Dirección</label>
-                  <textarea v-model="formCompany.description" class="form-control bg-dark-subtle border-secondary text-white" rows="2" placeholder="Dirección o actividad comercial"></textarea>
+
+                <!-- SMTP -->
+                <div v-show="companyFormTab === 'correo'" class="row g-3">
+                  <div class="col-md-8">
+                    <label class="form-label text-white-50">Servidor SMTP</label>
+                    <input v-model="formCompany.smtp_host" type="text" class="form-control bg-dark-subtle border-secondary text-white" placeholder="smtp.gmail.com" />
+                  </div>
+                  <div class="col-md-4">
+                    <label class="form-label text-white-50">Puerto</label>
+                    <input v-model.number="formCompany.smtp_port" type="number" class="form-control bg-dark-subtle border-secondary text-white" />
+                  </div>
+                  <div class="col-md-6">
+                    <label class="form-label text-white-50">Usuario</label>
+                    <input v-model="formCompany.smtp_user" type="text" class="form-control bg-dark-subtle border-secondary text-white" />
+                  </div>
+                  <div class="col-md-6">
+                    <label class="form-label text-white-50">Contraseña {{ formCompany.has_smtp_password ? '(guardada, vacío = no cambiar)' : '' }}</label>
+                    <input v-model="formCompany.smtp_password" type="password" autocomplete="new-password" class="form-control bg-dark-subtle border-secondary text-white" />
+                  </div>
+                  <div class="col-md-6">
+                    <label class="form-label text-white-50">Nombre del remitente</label>
+                    <input v-model="formCompany.smtp_from_name" type="text" class="form-control bg-dark-subtle border-secondary text-white" />
+                  </div>
+                  <div class="col-md-6">
+                    <label class="form-label text-white-50">Correo del remitente</label>
+                    <input v-model="formCompany.smtp_from_email" type="email" class="form-control bg-dark-subtle border-secondary text-white" />
+                  </div>
+                  <div class="col-12">
+                    <div class="form-check form-switch">
+                      <input v-model="formCompany.smtp_secure" class="form-check-input" type="checkbox" id="chkSsl" />
+                      <label class="form-check-label text-white-50" for="chkSsl">Usar SSL/TLS</label>
+                    </div>
+                  </div>
                 </div>
               </div>
               <div class="modal-footer border-dark-subtle">
                 <button type="button" class="btn btn-outline-secondary" @click="showCompanyModal = false">Cancelar</button>
-                <button type="submit" class="btn btn-primary" :disabled="loading">Guardar Empresa</button>
+                <button type="submit" class="btn btn-primary" :disabled="loading">{{ isEditingCompany ? 'Guardar Cambios' : 'Guardar Empresa' }}</button>
               </div>
             </form>
           </div>

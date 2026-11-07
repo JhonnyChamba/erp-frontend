@@ -360,6 +360,69 @@ const onCancelInvoice = async (inv: InvoiceItem) => {
   }
 }
 
+// RIDE (Representación Impresa del Documento Electrónico): imprime o guarda como PDF desde el navegador
+const printRide = (inv: InvoiceItem) => {
+  let company: any = {}
+  try {
+    company = JSON.parse(localStorage.getItem('selectedCompany') || '{}')
+  } catch {}
+  const esc = (s: any) =>
+    String(s ?? '').replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c] as string))
+  const payNames: Record<string, string> = {
+    '01': 'SIN UTILIZACION DEL SISTEMA FINANCIERO',
+    '16': 'TARJETA DE DEBITO',
+    '19': 'TARJETA DE CREDITO',
+    '20': 'OTROS CON UTILIZACION DEL SISTEMA FINANCIERO',
+  }
+  const rows = (inv.details || [])
+    .map(
+      (d) => `<tr><td>${esc(d.code)}</td><td>${esc(d.description)}</td>
+      <td class="r">${esc(d.quantity)}</td><td class="r">${formatNumber(d.unit_price)}</td>
+      <td class="r">${formatNumber(d.discount)}</td><td class="r">${formatNumber(d.total)}</td></tr>`
+    )
+    .join('')
+
+  const html = `<!doctype html><html><head><meta charset="utf-8"><title>Factura ${esc(inv.invoice_number)}</title>
+  <style>
+    body{font-family:Arial,sans-serif;font-size:12px;color:#000;margin:20px}
+    .box{border:1px solid #000;border-radius:6px;padding:8px;margin-bottom:8px}
+    .head{display:flex;gap:10px}.head>div{flex:1}
+    table{width:100%;border-collapse:collapse}th,td{border:1px solid #000;padding:4px}
+    .r{text-align:right}.k{word-break:break-all;font-family:monospace;font-size:11px}
+    .tot{width:280px;margin-left:auto;margin-top:8px}
+  </style></head><body>
+  <div class="head">
+    <div class="box"><h2>${esc(company.razon_social || company.nombre_comercial || 'EMPRESA')}</h2>
+      <div>${esc(company.nombre_comercial || '')}</div></div>
+    <div class="box"><b>R.U.C.:</b> ${esc(company.ruc || '')}<br><b>FACTURA</b><br>
+      <b>No.</b> ${esc(inv.invoice_number)}<br><b>CLAVE DE ACCESO</b><div class="k">${esc(inv.access_key || '')}</div></div>
+  </div>
+  <div class="box"><b>Razón Social / Nombres:</b> ${esc(inv.customer_name)}<br>
+    <b>Identificación:</b> ${esc(inv.customer_id_number)}<br>
+    <b>Fecha de Emisión:</b> ${esc(inv.issue_date)}<br>
+    <b>Dirección:</b> ${esc(inv.customer_address || '')}</div>
+  <table><thead><tr><th>Cód.</th><th>Descripción</th><th>Cant.</th><th>P. Unit.</th><th>Desc.</th><th>Total</th></tr></thead>
+    <tbody>${rows}</tbody></table>
+  <table class="tot">
+    <tr><td>SUBTOTAL IVA</td><td class="r">${formatNumber(inv.subtotal_taxable)}</td></tr>
+    <tr><td>SUBTOTAL 0%</td><td class="r">${formatNumber(inv.subtotal_zero_tax)}</td></tr>
+    <tr><td>DESCUENTO</td><td class="r">${formatNumber(inv.discount_total)}</td></tr>
+    <tr><td>IVA</td><td class="r">${formatNumber(inv.tax_total)}</td></tr>
+    <tr><td><b>VALOR TOTAL</b></td><td class="r"><b>${formatNumber(inv.total)}</b></td></tr>
+  </table>
+  <div class="box" style="margin-top:8px"><b>Forma de pago:</b> ${esc(payNames[inv.payment_method] || inv.payment_method)}
+    <br><b>Observaciones:</b> ${esc(inv.notes || '')}</div>
+  <script>window.onload=function(){window.print()}<\/script></body></html>`
+
+  const w = window.open('', '_blank')
+  if (!w) {
+    errorMsg.value = 'El navegador bloqueó la ventana de impresión. Permite las ventanas emergentes.'
+    return
+  }
+  w.document.write(html)
+  w.document.close()
+}
+
 const formatNumber = (val: any) => {
   const num = Number(val || 0)
   return num.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
@@ -820,7 +883,11 @@ watch(() => route.path, () => {
           </div>
         </div>
 
-        <div class="modal-footer d-flex justify-content-end p-3 border-top border-secondary">
+        <div class="modal-footer d-flex justify-content-end gap-2 p-3 border-top border-secondary">
+          <button class="btn btn-outline-info d-flex align-items-center gap-2" @click="printRide(viewingInvoice)">
+            <iconify-icon icon="solar:printer-bold-duotone"></iconify-icon>
+            <span>Imprimir / PDF (RIDE)</span>
+          </button>
           <button class="btn btn-secondary" @click="showDetailModal = false">Cerrar</button>
         </div>
       </div>

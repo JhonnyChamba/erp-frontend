@@ -92,3 +92,4 @@ export const cancelInvoice = async (id: number, companyId?: number): Promise<Inv
   })
   return data
 }
+

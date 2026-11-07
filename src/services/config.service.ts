@@ -1,5 +1,27 @@
 import { api } from './axios'
 
+export interface CompanyFiscal {
+  address_matriz?: string
+  phone?: string
+  email?: string
+  obligated_accounting?: boolean
+  special_taxpayer?: string
+  tax_regime?: string
+  sri_environment?: string
+  default_establishment?: string
+  default_emission_point?: string
+  cert_file_name?: string
+  cert_expires_at?: string
+  has_certificate?: boolean
+  smtp_host?: string
+  smtp_port?: number
+  smtp_secure?: boolean
+  smtp_user?: string
+  has_smtp_password?: boolean
+  smtp_from_name?: string
+  smtp_from_email?: string
+}
+
 export interface CompanyItem {
   id: number
   ruc: string
@@ -8,6 +30,36 @@ export interface CompanyItem {
   trade_name: string
   enabled?: boolean
   createdAt?: string
+  fiscal?: CompanyFiscal
+}
+
+export interface CompanyPayload {
+  ruc?: string
+  description?: string
+  business_name?: string
+  trade_name?: string
+  enabled?: boolean
+  address_matriz?: string
+  phone?: string
+  email?: string
+  obligated_accounting?: boolean
+  special_taxpayer?: string
+  tax_regime?: string
+  sri_environment?: string
+  default_establishment?: string
+  default_emission_point?: string
+  cert_p12_base64?: string
+  cert_password?: string
+  cert_file_name?: string
+  cert_expires_at?: string
+  remove_certificate?: boolean
+  smtp_host?: string
+  smtp_port?: number
+  smtp_secure?: boolean
+  smtp_user?: string
+  smtp_password?: string
+  smtp_from_name?: string
+  smtp_from_email?: string
 }
 
 export interface UserCompanyRoleItem {
@@ -99,13 +151,18 @@ export const getCompanies = async (params: { page?: number; limit?: number } = {
   return data
 }
 
-export const createCompany = async (payload: {
+export const createCompany = async (payload: CompanyPayload & {
   ruc: string
   description: string
   business_name: string
   trade_name: string
 }) => {
   const { data } = await api.post('/company/register', payload)
+  return data
+}
+
+export const updateCompany = async (id: number, payload: CompanyPayload) => {
+  const { data } = await api.patch(`/company/${id}`, payload)
   return data
 }
 
