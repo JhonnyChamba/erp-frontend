@@ -14,6 +14,23 @@
   <link rel="stylesheet" href="/controller/css/styles.css" />
 
   <title>Deskounta ERP</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+  <script>
+    (function () {
+      try {
+        var mode = localStorage.getItem('app-theme') || 'dark';
+        var color = localStorage.getItem('userTheme') || 'Blue_Theme';
+        var layout = localStorage.getItem('app-container-layout') || 'full';
+        var card = localStorage.getItem('app-card-style') || 'shadow';
+        document.documentElement.setAttribute('data-bs-theme', mode);
+        document.documentElement.setAttribute('data-color-theme', color);
+        document.documentElement.setAttribute('data-boxed-layout', layout);
+        document.documentElement.setAttribute('data-card', card);
+      } catch (e) {}
+    })();
+  </script>
 </head>
 
 <body>

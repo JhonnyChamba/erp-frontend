@@ -6,6 +6,7 @@ export interface CompanySummary {
 	razon_social: string
 	ruc: string
 	nombre_comercial: string
+	sri_environment?: string
 }
 
 export const useListCompanyUserStore = defineStore('listCompanyUser', {
@@ -39,6 +40,7 @@ export const useListCompanyUserStore = defineStore('listCompanyUser', {
 						razon_social: comp.business_name || comp.razon_social || '',
 						ruc: comp.ruc || '',
 						nombre_comercial: comp.trade_name || comp.nombre_comercial || '',
+						sri_environment: String(comp.sri_environment ?? comp.fiscal?.sri_environment ?? '1'),
 					}
 				})
 

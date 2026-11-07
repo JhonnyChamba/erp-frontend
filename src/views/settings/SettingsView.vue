@@ -32,10 +32,12 @@ import {
   type SubModuleItem,
 } from '@/services/config.service'
 import { useAuthStore } from '@/stores/auth.store'
+import { useThemeStore } from '@/stores/theme.store'
 
 const route = useRoute()
 const router = useRouter()
 const authStore = useAuthStore()
+const themeStore = useThemeStore()
 
 // Paleta de colores de temas (Spike Admin)
 const themeColorsList = [
@@ -1353,13 +1355,14 @@ const submitSubscription = async () => {
 
       <div v-else class="table-responsive">
         <table class="table table-hover align-middle mb-0">
-          <thead class="table-dark">
+          <thead class="table-primary">
             <tr>
               <th width="5%">#</th>
               <th width="15%">RUC</th>
-              <th width="35%">Razón Social</th>
-              <th width="25%">Nombre Comercial</th>
-              <th width="10%">Estado</th>
+              <th width="30%">Razón Social</th>
+              <th width="20%">Nombre Comercial</th>
+              <th width="12%">Ambiente SRI</th>
+              <th width="8%">Estado</th>
               <th width="10%" class="text-end">Acciones</th>
             </tr>
           </thead>
@@ -1369,6 +1372,15 @@ const submitSubscription = async () => {
               <td class="fw-semibold text-white">{{ comp.ruc }}</td>
               <td class="text-white">{{ comp.business_name }}</td>
               <td class="text-secondary">{{ comp.trade_name }}</td>
+              <td>
+                <span
+                  class="badge d-inline-flex align-items-center gap-1 px-2 py-1"
+                  :class="comp.fiscal?.sri_environment === '2' ? 'bg-success-subtle text-success border border-success-subtle' : 'bg-warning-subtle text-warning border border-warning-subtle'"
+                >
+                  <iconify-icon :icon="comp.fiscal?.sri_environment === '2' ? 'solar:shield-check-bold' : 'solar:test-tube-minimalistic-bold-duotone'"></iconify-icon>
+                  {{ comp.fiscal?.sri_environment === '2' ? 'Producción' : 'Pruebas' }}
+                </span>
+              </td>
               <td>
                 <span class="badge" :class="comp.enabled !== false ? 'bg-success-subtle text-success' : 'bg-danger-subtle text-danger'">
                   {{ comp.enabled !== false ? 'Activo' : 'Inactivo' }}
@@ -1381,7 +1393,7 @@ const submitSubscription = async () => {
               </td>
             </tr>
             <tr v-if="companies.length === 0">
-              <td colspan="6" class="text-center text-muted py-5">No hay empresas registradas aún.</td>
+              <td colspan="7" class="text-center text-muted py-5">No hay empresas registradas aún.</td>
             </tr>
           </tbody>
         </table>
@@ -1410,7 +1422,7 @@ const submitSubscription = async () => {
 
       <div v-else class="table-responsive">
         <table class="table table-hover align-middle mb-0">
-          <thead class="table-dark">
+          <thead class="table-primary">
             <tr>
               <th width="5%">#</th>
               <th width="12%">Documento</th>
@@ -1504,7 +1516,7 @@ const submitSubscription = async () => {
 
       <div v-else class="table-responsive">
         <table class="table table-hover align-middle mb-0">
-          <thead class="table-dark">
+          <thead class="table-primary">
             <tr>
               <th width="6%">#</th>
               <th width="14%">Código</th>
@@ -1589,7 +1601,7 @@ const submitSubscription = async () => {
 
         <div v-else class="table-responsive">
           <table class="table table-hover align-middle mb-0">
-            <thead class="table-dark">
+            <thead class="table-primary">
               <tr>
                 <th width="8%">#</th>
                 <th width="12%">Icono</th>
@@ -1686,7 +1698,7 @@ const submitSubscription = async () => {
 
         <div class="table-responsive">
           <table class="table table-hover align-middle mb-0">
-            <thead class="table-dark">
+            <thead class="table-primary">
               <tr>
                 <th width="6%">#</th>
                 <th width="20%">Módulo Padre</th>
@@ -1795,7 +1807,7 @@ const submitSubscription = async () => {
 
         <div class="table-responsive">
           <table class="table table-hover align-middle mb-0">
-            <thead class="table-dark">
+            <thead class="table-primary">
               <tr>
                 <th width="5%">#</th>
                 <th width="16%">Plan Contratado</th>
@@ -1907,16 +1919,95 @@ const submitSubscription = async () => {
                     <label class="form-label text-white-50">Descripción / Actividad económica *</label>
                     <textarea v-model="formCompany.description" class="form-control bg-dark-subtle border-secondary text-white" rows="2" required></textarea>
                   </div>
+
+                  <!-- Selector de Ambiente SRI en pestaña General -->
+                  <div class="col-12 mt-2 pt-2 border-top border-dark-subtle">
+                    <label class="form-label text-white-50 fw-bold d-flex align-items-center gap-2 mb-2">
+                      <iconify-icon icon="solar:server-square-bold-duotone" class="text-primary fs-5"></iconify-icon>
+                      Ambiente de Emisión SRI *
+                    </label>
+                    <div class="row g-2">
+                      <div class="col-md-6">
+                        <div
+                          class="p-3 rounded-3 border transition-all d-flex align-items-center gap-3"
+                          :class="formCompany.sri_environment === '1' ? 'border-warning bg-warning-subtle text-warning' : 'border-secondary-subtle bg-dark-subtle text-secondary'"
+                          @click="formCompany.sri_environment = '1'"
+                          style="cursor: pointer;"
+                        >
+                          <div class="rounded-circle p-2 bg-warning-subtle text-warning border border-warning-subtle d-flex align-items-center justify-content-center" style="width: 38px; height: 38px;">
+                            <iconify-icon icon="solar:test-tube-minimalistic-bold-duotone" class="fs-5"></iconify-icon>
+                          </div>
+                          <div>
+                            <div class="fw-bold fs-3 text-white">1 - Ambiente de Pruebas</div>
+                            <small class="text-white-50 d-block fs-1">Comprobantes de prueba e integración SRI sin validez fiscal.</small>
+                          </div>
+                          <iconify-icon v-if="formCompany.sri_environment === '1'" icon="solar:check-circle-bold" class="fs-5 text-warning ms-auto flex-shrink-0"></iconify-icon>
+                        </div>
+                      </div>
+                      <div class="col-md-6">
+                        <div
+                          class="p-3 rounded-3 border transition-all d-flex align-items-center gap-3"
+                          :class="formCompany.sri_environment === '2' ? 'border-success bg-success-subtle text-success' : 'border-secondary-subtle bg-dark-subtle text-secondary'"
+                          @click="formCompany.sri_environment = '2'"
+                          style="cursor: pointer;"
+                        >
+                          <div class="rounded-circle p-2 bg-success-subtle text-success border border-success-subtle d-flex align-items-center justify-content-center" style="width: 38px; height: 38px;">
+                            <iconify-icon icon="solar:shield-check-bold" class="fs-5"></iconify-icon>
+                          </div>
+                          <div>
+                            <div class="fw-bold fs-3 text-white">2 - Ambiente de Producción</div>
+                            <small class="text-white-50 d-block fs-1">Facturas reales con autorización formal del SRI.</small>
+                          </div>
+                          <iconify-icon v-if="formCompany.sri_environment === '2'" icon="solar:check-circle-bold" class="fs-5 text-success ms-auto flex-shrink-0"></iconify-icon>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
                 </div>
 
                 <!-- SRI -->
                 <div v-show="companyFormTab === 'fiscal'" class="row g-3">
-                  <div class="col-md-6">
-                    <label class="form-label text-white-50">Ambiente SRI</label>
-                    <select v-model="formCompany.sri_environment" class="form-select bg-dark-subtle border-secondary text-white">
-                      <option value="1">1 - Pruebas</option>
-                      <option value="2">2 - Producción</option>
-                    </select>
+                  <div class="col-12">
+                    <label class="form-label text-white-50 fw-bold d-flex align-items-center gap-2 mb-2">
+                      <iconify-icon icon="solar:server-square-bold-duotone" class="text-primary fs-5"></iconify-icon>
+                      Ambiente SRI *
+                    </label>
+                    <div class="row g-2">
+                      <div class="col-md-6">
+                        <div
+                          class="p-3 rounded-3 border transition-all d-flex align-items-center gap-3"
+                          :class="formCompany.sri_environment === '1' ? 'border-warning bg-warning-subtle text-warning' : 'border-secondary-subtle bg-dark-subtle text-secondary'"
+                          @click="formCompany.sri_environment = '1'"
+                          style="cursor: pointer;"
+                        >
+                          <div class="rounded-circle p-2 bg-warning-subtle text-warning border border-warning-subtle d-flex align-items-center justify-content-center" style="width: 38px; height: 38px;">
+                            <iconify-icon icon="solar:test-tube-minimalistic-bold-duotone" class="fs-5"></iconify-icon>
+                          </div>
+                          <div>
+                            <div class="fw-bold fs-3 text-white">1 - Pruebas</div>
+                            <small class="text-white-50 d-block fs-1">Sin validez fiscal real.</small>
+                          </div>
+                          <iconify-icon v-if="formCompany.sri_environment === '1'" icon="solar:check-circle-bold" class="fs-5 text-warning ms-auto flex-shrink-0"></iconify-icon>
+                        </div>
+                      </div>
+                      <div class="col-md-6">
+                        <div
+                          class="p-3 rounded-3 border transition-all d-flex align-items-center gap-3"
+                          :class="formCompany.sri_environment === '2' ? 'border-success bg-success-subtle text-success' : 'border-secondary-subtle bg-dark-subtle text-secondary'"
+                          @click="formCompany.sri_environment = '2'"
+                          style="cursor: pointer;"
+                        >
+                          <div class="rounded-circle p-2 bg-success-subtle text-success border border-success-subtle d-flex align-items-center justify-content-center" style="width: 38px; height: 38px;">
+                            <iconify-icon icon="solar:shield-check-bold" class="fs-5"></iconify-icon>
+                          </div>
+                          <div>
+                            <div class="fw-bold fs-3 text-white">2 - Producción</div>
+                            <small class="text-white-50 d-block fs-1">Facturas autorizadas formalmente.</small>
+                          </div>
+                          <iconify-icon v-if="formCompany.sri_environment === '2'" icon="solar:check-circle-bold" class="fs-5 text-success ms-auto flex-shrink-0"></iconify-icon>
+                        </div>
+                      </div>
+                    </div>
                   </div>
                   <div class="col-md-6">
                     <label class="form-label text-white-50">Régimen tributario</label>
@@ -2229,6 +2320,36 @@ const submitSubscription = async () => {
                         </div>
                       </div>
                     </div>
+                  </div>
+                </div>
+
+                <!-- SELECTOR DE MODO OSCURO / CLARO (SPIKE ADMIN THEME MODE) -->
+                <div class="mb-3 pt-2 border-top border-dark-subtle">
+                  <label class="form-label text-white-50 d-flex justify-content-between align-items-center mb-2">
+                    <span class="fw-semibold text-adaptive-light">Modo de Apariencia</span>
+                    <span class="badge bg-info-subtle text-info border border-info-subtle px-2 py-1 fs-1">
+                      {{ themeStore.isDark ? 'Oscuro activo' : 'Claro activo' }}
+                    </span>
+                  </label>
+                  <div class="d-flex gap-2">
+                    <button
+                      type="button"
+                      class="btn flex-fill d-flex align-items-center justify-content-center gap-2 py-2 rounded-3 border"
+                      :class="!themeStore.isDark ? 'btn-primary text-white shadow-sm' : 'btn-outline-secondary text-secondary'"
+                      @click="themeStore.applyThemeMode('light')"
+                    >
+                      <iconify-icon icon="solar:sun-2-line-duotone" class="fs-5"></iconify-icon>
+                      <span class="fw-semibold">Modo Claro</span>
+                    </button>
+                    <button
+                      type="button"
+                      class="btn flex-fill d-flex align-items-center justify-content-center gap-2 py-2 rounded-3 border"
+                      :class="themeStore.isDark ? 'btn-primary text-white shadow-sm' : 'btn-outline-secondary text-secondary'"
+                      @click="themeStore.applyThemeMode('dark')"
+                    >
+                      <iconify-icon icon="solar:moon-line-duotone" class="fs-5"></iconify-icon>
+                      <span class="fw-semibold">Modo Oscuro</span>
+                    </button>
                   </div>
                 </div>
 

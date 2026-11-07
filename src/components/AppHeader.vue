@@ -1,18 +1,25 @@
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, computed } from 'vue'
 import { useAuthStore } from '@/stores/auth.store'
+import { useThemeStore } from '@/stores/theme.store'
 import { useRouter } from 'vue-router'
 
 const authStore = useAuthStore()
+const themeStore = useThemeStore()
 const router = useRouter()
 
-const emit = defineEmits(['toggle-sidebar'])
+const emit = defineEmits(['toggle-sidebar', 'open-customizer'])
 
 const selectedCompany = ref<any>(null)
 const selectedBranch = ref<any>(null)
 const userName = ref('Usuario')
 
+const activeRoleLabel = computed(() => {
+  return authStore.accessInfo?.roleName || (authStore.tokenPayload?.super_admin ? 'Super Admin' : 'Admin')
+})
+
 onMounted(() => {
+  themeStore.initTheme()
   const comp = localStorage.getItem('selectedCompany')
   if (comp) {
     try { selectedCompany.value = JSON.parse(comp) } catch (e) {}
@@ -40,126 +47,182 @@ const changeCompany = () => {
 </script>
 
 <template>
-  <header class="app-header position-relative py-2 px-3 border-bottom border-dark-subtle">
-    <nav class="navbar navbar-expand-lg navbar-dark p-0 d-flex align-items-center justify-content-between">
-      
-      <!-- LADO IZQUIERDO: TOGGLER + EMPRESA / SUCURSAL ACTIVA -->
-      <div class="d-flex align-items-center gap-3">
-        <button
-          class="nav-link sidebartoggler p-2 rounded-circle hover-bg d-flex align-items-center justify-content-center text-white"
-          type="button"
-          @click="emit('toggle-sidebar')"
-          title="Colapsar / Expandir menú"
-        >
-          <iconify-icon icon="solar:hamburger-menu-line-duotone" class="fs-6"></iconify-icon>
-        </button>
-
-        <!-- Context Badge: Empresa y Sucursal -->
-        <div class="d-none d-md-flex align-items-center gap-2 bg-dark-subtle px-3 py-1 rounded-pill border border-secondary-subtle">
-          <iconify-icon icon="solar:buildings-3-line-duotone" class="text-primary fs-5"></iconify-icon>
-          <span class="fw-semibold text-white fs-3">
-            {{ selectedCompany?.razon_social || selectedCompany?.nombre_comercial || 'Deskounta' }}
-          </span>
-          <span class="text-secondary mx-1">|</span>
-          <iconify-icon icon="solar:shop-2-line-duotone" class="text-info fs-5"></iconify-icon>
-          <span class="text-info-emphasis fs-2">
-            {{ selectedBranch?.name ? `${selectedBranch.name} (${selectedBranch.code})` : 'Sucursal General' }}
-          </span>
-          <button
-            v-if="authStore.canSwitchCompany"
-            class="btn btn-xs btn-outline-primary ms-2 rounded-pill px-2 py-0 fs-1"
-            @click="changeCompany"
-            title="Cambiar Empresa / Sucursal"
-          >
-            Cambiar
-          </button>
-        </div>
-      </div>
-
-      <!-- CENTRO: BARRA DE BÚSQUEDA ESTILO SPIKE -->
-      <div class="d-none d-lg-block w-25">
-        <div class="input-group">
-          <span class="input-group-text bg-dark-subtle border-0 text-secondary">
-            <iconify-icon icon="solar:magnifer-line-duotone" class="fs-5"></iconify-icon>
-          </span>
-          <input
-            type="text"
-            class="form-control bg-dark-subtle border-0 text-white shadow-none ps-0"
-            placeholder="Buscar en el sistema..."
-          />
-        </div>
-      </div>
-
-      <!-- LADO DERECHO: ACCIONES + PERFIL DE USUARIO + BOTÓN SALIR -->
-      <div class="d-flex align-items-center gap-2 gap-md-3">
+  <header class="topbar sticky-top">
+    <div class="with-vertical">
+      <nav class="navbar navbar-expand-lg p-0 d-flex align-items-center justify-content-between">
         
-        <!-- Notificaciones -->
-        <button class="nav-link p-2 rounded-circle hover-bg d-flex align-items-center justify-content-center text-white" type="button">
-          <iconify-icon icon="solar:bell-bing-line-duotone" class="fs-6"></iconify-icon>
-        </button>
-
-        <!-- Perfil de usuario -->
-        <div class="dropdown">
-          <a
-            class="nav-link d-flex align-items-center gap-2 p-1 rounded-pill hover-bg text-decoration-none"
-            href="javascript:void(0)"
-            id="drop2"
-            data-bs-toggle="dropdown"
-            aria-expanded="false"
-          >
-            <img
-              src="/controller/images/profile/user-1.jpg"
-              alt="user"
-              width="36"
-              height="36"
-              class="rounded-circle border border-primary border-2"
-            />
-            <div class="d-none d-md-block text-start pe-2">
-              <span class="d-block fw-bold fs-2 text-white lh-1">{{ userName }}</span>
-              <small class="text-info fs-1">
-                {{ authStore.accessInfo?.roleName || (authStore.tokenPayload?.super_admin ? 'Super Admin' : 'Usuario') }}
-              </small>
-            </div>
-            <iconify-icon icon="solar:alt-arrow-down-line-duotone" class="text-secondary fs-4"></iconify-icon>
-          </a>
-
-          <div class="dropdown-menu dropdown-menu-end shadow-lg rounded-3 py-2 border-0 bg-dark" aria-labelledby="drop2" style="min-width: 200px;">
-            <div class="px-3 py-2 border-bottom border-dark-subtle">
-              <span class="d-block text-white fw-bold">{{ userName }}</span>
-              <small class="text-muted">{{ authStore.accessInfo?.roleName || 'Usuario Activo' }}</small>
-            </div>
-            <template v-if="authStore.canSwitchCompany">
-              <a class="dropdown-item d-flex align-items-center gap-2 py-2 text-white-50" href="javascript:void(0)" @click="changeCompany">
-                <iconify-icon icon="solar:buildings-3-line-duotone" class="fs-5 text-primary"></iconify-icon>
-                <span>Cambiar Sucursal</span>
+        <!-- LADO IZQUIERDO: TOGGLER + EMPRESA / SUCURSAL ACTIVA -->
+        <div class="d-flex align-items-center gap-2">
+          <ul class="navbar-nav me-2">
+            <li class="nav-item nav-icon-hover-bg rounded-circle">
+              <a
+                class="nav-link sidebartoggler cursor-pointer"
+                id="headerCollapse"
+                href="javascript:void(0)"
+                @click="emit('toggle-sidebar')"
+                title="Colapsar / Expandir menú"
+              >
+                <iconify-icon icon="solar:list-bold-duotone" class="fs-7"></iconify-icon>
               </a>
-              <div class="dropdown-divider border-dark-subtle"></div>
-            </template>
-            <a class="dropdown-item d-flex align-items-center gap-2 py-2 text-danger" href="javascript:void(0)" @click="logout">
-              <iconify-icon icon="solar:logout-2-line-duotone" class="fs-5"></iconify-icon>
-              <span>Cerrar Sesión</span>
-            </a>
+            </li>
+          </ul>
+
+          <!-- Badge Context: Empresa y Sucursal -->
+          <div class="d-none d-md-flex align-items-center gap-2 px-3 py-1 rounded-pill border" style="background-color: var(--bs-subtle-bg); border-color: var(--bs-border-color) !important;">
+            <iconify-icon icon="solar:buildings-3-line-duotone" class="text-primary fs-5"></iconify-icon>
+            <span class="fw-semibold fs-3" style="color: var(--bs-text-title);">
+              {{ selectedCompany?.razon_social || selectedCompany?.nombre_comercial || 'Deskounta' }}
+            </span>
+            <span
+              v-if="selectedCompany?.fiscal?.sri_environment === '2' || (selectedCompany as any)?.sri_environment === '2'"
+              class="badge bg-success-subtle text-success border border-success-subtle rounded-pill px-2 py-0 fs-1 d-inline-flex align-items-center gap-1"
+              title="Ambiente SRI: Producción"
+            >
+              <iconify-icon icon="solar:shield-check-bold"></iconify-icon>
+              PRODUCCIÓN
+            </span>
+            <span
+              v-else
+              class="badge bg-warning-subtle text-warning border border-warning-subtle rounded-pill px-2 py-0 fs-1 d-inline-flex align-items-center gap-1"
+              title="Ambiente SRI: Pruebas"
+            >
+              <iconify-icon icon="solar:test-tube-minimalistic-bold-duotone"></iconify-icon>
+              PRUEBAS
+            </span>
+            <span class="text-muted mx-1">|</span>
+            <iconify-icon icon="solar:shop-2-line-duotone" class="text-info fs-5"></iconify-icon>
+            <span class="text-info fs-2">
+              {{ selectedBranch?.name ? `${selectedBranch.name} (${selectedBranch.code})` : 'Sucursal General' }}
+            </span>
+            <button
+              v-if="authStore.canSwitchCompany"
+              class="btn btn-xs btn-outline-primary ms-2 rounded-pill px-2 py-0 fs-1"
+              @click="changeCompany"
+              title="Cambiar Empresa / Sucursal"
+            >
+              Cambiar
+            </button>
           </div>
         </div>
 
-        <!-- Botón Salir Directo -->
-        <button
-          class="btn btn-sm btn-outline-danger d-flex align-items-center gap-1 rounded-pill px-3 py-1 ms-1"
-          @click="logout"
-          title="Cerrar Sesión"
-        >
-          <iconify-icon icon="solar:logout-2-line-duotone" class="fs-4"></iconify-icon>
-          <span class="d-none d-sm-inline fw-semibold">Salir</span>
-        </button>
+        <!-- LADO DERECHO: ACCIONES + MODO OSCURO + PERFIL DE USUARIO + SALIR -->
+        <ul class="navbar-nav flex-row ms-auto align-items-center justify-content-end gap-1 mb-0">
+          
+          <!-- MODO OSCURO / CLARO (SPIKE MODEL) -->
+          <li class="nav-item nav-icon-hover-bg rounded-circle">
+            <a
+              class="nav-link moon dark-layout cursor-pointer"
+              href="javascript:void(0)"
+              v-if="!themeStore.isDark"
+              @click="themeStore.toggleTheme"
+              title="Cambiar a Modo Oscuro"
+            >
+              <iconify-icon icon="solar:moon-line-duotone" class="moon fs-6"></iconify-icon>
+            </a>
+            <a
+              class="nav-link sun light-layout cursor-pointer text-warning"
+              href="javascript:void(0)"
+              v-else
+              @click="themeStore.toggleTheme"
+              title="Cambiar a Modo Claro"
+            >
+              <iconify-icon icon="solar:sun-2-line-duotone" class="sun fs-6"></iconify-icon>
+            </a>
+          </li>
 
-      </div>
-    </nav>
+          <!-- PERSONALIZAR APARIENCIA / SETTINGS CUSTOMIZER (CONTAINER FULL/BOXED, ETC) -->
+          <li class="nav-item nav-icon-hover-bg rounded-circle">
+            <a
+              class="nav-link cursor-pointer text-primary"
+              href="javascript:void(0)"
+              @click="emit('open-customizer')"
+              title="Personalizar Apariencia (Ancho de Pantalla Full/Boxed, Colores)"
+            >
+              <iconify-icon icon="solar:settings-minimalistic-line-duotone" class="fs-6"></iconify-icon>
+            </a>
+          </li>
+
+          <!-- NOTIFICACIONES -->
+          <li class="nav-item nav-icon-hover-bg rounded-circle">
+            <a class="nav-link position-relative cursor-pointer" href="javascript:void(0)">
+              <iconify-icon icon="solar:bell-bing-line-duotone" class="fs-6"></iconify-icon>
+            </a>
+          </li>
+
+          <!-- PERFIL DE USUARIO (SPIKE PROFILE ITEM) -->
+          <li class="nav-item dropdown">
+            <a
+              class="nav-link position-relative ms-2 cursor-pointer p-0"
+              href="javascript:void(0)"
+              id="dropProfile"
+              data-bs-toggle="dropdown"
+              aria-expanded="false"
+            >
+              <div class="d-flex align-items-center flex-shrink-0">
+                <div class="user-profile me-sm-2 me-1">
+                  <img
+                    src="/controller/images/profile/user-1.jpg"
+                    width="38"
+                    height="38"
+                    class="rounded-circle border border-primary border-2"
+                    alt="user"
+                  />
+                </div>
+                <div class="d-none d-sm-block text-start">
+                  <h6 class="fs-3 mb-0 profile-name">{{ userName }}</h6>
+                  <p class="fs-2 lh-base mb-0 profile-subtext">{{ activeRoleLabel }}</p>
+                </div>
+                <span class="ms-1 text-muted d-none d-sm-inline">
+                  <iconify-icon icon="solar:alt-arrow-down-line-duotone" class="fs-4"></iconify-icon>
+                </span>
+              </div>
+            </a>
+
+            <!-- MENÚ DESPLEGABLE DE PERFIL -->
+            <div
+              class="dropdown-menu dropdown-menu-end shadow-lg rounded-3 py-2 border-0 app-dropdown-menu"
+              aria-labelledby="dropProfile"
+              style="min-width: 210px;"
+            >
+              <div class="px-3 py-2 border-bottom" style="border-color: var(--bs-border-color) !important;">
+                <span class="d-block fw-bold fs-3" style="color: var(--bs-text-title);">{{ userName }}</span>
+                <small class="text-muted">{{ activeRoleLabel }}</small>
+              </div>
+              <template v-if="authStore.canSwitchCompany">
+                <a class="dropdown-item py-2" href="javascript:void(0)" @click="changeCompany">
+                  <iconify-icon icon="solar:buildings-3-line-duotone" class="fs-5 text-primary"></iconify-icon>
+                  <span>Cambiar Sucursal</span>
+                </a>
+                <div class="dropdown-divider"></div>
+              </template>
+              <a class="dropdown-item py-2 text-danger" href="javascript:void(0)" @click="logout">
+                <iconify-icon icon="solar:logout-2-line-duotone" class="fs-5"></iconify-icon>
+                <span>Cerrar Sesión</span>
+              </a>
+            </div>
+          </li>
+
+          <!-- BOTÓN SALIR RÁPIDO -->
+          <li class="nav-item ms-2">
+            <button
+              class="btn btn-sm btn-outline-danger d-flex align-items-center gap-1 rounded-pill px-3 py-1"
+              @click="logout"
+              title="Cerrar Sesión"
+            >
+              <iconify-icon icon="solar:logout-2-line-duotone" class="fs-4"></iconify-icon>
+              <span class="d-none d-md-inline fw-semibold">Salir</span>
+            </button>
+          </li>
+
+        </ul>
+      </nav>
+    </div>
   </header>
 </template>
 
 <style scoped>
-.hover-bg:hover {
-  background: rgba(255, 255, 255, 0.08);
+.cursor-pointer {
+  cursor: pointer;
 }
 .btn-xs {
   font-size: 0.75rem;

@@ -117,6 +117,17 @@ const getActiveCompanyId = (): number => {
   return authStore.tokenPayload?.company_id || 1
 }
 
+const activeCompanyEnvironment = computed(() => {
+  try {
+    const raw = localStorage.getItem('selectedCompany')
+    if (raw) {
+      const parsed = JSON.parse(raw)
+      return parsed.sri_environment || parsed.fiscal?.sri_environment || '1'
+    }
+  } catch {}
+  return '1'
+})
+
 // Cargar facturas y catálogos
 const loadData = async () => {
   loading.value = true
@@ -486,6 +497,13 @@ watch(() => route.path, () => {
             <span class="badge bg-info-subtle text-info border border-info-subtle font-monospace">
               {{ currentSubModule.code }}
             </span>
+            <span
+              class="badge font-monospace d-inline-flex align-items-center gap-1"
+              :class="activeCompanyEnvironment === '2' ? 'bg-success-subtle text-success border border-success-subtle' : 'bg-warning-subtle text-warning border border-warning-subtle'"
+            >
+              <iconify-icon :icon="activeCompanyEnvironment === '2' ? 'solar:shield-check-bold' : 'solar:test-tube-minimalistic-bold-duotone'"></iconify-icon>
+              SRI: {{ activeCompanyEnvironment === '2' ? 'Producción' : 'Pruebas' }}
+            </span>
           </div>
           <h3 class="fw-bold text-white mb-0">{{ currentSubModule.description }}</h3>
         </div>
@@ -551,10 +569,10 @@ watch(() => route.path, () => {
       </div>
 
       <!-- Tabla de Facturas Emitidas -->
-      <div class="card rounded-4 border-0 shadow-sm overflow-hidden bg-dark text-white mt-3">
+      <div class="card rounded-4 overflow-hidden mt-3">
         <div class="table-responsive">
-          <table class="table table-dark table-hover align-middle mb-0">
-            <thead class="table-secondary text-uppercase fs-1">
+          <table class="table table-hover align-middle mb-0">
+            <thead class="table-primary text-uppercase fs-1">
               <tr>
                 <th>No. Factura (SRI)</th>
                 <th>Fecha Emisión</th>
@@ -742,9 +760,9 @@ watch(() => route.path, () => {
               </button>
             </div>
 
-            <div class="table-responsive border border-secondary rounded-3">
-              <table class="table table-dark table-sm align-middle mb-0">
-                <thead class="table-secondary fs-1 text-uppercase">
+            <div class="table-responsive border rounded-3">
+              <table class="table table-hover table-sm align-middle mb-0">
+                <thead class="table-primary fs-1 text-uppercase">
                   <tr>
                     <th width="32%">Producto / Servicio del Catálogo</th>
                     <th width="10%" class="text-center">Cant.</th>
@@ -884,8 +902,8 @@ watch(() => route.path, () => {
 
           <!-- Detalle de Ítems -->
           <div class="table-responsive mt-3">
-            <table class="table table-dark table-sm align-middle">
-              <thead class="table-secondary text-uppercase fs-1">
+            <table class="table table-hover table-sm align-middle">
+              <thead class="table-primary text-uppercase fs-1">
                 <tr>
                   <th>Código</th>
                   <th>Descripción</th>

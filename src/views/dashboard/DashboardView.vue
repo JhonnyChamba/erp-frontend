@@ -1,8 +1,10 @@
 <script setup lang="ts">
-import { onMounted, onBeforeUnmount, ref } from 'vue'
+import { onMounted, onBeforeUnmount, ref, watch } from 'vue'
 import { useAuthStore } from '@/stores/auth.store'
+import { useThemeStore } from '@/stores/theme.store'
 
 const authStore = useAuthStore()
+const themeStore = useThemeStore()
 const selectedCompany = ref<any>(null)
 const selectedBranch = ref<any>(null)
 const userName = ref('Mike Nielsen')
@@ -15,6 +17,22 @@ let chartCustomers: any = null
 const handleBackBlock = () => {
   window.history.pushState(null, '', window.location.href)
 }
+
+const destroyCharts = () => {
+  if (chartTotalOrders) { chartTotalOrders.destroy(); chartTotalOrders = null }
+  if (chartProducts) { chartProducts.destroy(); chartProducts = null }
+  if (chartNetsells) { chartNetsells.destroy(); chartNetsells = null }
+  if (chartCustomers) { chartCustomers.destroy(); chartCustomers = null }
+}
+
+watch(() => themeStore.themeMode, () => {
+  destroyCharts()
+  setTimeout(() => {
+    if ((window as any).ApexCharts) {
+      initCharts()
+    }
+  }, 100)
+})
 
 onMounted(() => {
   window.history.pushState(null, '', window.location.href)
@@ -49,6 +67,7 @@ onBeforeUnmount(() => {
 
 const initCharts = () => {
   const ApexCharts = (window as any).ApexCharts
+  const isDark = themeStore.isDark
 
   // 1. Total Orders Bar Chart
   const elTotalOrders = document.querySelector("#total-orders")
@@ -64,10 +83,10 @@ const initCharts = () => {
         height: 140,
         stacked: true,
         toolbar: { show: false },
-        foreColor: "#707a82",
+        foreColor: isDark ? "#707a82" : "#94a3b8",
       },
       grid: { show: false },
-      colors: ["#0d6efd", "rgba(255,255,255,0.15)"],
+      colors: ["#0d6efd", isDark ? "rgba(255,255,255,0.15)" : "#e2e8f0"],
       plotOptions: {
         bar: {
           horizontal: false,
@@ -82,7 +101,7 @@ const initCharts = () => {
         axisTicks: { show: false },
       },
       yaxis: { show: false },
-      tooltip: { theme: "dark" },
+      tooltip: { theme: isDark ? "dark" : "light" },
       legend: { show: false },
     })
     chartTotalOrders.render()
@@ -98,7 +117,7 @@ const initCharts = () => {
         height: 160,
         type: "donut",
         fontFamily: "inherit",
-        foreColor: "#adb0bb",
+        foreColor: isDark ? "#adb0bb" : "#64748b",
       },
       plotOptions: {
         pie: {
@@ -111,7 +130,7 @@ const initCharts = () => {
       dataLabels: { enabled: false },
       legend: { show: false },
       colors: ["#0d6efd", "#dc3545", "#0dcaf0"],
-      tooltip: { theme: "dark" },
+      tooltip: { theme: isDark ? "dark" : "light" },
     })
     chartProducts.render()
   }
@@ -126,7 +145,7 @@ const initCharts = () => {
       ],
       chart: {
         fontFamily: "inherit",
-        foreColor: "#adb0bb",
+        foreColor: isDark ? "#adb0bb" : "#64748b",
         height: 220,
         type: "line",
         toolbar: { show: false },
@@ -134,7 +153,7 @@ const initCharts = () => {
       legend: { show: false },
       stroke: { width: 3, curve: "smooth" },
       grid: {
-        borderColor: "rgba(255,255,255,0.08)",
+        borderColor: isDark ? "rgba(255,255,255,0.08)" : "#e5eaef",
         xaxis: { lines: { show: true } },
         yaxis: { lines: { show: true } },
       },
@@ -149,7 +168,7 @@ const initCharts = () => {
           formatter: (v: number) => `$${v}k`,
         },
       },
-      tooltip: { theme: "dark" },
+      tooltip: { theme: isDark ? "dark" : "light" },
     })
     chartNetsells.render()
   }
@@ -176,7 +195,7 @@ const initCharts = () => {
         },
       },
       colors: ["#0dcaf0"],
-      tooltip: { theme: "dark" },
+      tooltip: { theme: isDark ? "dark" : "light" },
     })
     chartCustomers.render()
   }
@@ -191,32 +210,32 @@ const initCharts = () => {
       
       <!-- 1. EARNING CARD -->
       <div class="col-xl-3 col-md-6">
-        <div class="card h-100 rounded-4 border-0 shadow-sm p-4 bg-navy-card">
+        <div class="card h-100 rounded-4 border shadow-sm p-4">
           <div class="d-flex justify-content-between align-items-center mb-3">
             <div>
-              <span class="text-secondary fs-3 fw-medium">Earning</span>
-              <h3 class="fw-bold text-white mb-0 mt-1">$12,389</h3>
+              <span class="text-muted fs-3 fw-medium">Earning</span>
+              <h3 class="fw-bold mb-0 mt-1">$12,389</h3>
             </div>
             <span class="badge bg-warning-subtle text-warning fs-2 px-2 py-1 rounded-pill">
               -3.8%
             </span>
           </div>
-          <small class="text-secondary d-block mb-3">Last 7 Days</small>
+          <small class="text-muted d-block mb-3">Last 7 Days</small>
 
           <!-- Gráfico de barras -->
           <div id="total-orders" class="mb-3"></div>
 
           <!-- Leyendas -->
-          <div class="d-flex justify-content-between pt-2 border-top border-dark-subtle">
+          <div class="d-flex justify-content-between pt-2 border-top">
             <div class="d-flex align-items-center gap-2">
               <span class="p-1 rounded-circle bg-primary"></span>
-              <span class="text-white-50 fs-2">Facturado</span>
-              <span class="fw-bold text-white fs-2">52%</span>
+              <span class="text-muted fs-2">Facturado</span>
+              <span class="fw-bold fs-2">52%</span>
             </div>
             <div class="d-flex align-items-center gap-2">
               <span class="p-1 rounded-circle bg-info"></span>
-              <span class="text-white-50 fs-2">Cobrado</span>
-              <span class="fw-bold text-white fs-2">48%</span>
+              <span class="text-muted fs-2">Cobrado</span>
+              <span class="fw-bold fs-2">48%</span>
             </div>
           </div>
         </div>
@@ -224,18 +243,18 @@ const initCharts = () => {
 
       <!-- 2. CONGRATULATIONS HERO CARD (CENTRO) -->
       <div class="col-xl-6 col-md-12 order-xl-2 order-1">
-        <div class="card h-100 rounded-4 border-0 shadow-sm p-4 bg-navy-card overflow-hidden position-relative hero-card">
+        <div class="card h-100 rounded-4 border shadow-sm p-4 overflow-hidden position-relative hero-card">
           <div class="row align-items-center h-100">
             
             <!-- Texto y estadísticas -->
             <div class="col-lg-7 col-md-8 position-relative z-1">
-              <h4 class="fw-bold text-white mb-1">
+              <h4 class="card-title fw-bold mb-1">
                 Congratulations {{ userName }}
               </h4>
-              <p class="text-secondary fs-3 mb-4">
+              <p class="text-muted fs-3 mb-4">
                 Has seleccionado la sucursal 
                 <span class="text-info fw-semibold">{{ selectedBranch?.name || 'Quito Norte (001)' }}</span> 
-                en <span class="text-white fw-semibold">{{ selectedCompany?.razon_social || 'Deskounta' }}</span>.
+                en <span class="fw-semibold">{{ selectedCompany?.razon_social || 'Deskounta' }}</span>.
               </p>
 
               <div class="d-flex flex-column gap-3">
@@ -244,8 +263,8 @@ const initCharts = () => {
                     <iconify-icon icon="solar:bag-check-line-duotone" class="fs-6"></iconify-icon>
                   </div>
                   <div>
-                    <h6 class="mb-0 text-white fw-bold">64 nuevas facturas</h6>
-                    <small class="text-secondary">Procesadas en el sistema</small>
+                    <h6 class="mb-0 fw-bold">64 nuevas facturas</h6>
+                    <small class="text-muted">Procesadas en el sistema</small>
                   </div>
                 </div>
 
@@ -254,8 +273,8 @@ const initCharts = () => {
                     <iconify-icon icon="solar:clock-circle-line-duotone" class="fs-6"></iconify-icon>
                   </div>
                   <div>
-                    <h6 class="mb-0 text-white fw-bold">4 órdenes</h6>
-                    <small class="text-secondary">En espera de validación</small>
+                    <h6 class="mb-0 fw-bold">4 órdenes</h6>
+                    <small class="text-muted">En espera de validación</small>
                   </div>
                 </div>
 
@@ -264,8 +283,8 @@ const initCharts = () => {
                     <iconify-icon icon="solar:delivery-line-duotone" class="fs-6"></iconify-icon>
                   </div>
                   <div>
-                    <h6 class="mb-0 text-white fw-bold">12 entregas</h6>
-                    <small class="text-secondary">Completadas con éxito</small>
+                    <h6 class="mb-0 fw-bold">12 entregas</h6>
+                    <small class="text-muted">Completadas con éxito</small>
                   </div>
                 </div>
               </div>
@@ -286,24 +305,24 @@ const initCharts = () => {
 
       <!-- 3. PROFIT CARD (DERECHA) -->
       <div class="col-xl-3 col-md-6 order-xl-3 order-2">
-        <div class="card h-100 rounded-4 border-0 shadow-sm p-4 bg-navy-card">
+        <div class="card h-100 rounded-4 border shadow-sm p-4">
           <div class="d-flex justify-content-between align-items-center mb-3">
             <div>
-              <span class="text-secondary fs-3 fw-medium">Profit</span>
-              <h3 class="fw-bold text-white mb-0 mt-1">432</h3>
+              <span class="text-muted fs-3 fw-medium">Profit</span>
+              <h3 class="fw-bold mb-0 mt-1">432</h3>
             </div>
             <span class="badge bg-success-subtle text-success fs-2 px-2 py-1 rounded-pill">
               +26.5%
             </span>
           </div>
-          <small class="text-secondary d-block mb-2">Years</small>
+          <small class="text-muted d-block mb-2">Years</small>
 
           <!-- Donut chart -->
           <div id="products" class="d-flex justify-content-center my-2"></div>
 
-          <div class="text-center pt-3 border-top border-dark-subtle">
-            <p class="text-white-50 fs-2 mb-0">
-              <strong class="text-white">$18k Profit</strong> más que en años anteriores
+          <div class="text-center pt-3 border-top">
+            <p class="text-muted fs-2 mb-0">
+              <strong class="text-body">$18k Profit</strong> más que en años anteriores
             </p>
           </div>
         </div>
@@ -316,27 +335,27 @@ const initCharts = () => {
       
       <!-- 4. LATEST DEAL -->
       <div class="col-xl-3 col-md-6">
-        <div class="card h-100 rounded-4 border-0 shadow-sm p-4 bg-navy-card">
+        <div class="card h-100 rounded-4 border shadow-sm p-4">
           <div class="d-flex justify-content-between align-items-center mb-2">
-            <span class="text-secondary fs-3 fw-medium">Latest Deal</span>
+            <span class="text-muted fs-3 fw-medium">Latest Deal</span>
             <span class="badge bg-success-subtle text-success fs-2 px-2 py-1 rounded-pill">
               86.5%
             </span>
           </div>
-          <small class="text-secondary d-block mb-4">Last 7 Days</small>
+          <small class="text-muted d-block mb-4">Last 7 Days</small>
 
           <div class="d-flex justify-content-between mb-4">
             <div>
-              <h4 class="fw-bold text-white mb-1">$98,500</h4>
-              <small class="text-secondary">Meta mensual</small>
+              <h4 class="fw-bold mb-1">$98,500</h4>
+              <small class="text-muted">Meta mensual</small>
             </div>
             <div class="text-end">
               <h4 class="fw-bold text-info mb-1">$122,900</h4>
-              <small class="text-secondary">Total alcanzado</small>
+              <small class="text-muted">Total alcanzado</small>
             </div>
           </div>
 
-          <div class="progress bg-dark-subtle" style="height: 8px;">
+          <div class="progress" style="height: 8px; background-color: var(--bs-subtle-bg);">
             <div class="progress-bar bg-primary" role="progressbar" style="width: 86.5%;"></div>
           </div>
         </div>
@@ -344,13 +363,13 @@ const initCharts = () => {
 
       <!-- 5. TOTAL ORDERS / GRÁFICO PRINCIPAL DE VENTAS -->
       <div class="col-xl-6 col-md-12">
-        <div class="card h-100 rounded-4 border-0 shadow-sm p-4 bg-navy-card">
+        <div class="card h-100 rounded-4 border shadow-sm p-4">
           <div class="d-flex justify-content-between align-items-center mb-2">
             <div>
-              <h5 class="fw-bold text-white mb-1">Total Orders</h5>
-              <small class="text-secondary">Weekly Order Updates</small>
+              <h5 class="card-title fw-bold mb-1">Total Orders</h5>
+              <small class="text-muted">Weekly Order Updates</small>
             </div>
-            <span class="badge bg-dark-subtle text-white border border-secondary-subtle px-3 py-2 rounded-pill">
+            <span class="badge bg-light-subtle text-primary border px-3 py-2 rounded-pill">
               This Week
             </span>
           </div>
@@ -361,17 +380,17 @@ const initCharts = () => {
 
       <!-- 6. CUSTOMERS CARD -->
       <div class="col-xl-3 col-md-6">
-        <div class="card h-100 rounded-4 border-0 shadow-sm p-4 bg-navy-card">
+        <div class="card h-100 rounded-4 border shadow-sm p-4">
           <div class="d-flex justify-content-between align-items-center mb-2">
             <div>
-              <span class="text-secondary fs-3 fw-medium">Customers</span>
-              <h3 class="fw-bold text-white mb-0 mt-1">6,380</h3>
+              <span class="text-muted fs-3 fw-medium">Customers</span>
+              <h3 class="fw-bold mb-0 mt-1">6,380</h3>
             </div>
             <span class="badge bg-success-subtle text-success fs-2 px-2 py-1 rounded-pill">
               +26.5%
             </span>
           </div>
-          <small class="text-secondary d-block mb-3">Last 7 Days</small>
+          <small class="text-muted d-block mb-3">Last 7 Days</small>
 
           <div id="customers" class="mt-2"></div>
         </div>
@@ -383,13 +402,24 @@ const initCharts = () => {
 </template>
 
 <style scoped>
-.bg-navy-card {
+[data-bs-theme="dark"] .bg-navy-card {
   background-color: #0d182e !important;
   border: 1px solid rgba(255, 255, 255, 0.05) !important;
 }
 
-.hero-card {
+[data-bs-theme="light"] .bg-navy-card {
+  background-color: #ffffff !important;
+  border: 1px solid #e5eaef !important;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.05) !important;
+}
+
+[data-bs-theme="dark"] .hero-card {
   background: radial-gradient(circle at right top, rgba(13, 110, 253, 0.15), transparent 60%), #0d182e !important;
+}
+
+[data-bs-theme="light"] .hero-card {
+  background: radial-gradient(circle at right top, rgba(13, 110, 253, 0.08), transparent 60%), #ffffff !important;
+  border: 1px solid #e5eaef !important;
 }
 
 .stat-icon {
@@ -399,6 +429,6 @@ const initCharts = () => {
 
 .character-img {
   max-height: 220px;
-  filter: drop-shadow(0 15px 25px rgba(0, 0, 0, 0.4));
+  filter: drop-shadow(0 15px 25px rgba(0, 0, 0, 0.2));
 }
 </style>

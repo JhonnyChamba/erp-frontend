@@ -616,7 +616,7 @@ const paymentLabel = (p: string) => {
         <div class="card-body p-0">
           <div class="table-responsive">
             <table class="table align-middle text-nowrap mb-0 table-hover">
-              <thead class="text-secondary fs-2 border-bottom border-dark-subtle bg-dark-subtle">
+              <thead class="table-primary fs-2">
                 <tr>
                   <th class="ps-4">DOCUMENTO</th>
                   <th>RAZÓN SOCIAL / CLIENTE</th>
@@ -784,7 +784,7 @@ const paymentLabel = (p: string) => {
         <div class="card-body p-0">
           <div class="table-responsive">
             <table class="table align-middle text-nowrap mb-0 table-hover">
-              <thead class="text-secondary fs-2 border-bottom border-dark-subtle bg-dark-subtle">
+              <thead class="table-primary fs-2">
                 <tr>
                   <th class="ps-4">RUC / DOCUMENTO</th>
                   <th>RAZÓN SOCIAL / EMPRESA</th>
@@ -962,7 +962,7 @@ const paymentLabel = (p: string) => {
         <div class="card-body p-0">
           <div class="table-responsive">
             <table class="table align-middle text-nowrap mb-0 table-hover">
-              <thead class="text-secondary fs-2 border-bottom border-dark-subtle bg-dark-subtle">
+              <thead class="table-primary fs-2">
                 <tr>
                   <th class="ps-4">CÉDULA / DOC</th>
                   <th>VENDEDOR</th>

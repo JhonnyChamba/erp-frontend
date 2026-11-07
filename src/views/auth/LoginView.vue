@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { useAuthStore } from '@/stores/auth.store'
+import { useThemeStore } from '@/stores/theme.store'
 import { ref } from 'vue'
 import { useRouter } from 'vue-router'
 
@@ -10,6 +11,7 @@ const loading = ref(false)
 const errorMessage = ref('')
 
 const authStore = useAuthStore()
+const themeStore = useThemeStore()
 const router = useRouter()
 
 const login = async () => {
@@ -91,11 +93,31 @@ const login = async () => {
         </div>
 
         <!-- COLUMNA DERECHA: FORMULARIO DE ACCESO -->
-        <div class="col-lg-6 d-flex flex-column justify-content-center p-4 p-md-5 form-side bg-navy-card">
+        <div class="col-lg-6 d-flex flex-column justify-content-center p-4 p-md-5 form-side bg-navy-card position-relative">
+          <!-- Botón de Modo Oscuro / Claro en Login -->
+          <div class="position-absolute top-0 end-0 p-3">
+            <button
+              type="button"
+              class="btn btn-sm btn-outline-secondary rounded-circle d-flex align-items-center justify-content-center border-0 p-2"
+              @click="themeStore.toggleTheme"
+              :title="themeStore.themeMode === 'dark' ? 'Cambiar a modo claro' : 'Cambiar a modo oscuro'"
+              style="width: 38px; height: 38px; background: rgba(255,255,255,0.08);"
+            >
+              <iconify-icon :icon="themeStore.themeMode === 'dark' ? 'solar:sun-bold-duotone' : 'solar:moon-bold-duotone'" class="fs-5 text-warning"></iconify-icon>
+            </button>
+          </div>
+
           <!-- Logo para vista móvil -->
           <div class="d-lg-none text-center mb-4">
             <img
+              src="/controller/images/logos/logo-dark.svg"
+              class="dark-logo"
+              alt="Deskounta Logo"
+              height="36"
+            />
+            <img
               src="/controller/images/logos/logo-light.svg"
+              class="light-logo"
               alt="Deskounta Logo"
               height="36"
             />
@@ -260,6 +282,41 @@ const login = async () => {
 
 .illustration-img:hover {
   transform: translateY(-4px);
+}
+
+/* Adaptabilidad para Modo Claro en Login */
+[data-bs-theme="light"] .login-wrapper {
+  background-color: #f6f9fc;
+}
+[data-bs-theme="light"] .login-card {
+  background-color: #ffffff;
+  border-color: #e6ecf1 !important;
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.06);
+}
+[data-bs-theme="light"] .bg-navy-card {
+  background-color: #ffffff !important;
+}
+[data-bs-theme="light"] .form-side h2 {
+  color: #111c2d !important;
+}
+[data-bs-theme="light"] .form-side label {
+  color: #475569 !important;
+}
+[data-bs-theme="light"] .form-side input.form-control {
+  background-color: #ffffff !important;
+  color: #111c2d !important;
+  border-color: #e6ecf1 !important;
+}
+[data-bs-theme="light"] .form-side .input-group-text {
+  background-color: #f8fafc !important;
+  border-color: #e6ecf1 !important;
+  color: #64748b !important;
+}
+[data-bs-theme="light"] .form-side .text-secondary {
+  color: #64748b !important;
+}
+[data-bs-theme="light"] .illustration-side {
+  background: linear-gradient(145deg, #1e293b 0%, #0f172a 100%);
 }
 
 .text-primary-gradient {
