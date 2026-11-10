@@ -8,7 +8,10 @@ import {
   cancelInvoice,
   signInvoice,
   getInvoiceXml,
+  sendInvoiceToSri,
+  checkInvoiceSri,
   type InvoiceItem,
+  type SriSendResult,
   type CreateInvoicePayload,
 } from '@/services/invoices.service'
 import {
@@ -459,6 +462,89 @@ const onSignInvoice = async (inv: InvoiceItem) => {
   }
 }
 
+// Envío al SRI (recepción + autorización) y consulta posterior cuando quedó "en proceso"
+const sendingSri = ref(false)
+
+const sriStatusLabel = (status?: string) => {
+  switch (status) {
+    case 'AUTHORIZED':
+      return 'Autorizada SRI'
+    case 'NOT_AUTHORIZED':
+      return 'No autorizada SRI'
+    case 'RETURNED':
+      return 'Devuelta SRI'
+    case 'IN_PROCESS':
+      return 'En proceso SRI'
+    default:
+      return 'Sin enviar al SRI'
+  }
+}
+
+const sriStatusClass = (status?: string) => {
+  switch (status) {
+    case 'AUTHORIZED':
+      return 'bg-success-subtle text-success border border-success-subtle'
+    case 'NOT_AUTHORIZED':
+    case 'RETURNED':
+      return 'bg-danger-subtle text-danger border border-danger-subtle'
+    case 'IN_PROCESS':
+      return 'bg-warning-subtle text-warning border border-warning-subtle'
+    default:
+      return 'bg-secondary-subtle text-secondary border border-secondary-subtle'
+  }
+}
+
+const describeSriResult = (inv: InvoiceItem, result: SriSendResult) => {
+  const reasons = (result.sri_messages || []).map((m) => `${m.identificador ? `[${m.identificador}] ` : ''}${m.mensaje}${m.informacionAdicional ? ` — ${m.informacionAdicional}` : ''}`)
+  if (result.sri_status === 'AUTHORIZED') {
+    successMsg.value = `Factura ${inv.invoice_number} autorizada por el SRI. No. ${result.sri_authorization_number}`
+  } else if (result.sri_status === 'IN_PROCESS') {
+    successMsg.value = `Factura ${inv.invoice_number} recibida por el SRI; la autorización aún está en proceso. Consulta de nuevo en unos minutos.`
+  } else {
+    const title = result.sri_status === 'RETURNED' ? 'devuelta' : 'no autorizada'
+    errorMsg.value = `Factura ${inv.invoice_number} ${title} por el SRI. ${reasons.join(' | ') || 'Sin detalle del motivo.'}`
+  }
+}
+
+const refreshAfterSri = async (inv: InvoiceItem) => {
+  await loadData()
+  if (viewingInvoice.value?.id === inv.id) {
+    viewingInvoice.value = invoices.value.find((i) => i.id === inv.id) || viewingInvoice.value
+  }
+}
+
+const onSendToSri = async (inv: InvoiceItem) => {
+  errorMsg.value = ''
+  successMsg.value = ''
+  sendingSri.value = true
+  try {
+    const result = await sendInvoiceToSri(inv.id, getActiveCompanyId())
+    describeSriResult(inv, result)
+    await refreshAfterSri(inv)
+  } catch (err: any) {
+    const m = err?.response?.data?.message
+    errorMsg.value = (Array.isArray(m) ? m.join(', ') : m) || 'No se pudo enviar la factura al SRI'
+  } finally {
+    sendingSri.value = false
+  }
+}
+
+const onCheckSri = async (inv: InvoiceItem) => {
+  errorMsg.value = ''
+  successMsg.value = ''
+  sendingSri.value = true
+  try {
+    const result = await checkInvoiceSri(inv.id, getActiveCompanyId())
+    describeSriResult(inv, result)
+    await refreshAfterSri(inv)
+  } catch (err: any) {
+    const m = err?.response?.data?.message
+    errorMsg.value = (Array.isArray(m) ? m.join(', ') : m) || 'No se pudo consultar la autorización en el SRI'
+  } finally {
+    sendingSri.value = false
+  }
+}
+
 const downloadXml = async (inv: InvoiceItem) => {
   errorMsg.value = ''
   try {
@@ -706,9 +792,17 @@ watch(() => route.path, () => {
                 <td class="text-center">
                   <span
                     class="badge"
-                    :class="inv.status === 'ISSUED' ? 'bg-success-subtle text-success border border-success-subtle' : 'bg-danger-subtle text-danger border border-danger-subtle'"
+                    :class="inv.status === 'CANCELED' ? 'bg-danger-subtle text-danger border border-danger-subtle' : 'bg-success-subtle text-success border border-success-subtle'"
                   >
-                    {{ inv.status === 'ISSUED' ? 'Emitida / Válida' : 'Anulada' }}
+                    {{ inv.status === 'CANCELED' ? 'Anulada' : inv.status === 'AUTHORIZED' ? 'Autorizada' : 'Emitida / Válida' }}
+                  </span>
+                  <span
+                    v-if="inv.sign_status === 'SIGNED' && inv.status !== 'CANCELED'"
+                    class="badge d-block mt-1"
+                    :class="sriStatusClass(inv.sri_status)"
+                    :title="(inv.sri_messages || []).map((m) => m.mensaje).join(' | ')"
+                  >
+                    {{ sriStatusLabel(inv.sri_status) }}
                   </span>
                 </td>
                 <td class="text-end">
@@ -728,6 +822,24 @@ watch(() => route.path, () => {
                       title="Descargar XML firmado"
                     >
                       <iconify-icon icon="solar:download-minimalistic-bold"></iconify-icon>
+                    </button>
+                    <button
+                      v-if="inv.sign_status === 'SIGNED' && inv.status !== 'CANCELED' && (!inv.sri_status || inv.sri_status === 'NOT_SENT' || inv.sri_status === 'RETURNED' || inv.sri_status === 'NOT_AUTHORIZED')"
+                      class="btn btn-sm btn-outline-primary rounded-pill px-2"
+                      :disabled="sendingSri"
+                      @click="onSendToSri(inv)"
+                      title="Enviar al SRI"
+                    >
+                      <iconify-icon icon="solar:plain-2-bold-duotone"></iconify-icon>
+                    </button>
+                    <button
+                      v-if="inv.sri_status === 'IN_PROCESS'"
+                      class="btn btn-sm btn-outline-warning rounded-pill px-2"
+                      :disabled="sendingSri"
+                      @click="onCheckSri(inv)"
+                      title="Consultar autorización SRI"
+                    >
+                      <iconify-icon icon="solar:refresh-circle-bold-duotone"></iconify-icon>
                     </button>
                     <button class="btn btn-sm btn-outline-info rounded-pill px-2" @click="openDetailModal(inv)" title="Ver Detalle y RIDE">
                       <iconify-icon icon="solar:eye-line-duotone"></iconify-icon>
@@ -1049,7 +1161,45 @@ watch(() => route.path, () => {
           </div>
         </div>
 
+        <div v-if="viewingInvoice.sign_status === 'SIGNED' && viewingInvoice.status !== 'CANCELED'" class="px-3 pb-3">
+          <div class="d-flex align-items-center gap-2 flex-wrap">
+            <span class="fw-bold">Estado SRI:</span>
+            <span class="badge" :class="sriStatusClass(viewingInvoice.sri_status)">{{ sriStatusLabel(viewingInvoice.sri_status) }}</span>
+            <span v-if="viewingInvoice.sri_authorization_number" class="font-monospace small">
+              No. autorización: {{ viewingInvoice.sri_authorization_number }}
+            </span>
+            <span v-if="viewingInvoice.sri_authorization_date" class="small text-secondary">
+              ({{ new Date(viewingInvoice.sri_authorization_date).toLocaleString() }})
+            </span>
+          </div>
+          <ul v-if="(viewingInvoice.sri_messages || []).length" class="small mb-0 mt-2 ps-3">
+            <li v-for="(m, idx) in viewingInvoice.sri_messages" :key="idx" :class="m.tipo === 'ADVERTENCIA' ? 'text-warning' : 'text-danger'">
+              <span v-if="m.identificador" class="font-monospace">[{{ m.identificador }}]</span>
+              {{ m.mensaje }}
+              <span v-if="m.informacionAdicional" class="text-secondary"> — {{ m.informacionAdicional }}</span>
+            </li>
+          </ul>
+        </div>
+
         <div class="modal-footer d-flex justify-content-end gap-2 p-3 border-top border-secondary">
+          <button
+            v-if="viewingInvoice.sign_status === 'SIGNED' && viewingInvoice.status !== 'CANCELED' && (!viewingInvoice.sri_status || viewingInvoice.sri_status === 'NOT_SENT' || viewingInvoice.sri_status === 'RETURNED' || viewingInvoice.sri_status === 'NOT_AUTHORIZED')"
+            class="btn btn-outline-primary d-flex align-items-center gap-2"
+            :disabled="sendingSri"
+            @click="onSendToSri(viewingInvoice)"
+          >
+            <iconify-icon icon="solar:plain-2-bold-duotone"></iconify-icon>
+            <span>{{ sendingSri ? 'Enviando…' : 'Enviar al SRI' }}</span>
+          </button>
+          <button
+            v-if="viewingInvoice.sri_status === 'IN_PROCESS'"
+            class="btn btn-outline-warning d-flex align-items-center gap-2"
+            :disabled="sendingSri"
+            @click="onCheckSri(viewingInvoice)"
+          >
+            <iconify-icon icon="solar:refresh-circle-bold-duotone"></iconify-icon>
+            <span>{{ sendingSri ? 'Consultando…' : 'Consultar autorización SRI' }}</span>
+          </button>
           <button
             v-if="viewingInvoice.status === 'ISSUED' && viewingInvoice.sign_status !== 'SIGNED'"
             class="btn btn-outline-warning d-flex align-items-center gap-2"

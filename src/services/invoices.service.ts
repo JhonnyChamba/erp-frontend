@@ -15,6 +15,21 @@ export interface InvoiceDetailItem {
   total?: number
 }
 
+export interface SriMessage {
+  identificador: string
+  mensaje: string
+  informacionAdicional?: string
+  tipo?: string
+}
+
+export interface SriSendResult {
+  id: number
+  sri_status: 'RETURNED' | 'IN_PROCESS' | 'AUTHORIZED' | 'NOT_AUTHORIZED'
+  sri_authorization_number: string | null
+  sri_authorization_date: string | null
+  sri_messages: SriMessage[]
+}
+
 export interface InvoiceItem {
   id: number
   /** Sucursal con la que se emitió (null en facturas anteriores a las sucursales) */
@@ -33,6 +48,11 @@ export interface InvoiceItem {
   payment_method: string
   access_key?: string
   sign_status?: 'NOT_SIGNED' | 'SIGNED'
+  sri_status?: 'NOT_SENT' | 'RETURNED' | 'IN_PROCESS' | 'AUTHORIZED' | 'NOT_AUTHORIZED'
+  sri_authorization_number?: string | null
+  sri_authorization_date?: string | null
+  sri_sent_at?: string | null
+  sri_messages?: SriMessage[] | null
   status: 'DRAFT' | 'ISSUED' | 'AUTHORIZED' | 'CANCELED'
   subtotal_zero_tax: number
   subtotal_taxable: number
@@ -102,6 +122,20 @@ export const signInvoice = async (id: number, companyId?: number) => {
     params: companyId ? { companyId } : {}
   })
   return data as { id: number; sign_status: string; file_name: string }
+}
+
+export const sendInvoiceToSri = async (id: number, companyId?: number) => {
+  const { data } = await api.post(`/sales/invoices/${id}/send-sri`, null, {
+    params: companyId ? { companyId } : {}
+  })
+  return data as SriSendResult
+}
+
+export const checkInvoiceSri = async (id: number, companyId?: number) => {
+  const { data } = await api.post(`/sales/invoices/${id}/check-sri`, null, {
+    params: companyId ? { companyId } : {}
+  })
+  return data as SriSendResult
 }
 
 export const getInvoiceXml = async (id: number, companyId?: number) => {
