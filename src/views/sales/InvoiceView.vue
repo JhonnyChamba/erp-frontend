@@ -1088,15 +1088,15 @@ watch(() => route.path, () => {
         <div class="modal-header-custom d-flex justify-content-between align-items-center">
           <div>
             <span class="badge bg-success-subtle text-success border border-success-subtle">FACTURA ELECTRÓNICA</span>
-            <h4 class="text-white fw-bold mb-0 mt-1">{{ viewingInvoice.invoice_number }}</h4>
+            <h4 class="fw-bold mb-0 mt-1 modal-title-custom">{{ viewingInvoice.invoice_number }}</h4>
           </div>
           <button class="btn btn-link text-secondary p-0 fs-5" @click="showDetailModal = false">
             <iconify-icon icon="solar:close-circle-bold"></iconify-icon>
           </button>
         </div>
 
-        <div class="p-4 text-white">
-          <div class="row g-3 pb-3 border-bottom border-secondary">
+        <div class="p-4 modal-body-custom">
+          <div class="row g-3 pb-3 border-bottom">
             <div class="col-md-6">
               <span class="text-secondary small d-block">Cliente:</span>
               <div class="fw-bold fs-4">{{ viewingInvoice.customer_name }}</div>
@@ -1139,7 +1139,7 @@ watch(() => route.path, () => {
 
           <!-- Resumen de Totales -->
           <div class="d-flex justify-content-end mt-3">
-            <div class="p-3 bg-dark-subtle rounded-3 border border-secondary" style="min-width: 250px;">
+            <div class="p-3 bg-body-tertiary rounded-3 border" style="min-width: 250px;">
               <div class="d-flex justify-content-between mb-1">
                 <span class="text-secondary">Subtotal 15%:</span>
                 <span class="font-monospace">${{ formatNumber(viewingInvoice.subtotal_taxable) }}</span>
@@ -1152,7 +1152,7 @@ watch(() => route.path, () => {
                 <span class="text-secondary">IVA (15%):</span>
                 <span class="font-monospace">${{ formatNumber(viewingInvoice.tax_total) }}</span>
               </div>
-              <hr class="border-secondary my-2" />
+              <hr class="my-2" />
               <div class="d-flex justify-content-between align-items-center">
                 <span class="fw-bold">TOTAL:</span>
                 <span class="font-monospace fw-bold text-success fs-4">${{ formatNumber(viewingInvoice.total) }}</span>
@@ -1181,7 +1181,7 @@ watch(() => route.path, () => {
           </ul>
         </div>
 
-        <div class="modal-footer d-flex justify-content-end gap-2 p-3 border-top border-secondary">
+        <div class="modal-footer d-flex justify-content-end gap-2 p-3 border-top">
           <button
             v-if="viewingInvoice.sign_status === 'SIGNED' && viewingInvoice.status !== 'CANCELED' && (!viewingInvoice.sri_status || viewingInvoice.sri_status === 'NOT_SENT' || viewingInvoice.sri_status === 'RETURNED' || viewingInvoice.sri_status === 'NOT_AUTHORIZED')"
             class="btn btn-outline-primary d-flex align-items-center gap-2"
@@ -1247,8 +1247,9 @@ watch(() => route.path, () => {
 }
 
 .modal-card-custom {
-  background: #111c2d;
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: var(--bs-body-bg);
+  color: var(--bs-body-color);
+  border: 1px solid var(--bs-border-color);
   border-radius: 16px;
   width: 100%;
   max-width: 600px;
@@ -1263,7 +1264,26 @@ watch(() => route.path, () => {
 
 .modal-header-custom {
   padding: 16px 20px;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  border-bottom: 1px solid var(--bs-border-color);
+}
+
+/* Títulos y valores del modal de detalle siguen el color de énfasis del tema (claro u oscuro) */
+.modal-title-custom,
+.modal-body-custom .fw-bold {
+  color: var(--bs-heading-color);
+}
+
+.modal-body-custom {
+  color: var(--bs-body-color);
+}
+
+.modal-body-custom .text-secondary {
+  color: var(--bs-body-color) !important;
+  opacity: 0.8;
+}
+
+[data-bs-theme='light'] .modal-backdrop-custom {
+  background: rgba(17, 28, 45, 0.45);
 }
 
 .btn-xs {
