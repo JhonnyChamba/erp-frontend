@@ -503,8 +503,8 @@ html[data-card="shadow"] .bg-navy-card {
   width: 100%;
   background: var(--bs-topbar-bg);
   z-index: 99;
-  padding: 0.75rem 1.25rem;
-  margin-bottom: 1.5rem;
+  padding: 0.35rem 1rem;
+  margin-bottom: 1rem;
   box-shadow: var(--bs-card-shadow);
   border-radius: 1.125rem;
   border: 1px solid var(--bs-border-color);
@@ -513,8 +513,8 @@ html[data-card="shadow"] .bg-navy-card {
 
 /* Efecto hover circular en botones de icono (.nav-icon-hover-bg) */
 .nav-icon-hover-bg {
-  width: 40px;
-  height: 40px;
+  width: 34px;
+  height: 34px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -871,4 +871,384 @@ html[data-card="shadow"] .bg-navy-card {
 /* Transición suave entre temas */
 * {
   transition: color 0.1s ease, background-color 0.1s ease, border-color 0.1s ease;
+}
+
+/* --------------------------------------------------------------------------
+   Formularios de registro/edición como página (.form-page) — Modo claro
+   El modo oscuro conserva el estilo propio de cada vista; en modo claro se
+   unifican fondo, textos, campos y tablas para que sean legibles.
+   -------------------------------------------------------------------------- */
+[data-bs-theme="light"] .form-page .form-page-card,
+[data-bs-theme="light"] .form-page .modal-card,
+[data-bs-theme="light"] .form-page .modal-card-custom,
+[data-bs-theme="light"] .form-page .modal-content {
+  background: #ffffff !important;
+  color: #2a3547 !important;
+  border: 1px solid #e6ecf1 !important;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.05) !important;
+}
+
+/* Títulos y textos principales */
+[data-bs-theme="light"] .form-page :is(h1, h2, h3, h4, h5, h6, .text-white, .text-light, strong) {
+  color: #111c2d !important;
+}
+
+/* Textos secundarios y etiquetas */
+[data-bs-theme="light"] .form-page :is(.text-secondary, .text-white-50, .text-muted, label, .form-label, small) {
+  color: #5a6a85 !important;
+}
+
+/* Campos de formulario */
+[data-bs-theme="light"] .form-page :is(input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="file"]):not([type="color"]), select, textarea, .form-control, .form-select) {
+  background-color: #ffffff !important;
+  color: #111c2d !important;
+  border-color: #ced4da !important;
+}
+[data-bs-theme="light"] .form-page :is(input, textarea)::placeholder {
+  color: #8a97ab !important;
+  opacity: 1;
+}
+[data-bs-theme="light"] .form-page :is(input, select, textarea):focus {
+  border-color: var(--bs-primary, #0085db) !important;
+  box-shadow: 0 0 0 0.2rem rgba(0, 133, 219, 0.15) !important;
+}
+[data-bs-theme="light"] .form-page option {
+  background: #ffffff;
+  color: #111c2d;
+}
+[data-bs-theme="light"] .form-page :is(input, select, textarea):disabled,
+[data-bs-theme="light"] .form-page :is(input, select, textarea)[readonly] {
+  background-color: #f1f4f8 !important;
+  color: #5a6a85 !important;
+}
+
+/* Sub-tarjetas, bloques y separadores */
+[data-bs-theme="light"] .form-page :is(.bg-dark-subtle, .bg-dark, .bg-body-secondary, .bg-secondary-subtle) {
+  background-color: #f5f8fb !important;
+  color: #2a3547 !important;
+}
+[data-bs-theme="light"] .form-page :is(.border-secondary, .border-secondary-subtle, .border-dark-subtle, .border-dark) {
+  border-color: #e6ecf1 !important;
+}
+[data-bs-theme="light"] .form-page :is(.modal-header, .modal-footer) {
+  border-color: #e6ecf1 !important;
+}
+
+/* Tablas dentro del formulario (p. ej. detalle de factura) */
+[data-bs-theme="light"] .form-page .table > :not(caption) > * > * {
+  background-color: transparent !important;
+  color: #2a3547 !important;
+  border-color: #e6ecf1 !important;
+}
+[data-bs-theme="light"] .form-page table thead th {
+  background-color: #eaf2fb !important;
+  color: #111c2d !important;
+}
+
+/* Pestañas internas (p. ej. formulario de empresa) */
+[data-bs-theme="light"] .form-page .nav-pills .nav-link:not(.active) {
+  color: #5a6a85 !important;
+}
+
+/* Cabeceras de color: el texto se mantiene legible sobre el color */
+[data-bs-theme="light"] .form-page .modal-header.bg-primary {
+  background-color: var(--bs-primary, #0085db) !important;
+}
+[data-bs-theme="light"] .form-page .modal-header.bg-primary :is(h5, .text-white, iconify-icon, span) {
+  color: #ffffff !important;
+}
+[data-bs-theme="light"] .form-page .modal-header.bg-info :is(h5, .text-dark, iconify-icon, span) {
+  color: #111c2d !important;
+}
+/* Botón "Volver" dentro de una cabecera de color */
+[data-bs-theme="light"] .form-page .modal-header .btn-light {
+  background: #ffffff !important;
+  border-color: #ffffff !important;
+}
+[data-bs-theme="light"] .form-page .modal-header.bg-primary .btn-light :is(span, iconify-icon, .text-white),
+[data-bs-theme="light"] .form-page .modal-header.bg-info .btn-light :is(span, iconify-icon, .text-dark) {
+  color: #111c2d !important;
+  background: transparent !important;
+}
+
+/* Botones secundarios (Volver / Cancelar) */
+[data-bs-theme="light"] .form-page .btn-outline-secondary {
+  color: #2a3547 !important;
+  border-color: #b8c4d6 !important;
+  background: transparent !important;
+}
+[data-bs-theme="light"] .form-page .btn-outline-secondary:hover {
+  background: #f1f5f9 !important;
+}
+[data-bs-theme="light"] .form-page .btn-secondary {
+  color: #2a3547 !important;
+  background: #eef2f7 !important;
+  border: 1px solid #cbd5e1 !important;
+}
+[data-bs-theme="light"] .form-page .btn-secondary:hover {
+  background: #e2e8f0 !important;
+}
+
+/* Colores de estado con contraste suficiente sobre fondo claro */
+[data-bs-theme="light"] .form-page .text-warning {
+  color: #b45309 !important;
+}
+[data-bs-theme="light"] .form-page .text-success {
+  color: #15803d !important;
+}
+[data-bs-theme="light"] .form-page .text-danger {
+  color: #b42318 !important;
+}
+[data-bs-theme="light"] .form-page .text-info {
+  color: #0b6fa8 !important;
+}
+
+/* Tarjeta de encabezado que permanece visible mientras el formulario está abierto */
+[data-bs-theme="light"] .keep-in-form.card {
+  background: #ffffff !important;
+  border: 1px solid #e6ecf1 !important;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.05) !important;
+}
+[data-bs-theme="light"] .keep-in-form :is(h1, h2, h3, h4, h5, h6, .text-white) {
+  color: #111c2d !important;
+}
+[data-bs-theme="light"] .keep-in-form :is(.text-secondary, .text-white-50, .text-muted, small) {
+  color: #5a6a85 !important;
+}
+[data-bs-theme="light"] .keep-in-form .bg-dark-subtle {
+  background-color: #f5f8fb !important;
+}
+[data-bs-theme="light"] .keep-in-form .border-secondary-subtle {
+  border-color: #e6ecf1 !important;
+}
+
+/* ==== LISTADOS — Modo claro ==== */
+/* Los listados de Facturas, Contactos, Inventario y Configuración usan el mismo estilo claro que el listado de facturas:
+   tarjeta blanca, filtros claros, encabezado de tabla azul suave y textos oscuros. El modo oscuro no se modifica. */
+
+/* Tarjetas y contenedores */
+[data-bs-theme="light"] :is(.invoices-page, .contacts-page, .inventory-page, .settings-page) :is(.card, .bg-navy-card) {
+  background: #ffffff !important;
+  color: #2a3547 !important;
+  border: 1px solid #e6ecf1 !important;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.05) !important;
+}
+
+/* Títulos y textos */
+[data-bs-theme="light"] :is(.invoices-page, .contacts-page, .inventory-page, .settings-page) :is(h1, h2, h3, h4, h5, h6, strong) {
+  color: #111c2d !important;
+}
+[data-bs-theme="light"] :is(.invoices-page, .contacts-page, .inventory-page, .settings-page) .text-white:not(.btn):not(.bg-primary):not(.bg-success):not(.bg-danger):not(.bg-info):not(.bg-warning),
+[data-bs-theme="light"] :is(.invoices-page, .contacts-page, .inventory-page, .settings-page) .text-light:not(.btn):not(.bg-primary):not(.bg-success):not(.bg-danger):not(.bg-info):not(.bg-warning) {
+  color: #111c2d !important;
+}
+[data-bs-theme="light"] :is(.invoices-page, .contacts-page, .inventory-page, .settings-page) :is(.text-secondary, .text-white-50, .text-muted, small, .form-label, label) {
+  color: #5a6a85 !important;
+}
+[data-bs-theme="light"] :is(.invoices-page, .contacts-page, .inventory-page, .settings-page) .text-warning:not(.btn):not(.bg-primary):not(.bg-success):not(.bg-danger):not(.bg-info):not(.bg-warning) { color: #b45309 !important; }
+[data-bs-theme="light"] :is(.invoices-page, .contacts-page, .inventory-page, .settings-page) .text-success:not(.btn):not(.bg-primary):not(.bg-success):not(.bg-danger):not(.bg-info):not(.bg-warning) { color: #15803d !important; }
+[data-bs-theme="light"] :is(.invoices-page, .contacts-page, .inventory-page, .settings-page) .text-danger:not(.btn):not(.bg-primary):not(.bg-success):not(.bg-danger):not(.bg-info):not(.bg-warning) { color: #b42318 !important; }
+[data-bs-theme="light"] :is(.invoices-page, .contacts-page, .inventory-page, .settings-page) .text-info:not(.btn):not(.bg-primary):not(.bg-success):not(.bg-danger):not(.bg-info):not(.bg-warning) { color: #0b6fa8 !important; }
+
+/* Campos, buscadores y filtros */
+[data-bs-theme="light"] :is(.invoices-page, .contacts-page, .inventory-page, .settings-page) :is(input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="file"]), select, textarea, .form-control, .form-select, .input-group-text) {
+  background-color: #ffffff !important;
+  color: #111c2d !important;
+  border-color: #ced4da !important;
+}
+[data-bs-theme="light"] :is(.invoices-page, .contacts-page, .inventory-page, .settings-page) :is(input, textarea)::placeholder {
+  color: #8a97ab !important;
+  opacity: 1;
+}
+[data-bs-theme="light"] :is(.invoices-page, .contacts-page, .inventory-page, .settings-page) option {
+  background: #ffffff;
+  color: #111c2d;
+}
+
+/* Bloques, badges y separadores */
+[data-bs-theme="light"] :is(.invoices-page, .contacts-page, .inventory-page, .settings-page) :is(.bg-dark-subtle, .bg-dark, .bg-body-secondary, .bg-secondary-subtle) {
+  background-color: #f5f8fb !important;
+  color: #2a3547 !important;
+}
+[data-bs-theme="light"] :is(.invoices-page, .contacts-page, .inventory-page, .settings-page) :is(.border-secondary, .border-secondary-subtle, .border-dark-subtle, .border-dark) {
+  border-color: #e6ecf1 !important;
+}
+[data-bs-theme="light"] :is(.invoices-page, .contacts-page, .inventory-page, .settings-page) .badge.text-light { color: #2a3547 !important; }
+
+/* Tablas: encabezado azul suave, filas claras */
+[data-bs-theme="light"] :is(.invoices-page, .contacts-page, .inventory-page, .settings-page) table thead,
+[data-bs-theme="light"] :is(.invoices-page, .contacts-page, .inventory-page, .settings-page) table thead tr,
+[data-bs-theme="light"] :is(.invoices-page, .contacts-page, .inventory-page, .settings-page) table thead th {
+  background-color: #d9eaf9 !important;
+  color: #0a4f8f !important;
+  border-color: #bcd7ef !important;
+}
+[data-bs-theme="light"] :is(.invoices-page, .contacts-page, .inventory-page, .settings-page) table :is(tbody, tfoot) :is(td, th) {
+  background-color: transparent !important;
+  color: #2a3547 !important;
+  border-color: #e6ecf1 !important;
+}
+[data-bs-theme="light"] :is(.invoices-page, .contacts-page, .inventory-page, .settings-page) table tbody tr:hover > * {
+  background-color: #f5f9fd !important;
+}
+
+/* Iconos de acción (botones tipo enlace) con contraste suficiente */
+[data-bs-theme="light"] :is(.invoices-page, .contacts-page, .inventory-page, .settings-page) .btn-link.text-info { color: #0b6fa8 !important; }
+[data-bs-theme="light"] :is(.invoices-page, .contacts-page, .inventory-page, .settings-page) .btn-link.text-warning { color: #b45309 !important; }
+[data-bs-theme="light"] :is(.invoices-page, .contacts-page, .inventory-page, .settings-page) .btn-link.text-danger { color: #b42318 !important; }
+[data-bs-theme="light"] :is(.invoices-page, .contacts-page, .inventory-page, .settings-page) .btn-link.text-success { color: #15803d !important; }
+[data-bs-theme="light"] :is(.invoices-page, .contacts-page, .inventory-page, .settings-page) .btn-link.text-primary { color: #0a6ab8 !important; }
+
+/* Badge del color de tema (usa estilos en línea pensados para fondo oscuro) */
+[data-bs-theme="light"] .settings-page .badge:has(> .theme-mini-dot) {
+  background: #eef2f7 !important;
+  color: #111c2d !important;
+  border-color: #cbd5e1 !important;
+}
+
+/* Botones secundarios y pestañas */
+[data-bs-theme="light"] :is(.invoices-page, .contacts-page, .inventory-page, .settings-page) .btn-outline-secondary {
+  color: #2a3547 !important;
+  border-color: #b8c4d6 !important;
+}
+[data-bs-theme="light"] :is(.invoices-page, .contacts-page, .inventory-page, .settings-page) .btn-secondary:not(.btn-primary) {
+  color: #2a3547 !important;
+  background: #eef2f7 !important;
+  border: 1px solid #cbd5e1 !important;
+}
+[data-bs-theme="light"] :is(.invoices-page, .contacts-page, .inventory-page, .settings-page) .nav-pills .nav-link:not(.active) {
+  color: #5a6a85 !important;
+}
+
+/* ---- Inventario: componentes propios ---- */
+[data-bs-theme="light"] .inventory-page :is(.tabs-bar, .kpi-card, .table-card) {
+  background: #ffffff !important;
+  border: 1px solid #e6ecf1 !important;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.05) !important;
+}
+[data-bs-theme="light"] .inventory-page :is(.page-title, .item-title, .kpi-val, .item-main) {
+  color: #111c2d !important;
+}
+[data-bs-theme="light"] .inventory-page :is(.page-subtitle, .kpi-label, .sku-sub, .item-desc, .empty-cell, .header-badge-row, .mod-sub-badge) {
+  color: #5a6a85 !important;
+}
+[data-bs-theme="light"] .inventory-page .tab-pill {
+  color: #5a6a85 !important;
+}
+[data-bs-theme="light"] .inventory-page .tab-pill:hover {
+  background: #f1f5f9 !important;
+}
+[data-bs-theme="light"] .inventory-page .tab-pill.active {
+  background: #e3f1fd !important;
+  color: #0a6ab8 !important;
+  border-color: #7cc0f0 !important;
+}
+[data-bs-theme="light"] .inventory-page :is(.search-box, .filter-select) {
+  background: #ffffff !important;
+  border-color: #ced4da !important;
+  color: #111c2d !important;
+}
+[data-bs-theme="light"] .inventory-page .search-box input {
+  color: #111c2d !important;
+}
+[data-bs-theme="light"] .inventory-page .erp-table th {
+  background: #d9eaf9 !important;
+  color: #0a4f8f !important;
+  border-color: #bcd7ef !important;
+}
+[data-bs-theme="light"] .inventory-page .erp-table td {
+  color: #2a3547 !important;
+  border-color: #e6ecf1 !important;
+}
+[data-bs-theme="light"] .inventory-page .erp-table tbody tr:hover {
+  background: #f5f9fd !important;
+}
+[data-bs-theme="light"] .inventory-page :is(.cat-badge, .tax-pill, .pill-count, .code-chip, .mat-badge.no, .stock-badge, .status-pill.inactive) {
+  background: #eef2f7 !important;
+  color: #2a3547 !important;
+  border-color: #cbd5e1 !important;
+}
+[data-bs-theme="light"] .inventory-page :is(.status-pill.active, .stock-badge.ok, .mat-badge.yes) {
+  background: #dcfce7 !important;
+  color: #15803d !important;
+}
+[data-bs-theme="light"] .inventory-page .stock-badge.low {
+  background: #fee2e2 !important;
+  color: #b42318 !important;
+}
+[data-bs-theme="light"] .inventory-page .price-highlight {
+  color: #0a6ab8 !important;
+}
+[data-bs-theme="light"] .inventory-page .act-btn {
+  color: #2a3547 !important;
+  border-color: #cbd5e1 !important;
+  background: #ffffff !important;
+}
+[data-bs-theme="light"] .inventory-page .feedback-banner {
+  border-width: 1px !important;
+}
+
+/* --------------------------------------------------------------------------
+   Layout: barra superior compacta y menú lateral a altura completa
+   -------------------------------------------------------------------------- */
+.topbar .user-profile img {
+  width: 32px;
+  height: 32px;
+}
+/* El tema base fija 70px de alto en el contenedor y en el nav: la altura la define el contenido */
+.topbar .with-vertical,
+.topbar .navbar,
+.topbar .navbar-nav > li {
+  height: auto !important;
+  min-height: 0 !important;
+}
+.topbar .navbar-nav,
+.topbar .nav-link {
+  height: auto !important;
+  min-height: 0 !important;
+  line-height: 1.25 !important;
+}
+.topbar .user-profile,
+.topbar .user-profile + div {
+  line-height: 1.25 !important;
+}
+.topbar .btn.btn-outline-danger {
+  padding-top: 0.2rem !important;
+  padding-bottom: 0.2rem !important;
+}
+
+/* La lista del menú ocupa todo el alto disponible; solo muestra scroll cuando no cabe, con barra delgada */
+.left-sidebar .scroll-sidebar {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(124, 143, 172, 0.35) transparent;
+}
+.left-sidebar .scroll-sidebar::-webkit-scrollbar {
+  width: 6px;
+}
+.left-sidebar .scroll-sidebar::-webkit-scrollbar-track {
+  background: transparent;
+}
+.left-sidebar .scroll-sidebar::-webkit-scrollbar-thumb {
+  background: rgba(124, 143, 172, 0.35);
+  border-radius: 6px;
+}
+.left-sidebar .scroll-sidebar::-webkit-scrollbar-thumb:hover {
+  background: rgba(124, 143, 172, 0.6);
+}
+
+/* El texto del ítem activo se veía del mismo color que el fondo: siempre blanco sobre el color primario */
+.sidebar-link.active .hide-menu,
+.sidebar-link.active-menu .hide-menu,
+.sidebar-link.active iconify-icon,
+.sidebar-link.active-menu iconify-icon {
+  color: #ffffff !important;
+}
+
+/* La barra superior siempre en una sola fila: lo que sobra se recorta en la razón social */
+.topbar .navbar {
+  flex-wrap: nowrap !important;
+  gap: 0.5rem;
+}
+.topbar .navbar > ul.ms-auto {
+  flex-shrink: 0;
 }

@@ -17,6 +17,8 @@ export interface InvoiceDetailItem {
 
 export interface InvoiceItem {
   id: number
+  /** Sucursal con la que se emitió (null en facturas anteriores a las sucursales) */
+  branch_id?: number | null
   establishment: string
   emission_point: string
   sequential: string
@@ -45,7 +47,8 @@ export interface InvoiceItem {
 
 export interface CreateInvoicePayload {
   companyId?: number
-  establishment?: string
+  /** Sucursal (establecimiento) con la que se emite: obligatoria; define establecimiento, punto de emisión y dirección */
+  branchId: number
   emission_point?: string
   issue_date?: string
   customer_id_type: string
@@ -68,9 +71,9 @@ export interface CreateInvoicePayload {
   }[]
 }
 
-export const getInvoices = async (companyId?: number): Promise<InvoiceItem[]> => {
+export const getInvoices = async (companyId?: number, branchId?: number): Promise<InvoiceItem[]> => {
   const { data } = await api.get('/sales/invoices', {
-    params: companyId ? { companyId } : {}
+    params: { ...(companyId ? { companyId } : {}), ...(branchId ? { branchId } : {}) }
   })
   return Array.isArray(data) ? data : []
 }

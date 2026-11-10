@@ -93,6 +93,7 @@ export const useBranchStore = defineStore('branch', {
 
 			try {
 				const response = await listBranchesRequest({
+					onlyEnabled: true, // al entrar solo se ofrecen sucursales activas
 					companyId: params.companyId,
 					page: params.page ?? this.page,
 					limit: params.limit ?? this.limit,

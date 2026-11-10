@@ -84,6 +84,7 @@ export interface UserItem {
   enabled?: boolean
   created_at?: string
   theme_color?: string
+  birth_date?: string | null
 }
 
 export interface RoleAccessDetail {
@@ -188,6 +189,7 @@ export const createUser = async (payload: {
   roleId?: number | null
   companyRoles?: UserCompanyRoleItem[]
   theme_color?: string
+  birth_date?: string | null
 }) => {
   const { data } = await api.post('/users', payload)
   return data
@@ -371,5 +373,64 @@ export const createSubModule = async (payload: {
 
 export const updateSubModule = async (id: number, payload: Partial<SubModuleItem>) => {
   const { data } = await api.patch(`/subModule/${id}`, payload)
+  return data
+}
+
+// =================== SUCURSALES (ESTABLECIMIENTOS) ===================
+export interface BranchItem {
+  id: number
+  companyId: number
+  /** Número de establecimiento SRI (3 dígitos) */
+  code: string
+  name: string
+  /** Dirección del establecimiento (dirEstablecimiento del SRI) */
+  address: string
+  /** Punto de emisión por defecto (3 dígitos) */
+  emissionPoint: string
+  phone: string | null
+  email: string | null
+  isMatrix: boolean
+  enabled: boolean
+}
+
+export interface BranchPayload {
+  code: string
+  name: string
+  address: string
+  emission_point: string
+  phone?: string
+  email?: string
+  is_matrix?: boolean
+  enabled?: boolean
+}
+
+const companyHeader = (companyId: number) => ({ headers: { 'x-company-id': String(companyId) } })
+
+export const getBranches = async (companyId: number, params: { onlyEnabled?: boolean } = {}) => {
+  const { data } = await api.get('/branchCompany', {
+    params: { companyId, page: 1, limit: 100, ...(params.onlyEnabled ? { onlyEnabled: true } : {}) },
+    ...companyHeader(companyId),
+  })
+  return data
+}
+
+export const createBranch = async (companyId: number, payload: BranchPayload) => {
+  const { data } = await api.post('/branchCompany', { companyId, ...payload }, companyHeader(companyId))
+  return data
+}
+
+export const updateBranch = async (companyId: number, id: number, payload: Partial<BranchPayload>) => {
+  const { data } = await api.patch(`/branchCompany/${id}`, { companyId, ...payload }, companyHeader(companyId))
+  return data
+}
+
+/** Define la matriz de la empresa: la anterior deja de serlo (una empresa solo puede tener una). */
+export const setMainBranch = async (companyId: number, id: number) => {
+  const { data } = await api.patch(`/branchCompany/${id}/set-matrix`, {}, companyHeader(companyId))
+  return data
+}
+
+export const deleteBranch = async (companyId: number, id: number) => {
+  const { data } = await api.delete(`/branchCompany/${id}`, companyHeader(companyId))
   return data
 }

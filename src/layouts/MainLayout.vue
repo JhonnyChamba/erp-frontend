@@ -14,9 +14,9 @@
     <aside class="left-sidebar with-vertical d-flex flex-column justify-content-between">
       
       <!-- HEADER DEL SIDEBAR (LOGO) -->
-      <div>
-        <div class="brand-logo d-flex align-items-center justify-content-between p-3 border-bottom border-translucent">
-          <router-link to="/dashboard" class="text-nowrap logo-img d-flex align-items-center text-decoration-none">
+      <div class="d-flex flex-column flex-grow-1" style="min-height: 0;">
+        <div class="brand-logo flex-shrink-0 d-flex align-items-center justify-content-between p-3 border-bottom border-translucent">
+          <router-link to="/dashboard" class="text-nowrap logo-img d-flex align-items-center text-decoration-none" title="Ir al Dashboard" @click="mobileSidebarOpen = false">
             <img src="/controller/images/logos/logo-dark.svg" class="dark-logo" alt="Deskounta Logo" height="34" />
             <img src="/controller/images/logos/logo-light.svg" class="light-logo" alt="Deskounta Logo" height="34" />
           </router-link>
@@ -26,41 +26,9 @@
         </div>
 
         <!-- LISTA DE NAVEGACIÓN -->
-        <div class="scroll-sidebar p-3" style="max-height: calc(100vh - 160px); overflow-y: auto;">
+        <div class="scroll-sidebar p-3 flex-grow-1" style="min-height: 0; overflow-y: auto;">
           <nav class="sidebar-nav">
             <ul id="sidebarnav" class="mb-0 list-unstyled">
-
-              <!-- HOME -->
-              <li class="nav-small-cap">
-                <iconify-icon icon="solar:menu-dots-bold-duotone" class="nav-small-cap-icon fs-5"></iconify-icon>
-                <span class="hide-menu">Home</span>
-              </li>
-
-              <li class="sidebar-item mb-1">
-                <router-link
-                  to="/dashboard"
-                  class="sidebar-link primary-hover-bg"
-                  :class="{ active: currentRoute === '/dashboard' }"
-                >
-                  <span class="aside-icon p-2 bg-primary-subtle rounded-1 text-primary">
-                    <iconify-icon icon="solar:screencast-2-line-duotone" class="fs-6"></iconify-icon>
-                  </span>
-                  <span class="hide-menu ps-1">Dashboard</span>
-                </router-link>
-              </li>
-
-              <li v-if="authStore.canSwitchCompany" class="sidebar-item mb-2">
-                <a
-                  href="javascript:void(0)"
-                  @click="go('/companies')"
-                  class="sidebar-link info-hover-bg"
-                >
-                  <span class="aside-icon p-2 bg-info-subtle rounded-1 text-info">
-                    <iconify-icon icon="solar:buildings-3-line-duotone" class="fs-6"></iconify-icon>
-                  </span>
-                  <span class="hide-menu ps-1">Empresas / Sucursales</span>
-                </a>
-              </li>
 
               <!-- MÓDULOS OPERATIVOS DINÁMICOS -->
               <template v-if="operationalModules.length > 0">
@@ -170,7 +138,7 @@
       </div>
 
       <!-- WIDGET DE USUARIO EN EL PIE DEL SIDEBAR -->
-      <div class="sidebar-profile-widget p-3 border-top border-translucent m-2 rounded-3 d-flex align-items-center justify-content-between">
+      <div class="sidebar-profile-widget flex-shrink-0 p-3 border-top border-translucent m-2 rounded-3 d-flex align-items-center justify-content-between">
         <div class="d-flex align-items-center gap-2">
           <img
             src="/controller/images/profile/user-1.jpg"
@@ -241,7 +209,6 @@ const isMiniSidebar = ref(false)
 const mobileSidebarOpen = ref(false)
 const userName = ref('Usuario')
 
-const currentRoute = computed(() => route.path)
 const openModules = reactive<Record<string, boolean>>({})
 
 const activeRoleLabel = computed(() => {
@@ -355,13 +322,6 @@ const toggleSidebar = () => {
   }
 }
 
-const go = (path: string) => {
-  if (path === '/companies') {
-    router.push({ path: '/companies', query: { cambiar: 'true' } })
-  } else {
-    router.push(path)
-  }
-}
 
 const logout = () => {
   authStore.logout()

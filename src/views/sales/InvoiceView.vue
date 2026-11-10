@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, computed, onMounted, watch } from 'vue'
+import { ref, computed, onMounted, watch, nextTick } from 'vue'
 import { useRoute } from 'vue-router'
 import { useAuthStore } from '@/stores/auth.store'
 import {
@@ -20,6 +20,7 @@ import {
   type InventorySubcontractItem,
 } from '@/services/inventory.service'
 import { getCustomers, type CustomerItem } from '@/services/contacts.service'
+import { getBranches, type BranchItem } from '@/services/config.service'
 
 const route = useRoute()
 const authStore = useAuthStore()
@@ -66,6 +67,14 @@ const statusFilter = ref<'TODOS' | 'ISSUED' | 'CANCELED'>('TODOS')
 
 // Modales
 const showCreateModal = ref(false)
+// Mientras el formulario de factura está abierto se muestra como página y se oculta el listado
+const isFormOpen = computed(() => showCreateModal.value)
+watch(isFormOpen, async (open) => {
+  if (open) {
+    await nextTick()
+    document.getElementById('form-page')?.scrollIntoView({ block: 'start' })
+  }
+})
 const showDetailModal = ref(false)
 const viewingInvoice = ref<InvoiceItem | null>(null)
 
@@ -74,9 +83,19 @@ const customersList = ref<CustomerItem[]>([])
 const articlesList = ref<InventoryArticle[]>([])
 const servicesList = ref<InventoryServiceItem[]>([])
 const subcontractsList = ref<InventorySubcontractItem[]>([])
+const branchesList = ref<BranchItem[]>([])
+// Solo las sucursales activas pueden emitir; el filtro del listado incluye todas (historial)
+const activeBranches = computed(() => branchesList.value.filter((b) => b.enabled))
+// Filtro del listado: 'TODAS' o el id de la sucursal
+const branchFilter = ref<'TODAS' | number>('TODAS')
+const branchName = (id?: number | null) => {
+  const b = branchesList.value.find((x) => x.id === id)
+  return b ? `${b.code} - ${b.name}` : '—'
+}
 
 // Formulario de emisión de factura
 const initialInvoiceForm = () => ({
+  branchId: undefined as number | undefined,
   establishment: '001',
   emission_point: '001',
   issue_date: new Date().toISOString().slice(0, 10),
@@ -128,6 +147,26 @@ const activeCompanyEnvironment = computed(() => {
   return '1'
 })
 
+let branchFilterInitialized = false
+const getActiveBranchId = (): number => {
+  try {
+    return Number(JSON.parse(localStorage.getItem('selectedBranch') || 'null')?.id) || 0
+  } catch {
+    return 0
+  }
+}
+const selectedBranchFilterId = () => (branchFilter.value === 'TODAS' ? undefined : Number(branchFilter.value))
+
+// Al cambiar la sucursal del filtro se vuelven a pedir solo las facturas
+const reloadInvoices = async () => {
+  loading.value = true
+  try {
+    invoices.value = await getInvoices(getActiveCompanyId(), selectedBranchFilterId()).catch(() => [])
+  } finally {
+    loading.value = false
+  }
+}
+
 // Cargar facturas y catálogos
 const loadData = async () => {
   loading.value = true
@@ -135,8 +174,18 @@ const loadData = async () => {
   const companyId = getActiveCompanyId()
 
   try {
+    const brs: any = await getBranches(companyId).catch(() => ({ data: [] }))
+    branchesList.value = Array.isArray(brs?.data) ? brs.data : Array.isArray(brs) ? brs : []
+
+    // Primera carga: se muestran las facturas de la sucursal activa (la elegida al entrar), si existe
+    if (!branchFilterInitialized) {
+      branchFilterInitialized = true
+      const activeId = getActiveBranchId()
+      if (branchesList.value.some((b) => b.id === activeId)) branchFilter.value = activeId
+    }
+
     const [invs, custs, arts, srvs, subs] = await Promise.all([
-      getInvoices(companyId).catch(() => []),
+      getInvoices(companyId, selectedBranchFilterId()).catch(() => []),
       getCustomers(companyId).catch(() => []),
       getInventoryItems(companyId).catch(() => []),
       getInventoryServices(companyId).catch(() => []),
@@ -295,8 +344,37 @@ const setFinalConsumer = () => {
   form.value.customer_phone = ''
 }
 
+// Aplica los datos de la sucursal elegida: establecimiento y punto de emisión por defecto
+const applyBranch = (branchId?: number) => {
+  const b = activeBranches.value.find((x) => x.id === branchId)
+  form.value.branchId = b?.id
+  if (b) {
+    form.value.establishment = b.code
+    form.value.emission_point = b.emissionPoint || '001'
+  }
+}
+
+const preselectBranch = () => {
+  if (activeBranches.value.length === 0) return
+  // Sucursal del filtro, si no la sucursal con la que se entró, si no la matriz
+  const filterId = branchFilter.value === 'TODAS' ? 0 : Number(branchFilter.value)
+  const preferred =
+    activeBranches.value.find((b) => b.id === filterId) ||
+    activeBranches.value.find((b) => b.id === getActiveBranchId()) ||
+    activeBranches.value.find((b) => b.isMatrix) ||
+    activeBranches.value[0]
+  applyBranch(preferred?.id)
+}
+
 const openCreateModal = () => {
+  successMsg.value = ''
+  // Toda factura pertenece a una empresa y a una sucursal: sin sucursales activas no se puede emitir
+  if (activeBranches.value.length === 0) {
+    errorMsg.value = 'Para emitir facturas primero registra y activa al menos una sucursal en Configuración > Sucursales.'
+    return
+  }
   form.value = initialInvoiceForm()
+  preselectBranch()
   successMsg.value = ''
   errorMsg.value = ''
   showCreateModal.value = true
@@ -309,6 +387,10 @@ const openDetailModal = (inv: InvoiceItem) => {
 
 // Guardar / Emitir Factura
 const submitInvoice = async () => {
+  if (!form.value.branchId) {
+    errorMsg.value = 'Debes seleccionar la sucursal (establecimiento) con la que se emite la factura.'
+    return
+  }
   if (!form.value.customer_id_number || !form.value.customer_name) {
     errorMsg.value = 'Debes ingresar el número de identificación y nombre del cliente.'
     return
@@ -327,7 +409,7 @@ const submitInvoice = async () => {
   try {
     const payload: CreateInvoicePayload = {
       companyId: getActiveCompanyId(),
-      establishment: form.value.establishment,
+      branchId: form.value.branchId as number,
       emission_point: form.value.emission_point,
       issue_date: form.value.issue_date,
       customer_id_type: form.value.customer_id_type,
@@ -482,7 +564,7 @@ watch(() => route.path, () => {
 </script>
 
 <template>
-  <div class="invoices-page">
+  <div class="invoices-page" :class="{ 'form-open': isFormOpen }">
     <!-- Encabezado del Submódulo -->
     <div class="page-header d-flex flex-wrap justify-content-between align-items-center gap-3">
       <div class="d-flex align-items-center gap-3">
@@ -558,7 +640,12 @@ watch(() => route.path, () => {
           </div>
 
           <div class="d-flex align-items-center gap-2">
-            <label class="text-secondary small fw-semibold">Estado:</label>
+            <label class="text-secondary small fw-semibold">Sucursal:</label>
+            <select v-model="branchFilter" @change="reloadInvoices" class="form-select bg-dark-subtle border-secondary text-white w-auto">
+              <option value="TODAS">Todas las sucursales</option>
+              <option v-for="b in branchesList" :key="b.id" :value="b.id">{{ b.code }} - {{ b.name }}{{ b.enabled ? '' : ' (inactiva)' }}</option>
+            </select>
+            <label class="text-secondary small fw-semibold ms-2">Estado:</label>
             <select v-model="statusFilter" class="form-select bg-dark-subtle border-secondary text-white w-auto">
               <option value="TODOS">Todos</option>
               <option value="ISSUED">Emitidas</option>
@@ -598,6 +685,7 @@ watch(() => route.path, () => {
               <tr v-for="inv in filteredInvoices" :key="inv.id">
                 <td>
                   <span class="font-monospace fw-bold text-info">{{ inv.invoice_number }}</span>
+                  <div class="text-secondary small" title="Sucursal">{{ branchName(inv.branch_id) }}</div>
                   <div v-if="inv.access_key" class="text-secondary small text-truncate" style="max-width: 180px;" :title="inv.access_key">
                     Clave: {{ inv.access_key }}
                   </div>
@@ -662,24 +750,35 @@ watch(() => route.path, () => {
     </template>
 
     <!-- MODAL 1: EMITIR NUEVA FACTURA (REGLAS SRI ECUADOR) -->
-    <div v-if="showCreateModal" class="modal-backdrop-custom" @click.self="showCreateModal = false">
-      <div class="modal-card-custom modal-lg-custom">
+    <div v-if="showCreateModal" id="form-page" class="form-page">
+      <div class="modal-card-custom modal-lg-custom form-page-card form-page-card-lg">
         <div class="modal-header-custom d-flex justify-content-between align-items-center">
           <div>
             <span class="badge bg-primary-subtle text-primary border border-primary-subtle">SRI ECUADOR</span>
             <h4 class="text-white fw-bold mb-0 mt-1">Emitir Factura Electrónica Normal</h4>
           </div>
-          <button class="btn btn-link text-secondary p-0 fs-5" @click="showCreateModal = false">
-            <iconify-icon icon="solar:close-circle-bold"></iconify-icon>
+          <button type="button" class="btn btn-outline-secondary btn-sm d-flex align-items-center gap-1" @click="showCreateModal = false">
+            <iconify-icon icon="solar:alt-arrow-left-line-duotone" class="fs-5"></iconify-icon>
+            <span>Volver</span>
           </button>
         </div>
 
         <form @submit.prevent="submitInvoice" class="p-3">
+          <div v-if="errorMsg" class="alert alert-danger d-flex align-items-center gap-2 py-2">
+            <iconify-icon icon="solar:danger-circle-line-duotone"></iconify-icon>
+            <span>{{ errorMsg }}</span>
+          </div>
           <!-- Datos de Cabecera SRI -->
           <div class="row g-3">
+            <div class="col-12">
+              <label class="form-label text-secondary small fw-semibold">Sucursal / Establecimiento emisor *</label>
+              <select :value="form.branchId" @change="applyBranch(Number(($event.target as HTMLSelectElement).value) || undefined)" class="form-select bg-dark-subtle border-secondary text-white" required>
+                <option v-for="b in activeBranches" :key="b.id" :value="b.id">{{ b.code }} - {{ b.name }}{{ b.isMatrix ? ' (Matriz)' : '' }} · {{ b.address }}</option>
+              </select>
+            </div>
             <div class="col-md-3">
               <label class="form-label text-secondary small fw-semibold">Establecimiento</label>
-              <input v-model="form.establishment" type="text" maxlength="3" class="form-control bg-dark-subtle border-secondary text-white font-monospace text-center" required />
+              <input v-model="form.establishment" :readonly="!!form.branchId" type="text" maxlength="3" class="form-control bg-dark-subtle border-secondary text-white font-monospace text-center" required />
             </div>
             <div class="col-md-3">
               <label class="form-label text-secondary small fw-semibold">Punto de Emisión</label>
@@ -1020,5 +1119,30 @@ watch(() => route.path, () => {
 .btn-xs {
   font-size: 0.75rem;
   padding: 0.2rem 0.6rem;
+}
+
+/* Formularios de registro/edición como página (no modal): al abrirse reemplazan al listado */
+.form-open > :not(.form-page):not(.keep-in-form) {
+  display: none !important;
+}
+.form-page {
+  width: 100%;
+  scroll-margin-top: 110px; /* deja libre la barra superior fija */
+}
+.form-page-card {
+  max-width: none;
+  margin: 0 auto;
+}
+.form-page-card-lg {
+  max-width: none;
+}
+.modal-card-custom.form-page-card {
+  max-height: none;
+  overflow: visible;
+  box-shadow: none;
+  margin: 0 auto;
+}
+.modal-card-custom.form-page-card-lg {
+  max-width: none;
 }
 </style>

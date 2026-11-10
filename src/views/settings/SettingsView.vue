@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, onMounted, computed, watch } from 'vue'
+import { ref, onMounted, computed, watch, nextTick } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import {
   getCompanies,
@@ -22,6 +22,12 @@ import {
   getSubModules,
   createSubModule,
   updateSubModule,
+  getBranches,
+  createBranch,
+  updateBranch,
+  deleteBranch,
+  setMainBranch,
+  type BranchItem,
   type CompanyItem,
   type UserItem,
   type RoleItem,
@@ -82,7 +88,7 @@ const closeUserModal = () => {
 }
 
 // Pestaña activa ('companies' | 'users' | 'roles' | 'modules' | 'subscriptions')
-const activeTab = ref<'companies' | 'users' | 'roles' | 'modules' | 'subscriptions'>('companies')
+const activeTab = ref<'companies' | 'branches' | 'users' | 'roles' | 'modules' | 'subscriptions'>('companies')
 
 // Estado de carga y mensajes
 const loading = ref(false)
@@ -114,6 +120,17 @@ const showModuleModal = ref(false)
 const showSubModuleModal = ref(false)
 const showPlanModal = ref(false)
 const showSubscriptionModal = ref(false)
+const showBranchModal = ref(false)
+// Mientras un formulario de registro/edición está abierto se muestra como página y se oculta el listado
+const isFormOpen = computed(
+  () => showCompanyModal.value || showUserModal.value || showRoleModal.value || showModuleModal.value || showSubModuleModal.value || showPlanModal.value || showSubscriptionModal.value || showBranchModal.value,
+)
+watch(isFormOpen, async (open) => {
+  if (open) {
+    await nextTick()
+    document.getElementById('form-page')?.scrollIntoView({ block: 'start' })
+  }
+})
 
 // Estado de edición de usuario y rol
 const isEditingUser = ref(false)
@@ -254,6 +271,7 @@ const removeP12 = () => {
 const formUser = ref({
   companyId: 1,
   num_document: '',
+  birth_date: '',
   name_user: '',
   last_name_user: '',
   email: '',
@@ -342,6 +360,7 @@ const openCreateUser = async () => {
   formUser.value = {
     companyId: currentCompanyId.value,
     num_document: '',
+    birth_date: '',
     name_user: '',
     last_name_user: '',
     email: '',
@@ -393,6 +412,7 @@ const openEditUser = async (user: UserItem) => {
   formUser.value = {
     companyId: currentCompanyId.value,
     num_document: user.num_document || '',
+    birth_date: user.birth_date ? String(user.birth_date).slice(0, 10) : '',
     name_user: user.name_user || '',
     last_name_user: user.last_name_user || '',
     email: user.email || '',
@@ -463,6 +483,9 @@ const loadCurrentTabData = async () => {
     if (activeTab.value === 'companies') {
       const res = await getCompanies({ page: 1, limit: 50 })
       companies.value = Array.isArray(res?.data) ? res.data : Array.isArray(res) ? res : []
+    } else if (activeTab.value === 'branches') {
+      const res = await getBranches(currentCompanyId.value)
+      branches.value = Array.isArray(res?.data) ? res.data : Array.isArray(res) ? res : []
     } else if (activeTab.value === 'users') {
       const [usersRes, compsRes] = await Promise.all([
         getUsers(currentCompanyId.value, { page: 1, limit: 50 }),
@@ -515,7 +538,7 @@ const loadCurrentTabData = async () => {
   }
 }
 
-const switchTab = (tab: 'companies' | 'users' | 'roles' | 'modules' | 'subscriptions') => {
+const switchTab = (tab: 'companies' | 'branches' | 'users' | 'roles' | 'modules' | 'subscriptions') => {
   activeTab.value = tab
   router.replace({ query: { ...route.query, tab } })
   loadCurrentTabData()
@@ -525,7 +548,7 @@ const switchTab = (tab: 'companies' | 'users' | 'roles' | 'modules' | 'subscript
 watch(
   () => route.query.tab,
   (newTab) => {
-    if (newTab && ['companies', 'users', 'roles', 'modules', 'subscriptions'].includes(newTab as string)) {
+    if (newTab && ['companies', 'branches', 'users', 'roles', 'modules', 'subscriptions'].includes(newTab as string)) {
       activeTab.value = newTab as any
       loadCurrentTabData()
     }
@@ -583,6 +606,136 @@ const submitCompany = async () => {
   }
 }
 
+// =================== SUCURSALES (ESTABLECIMIENTOS) ===================
+const branches = ref<BranchItem[]>([])
+const isEditingBranch = ref(false)
+const editingBranchId = ref<number | null>(null)
+const emptyBranchForm = () => ({
+  code: '',
+  emission_point: '001',
+  name: '',
+  address: '',
+  phone: '',
+  email: '',
+  is_matrix: false,
+  enabled: true,
+})
+const formBranch = ref(emptyBranchForm())
+// Ya existe una matriz en la empresa: no se puede marcar otra desde el formulario (se usa "Marcar como matriz")
+const hasMatrix = computed(() => branches.value.some((b) => b.isMatrix))
+const matrixSwitchLocked = computed(() => isEditingBranch.value || hasMatrix.value || branches.value.length === 0)
+
+const onlyDigits3 = (value: string) => String(value || '').replace(/\D/g, '').slice(0, 3)
+
+// Propone el siguiente número de establecimiento libre (001, 002, ...)
+const nextBranchCode = () => {
+  const used = new Set(branches.value.map((b) => Number(b.code)))
+  let n = 1
+  while (used.has(n)) n++
+  return String(n).padStart(3, '0')
+}
+
+const openCreateBranch = () => {
+  isEditingBranch.value = false
+  editingBranchId.value = null
+  errorMsg.value = ''
+  // La primera sucursal es la matriz; si ya hay una, las nuevas son sucursales normales
+  formBranch.value = { ...emptyBranchForm(), code: nextBranchCode(), is_matrix: branches.value.length === 0 }
+  showBranchModal.value = true
+}
+
+const openEditBranch = (b: BranchItem) => {
+  isEditingBranch.value = true
+  editingBranchId.value = b.id
+  errorMsg.value = ''
+  formBranch.value = {
+    code: b.code,
+    emission_point: b.emissionPoint || '001',
+    name: b.name,
+    address: b.address,
+    phone: b.phone || '',
+    email: b.email || '',
+    is_matrix: b.isMatrix,
+    enabled: b.enabled,
+  }
+  showBranchModal.value = true
+}
+
+const branchErrorMessage = (err: any, fallback: string) => {
+  const m = err?.response?.data?.message
+  return (Array.isArray(m) ? m.join('. ') : m) || fallback
+}
+
+const submitBranch = async () => {
+  loading.value = true
+  errorMsg.value = ''
+  try {
+    const f = formBranch.value
+    const payload = {
+      code: f.code,
+      emission_point: f.emission_point,
+      name: f.name.trim(),
+      address: f.address.trim(),
+      phone: f.phone.trim(),
+      email: f.email.trim(),
+    }
+    if (isEditingBranch.value && editingBranchId.value) {
+      // La matriz no se cambia desde aquí: se usa la acción "Marcar como matriz"
+      await updateBranch(currentCompanyId.value, editingBranchId.value, { ...payload, enabled: f.enabled })
+      successMsg.value = 'Sucursal actualizada exitosamente.'
+    } else {
+      await createBranch(currentCompanyId.value, { ...payload, is_matrix: f.is_matrix && !hasMatrix.value })
+      successMsg.value = 'Sucursal registrada exitosamente.'
+    }
+    showBranchModal.value = false
+    await loadCurrentTabData()
+    if (!errorMsg.value) successMsg.value = isEditingBranch.value ? 'Sucursal actualizada exitosamente.' : 'Sucursal registrada exitosamente.'
+  } catch (err: any) {
+    errorMsg.value = branchErrorMessage(err, 'Error al guardar la sucursal')
+  } finally {
+    loading.value = false
+  }
+}
+
+const markAsMatrix = async (b: BranchItem) => {
+  const actual = branches.value.find((x) => x.isMatrix)
+  const msg = actual
+    ? `¿Marcar ${b.code} - ${b.name} como matriz? La matriz actual (${actual.code} - ${actual.name}) pasará a ser una sucursal normal. Una empresa solo puede tener una matriz.`
+    : `¿Marcar ${b.code} - ${b.name} como la matriz de la empresa?`
+  if (!window.confirm(msg)) return
+  errorMsg.value = ''
+  try {
+    await setMainBranch(currentCompanyId.value, b.id)
+    await loadCurrentTabData()
+    successMsg.value = `La sucursal ${b.code} - ${b.name} es ahora la matriz.`
+  } catch (err: any) {
+    errorMsg.value = branchErrorMessage(err, 'No se pudo cambiar la matriz')
+  }
+}
+
+const toggleBranch = async (b: BranchItem) => {
+  errorMsg.value = ''
+  try {
+    await updateBranch(currentCompanyId.value, b.id, { enabled: !b.enabled })
+    await loadCurrentTabData()
+    successMsg.value = `Sucursal ${b.code} ${b.enabled ? 'deshabilitada' : 'habilitada'}.`
+  } catch (err: any) {
+    errorMsg.value = branchErrorMessage(err, 'No se pudo cambiar el estado de la sucursal')
+  }
+}
+
+const removeBranch = async (b: BranchItem) => {
+  if (!window.confirm(`¿Eliminar la sucursal ${b.code} - ${b.name}? Las facturas ya emitidas conservan sus datos.`)) return
+  errorMsg.value = ''
+  try {
+    await deleteBranch(currentCompanyId.value, b.id)
+    await loadCurrentTabData()
+    successMsg.value = `Sucursal ${b.code} eliminada.`
+  } catch (err: any) {
+    errorMsg.value = branchErrorMessage(err, 'No se pudo eliminar la sucursal')
+  }
+}
+
 // =================== GUARDAR USUARIO ===================
 const submitUser = async () => {
   loading.value = true
@@ -618,6 +771,7 @@ const submitUser = async () => {
       const payload: any = {
         companyId: currentCompanyId.value,
         num_document: formUser.value.num_document,
+        birth_date: formUser.value.birth_date || null,
         name_user: formUser.value.name_user,
         last_name_user: formUser.value.last_name_user,
         email: formUser.value.email,
@@ -643,6 +797,7 @@ const submitUser = async () => {
       await createUser({
         companyId: currentCompanyId.value,
         num_document: formUser.value.num_document,
+        birth_date: formUser.value.birth_date || null,
         name_user: formUser.value.name_user,
         last_name_user: formUser.value.last_name_user,
         email: formUser.value.email,
@@ -1229,10 +1384,10 @@ const submitSubscription = async () => {
 </script>
 
 <template>
-  <div class="settings-page">
+  <div class="settings-page" :class="{ 'form-open': isFormOpen }">
     
     <!-- ENCABEZADO DE MÓDULO -->
-    <div class="card rounded-4 border-0 shadow-sm p-4 mb-4 bg-navy-card">
+    <div class="card rounded-4 border-0 shadow-sm p-4 mb-4 bg-navy-card keep-in-form">
       <div class="d-flex flex-wrap justify-content-between align-items-center gap-3">
         <div>
           <div class="d-flex align-items-center gap-2 mb-1">
@@ -1271,7 +1426,7 @@ const submitSubscription = async () => {
       </div>
 
       <!-- PESTAÑAS TIPO PILLS (ESTILO SPIKE / PHP ORIGINAL) -->
-      <ul class="nav nav-pills user-profile-tab mt-4 border-top border-dark-subtle pt-3" role="tablist">
+      <ul v-show="!isFormOpen" class="nav nav-pills user-profile-tab mt-4 border-top border-dark-subtle pt-3" role="tablist">
         
         <li class="nav-item me-2">
           <button
@@ -1281,6 +1436,17 @@ const submitSubscription = async () => {
           >
             <iconify-icon icon="solar:buildings-3-line-duotone" class="fs-5"></iconify-icon>
             <span>Empresas</span>
+          </button>
+        </li>
+
+        <li class="nav-item me-2">
+          <button
+            class="nav-link rounded-pill px-4 py-2 d-flex align-items-center gap-2 fs-3 text-decoration-none"
+            :class="{ 'active bg-primary text-white': activeTab === 'branches', 'text-white-50 hover-tab': activeTab !== 'branches' }"
+            @click="switchTab('branches')"
+          >
+            <iconify-icon icon="solar:shop-2-line-duotone" class="fs-5"></iconify-icon>
+            <span>Sucursales</span>
           </button>
         </li>
 
@@ -1394,6 +1560,86 @@ const submitSubscription = async () => {
             </tr>
             <tr v-if="companies.length === 0">
               <td colspan="7" class="text-center text-muted py-5">No hay empresas registradas aún.</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- ======================================================== -->
+    <!-- TAB: SUCURSALES (ESTABLECIMIENTOS)                       -->
+    <!-- ======================================================== -->
+    <div v-if="activeTab === 'branches'" class="card rounded-4 border-0 shadow-sm p-4 bg-navy-card">
+      <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+          <h5 class="fw-bold text-white mb-1">Sucursales de {{ selectedCompany?.razon_social || selectedCompany?.nombre_comercial || 'la Empresa Activa' }}</h5>
+          <small class="text-secondary">Establecimientos y puntos de emisión con los que se factura (número de factura: establecimiento-punto de emisión-secuencial)</small>
+        </div>
+        <button class="btn btn-primary rounded-pill px-4 d-flex align-items-center gap-2" @click="openCreateBranch">
+          <iconify-icon icon="solar:add-circle-line-duotone" class="fs-5"></iconify-icon>
+          <span>Nueva Sucursal</span>
+        </button>
+      </div>
+
+      <div v-if="loading" class="text-center py-5">
+        <div class="spinner-border text-primary" role="status"></div>
+        <p class="text-muted mt-2">Cargando sucursales...</p>
+      </div>
+
+      <div v-else class="table-responsive">
+        <table class="table table-hover align-middle mb-0">
+          <thead class="table-primary">
+            <tr>
+              <th width="9%">Estab.</th>
+              <th width="9%">Pto. Emisión</th>
+              <th width="20%">Nombre</th>
+              <th width="26%">Dirección del establecimiento</th>
+              <th width="16%">Contacto</th>
+              <th width="8%">Tipo</th>
+              <th width="8%">Estado</th>
+              <th width="14%" class="text-end">Acciones</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr v-for="b in branches" :key="b.id">
+              <td><span class="badge bg-primary text-white fw-bold font-monospace">{{ b.code }}</span></td>
+              <td><span class="badge bg-dark-subtle text-white font-monospace">{{ b.emissionPoint }}</span></td>
+              <td class="text-white fw-semibold">{{ b.name }}</td>
+              <td class="text-white">{{ b.address }}</td>
+              <td class="text-white">
+                <div v-if="b.phone">{{ b.phone }}</div>
+                <div v-if="b.email" class="fs-2 text-secondary">{{ b.email }}</div>
+                <span v-if="!b.phone && !b.email" class="text-secondary fst-italic fs-2">Sin datos</span>
+              </td>
+              <td>
+                <span class="badge" :class="b.isMatrix ? 'bg-info-subtle text-info border border-info-subtle' : 'bg-secondary-subtle text-secondary'">
+                  {{ b.isMatrix ? 'Matriz' : 'Sucursal' }}
+                </span>
+              </td>
+              <td>
+                <span class="badge" :class="b.enabled ? 'bg-success-subtle text-success' : 'bg-danger-subtle text-danger'">
+                  {{ b.enabled ? 'Activa' : 'Inactiva' }}
+                </span>
+              </td>
+              <td class="text-end">
+                <button class="btn btn-sm btn-outline-info rounded-circle p-1 me-1" title="Editar sucursal" @click="openEditBranch(b)">
+                  <iconify-icon icon="solar:pen-2-line-duotone" class="fs-4"></iconify-icon>
+                </button>
+                <button v-if="!b.isMatrix && b.enabled" class="btn btn-sm btn-outline-success rounded-circle p-1 me-1" title="Marcar como matriz" @click="markAsMatrix(b)">
+                  <iconify-icon icon="solar:crown-line-duotone" class="fs-4"></iconify-icon>
+                </button>
+                <button v-if="!b.isMatrix" class="btn btn-sm btn-outline-warning rounded-circle p-1 me-1" :title="b.enabled ? 'Deshabilitar' : 'Habilitar'" @click="toggleBranch(b)">
+                  <iconify-icon :icon="b.enabled ? 'solar:eye-closed-line-duotone' : 'solar:eye-line-duotone'" class="fs-4"></iconify-icon>
+                </button>
+                <button v-if="!b.isMatrix" class="btn btn-sm btn-outline-danger rounded-circle p-1" title="Eliminar sucursal" @click="removeBranch(b)">
+                  <iconify-icon icon="solar:trash-bin-trash-line-duotone" class="fs-4"></iconify-icon>
+                </button>
+              </td>
+            </tr>
+            <tr v-if="branches.length === 0">
+              <td colspan="8" class="text-center text-muted py-5">
+                Esta empresa aún no tiene sucursales. Registra la primera (será la matriz) para poder facturar por establecimiento.
+              </td>
             </tr>
           </tbody>
         </table>
@@ -1873,56 +2119,147 @@ const submitSubscription = async () => {
     <!-- MODALES DE CREACIÓN                                      -->
     <!-- ======================================================== -->
 
+    <!-- 0. FORMULARIO NUEVA / EDITAR SUCURSAL -->
+      <div v-if="showBranchModal" id="form-page" class="form-page">
+        <div class="form-page-card">
+          <div class="card bg-navy-card border border-secondary-subtle rounded-4 shadow-sm">
+            <div class="modal-header d-flex justify-content-between align-items-center px-4 py-3 border-bottom border-dark-subtle">
+              <div class="d-flex align-items-center gap-2">
+                <span class="p-2 bg-primary-subtle text-primary rounded-3 d-inline-flex"><iconify-icon icon="solar:shop-2-line-duotone" class="fs-5"></iconify-icon></span>
+                <h5 class="fw-bold text-white mb-0">{{ isEditingBranch ? 'Editar Sucursal' : 'Registrar Nueva Sucursal' }}</h5>
+              </div>
+              <button type="button" class="btn btn-outline-secondary btn-sm rounded-3 d-flex align-items-center gap-1" @click="showBranchModal = false">
+                <iconify-icon icon="solar:alt-arrow-left-line-duotone" class="fs-5"></iconify-icon>
+                <span>Volver</span>
+              </button>
+            </div>
+            <form @submit.prevent="submitBranch">
+              <div class="modal-body p-4">
+                <div class="alert alert-info d-flex align-items-start gap-2 py-2 mb-4">
+                  <iconify-icon icon="solar:info-circle-line-duotone" class="fs-5 mt-1"></iconify-icon>
+                  <span class="fs-2">
+                    El número de factura se forma con el <b>establecimiento</b>, el <b>punto de emisión</b> y un secuencial:
+                    <span class="font-monospace">{{ formBranch.code || '001' }}-{{ formBranch.emission_point || '001' }}-000000001</span>.
+                    Cada combinación lleva su propia numeración. La dirección se envía al SRI como dirección del establecimiento.
+                  </span>
+                </div>
+
+                <div class="row">
+                  <div class="col-md-3 mb-3">
+                    <label class="form-label text-secondary fs-2 fw-semibold">Establecimiento (3 dígitos) *</label>
+                    <input v-model="formBranch.code" @input="formBranch.code = onlyDigits3(formBranch.code)" type="text" inputmode="numeric" maxlength="3" minlength="3" pattern="[0-9]{3}" class="form-control bg-dark-subtle border-secondary-subtle text-white font-monospace" placeholder="001" required />
+                  </div>
+                  <div class="col-md-3 mb-3">
+                    <label class="form-label text-secondary fs-2 fw-semibold">Punto de emisión (3 dígitos) *</label>
+                    <input v-model="formBranch.emission_point" @input="formBranch.emission_point = onlyDigits3(formBranch.emission_point)" type="text" inputmode="numeric" maxlength="3" minlength="3" pattern="[0-9]{3}" class="form-control bg-dark-subtle border-secondary-subtle text-white font-monospace" placeholder="001" required />
+                  </div>
+                  <div class="col-md-6 mb-3">
+                    <label class="form-label text-secondary fs-2 fw-semibold">Nombre de la sucursal *</label>
+                    <input v-model="formBranch.name" type="text" maxlength="150" class="form-control bg-dark-subtle border-secondary-subtle text-white" placeholder="Ej. Sucursal Norte" required />
+                  </div>
+                </div>
+
+                <div class="mb-3">
+                  <label class="form-label text-secondary fs-2 fw-semibold">Dirección del establecimiento *</label>
+                  <input v-model="formBranch.address" type="text" maxlength="300" class="form-control bg-dark-subtle border-secondary-subtle text-white" placeholder="Calle principal, número y secundaria, ciudad" required />
+                </div>
+
+                <div class="row">
+                  <div class="col-md-6 mb-3">
+                    <label class="form-label text-secondary fs-2 fw-semibold">Teléfono</label>
+                    <input v-model="formBranch.phone" type="text" maxlength="30" class="form-control bg-dark-subtle border-secondary-subtle text-white" placeholder="Ej. 022998800" />
+                  </div>
+                  <div class="col-md-6 mb-3">
+                    <label class="form-label text-secondary fs-2 fw-semibold">Correo electrónico</label>
+                    <input v-model="formBranch.email" type="email" maxlength="150" class="form-control bg-dark-subtle border-secondary-subtle text-white" placeholder="sucursal@empresa.com" />
+                  </div>
+                </div>
+
+                <div class="row">
+                  <div class="col-md-6 mb-2">
+                    <div class="form-check form-switch">
+                      <input id="branchMatrix" v-model="formBranch.is_matrix" class="form-check-input" type="checkbox" role="switch" :disabled="matrixSwitchLocked" />
+                      <label class="form-check-label text-secondary fs-2 fw-semibold" for="branchMatrix">Es la matriz de la empresa</label>
+                    </div>
+                    <small class="text-secondary d-block mt-1">
+                      Una empresa solo puede tener una matriz.
+                      <template v-if="branches.length === 0 && !isEditingBranch">La primera sucursal es la matriz.</template>
+                      <template v-else-if="isEditingBranch && formBranch.is_matrix">Esta es la matriz actual; para cambiarla usa "Marcar como matriz" en otra sucursal.</template>
+                      <template v-else-if="hasMatrix">Ya existe una matriz; para cambiarla usa "Marcar como matriz" en el listado.</template>
+                    </small>
+                  </div>
+                  <div v-if="isEditingBranch" class="col-md-6 mb-2">
+                    <div class="form-check form-switch">
+                      <input id="branchEnabled" v-model="formBranch.enabled" class="form-check-input" type="checkbox" role="switch" />
+                      <label class="form-check-label text-secondary fs-2 fw-semibold" for="branchEnabled">Sucursal activa (se puede facturar con ella)</label>
+                    </div>
+                  </div>
+                </div>
+              </div>
+              <div class="modal-footer d-flex justify-content-end gap-2 px-4 py-3 border-top border-dark-subtle">
+                <button type="button" class="btn btn-outline-secondary px-4 rounded-3" @click="showBranchModal = false">Cancelar</button>
+                <button type="submit" class="btn btn-primary px-4 rounded-3 fw-bold" :disabled="loading">{{ isEditingBranch ? 'Guardar Cambios' : 'Guardar Sucursal' }}</button>
+              </div>
+            </form>
+          </div>
+        </div>
+      </div>
+
     <!-- 1. MODAL NUEVA / EDITAR EMPRESA -->
-    <Teleport to="body">
-      <div v-if="showCompanyModal" class="modal fade show d-block" style="background: rgba(0,0,0,0.65); z-index: 1060;" @click.self="showCompanyModal = false">
-        <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable modal-lg">
-          <div class="modal-content rounded-4 shadow-lg border-0 bg-dark text-white">
-            <div class="modal-header bg-primary text-white">
-              <h5 class="modal-title text-white">{{ isEditingCompany ? 'Editar Empresa' : 'Registrar Nueva Empresa' }}</h5>
-              <button type="button" class="btn-close btn-close-white" @click="showCompanyModal = false"></button>
+      <div v-if="showCompanyModal" id="form-page" class="form-page">
+        <div class="form-page-card form-page-card-lg">
+          <div class="card bg-navy-card border border-secondary-subtle rounded-4 shadow-sm">
+            <div class="modal-header d-flex justify-content-between align-items-center px-4 py-3 border-bottom border-dark-subtle">
+              <div class="d-flex align-items-center gap-2">
+                <span class="p-2 bg-primary-subtle text-primary rounded-3 d-inline-flex"><iconify-icon icon="solar:buildings-3-line-duotone" class="fs-5"></iconify-icon></span>
+                <h5 class="fw-bold text-white mb-0">{{ isEditingCompany ? 'Editar Empresa' : 'Registrar Nueva Empresa' }}</h5>
+              </div>
+              <button type="button" class="btn btn-outline-secondary btn-sm rounded-3 d-flex align-items-center gap-1" @click="showCompanyModal = false">
+                <iconify-icon icon="solar:alt-arrow-left-line-duotone" class="fs-5"></iconify-icon>
+                <span>Volver</span>
+              </button>
             </div>
             <form @submit.prevent="submitCompany">
               <ul class="nav nav-pills gap-2 px-4 pt-3">
                 <li class="nav-item" v-for="t in [{k:'general',l:'General'},{k:'fiscal',l:'Datos SRI'},{k:'firma',l:'Firma electrónica'},{k:'correo',l:'Correo (SMTP)'}]" :key="t.k">
-                  <button type="button" class="nav-link py-1 px-3" :class="companyFormTab === t.k ? 'active' : 'text-white-50'" @click="companyFormTab = t.k as any">{{ t.l }}</button>
+                  <button type="button" class="nav-link rounded-pill px-4 py-2 fs-3 text-decoration-none" :class="companyFormTab === t.k ? 'active bg-primary text-white' : 'text-white-50'" @click="companyFormTab = t.k as any">{{ t.l }}</button>
                 </li>
               </ul>
               <div class="modal-body p-4">
                 <!-- GENERAL -->
                 <div v-show="companyFormTab === 'general'" class="row g-3">
                   <div class="col-md-6">
-                    <label class="form-label text-white-50">RUC *</label>
-                    <input v-model="formCompany.ruc" type="text" maxlength="13" class="form-control bg-dark-subtle border-secondary text-white" placeholder="1725620247001" required />
+                    <label class="form-label text-secondary fs-2 fw-semibold">RUC *</label>
+                    <input v-model="formCompany.ruc" type="text" maxlength="13" class="form-control bg-dark-subtle border-secondary-subtle text-white" placeholder="1725620247001" required />
                   </div>
                   <div class="col-md-6">
-                    <label class="form-label text-white-50">Nombre Comercial *</label>
-                    <input v-model="formCompany.trade_name" type="text" class="form-control bg-dark-subtle border-secondary text-white" required />
+                    <label class="form-label text-secondary fs-2 fw-semibold">Nombre Comercial *</label>
+                    <input v-model="formCompany.trade_name" type="text" class="form-control bg-dark-subtle border-secondary-subtle text-white" required />
                   </div>
                   <div class="col-12">
-                    <label class="form-label text-white-50">Razón Social *</label>
-                    <input v-model="formCompany.business_name" type="text" class="form-control bg-dark-subtle border-secondary text-white" required />
+                    <label class="form-label text-secondary fs-2 fw-semibold">Razón Social *</label>
+                    <input v-model="formCompany.business_name" type="text" class="form-control bg-dark-subtle border-secondary-subtle text-white" required />
                   </div>
                   <div class="col-12">
-                    <label class="form-label text-white-50">Dirección de Matriz</label>
-                    <input v-model="formCompany.address_matriz" type="text" class="form-control bg-dark-subtle border-secondary text-white" />
+                    <label class="form-label text-secondary fs-2 fw-semibold">Dirección de Matriz</label>
+                    <input v-model="formCompany.address_matriz" type="text" class="form-control bg-dark-subtle border-secondary-subtle text-white" />
                   </div>
                   <div class="col-md-6">
-                    <label class="form-label text-white-50">Teléfono</label>
-                    <input v-model="formCompany.phone" type="text" class="form-control bg-dark-subtle border-secondary text-white" />
+                    <label class="form-label text-secondary fs-2 fw-semibold">Teléfono</label>
+                    <input v-model="formCompany.phone" type="text" class="form-control bg-dark-subtle border-secondary-subtle text-white" />
                   </div>
                   <div class="col-md-6">
-                    <label class="form-label text-white-50">Correo de la empresa</label>
-                    <input v-model="formCompany.email" type="email" class="form-control bg-dark-subtle border-secondary text-white" />
+                    <label class="form-label text-secondary fs-2 fw-semibold">Correo de la empresa</label>
+                    <input v-model="formCompany.email" type="email" class="form-control bg-dark-subtle border-secondary-subtle text-white" />
                   </div>
                   <div class="col-12">
-                    <label class="form-label text-white-50">Descripción / Actividad económica *</label>
-                    <textarea v-model="formCompany.description" class="form-control bg-dark-subtle border-secondary text-white" rows="2" required></textarea>
+                    <label class="form-label text-secondary fs-2 fw-semibold">Descripción / Actividad económica *</label>
+                    <textarea v-model="formCompany.description" class="form-control bg-dark-subtle border-secondary-subtle text-white" rows="2" required></textarea>
                   </div>
 
                   <!-- Selector de Ambiente SRI en pestaña General -->
                   <div class="col-12 mt-2 pt-2 border-top border-dark-subtle">
-                    <label class="form-label text-white-50 fw-bold d-flex align-items-center gap-2 mb-2">
+                    <label class="form-label text-secondary fs-2 fw-semibold fw-bold d-flex align-items-center gap-2 mb-2">
                       <iconify-icon icon="solar:server-square-bold-duotone" class="text-primary fs-5"></iconify-icon>
                       Ambiente de Emisión SRI *
                     </label>
@@ -1968,7 +2305,7 @@ const submitSubscription = async () => {
                 <!-- SRI -->
                 <div v-show="companyFormTab === 'fiscal'" class="row g-3">
                   <div class="col-12">
-                    <label class="form-label text-white-50 fw-bold d-flex align-items-center gap-2 mb-2">
+                    <label class="form-label text-secondary fs-2 fw-semibold fw-bold d-flex align-items-center gap-2 mb-2">
                       <iconify-icon icon="solar:server-square-bold-duotone" class="text-primary fs-5"></iconify-icon>
                       Ambiente SRI *
                     </label>
@@ -2010,24 +2347,24 @@ const submitSubscription = async () => {
                     </div>
                   </div>
                   <div class="col-md-6">
-                    <label class="form-label text-white-50">Régimen tributario</label>
-                    <select v-model="formCompany.tax_regime" class="form-select bg-dark-subtle border-secondary text-white">
+                    <label class="form-label text-secondary fs-2 fw-semibold">Régimen tributario</label>
+                    <select v-model="formCompany.tax_regime" class="form-select bg-dark-subtle border-secondary-subtle text-white">
                       <option value="GENERAL">General</option>
                       <option value="RIMPE_EMPRENDEDOR">RIMPE - Emprendedor</option>
                       <option value="RIMPE_NEGOCIO_POPULAR">RIMPE - Negocio Popular</option>
                     </select>
                   </div>
                   <div class="col-md-6">
-                    <label class="form-label text-white-50">Establecimiento por defecto</label>
-                    <input v-model="formCompany.default_establishment" type="text" maxlength="3" class="form-control bg-dark-subtle border-secondary text-white font-monospace" />
+                    <label class="form-label text-secondary fs-2 fw-semibold">Establecimiento por defecto</label>
+                    <input v-model="formCompany.default_establishment" type="text" maxlength="3" class="form-control bg-dark-subtle border-secondary-subtle text-white font-monospace" />
                   </div>
                   <div class="col-md-6">
-                    <label class="form-label text-white-50">Punto de emisión por defecto</label>
-                    <input v-model="formCompany.default_emission_point" type="text" maxlength="3" class="form-control bg-dark-subtle border-secondary text-white font-monospace" />
+                    <label class="form-label text-secondary fs-2 fw-semibold">Punto de emisión por defecto</label>
+                    <input v-model="formCompany.default_emission_point" type="text" maxlength="3" class="form-control bg-dark-subtle border-secondary-subtle text-white font-monospace" />
                   </div>
                   <div class="col-md-6">
-                    <label class="form-label text-white-50">Nº Resolución Contribuyente Especial</label>
-                    <input v-model="formCompany.special_taxpayer" type="text" class="form-control bg-dark-subtle border-secondary text-white" placeholder="Dejar vacío si no aplica" />
+                    <label class="form-label text-secondary fs-2 fw-semibold">Nº Resolución Contribuyente Especial</label>
+                    <input v-model="formCompany.special_taxpayer" type="text" class="form-control bg-dark-subtle border-secondary-subtle text-white" placeholder="Dejar vacío si no aplica" />
                   </div>
                   <div class="col-md-6 d-flex align-items-end">
                     <div class="form-check form-switch">
@@ -2047,16 +2384,16 @@ const submitSubscription = async () => {
                     <div v-else class="alert alert-secondary py-2 mb-0">No hay firma electrónica cargada.</div>
                   </div>
                   <div class="col-12">
-                    <label class="form-label text-white-50">Archivo de firma (.p12 / .pfx)</label>
-                    <input type="file" accept=".p12,.pfx" class="form-control bg-dark-subtle border-secondary text-white" @change="onP12Selected" />
+                    <label class="form-label text-secondary fs-2 fw-semibold">Archivo de firma (.p12 / .pfx)</label>
+                    <input type="file" accept=".p12,.pfx" class="form-control bg-dark-subtle border-secondary-subtle text-white" @change="onP12Selected" />
                   </div>
                   <div class="col-md-6">
-                    <label class="form-label text-white-50">Contraseña de la firma</label>
-                    <input v-model="formCompany.cert_password" type="password" autocomplete="new-password" class="form-control bg-dark-subtle border-secondary text-white" placeholder="Solo al cargar un archivo nuevo" />
+                    <label class="form-label text-secondary fs-2 fw-semibold">Contraseña de la firma</label>
+                    <input v-model="formCompany.cert_password" type="password" autocomplete="new-password" class="form-control bg-dark-subtle border-secondary-subtle text-white" placeholder="Solo al cargar un archivo nuevo" />
                   </div>
                   <div class="col-md-6">
-                    <label class="form-label text-white-50">Fecha de caducidad</label>
-                    <input v-model="formCompany.cert_expires_at" type="date" class="form-control bg-dark-subtle border-secondary text-white" />
+                    <label class="form-label text-secondary fs-2 fw-semibold">Fecha de caducidad</label>
+                    <input v-model="formCompany.cert_expires_at" type="date" class="form-control bg-dark-subtle border-secondary-subtle text-white" />
                   </div>
                   <small class="text-secondary">El archivo y su contraseña se guardan cifrados (AES-256) y nunca se devuelven al navegador.</small>
                 </div>
@@ -2064,28 +2401,28 @@ const submitSubscription = async () => {
                 <!-- SMTP -->
                 <div v-show="companyFormTab === 'correo'" class="row g-3">
                   <div class="col-md-8">
-                    <label class="form-label text-white-50">Servidor SMTP</label>
-                    <input v-model="formCompany.smtp_host" type="text" class="form-control bg-dark-subtle border-secondary text-white" placeholder="smtp.gmail.com" />
+                    <label class="form-label text-secondary fs-2 fw-semibold">Servidor SMTP</label>
+                    <input v-model="formCompany.smtp_host" type="text" class="form-control bg-dark-subtle border-secondary-subtle text-white" placeholder="smtp.gmail.com" />
                   </div>
                   <div class="col-md-4">
-                    <label class="form-label text-white-50">Puerto</label>
-                    <input v-model.number="formCompany.smtp_port" type="number" class="form-control bg-dark-subtle border-secondary text-white" />
+                    <label class="form-label text-secondary fs-2 fw-semibold">Puerto</label>
+                    <input v-model.number="formCompany.smtp_port" type="number" class="form-control bg-dark-subtle border-secondary-subtle text-white" />
                   </div>
                   <div class="col-md-6">
-                    <label class="form-label text-white-50">Usuario</label>
-                    <input v-model="formCompany.smtp_user" type="text" class="form-control bg-dark-subtle border-secondary text-white" />
+                    <label class="form-label text-secondary fs-2 fw-semibold">Usuario</label>
+                    <input v-model="formCompany.smtp_user" type="text" class="form-control bg-dark-subtle border-secondary-subtle text-white" />
                   </div>
                   <div class="col-md-6">
-                    <label class="form-label text-white-50">Contraseña {{ formCompany.has_smtp_password ? '(guardada, vacío = no cambiar)' : '' }}</label>
-                    <input v-model="formCompany.smtp_password" type="password" autocomplete="new-password" class="form-control bg-dark-subtle border-secondary text-white" />
+                    <label class="form-label text-secondary fs-2 fw-semibold">Contraseña {{ formCompany.has_smtp_password ? '(guardada, vacío = no cambiar)' : '' }}</label>
+                    <input v-model="formCompany.smtp_password" type="password" autocomplete="new-password" class="form-control bg-dark-subtle border-secondary-subtle text-white" />
                   </div>
                   <div class="col-md-6">
-                    <label class="form-label text-white-50">Nombre del remitente</label>
-                    <input v-model="formCompany.smtp_from_name" type="text" class="form-control bg-dark-subtle border-secondary text-white" />
+                    <label class="form-label text-secondary fs-2 fw-semibold">Nombre del remitente</label>
+                    <input v-model="formCompany.smtp_from_name" type="text" class="form-control bg-dark-subtle border-secondary-subtle text-white" />
                   </div>
                   <div class="col-md-6">
-                    <label class="form-label text-white-50">Correo del remitente</label>
-                    <input v-model="formCompany.smtp_from_email" type="email" class="form-control bg-dark-subtle border-secondary text-white" />
+                    <label class="form-label text-secondary fs-2 fw-semibold">Correo del remitente</label>
+                    <input v-model="formCompany.smtp_from_email" type="email" class="form-control bg-dark-subtle border-secondary-subtle text-white" />
                   </div>
                   <div class="col-12">
                     <div class="form-check form-switch">
@@ -2095,57 +2432,64 @@ const submitSubscription = async () => {
                   </div>
                 </div>
               </div>
-              <div class="modal-footer border-dark-subtle">
-                <button type="button" class="btn btn-outline-secondary" @click="showCompanyModal = false">Cancelar</button>
-                <button type="submit" class="btn btn-primary" :disabled="loading">{{ isEditingCompany ? 'Guardar Cambios' : 'Guardar Empresa' }}</button>
+              <div class="modal-footer d-flex justify-content-end gap-2 px-4 py-3 border-top border-dark-subtle">
+                <button type="button" class="btn btn-outline-secondary px-4 rounded-3" @click="showCompanyModal = false">Cancelar</button>
+                <button type="submit" class="btn btn-primary px-4 rounded-3 fw-bold" :disabled="loading">{{ isEditingCompany ? 'Guardar Cambios' : 'Guardar Empresa' }}</button>
               </div>
             </form>
           </div>
         </div>
       </div>
-    </Teleport>
 
     <!-- 2. MODAL NUEVO / EDITAR USUARIO -->
-    <Teleport to="body">
-      <div v-if="showUserModal" class="modal fade show d-block" style="background: rgba(0,0,0,0.65); z-index: 1060;" @click.self="closeUserModal">
-        <div class="modal-dialog modal-dialog-centered modal-lg">
-          <div class="modal-content rounded-4 shadow-lg border-0 bg-dark text-white">
-            <div class="modal-header bg-primary text-white">
-              <h5 class="modal-title text-white d-flex align-items-center gap-2">
-                <iconify-icon :icon="isEditingUser ? 'solar:user-bold' : 'solar:user-plus-line-duotone'" class="fs-5"></iconify-icon>
-                <span>{{ isEditingUser ? 'Editar Usuario del Sistema' : 'Crear Usuario del Sistema' }}</span>
-              </h5>
-              <button type="button" class="btn-close btn-close-white" @click="closeUserModal"></button>
+      <div v-if="showUserModal" id="form-page" class="form-page">
+        <div class="form-page-card form-page-card-lg">
+          <div class="card bg-navy-card border border-secondary-subtle rounded-4 shadow-sm">
+            <div class="modal-header d-flex justify-content-between align-items-center px-4 py-3 border-bottom border-dark-subtle">
+              <div class="d-flex align-items-center gap-2">
+                <span class="p-2 bg-primary-subtle text-primary rounded-3 d-inline-flex"><iconify-icon :icon="isEditingUser ? 'solar:user-bold' : 'solar:user-plus-line-duotone'" class="fs-5"></iconify-icon></span>
+                <h5 class="fw-bold text-white mb-0">{{ isEditingUser ? 'Editar Usuario del Sistema' : 'Crear Usuario del Sistema' }}</h5>
+              </div>
+              <button type="button" class="btn btn-outline-secondary btn-sm rounded-3 d-flex align-items-center gap-1" @click="closeUserModal">
+                <iconify-icon icon="solar:alt-arrow-left-line-duotone" class="fs-5"></iconify-icon>
+                <span>Volver</span>
+              </button>
             </div>
             <form @submit.prevent="submitUser">
               <div class="modal-body p-4">
-                <div class="mb-3">
-                  <label class="form-label text-white-50">Número de Cédula / Documento</label>
-                  <input v-model="formUser.num_document" type="text" class="form-control bg-dark-subtle border-secondary text-white" placeholder="Ej. 1725620247" required />
+                <div class="row">
+                  <div class="col-md-6 mb-3">
+                    <label class="form-label text-secondary fs-2 fw-semibold">Número de Cédula / Documento</label>
+                    <input v-model="formUser.num_document" type="text" class="form-control bg-dark-subtle border-secondary-subtle text-white" placeholder="Ej. 1725620247" required />
+                  </div>
+                  <div class="col-md-6 mb-3">
+                    <label class="form-label text-secondary fs-2 fw-semibold">Fecha de Nacimiento</label>
+                    <input v-model="formUser.birth_date" type="date" :max="new Date().toISOString().slice(0, 10)" class="form-control bg-dark-subtle border-secondary-subtle text-white" />
+                  </div>
                 </div>
                 <div class="row">
                   <div class="col-md-6 mb-3">
-                    <label class="form-label text-white-50">Nombres</label>
-                    <input v-model="formUser.name_user" type="text" class="form-control bg-dark-subtle border-secondary text-white" placeholder="Nombre" required />
+                    <label class="form-label text-secondary fs-2 fw-semibold">Nombres</label>
+                    <input v-model="formUser.name_user" type="text" class="form-control bg-dark-subtle border-secondary-subtle text-white" placeholder="Nombre" required />
                   </div>
                   <div class="col-md-6 mb-3">
-                    <label class="form-label text-white-50">Apellidos</label>
-                    <input v-model="formUser.last_name_user" type="text" class="form-control bg-dark-subtle border-secondary text-white" placeholder="Apellido" required />
+                    <label class="form-label text-secondary fs-2 fw-semibold">Apellidos</label>
+                    <input v-model="formUser.last_name_user" type="text" class="form-control bg-dark-subtle border-secondary-subtle text-white" placeholder="Apellido" required />
                   </div>
                 </div>
                 <div class="mb-3">
-                  <label class="form-label text-white-50">Correo Electrónico (Login)</label>
-                  <input v-model="formUser.email" type="email" class="form-control bg-dark-subtle border-secondary text-white" placeholder="usuario@correo.com" required />
+                  <label class="form-label text-secondary fs-2 fw-semibold">Correo Electrónico (Login)</label>
+                  <input v-model="formUser.email" type="email" class="form-control bg-dark-subtle border-secondary-subtle text-white" placeholder="usuario@correo.com" required />
                 </div>
                 <div class="mb-3">
-                  <label class="form-label text-white-50 d-flex justify-content-between align-items-center">
+                  <label class="form-label text-secondary fs-2 fw-semibold d-flex justify-content-between align-items-center">
                     <span>Contraseña</span>
                     <span v-if="isEditingUser" class="text-secondary fs-2">(Dejar en blanco para mantener la actual)</span>
                   </label>
                   <input
                     v-model="formUser.password"
                     type="password"
-                    class="form-control bg-dark-subtle border-secondary text-white"
+                    class="form-control bg-dark-subtle border-secondary-subtle text-white"
                     :placeholder="isEditingUser ? '•••••••• (Sin cambios)' : 'Contraseña segura'"
                     :required="!isEditingUser"
                   />
@@ -2229,7 +2573,7 @@ const submitSubscription = async () => {
                     </label>
                     <select
                       v-model="formUser.roleId"
-                      class="form-select bg-dark border-secondary text-white"
+                      class="form-select bg-dark border-secondary-subtle text-white"
                       required
                     >
                       <option :value="null" disabled>Selecciona un rol para esta empresa...</option>
@@ -2325,7 +2669,7 @@ const submitSubscription = async () => {
 
                 <!-- SELECTOR DE MODO OSCURO / CLARO (SPIKE ADMIN THEME MODE) -->
                 <div class="mb-3 pt-2 border-top border-dark-subtle">
-                  <label class="form-label text-white-50 d-flex justify-content-between align-items-center mb-2">
+                  <label class="form-label text-secondary fs-2 fw-semibold d-flex justify-content-between align-items-center mb-2">
                     <span class="fw-semibold text-adaptive-light">Modo de Apariencia</span>
                     <span class="badge bg-info-subtle text-info border border-info-subtle px-2 py-1 fs-1">
                       {{ themeStore.isDark ? 'Oscuro activo' : 'Claro activo' }}
@@ -2355,7 +2699,7 @@ const submitSubscription = async () => {
 
                 <!-- SELECTOR DE COLOR DE TEMA (SPIKE ADMIN THEME COLORS) -->
                 <div class="mb-2 pt-2 border-top border-dark-subtle">
-                  <label class="form-label text-white-50 d-flex justify-content-between align-items-center mb-2">
+                  <label class="form-label text-secondary fs-2 fw-semibold d-flex justify-content-between align-items-center mb-2">
                     <span class="fw-semibold text-white">Color de Tema de la Interfaz</span>
                     <span class="badge bg-primary-subtle text-primary border border-primary-subtle px-2 py-1 fs-1">
                       Se aplicará al iniciar sesión
@@ -2388,9 +2732,9 @@ const submitSubscription = async () => {
                   </small>
                 </div>
               </div>
-              <div class="modal-footer border-dark-subtle">
-                <button type="button" class="btn btn-outline-secondary" @click="closeUserModal">Cancelar</button>
-                <button type="submit" class="btn btn-primary px-4" :disabled="loading">
+              <div class="modal-footer d-flex justify-content-end gap-2 px-4 py-3 border-top border-dark-subtle">
+                <button type="button" class="btn btn-outline-secondary px-4 rounded-3" @click="closeUserModal">Cancelar</button>
+                <button type="submit" class="btn btn-primary px-4 rounded-3 fw-bold" :disabled="loading">
                   {{ isEditingUser ? 'Actualizar Usuario' : 'Guardar Usuario' }}
                 </button>
               </div>
@@ -2398,19 +2742,20 @@ const submitSubscription = async () => {
           </div>
         </div>
       </div>
-    </Teleport>
 
     <!-- 3. MODAL NUEVO / EDITAR ROL (CABECERA Y DETALLE DE ACCESOS) -->
-    <Teleport to="body">
-      <div v-if="showRoleModal" class="modal fade show d-block" style="background: rgba(0,0,0,0.65); z-index: 1060;" @click.self="showRoleModal = false">
-        <div class="modal-dialog modal-dialog-centered modal-lg">
-          <div class="modal-content rounded-4 shadow-lg border-0 bg-dark text-white">
-            <div class="modal-header bg-primary text-white">
-              <h5 class="modal-title text-white d-flex align-items-center gap-2">
-                <iconify-icon icon="solar:shield-check-line-duotone" class="fs-5"></iconify-icon>
-                <span>{{ isEditingRole ? 'Editar Rol (Cabecera y Detalle de Accesos)' : 'Registrar Nuevo Rol (Cabecera y Detalle)' }}</span>
-              </h5>
-              <button type="button" class="btn-close btn-close-white" @click="showRoleModal = false"></button>
+      <div v-if="showRoleModal" id="form-page" class="form-page">
+        <div class="form-page-card form-page-card-lg">
+          <div class="card bg-navy-card border border-secondary-subtle rounded-4 shadow-sm">
+            <div class="modal-header d-flex justify-content-between align-items-center px-4 py-3 border-bottom border-dark-subtle">
+              <div class="d-flex align-items-center gap-2">
+                <span class="p-2 bg-primary-subtle text-primary rounded-3 d-inline-flex"><iconify-icon icon="solar:shield-check-line-duotone" class="fs-5"></iconify-icon></span>
+                <h5 class="fw-bold text-white mb-0">{{ isEditingRole ? 'Editar Rol (Cabecera y Detalle de Accesos)' : 'Registrar Nuevo Rol (Cabecera y Detalle)' }}</h5>
+              </div>
+              <button type="button" class="btn btn-outline-secondary btn-sm rounded-3 d-flex align-items-center gap-1" @click="showRoleModal = false">
+                <iconify-icon icon="solar:alt-arrow-left-line-duotone" class="fs-5"></iconify-icon>
+                <span>Volver</span>
+              </button>
             </div>
             <form @submit.prevent="submitRole">
               <div class="modal-body p-4">
@@ -2427,23 +2772,23 @@ const submitSubscription = async () => {
                   </div>
                   <div class="row g-3">
                     <div class="col-md-4">
-                      <label class="form-label text-white-50 d-flex justify-content-between align-items-center">
+                      <label class="form-label text-secondary fs-2 fw-semibold d-flex justify-content-between align-items-center">
                         <span>Código del Rol</span>
                         <span class="badge bg-primary-subtle text-primary fs-1">Auto (+1)</span>
                       </label>
                       <input
                         v-model="formRole.code"
                         type="text"
-                        class="form-control bg-dark border-secondary text-info fw-bold font-monospace text-uppercase"
+                        class="form-control bg-dark border-secondary-subtle text-info fw-bold font-monospace text-uppercase"
                         readonly
                       />
                     </div>
                     <div class="col-md-8">
-                      <label class="form-label text-white-50">Nombre / Descripción del Rol</label>
+                      <label class="form-label text-secondary fs-2 fw-semibold">Nombre / Descripción del Rol</label>
                       <input
                         v-model="formRole.description"
                         type="text"
-                        class="form-control bg-dark border-secondary text-white"
+                        class="form-control bg-dark border-secondary-subtle text-white"
                         placeholder="Ej. Contador General, Vendedor, Administrador de Bodega"
                         required
                       />
@@ -2597,9 +2942,9 @@ const submitSubscription = async () => {
                   </div>
                 </div>
               </div>
-              <div class="modal-footer border-dark-subtle">
-                <button type="button" class="btn btn-outline-secondary" @click="showRoleModal = false">Cancelar</button>
-                <button type="submit" class="btn btn-primary px-4" :disabled="loading">
+              <div class="modal-footer d-flex justify-content-end gap-2 px-4 py-3 border-top border-dark-subtle">
+                <button type="button" class="btn btn-outline-secondary px-4 rounded-3" @click="showRoleModal = false">Cancelar</button>
+                <button type="submit" class="btn btn-primary px-4 rounded-3 fw-bold" :disabled="loading">
                   {{ isEditingRole ? 'Actualizar Rol y Detalle' : 'Guardar Rol y Detalle' }}
                 </button>
               </div>
@@ -2607,24 +2952,25 @@ const submitSubscription = async () => {
           </div>
         </div>
       </div>
-    </Teleport>
 
     <!-- 3.5 MODAL NUEVO / EDITAR MÓDULO -->
-    <Teleport to="body">
-      <div v-if="showModuleModal" class="modal fade show d-block" style="background: rgba(0,0,0,0.65); z-index: 1060;" @click.self="showModuleModal = false">
-        <div class="modal-dialog modal-dialog-centered">
-          <div class="modal-content rounded-4 shadow-lg border-0 bg-dark text-white">
-            <div class="modal-header bg-primary text-white">
-              <h5 class="modal-title text-white d-flex align-items-center gap-2">
-                <iconify-icon icon="solar:widget-4-line-duotone" class="fs-5"></iconify-icon>
-                <span>{{ isEditingModule ? 'Editar Módulo Principal' : 'Crear Nuevo Módulo' }}</span>
-              </h5>
-              <button type="button" class="btn-close btn-close-white" @click="showModuleModal = false"></button>
+      <div v-if="showModuleModal" id="form-page" class="form-page">
+        <div class="form-page-card">
+          <div class="card bg-navy-card border border-secondary-subtle rounded-4 shadow-sm">
+            <div class="modal-header d-flex justify-content-between align-items-center px-4 py-3 border-bottom border-dark-subtle">
+              <div class="d-flex align-items-center gap-2">
+                <span class="p-2 bg-primary-subtle text-primary rounded-3 d-inline-flex"><iconify-icon icon="solar:widget-4-line-duotone" class="fs-5"></iconify-icon></span>
+                <h5 class="fw-bold text-white mb-0">{{ isEditingModule ? 'Editar Módulo Principal' : 'Crear Nuevo Módulo' }}</h5>
+              </div>
+              <button type="button" class="btn btn-outline-secondary btn-sm rounded-3 d-flex align-items-center gap-1" @click="showModuleModal = false">
+                <iconify-icon icon="solar:alt-arrow-left-line-duotone" class="fs-5"></iconify-icon>
+                <span>Volver</span>
+              </button>
             </div>
             <form @submit.prevent="submitModule">
               <div class="modal-body p-4">
                 <div class="mb-3">
-                  <label class="form-label text-white-50 d-flex justify-content-between align-items-center">
+                  <label class="form-label text-secondary fs-2 fw-semibold d-flex justify-content-between align-items-center">
                     <span>Código Único del Módulo</span>
                     <span class="badge bg-primary-subtle text-primary border border-primary-subtle fs-1">
                       Autogenerado (+1)
@@ -2634,7 +2980,7 @@ const submitSubscription = async () => {
                     v-model="formModule.code"
                     type="text"
                     maxlength="20"
-                    class="form-control bg-dark border-secondary text-info fw-bold font-monospace text-uppercase"
+                    class="form-control bg-dark border-secondary-subtle text-info fw-bold font-monospace text-uppercase"
                     readonly
                   />
                   <small class="text-secondary fs-1">
@@ -2642,18 +2988,18 @@ const submitSubscription = async () => {
                   </small>
                 </div>
                 <div class="mb-3">
-                  <label class="form-label text-white-50">Nombre / Descripción del Módulo</label>
+                  <label class="form-label text-secondary fs-2 fw-semibold">Nombre / Descripción del Módulo</label>
                   <input
                     v-model="formModule.description"
                     type="text"
                     maxlength="150"
-                    class="form-control bg-dark-subtle border-secondary text-white"
+                    class="form-control bg-dark-subtle border-secondary-subtle text-white"
                     placeholder="Ej. Ventas y Facturación"
                     required
                   />
                 </div>
                 <div class="mb-3">
-                  <label class="form-label text-white-50 d-flex justify-content-between align-items-center">
+                  <label class="form-label text-secondary fs-2 fw-semibold d-flex justify-content-between align-items-center">
                     <span>Icono del Módulo (Iconify Solar)</span>
                     <span class="d-inline-flex align-items-center gap-1 badge bg-primary-subtle text-primary">
                       <iconify-icon :icon="formModule.desc_icon || 'solar:widget-4-line-duotone'" class="fs-4"></iconify-icon>
@@ -2663,7 +3009,7 @@ const submitSubscription = async () => {
                   <input
                     v-model="formModule.desc_icon"
                     type="text"
-                    class="form-control bg-dark-subtle border-secondary text-white font-monospace mb-2"
+                    class="form-control bg-dark-subtle border-secondary-subtle text-white font-monospace mb-2"
                     placeholder="Ej. solar:cart-large-2-line-duotone"
                     required
                   />
@@ -2696,9 +3042,9 @@ const submitSubscription = async () => {
                   />
                 </div>
               </div>
-              <div class="modal-footer border-dark-subtle">
-                <button type="button" class="btn btn-outline-secondary" @click="showModuleModal = false">Cancelar</button>
-                <button type="submit" class="btn btn-primary px-4" :disabled="loading">
+              <div class="modal-footer d-flex justify-content-end gap-2 px-4 py-3 border-top border-dark-subtle">
+                <button type="button" class="btn btn-outline-secondary px-4 rounded-3" @click="showModuleModal = false">Cancelar</button>
+                <button type="submit" class="btn btn-primary px-4 rounded-3 fw-bold" :disabled="loading">
                   {{ isEditingModule ? 'Actualizar Módulo' : 'Guardar Módulo' }}
                 </button>
               </div>
@@ -2706,27 +3052,28 @@ const submitSubscription = async () => {
           </div>
         </div>
       </div>
-    </Teleport>
 
     <!-- 3.6 MODAL NUEVO / EDITAR SUBMÓDULO -->
-    <Teleport to="body">
-      <div v-if="showSubModuleModal" class="modal fade show d-block" style="background: rgba(0,0,0,0.65); z-index: 1060;" @click.self="showSubModuleModal = false">
-        <div class="modal-dialog modal-dialog-centered">
-          <div class="modal-content rounded-4 shadow-lg border-0 bg-dark text-white">
-            <div class="modal-header bg-info text-dark">
-              <h5 class="modal-title text-dark fw-bold d-flex align-items-center gap-2">
-                <iconify-icon icon="solar:layers-minimalistic-line-duotone" class="fs-5"></iconify-icon>
-                <span>{{ isEditingSubModule ? 'Editar Submódulo' : 'Crear Nuevo Submódulo' }}</span>
-              </h5>
-              <button type="button" class="btn-close" @click="showSubModuleModal = false"></button>
+      <div v-if="showSubModuleModal" id="form-page" class="form-page">
+        <div class="form-page-card">
+          <div class="card bg-navy-card border border-secondary-subtle rounded-4 shadow-sm">
+            <div class="modal-header d-flex justify-content-between align-items-center px-4 py-3 border-bottom border-dark-subtle">
+              <div class="d-flex align-items-center gap-2">
+                <span class="p-2 bg-primary-subtle text-primary rounded-3 d-inline-flex"><iconify-icon icon="solar:layers-minimalistic-line-duotone" class="fs-5"></iconify-icon></span>
+                <h5 class="fw-bold text-white mb-0">{{ isEditingSubModule ? 'Editar Submódulo' : 'Crear Nuevo Submódulo' }}</h5>
+              </div>
+              <button type="button" class="btn btn-outline-secondary btn-sm rounded-3 d-flex align-items-center gap-1" @click="showSubModuleModal = false">
+                <iconify-icon icon="solar:alt-arrow-left-line-duotone" class="fs-5"></iconify-icon>
+                <span>Volver</span>
+              </button>
             </div>
             <form @submit.prevent="submitSubModule">
               <div class="modal-body p-4">
                 <div class="mb-3">
-                  <label class="form-label text-white-50">Módulo Principal (Padre)</label>
+                  <label class="form-label text-secondary fs-2 fw-semibold">Módulo Principal (Padre)</label>
                   <select
                     v-model.number="formSubModule.moduleId"
-                    class="form-select bg-dark-subtle border-secondary text-white"
+                    class="form-select bg-dark-subtle border-secondary-subtle text-white"
                     required
                   >
                     <option :value="0" disabled>Selecciona un módulo principal...</option>
@@ -2738,7 +3085,7 @@ const submitSubscription = async () => {
 
                 <div class="row">
                   <div class="col-md-5 mb-3">
-                    <label class="form-label text-white-50 d-flex justify-content-between align-items-center">
+                    <label class="form-label text-secondary fs-2 fw-semibold d-flex justify-content-between align-items-center">
                       <span>Código Único</span>
                       <span class="badge bg-info-subtle text-info border border-info-subtle fs-1">Auto (+1)</span>
                     </label>
@@ -2746,16 +3093,16 @@ const submitSubscription = async () => {
                       v-model="formSubModule.code"
                       type="text"
                       maxlength="20"
-                      class="form-control bg-dark border-secondary text-info fw-bold font-monospace text-uppercase"
+                      class="form-control bg-dark border-secondary-subtle text-info fw-bold font-monospace text-uppercase"
                       readonly
                     />
                   </div>
                   <div class="col-md-7 mb-3">
-                    <label class="form-label text-white-50">Ruta / URL del Submódulo</label>
+                    <label class="form-label text-secondary fs-2 fw-semibold">Ruta / URL del Submódulo</label>
                     <input
                       v-model="formSubModule.url_desc"
                       type="text"
-                      class="form-control bg-dark-subtle border-secondary text-white font-monospace"
+                      class="form-control bg-dark-subtle border-secondary-subtle text-white font-monospace"
                       placeholder="Ej. /ventas/facturas"
                       required
                     />
@@ -2763,19 +3110,19 @@ const submitSubscription = async () => {
                 </div>
 
                 <div class="mb-3">
-                  <label class="form-label text-white-50">Nombre / Descripción del Submódulo</label>
+                  <label class="form-label text-secondary fs-2 fw-semibold">Nombre / Descripción del Submódulo</label>
                   <input
                     v-model="formSubModule.description"
                     type="text"
                     maxlength="150"
-                    class="form-control bg-dark-subtle border-secondary text-white"
+                    class="form-control bg-dark-subtle border-secondary-subtle text-white"
                     placeholder="Ej. Emisión de Facturas Electrónicas"
                     required
                   />
                 </div>
 
                 <div class="mb-3">
-                  <label class="form-label text-white-50 d-flex justify-content-between align-items-center">
+                  <label class="form-label text-secondary fs-2 fw-semibold d-flex justify-content-between align-items-center">
                     <span>Icono del Submódulo</span>
                     <span class="d-inline-flex align-items-center gap-1 badge bg-info-subtle text-info">
                       <iconify-icon :icon="formSubModule.desc_icon || 'solar:round-alt-arrow-right-line-duotone'" class="fs-4"></iconify-icon>
@@ -2785,7 +3132,7 @@ const submitSubscription = async () => {
                   <input
                     v-model="formSubModule.desc_icon"
                     type="text"
-                    class="form-control bg-dark-subtle border-secondary text-white font-monospace mb-2"
+                    class="form-control bg-dark-subtle border-secondary-subtle text-white font-monospace mb-2"
                     placeholder="Ej. solar:document-text-line-duotone"
                     required
                   />
@@ -2817,8 +3164,8 @@ const submitSubscription = async () => {
                   />
                 </div>
               </div>
-              <div class="modal-footer border-dark-subtle">
-                <button type="button" class="btn btn-outline-secondary" @click="showSubModuleModal = false">Cancelar</button>
+              <div class="modal-footer d-flex justify-content-end gap-2 px-4 py-3 border-top border-dark-subtle">
+                <button type="button" class="btn btn-outline-secondary px-4 rounded-3" @click="showSubModuleModal = false">Cancelar</button>
                 <button type="submit" class="btn btn-info text-dark fw-semibold px-4" :disabled="loading">
                   {{ isEditingSubModule ? 'Actualizar Submódulo' : 'Guardar Submódulo' }}
                 </button>
@@ -2827,31 +3174,35 @@ const submitSubscription = async () => {
           </div>
         </div>
       </div>
-    </Teleport>
 
     <!-- 4. MODAL NUEVO PLAN -->
-    <Teleport to="body">
-      <div v-if="showPlanModal" class="modal fade show d-block" style="background: rgba(0,0,0,0.65); z-index: 1060;" @click.self="showPlanModal = false">
-        <div class="modal-dialog modal-dialog-centered">
-          <div class="modal-content rounded-4 shadow-lg border-0 bg-dark text-white">
-            <div class="modal-header bg-primary text-white">
-              <h5 class="modal-title text-white">Crear Plan SaaS</h5>
-              <button type="button" class="btn-close btn-close-white" @click="showPlanModal = false"></button>
+      <div v-if="showPlanModal" id="form-page" class="form-page">
+        <div class="form-page-card">
+          <div class="card bg-navy-card border border-secondary-subtle rounded-4 shadow-sm">
+            <div class="modal-header d-flex justify-content-between align-items-center px-4 py-3 border-bottom border-dark-subtle">
+              <div class="d-flex align-items-center gap-2">
+                <span class="p-2 bg-primary-subtle text-primary rounded-3 d-inline-flex"><iconify-icon icon="solar:tag-price-line-duotone" class="fs-5"></iconify-icon></span>
+                <h5 class="fw-bold text-white mb-0">Crear Plan SaaS</h5>
+              </div>
+              <button type="button" class="btn btn-outline-secondary btn-sm rounded-3 d-flex align-items-center gap-1" @click="showPlanModal = false">
+                <iconify-icon icon="solar:alt-arrow-left-line-duotone" class="fs-5"></iconify-icon>
+                <span>Volver</span>
+              </button>
             </div>
             <form @submit.prevent="submitPlan">
               <div class="modal-body p-4">
                 <div class="mb-3">
-                  <label class="form-label text-white-50">Nombre / Descripción del Plan</label>
-                  <input v-model="formPlan.description" type="text" class="form-control bg-dark-subtle border-secondary text-white" placeholder="Ej. Plan Emprendedor" required />
+                  <label class="form-label text-secondary fs-2 fw-semibold">Nombre / Descripción del Plan</label>
+                  <input v-model="formPlan.description" type="text" class="form-control bg-dark-subtle border-secondary-subtle text-white" placeholder="Ej. Plan Emprendedor" required />
                 </div>
                 <div class="row">
                   <div class="col-md-6 mb-3">
-                    <label class="form-label text-white-50">Precio ($)</label>
-                    <input v-model="formPlan.price" type="number" step="0.01" class="form-control bg-dark-subtle border-secondary text-white" required />
+                    <label class="form-label text-secondary fs-2 fw-semibold">Precio ($)</label>
+                    <input v-model="formPlan.price" type="number" step="0.01" class="form-control bg-dark-subtle border-secondary-subtle text-white" required />
                   </div>
                   <div class="col-md-6 mb-3">
-                    <label class="form-label text-white-50">Ciclo de Facturación</label>
-                    <select v-model="formPlan.billing_cycle" class="form-select bg-dark-subtle border-secondary text-white">
+                    <label class="form-label text-secondary fs-2 fw-semibold">Ciclo de Facturación</label>
+                    <select v-model="formPlan.billing_cycle" class="form-select bg-dark-subtle border-secondary-subtle text-white">
                       <option value="monthly">Mensual</option>
                       <option value="yearly">Anual</option>
                       <option value="weekly">Semanal</option>
@@ -2860,55 +3211,56 @@ const submitSubscription = async () => {
                 </div>
                 <div class="row">
                   <div class="col-md-6 mb-3">
-                    <label class="form-label text-white-50">Máx. Usuarios</label>
-                    <input v-model.number="formPlan.max_users" type="number" class="form-control bg-dark-subtle border-secondary text-white" required />
+                    <label class="form-label text-secondary fs-2 fw-semibold">Máx. Usuarios</label>
+                    <input v-model.number="formPlan.max_users" type="number" class="form-control bg-dark-subtle border-secondary-subtle text-white" required />
                   </div>
                   <div class="col-md-6 mb-3">
-                    <label class="form-label text-white-50">Máx. Sucursales</label>
-                    <input v-model.number="formPlan.max_branches" type="number" class="form-control bg-dark-subtle border-secondary text-white" required />
+                    <label class="form-label text-secondary fs-2 fw-semibold">Máx. Sucursales</label>
+                    <input v-model.number="formPlan.max_branches" type="number" class="form-control bg-dark-subtle border-secondary-subtle text-white" required />
                   </div>
                 </div>
               </div>
-              <div class="modal-footer border-dark-subtle">
-                <button type="button" class="btn btn-outline-secondary" @click="showPlanModal = false">Cancelar</button>
-                <button type="submit" class="btn btn-primary" :disabled="loading">Guardar Plan</button>
+              <div class="modal-footer d-flex justify-content-end gap-2 px-4 py-3 border-top border-dark-subtle">
+                <button type="button" class="btn btn-outline-secondary px-4 rounded-3" @click="showPlanModal = false">Cancelar</button>
+                <button type="submit" class="btn btn-primary px-4 rounded-3 fw-bold" :disabled="loading">Guardar Plan</button>
               </div>
             </form>
           </div>
         </div>
       </div>
-    </Teleport>
 
     <!-- 5. MODAL ASIGNAR / EDITAR SUSCRIPCIÓN Y ACCESO A MÓDULOS -->
-    <Teleport to="body">
-      <div v-if="showSubscriptionModal" class="modal fade show d-block" style="background: rgba(0,0,0,0.65); z-index: 1060;" @click.self="showSubscriptionModal = false">
-        <div class="modal-dialog modal-dialog-centered modal-lg">
-          <div class="modal-content rounded-4 shadow-lg border-0 bg-dark text-white">
-            <div class="modal-header bg-primary text-white">
-              <h5 class="modal-title text-white d-flex align-items-center gap-2">
-                <iconify-icon icon="solar:card-recive-line-duotone" class="fs-5"></iconify-icon>
-                <span>{{ isEditingSubscription ? 'Editar Suscripción y Módulos de Acceso' : 'Asignar Suscripción y Módulos a la Empresa' }}</span>
-              </h5>
-              <button type="button" class="btn-close btn-close-white" @click="showSubscriptionModal = false"></button>
+      <div v-if="showSubscriptionModal" id="form-page" class="form-page">
+        <div class="form-page-card form-page-card-lg">
+          <div class="card bg-navy-card border border-secondary-subtle rounded-4 shadow-sm">
+            <div class="modal-header d-flex justify-content-between align-items-center px-4 py-3 border-bottom border-dark-subtle">
+              <div class="d-flex align-items-center gap-2">
+                <span class="p-2 bg-primary-subtle text-primary rounded-3 d-inline-flex"><iconify-icon icon="solar:card-recive-line-duotone" class="fs-5"></iconify-icon></span>
+                <h5 class="fw-bold text-white mb-0">{{ isEditingSubscription ? 'Editar Suscripción y Módulos de Acceso' : 'Asignar Suscripción y Módulos a la Empresa' }}</h5>
+              </div>
+              <button type="button" class="btn btn-outline-secondary btn-sm rounded-3 d-flex align-items-center gap-1" @click="showSubscriptionModal = false">
+                <iconify-icon icon="solar:alt-arrow-left-line-duotone" class="fs-5"></iconify-icon>
+                <span>Volver</span>
+              </button>
             </div>
             <form @submit.prevent="submitSubscription">
               <div class="modal-body p-4">
                 <div class="row">
                   <div class="col-md-6 mb-3">
-                    <label class="form-label text-white-50">Plan a Contratar</label>
-                    <select v-model.number="formSubscription.planId" class="form-select bg-dark-subtle border-secondary text-white" required>
+                    <label class="form-label text-secondary fs-2 fw-semibold">Plan a Contratar</label>
+                    <select v-model.number="formSubscription.planId" class="form-select bg-dark-subtle border-secondary-subtle text-white" required>
                       <option v-for="plan in plans" :key="plan.id" :value="plan.id">
                         {{ plan.description }} - ${{ plan.price }} ({{ plan.billing_cycle }})
                       </option>
                     </select>
                   </div>
                   <div class="col-md-3 mb-3">
-                    <label class="form-label text-white-50">Fecha de Inicio</label>
-                    <input v-model="formSubscription.begin_date" type="date" class="form-control bg-dark-subtle border-secondary text-white" required />
+                    <label class="form-label text-secondary fs-2 fw-semibold">Fecha de Inicio</label>
+                    <input v-model="formSubscription.begin_date" type="date" class="form-control bg-dark-subtle border-secondary-subtle text-white" required />
                   </div>
                   <div class="col-md-3 mb-3">
-                    <label class="form-label text-white-50">Fecha de Fin</label>
-                    <input v-model="formSubscription.end_date" type="date" class="form-control bg-dark-subtle border-secondary text-white" required />
+                    <label class="form-label text-secondary fs-2 fw-semibold">Fecha de Fin</label>
+                    <input v-model="formSubscription.end_date" type="date" class="form-control bg-dark-subtle border-secondary-subtle text-white" required />
                   </div>
                 </div>
 
@@ -3055,9 +3407,9 @@ const submitSubscription = async () => {
                   />
                 </div>
               </div>
-              <div class="modal-footer border-dark-subtle">
-                <button type="button" class="btn btn-outline-secondary" @click="showSubscriptionModal = false">Cancelar</button>
-                <button type="submit" class="btn btn-primary px-4" :disabled="loading">
+              <div class="modal-footer d-flex justify-content-end gap-2 px-4 py-3 border-top border-dark-subtle">
+                <button type="button" class="btn btn-outline-secondary px-4 rounded-3" @click="showSubscriptionModal = false">Cancelar</button>
+                <button type="submit" class="btn btn-primary px-4 rounded-3 fw-bold" :disabled="loading">
                   {{ isEditingSubscription ? 'Guardar Cambios de Suscripción' : 'Activar Suscripción y Accesos' }}
                 </button>
               </div>
@@ -3065,7 +3417,6 @@ const submitSubscription = async () => {
           </div>
         </div>
       </div>
-    </Teleport>
 
   </div>
 </template>
@@ -3149,5 +3500,21 @@ const submitSubscription = async () => {
   border-radius: 50%;
   display: inline-block;
   box-shadow: 0 0 4px rgba(0, 0, 0, 0.5);
+}
+
+/* Formularios de registro/edición como página (no modal): al abrirse reemplazan al listado */
+.form-open > :not(.form-page):not(.keep-in-form) {
+  display: none !important;
+}
+.form-page {
+  width: 100%;
+  scroll-margin-top: 110px; /* deja libre la barra superior fija */
+}
+.form-page-card {
+  max-width: none;
+  margin: 0 auto;
+}
+.form-page-card-lg {
+  max-width: none;
 }
 </style>

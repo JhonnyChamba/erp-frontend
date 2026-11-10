@@ -1,5 +1,5 @@
 <template>
-  <div class="inventory-page">
+  <div class="inventory-page" :class="{ 'form-open': isFormOpen }">
     <!-- Top Header -->
     <div class="page-header">
       <div>
@@ -179,7 +179,7 @@
     </div>
 
     <!-- Status Banner -->
-    <div v-if="feedbackBanner.text" class="feedback-banner" :class="feedbackBanner.type">
+    <div v-if="feedbackBanner.text" class="feedback-banner keep-in-form" :class="feedbackBanner.type">
       <iconify-icon
         :icon="feedbackBanner.type === 'success' ? 'solar:check-circle-bold' : 'solar:danger-circle-bold'"
         width="18"
@@ -437,15 +437,16 @@
     <!-- ========================================================== -->
     <!-- MODAL 1: CREAR / EDITAR ÍTEM / ARTÍCULO                    -->
     <!-- ========================================================== -->
-    <div v-if="showItemModal" class="modal-backdrop" @click.self="showItemModal = false">
-      <div class="modal-card">
+    <div v-if="showItemModal" id="form-page" class="form-page">
+      <div class="modal-card form-page-card">
         <div class="modal-header">
           <div>
             <span class="mod-code-badge">ARTÍCULOS FÍSICOS</span>
             <h3>{{ editingItemId ? `Editar Artículo (${itemForm.code})` : 'Registrar Nuevo Artículo / Ítem' }}</h3>
           </div>
-          <button class="close-btn" @click="showItemModal = false">
-            <iconify-icon icon="solar:close-circle-line-duotone" width="22"></iconify-icon>
+          <button type="button" class="btn-secondary" @click="showItemModal = false">
+            <iconify-icon icon="solar:alt-arrow-left-line-duotone" width="18"></iconify-icon>
+            <span>Volver</span>
           </button>
         </div>
 
@@ -537,15 +538,16 @@
     <!-- ========================================================== -->
     <!-- MODAL 2: CREAR / EDITAR SERVICIO                           -->
     <!-- ========================================================== -->
-    <div v-if="showServiceModal" class="modal-backdrop" @click.self="showServiceModal = false">
-      <div class="modal-card">
+    <div v-if="showServiceModal" id="form-page" class="form-page">
+      <div class="modal-card form-page-card">
         <div class="modal-header">
           <div>
             <span class="mod-code-badge srv">CATÁLOGO DE SERVICIOS</span>
             <h3>{{ editingServiceId ? `Editar Servicio (${serviceForm.code})` : 'Registrar Nuevo Servicio' }}</h3>
           </div>
-          <button class="close-btn" @click="showServiceModal = false">
-            <iconify-icon icon="solar:close-circle-line-duotone" width="22"></iconify-icon>
+          <button type="button" class="btn-secondary" @click="showServiceModal = false">
+            <iconify-icon icon="solar:alt-arrow-left-line-duotone" width="18"></iconify-icon>
+            <span>Volver</span>
           </button>
         </div>
 
@@ -620,8 +622,8 @@
     <!-- ========================================================== -->
     <!-- MODAL 3: CREAR / EDITAR SUBCONTRATACIÓN / MANO DE OBRA     -->
     <!-- ========================================================== -->
-    <div v-if="showSubcontractModal" class="modal-backdrop" @click.self="showSubcontractModal = false">
-      <div class="modal-card">
+    <div v-if="showSubcontractModal" id="form-page" class="form-page">
+      <div class="modal-card form-page-card">
         <div class="modal-header">
           <div>
             <span class="mod-code-badge mo">SUBCONTRATACIÓN Y MANO DE OBRA</span>
@@ -629,8 +631,9 @@
               {{ editingSubcontractId ? `Editar Rubro (${subcontractForm.code})` : 'Registrar Mano de Obra / Subcontratación' }}
             </h3>
           </div>
-          <button class="close-btn" @click="showSubcontractModal = false">
-            <iconify-icon icon="solar:close-circle-line-duotone" width="22"></iconify-icon>
+          <button type="button" class="btn-secondary" @click="showSubcontractModal = false">
+            <iconify-icon icon="solar:alt-arrow-left-line-duotone" width="18"></iconify-icon>
+            <span>Volver</span>
           </button>
         </div>
 
@@ -719,7 +722,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, watch } from 'vue'
+import { ref, computed, onMounted, watch, nextTick } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import {
   getInventoryItems,
@@ -1092,6 +1095,14 @@ const toggleServiceStatus = async (srv: InventoryServiceItem) => {
 // 3. CRUD SUBCONTRATACIÓN / MANO DE OBRA
 // ==========================================
 const showSubcontractModal = ref(false)
+// Mientras un formulario de registro/edición está abierto se muestra como página y se oculta el listado
+const isFormOpen = computed(() => showItemModal.value || showServiceModal.value || showSubcontractModal.value)
+watch(isFormOpen, async (open) => {
+  if (open) {
+    await nextTick()
+    document.getElementById('form-page')?.scrollIntoView({ block: 'start' })
+  }
+})
 const editingSubcontractId = ref<number | null>(null)
 const subcontractForm = ref({
   code: '',
@@ -1801,5 +1812,26 @@ onMounted(() => {
 }
 .font-mono {
   font-family: monospace;
+}
+
+/* Formularios de registro/edición como página (no modal): al abrirse reemplazan al listado */
+.form-open > :not(.form-page):not(.keep-in-form) {
+  display: none !important;
+}
+.form-page {
+  width: 100%;
+  scroll-margin-top: 110px; /* deja libre la barra superior fija */
+}
+.form-page-card {
+  max-width: none;
+  margin: 0 auto;
+}
+.form-page-card-lg {
+  max-width: none;
+}
+.modal-card.form-page-card {
+  max-width: none;
+  margin: 0 auto;
+  box-shadow: none;
 }
 </style>

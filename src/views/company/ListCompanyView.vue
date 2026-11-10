@@ -2,6 +2,7 @@
 import { useBranchStore, useListCompanyUserStore } from '@/stores/ListCompanyUser.store'
 import { useAuthStore } from '@/stores/auth.store'
 import { useThemeStore } from '@/stores/theme.store'
+import { getMyProfile, type MyProfile } from '@/services/auth.service'
 import { ref, onMounted, computed } from 'vue'
 import { useRouter } from 'vue-router'
 
@@ -30,6 +31,63 @@ const page = computed(() => branchStore.page)
 const total = computed(() => branchStore.total)
 const limit = computed(() => branchStore.limit)
 const userName = computed(() => authStore.tokenPayload?.user_name || 'Usuario')
+
+// ===============================
+// PERFIL DEL USUARIO (panel izquierdo)
+// ===============================
+const profile = ref<MyProfile | null>(null)
+const profileLoading = ref(true)
+const profileError = ref(false)
+
+const fetchProfile = async () => {
+  profileLoading.value = true
+  profileError.value = false
+  try {
+    profile.value = await getMyProfile()
+  } catch (error) {
+    console.error('Error al obtener el perfil', error)
+    profileError.value = true
+  } finally {
+    profileLoading.value = false
+  }
+}
+
+const profileFullName = computed(() => profile.value?.full_name || userName.value)
+const profileRole = computed(() => profile.value?.role_name || (authStore.tokenPayload?.super_admin ? 'Super Admin' : 'Usuario'))
+const profileType = computed(() => {
+  const p = profile.value
+  const superAdmin = p ? p.super_admin : Boolean(authStore.tokenPayload?.super_admin)
+  const multi = p ? p.multi_company : Boolean(authStore.tokenPayload?.multi_company)
+  return superAdmin ? 'Super administrador' : multi ? 'Multiempresa' : 'Usuario de empresa'
+})
+
+// Las fechas AAAA-MM-DD se muestran sin convertir zona horaria (evita el desfase de un día)
+const formatDateOnly = (value?: string | null) => {
+  const m = String(value ?? '').match(/^(\d{4})-(\d{2})-(\d{2})/)
+  return m ? `${m[3]}/${m[2]}/${m[1]}` : null
+}
+const birthDateLabel = computed(() => formatDateOnly(profile.value?.birth_date))
+const ageLabel = computed(() => {
+  const m = String(profile.value?.birth_date ?? '').match(/^(\d{4})-(\d{2})-(\d{2})/)
+  if (!m) return ''
+  const today = new Date()
+  let age = today.getFullYear() - Number(m[1])
+  if (today.getMonth() + 1 < Number(m[2]) || (today.getMonth() + 1 === Number(m[2]) && today.getDate() < Number(m[3]))) age--
+  return age >= 0 ? ` (${age} años)` : ''
+})
+const memberSinceLabel = computed(() => {
+  const d = profile.value?.created_at ? new Date(profile.value.created_at) : null
+  return d && !isNaN(d.getTime()) ? d.toLocaleDateString('es-EC', { day: '2-digit', month: '2-digit', year: 'numeric' }) : null
+})
+
+const profileRows = computed(() => [
+  { icon: 'solar:letter-line-duotone', label: 'Correo electrónico', value: profile.value?.email || null },
+  { icon: 'solar:card-2-line-duotone', label: 'Cédula / Documento', value: profile.value?.num_document || null },
+  { icon: 'solar:calendar-date-line-duotone', label: 'Fecha de nacimiento', value: birthDateLabel.value ? birthDateLabel.value + ageLabel.value : null },
+  { icon: 'solar:shield-user-line-duotone', label: 'Tipo de usuario', value: profileType.value },
+  { icon: 'solar:buildings-3-line-duotone', label: 'Empresa principal', value: profile.value?.company_name || null },
+  { icon: 'solar:clock-circle-line-duotone', label: 'Miembro desde', value: memberSinceLabel.value },
+])
 
 const logout = () => {
   authStore.logout()
@@ -131,6 +189,7 @@ const prevPage = async () => {
 }
 
 onMounted(async () => {
+  fetchProfile()
   await fetchCompanies()
 })
 </script>
@@ -160,56 +219,111 @@ onMounted(async () => {
 }
 </style>
 
+<style scoped>
+.profile-title {
+  color: var(--bs-text-title);
+  word-break: break-word;
+}
+.profile-role {
+  background: rgba(var(--bs-primary-rgb), 0.12);
+  color: var(--bs-primary);
+  border: 1px solid rgba(var(--bs-primary-rgb), 0.3);
+  border-radius: 999px;
+  padding: 0.2rem 0.75rem;
+  font-size: 0.75rem;
+  font-weight: 700;
+}
+.profile-muted {
+  color: var(--bs-text-muted);
+}
+.profile-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+.profile-row {
+  background: var(--bs-subtle-bg);
+  border: 1px solid var(--bs-border-color);
+  border-radius: 10px;
+  padding: 0.6rem 0.75rem;
+}
+.profile-icon {
+  width: 32px;
+  height: 32px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 8px;
+  background: rgba(var(--bs-primary-rgb), 0.12);
+  color: var(--bs-primary);
+}
+.profile-value {
+  color: var(--bs-text-title);
+  font-weight: 600;
+  font-size: 0.85rem;
+  word-break: break-word;
+}
+.profile-empty {
+  color: var(--bs-text-muted);
+  font-weight: 400;
+  font-style: italic;
+}
+.profile-note {
+  background: rgba(255, 193, 7, 0.12);
+  color: var(--bs-text-title);
+  border: 1px solid rgba(255, 193, 7, 0.35);
+}
+.min-w-0 {
+  min-width: 0;
+}
+</style>
+
 <template>
   <div id="main-wrapper" class="d-flex">
     <!-- Sidebar Start -->
     <aside class="left-sidebar with-vertical d-flex flex-column justify-content-between">
-      <div>
-        <div class="brand-logo d-flex align-items-center justify-content-between p-3 border-bottom border-translucent">
-          <a class="text-nowrap logo-img d-flex align-items-center text-decoration-none">
+      <div class="d-flex flex-column flex-grow-1" style="min-height: 0;">
+        <div class="brand-logo flex-shrink-0 d-flex align-items-center p-3 border-bottom border-translucent">
+          <span class="text-nowrap logo-img d-flex align-items-center">
             <img src="/controller/images/logos/logo-dark.svg" class="dark-logo" alt="Logo-Dark" height="34" />
             <img src="/controller/images/logos/logo-light.svg" class="light-logo" alt="Logo-Light" height="34" />
-          </a>
-          <a href="javascript:void(0)" class="sidebartoggler ms-auto text-decoration-none fs-5 d-block d-xl-none">
-            <i class="ti ti-x"></i>
-          </a>
+          </span>
         </div>
 
-        <div class="scroll-sidebar p-3" style="max-height: calc(100vh - 160px); overflow-y: auto;">
-          <!-- Sidebar navigation-->
-          <nav class="sidebar-nav">
-            <ul id="sidebarnav" class="mb-0 list-unstyled">
-              <!-- Home -->
-              <li class="nav-small-cap">
-                <iconify-icon icon="solar:menu-dots-bold-duotone" class="nav-small-cap-icon fs-5"></iconify-icon>
-                <span class="hide-menu">Home</span>
-              </li>
-              <li class="sidebar-item mb-1">
-                <a class="sidebar-link primary-hover-bg cursor-pointer" href="javascript:void(0)" @click="router.push('/dashboard')">
-                  <span class="aside-icon p-2 bg-primary-subtle text-primary rounded-1">
-                    <iconify-icon icon="solar:screencast-2-line-duotone" class="fs-6"></iconify-icon>
-                  </span>
-                  <span class="hide-menu ps-1">Dashboard</span>
-                </a>
-              </li>
-              <li class="sidebar-item mb-1">
-                <a class="sidebar-link primary-hover-bg cursor-pointer" href="javascript:void(0)" @click="router.push('/configuracion')">
-                  <span class="aside-icon p-2 bg-info-subtle text-info rounded-1">
-                    <iconify-icon icon="solar:settings-line-duotone" class="fs-6"></iconify-icon>
-                  </span>
-                  <span class="hide-menu ps-1">Configuración</span>
-                </a>
-              </li>
-              <li class="sidebar-item mt-3 pt-3 border-top border-dark-subtle">
-                <a class="sidebar-link text-danger d-flex align-items-center gap-2 cursor-pointer" href="javascript:void(0)" @click="logout">
-                  <span class="aside-icon p-2 bg-danger-subtle text-danger rounded-1">
-                    <iconify-icon icon="solar:logout-2-line-duotone" class="fs-6"></iconify-icon>
-                  </span>
-                  <span class="hide-menu ps-1 fw-semibold">Cerrar Sesión</span>
-                </a>
+        <!-- Datos básicos del usuario (sin accesos a otras pantallas) -->
+        <div class="scroll-sidebar p-3 flex-grow-1" style="min-height: 0; overflow-y: auto;">
+          <div v-if="profileLoading" class="text-center py-5">
+            <div class="spinner-border text-primary spinner-border-sm" role="status"></div>
+            <p class="profile-muted fs-2 mt-2 mb-0">Cargando datos del usuario...</p>
+          </div>
+
+          <template v-else>
+            <div class="text-center mb-3">
+              <img src="/controller/images/profile/user-1.jpg" alt="Foto de perfil" width="84" height="84" class="rounded-circle border border-primary border-3 mb-3" />
+              <h5 class="profile-title fw-bold mb-2">{{ profileFullName }}</h5>
+              <span class="profile-role d-inline-flex align-items-center gap-1">
+                <iconify-icon icon="solar:shield-check-bold" class="fs-4"></iconify-icon>
+                {{ profileRole }}
+              </span>
+            </div>
+
+            <div v-if="profileError" class="profile-note rounded-3 p-2 mb-3 fs-2">
+              No se pudieron cargar todos los datos del perfil.
+              <a href="javascript:void(0)" class="d-block mt-1" @click="fetchProfile">Reintentar</a>
+            </div>
+
+            <ul class="list-unstyled mb-0 profile-list">
+              <li v-for="row in profileRows" :key="row.label" class="profile-row d-flex align-items-start gap-2">
+                <span class="profile-icon flex-shrink-0">
+                  <iconify-icon :icon="row.icon" class="fs-5"></iconify-icon>
+                </span>
+                <div class="min-w-0">
+                  <small class="profile-muted d-block">{{ row.label }}</small>
+                  <span class="profile-value d-block" :class="{ 'profile-empty': !row.value }">{{ row.value || 'No registrado' }}</span>
+                </div>
               </li>
             </ul>
-          </nav>
+          </template>
         </div>
       </div>
     </aside>
@@ -267,7 +381,7 @@ onMounted(async () => {
                 <div v-if="companies.length === 0" class="col-12 text-center py-5">
                   <div class="p-4 bg-dark-subtle rounded-4 border border-secondary-subtle d-inline-block">
                     <iconify-icon icon="solar:buildings-2-linear" class="display-3 text-secondary mb-3"></iconify-icon>
-                    <h4 class="text-white mb-2">No se encontraron empresas</h4>
+                    <h4 class="mb-2" style="color: var(--bs-text-title);">No se encontraron empresas</h4>
                     <p class="text-secondary fs-3 mb-3">Aún no hay empresas registradas o asociadas a tu cuenta.</p>
                     <div class="d-flex justify-content-center gap-2">
                       <button class="btn btn-primary rounded-pill px-4" @click="router.push('/configuracion')">

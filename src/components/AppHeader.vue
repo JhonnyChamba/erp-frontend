@@ -41,6 +41,10 @@ const logout = () => {
   router.replace('/login')
 }
 
+const companyLabel = computed(() => selectedCompany.value?.razon_social || selectedCompany.value?.nombre_comercial || 'Deskounta')
+const branchLabel = computed(() => (selectedBranch.value?.name ? `${selectedBranch.value.name} (${selectedBranch.value.code})` : 'Sucursal General'))
+const isProduction = computed(() => selectedCompany.value?.fiscal?.sri_environment === '2' || selectedCompany.value?.sri_environment === '2')
+
 const changeCompany = () => {
   router.push({ path: '/companies', query: { cambiar: 'true' } })
 }
@@ -52,7 +56,7 @@ const changeCompany = () => {
       <nav class="navbar navbar-expand-lg p-0 d-flex align-items-center justify-content-between">
         
         <!-- LADO IZQUIERDO: TOGGLER + EMPRESA / SUCURSAL ACTIVA -->
-        <div class="d-flex align-items-center gap-2">
+        <div class="d-flex align-items-center gap-2 flex-shrink-1" style="min-width: 0;">
           <ul class="navbar-nav me-2">
             <li class="nav-item nav-icon-hover-bg rounded-circle">
               <a
@@ -67,41 +71,60 @@ const changeCompany = () => {
             </li>
           </ul>
 
-          <!-- Badge Context: Empresa y Sucursal -->
-          <div class="d-none d-md-flex align-items-center gap-2 px-3 py-1 rounded-pill border" style="background-color: var(--bs-subtle-bg); border-color: var(--bs-border-color) !important;">
-            <iconify-icon icon="solar:buildings-3-line-duotone" class="text-primary fs-5"></iconify-icon>
-            <span class="fw-semibold fs-3" style="color: var(--bs-text-title);">
-              {{ selectedCompany?.razon_social || selectedCompany?.nombre_comercial || 'Deskounta' }}
-            </span>
-            <span
-              v-if="selectedCompany?.fiscal?.sri_environment === '2' || (selectedCompany as any)?.sri_environment === '2'"
-              class="badge bg-success-subtle text-success border border-success-subtle rounded-pill px-2 py-0 fs-1 d-inline-flex align-items-center gap-1"
-              title="Ambiente SRI: Producción"
+          <!-- Empresa / sucursal activa y ambiente SRI.
+               Si el usuario es super admin o multiempresa, al hacer clic se despliega la opción de cambiar de empresa -->
+          <div class="dropdown d-none d-md-block" style="min-width: 0;">
+            <div
+              id="dropContext"
+              class="context-pill d-flex align-items-center flex-nowrap gap-2 px-3 py-1 rounded-pill border"
+              :class="{ 'cursor-pointer context-pill-action': authStore.canSwitchCompany }"
+              :role="authStore.canSwitchCompany ? 'button' : undefined"
+              :data-bs-toggle="authStore.canSwitchCompany ? 'dropdown' : undefined"
+              :aria-expanded="authStore.canSwitchCompany ? 'false' : undefined"
+              :title="authStore.canSwitchCompany ? 'Clic para cambiar de empresa' : undefined"
+              style="background-color: var(--bs-subtle-bg); border-color: var(--bs-border-color) !important;"
             >
-              <iconify-icon icon="solar:shield-check-bold"></iconify-icon>
-              PRODUCCIÓN
-            </span>
-            <span
-              v-else
-              class="badge bg-warning-subtle text-warning border border-warning-subtle rounded-pill px-2 py-0 fs-1 d-inline-flex align-items-center gap-1"
-              title="Ambiente SRI: Pruebas"
-            >
-              <iconify-icon icon="solar:test-tube-minimalistic-bold-duotone"></iconify-icon>
-              PRUEBAS
-            </span>
-            <span class="text-muted mx-1">|</span>
-            <iconify-icon icon="solar:shop-2-line-duotone" class="text-info fs-5"></iconify-icon>
-            <span class="text-info fs-2">
-              {{ selectedBranch?.name ? `${selectedBranch.name} (${selectedBranch.code})` : 'Sucursal General' }}
-            </span>
-            <button
+              <iconify-icon icon="solar:buildings-3-line-duotone" class="text-primary fs-5"></iconify-icon>
+              <span class="company-name fw-semibold fs-3" style="color: var(--bs-text-title);">{{ companyLabel }}</span>
+              <span
+                v-if="isProduction"
+                class="env-badge badge bg-success-subtle text-success border border-success-subtle rounded-pill px-2 py-0 fs-1 d-inline-flex align-items-center gap-1"
+                title="Ambiente SRI: Producción"
+              >
+                <iconify-icon icon="solar:shield-check-bold"></iconify-icon>
+                PRODUCCIÓN
+              </span>
+              <span
+                v-else
+                class="env-badge badge bg-warning-subtle text-warning border border-warning-subtle rounded-pill px-2 py-0 fs-1 d-inline-flex align-items-center gap-1"
+                title="Ambiente SRI: Pruebas"
+              >
+                <iconify-icon icon="solar:test-tube-minimalistic-bold-duotone"></iconify-icon>
+                PRUEBAS
+              </span>
+              <span class="text-muted mx-1">|</span>
+              <iconify-icon icon="solar:shop-2-line-duotone" class="text-info fs-5"></iconify-icon>
+              <span class="branch-name text-info fs-2">{{ branchLabel }}</span>
+              <iconify-icon v-if="authStore.canSwitchCompany" icon="solar:alt-arrow-down-line-duotone" class="text-muted fs-4 flex-shrink-0"></iconify-icon>
+            </div>
+
+            <div
               v-if="authStore.canSwitchCompany"
-              class="btn btn-xs btn-outline-primary ms-2 rounded-pill px-2 py-0 fs-1"
-              @click="changeCompany"
-              title="Cambiar Empresa / Sucursal"
+              class="dropdown-menu shadow-lg rounded-3 py-2 border-0 app-dropdown-menu"
+              aria-labelledby="dropContext"
+              style="min-width: 270px;"
             >
-              Cambiar
-            </button>
+              <div class="px-3 py-2 border-bottom" style="border-color: var(--bs-border-color) !important;">
+                <small class="text-muted d-block">Empresa activa</small>
+                <span class="d-block fw-bold fs-3" style="color: var(--bs-text-title);">{{ companyLabel }}</span>
+                <small class="text-info d-block">{{ branchLabel }}</small>
+                <small class="text-muted">Ambiente: {{ isProduction ? 'Producción' : 'Pruebas' }}</small>
+              </div>
+              <a class="dropdown-item py-2" href="javascript:void(0)" @click="changeCompany">
+                <iconify-icon icon="solar:buildings-3-line-duotone" class="fs-5 text-primary"></iconify-icon>
+                <span>Cambiar de empresa / sucursal</span>
+              </a>
+            </div>
           </div>
         </div>
 
@@ -188,13 +211,6 @@ const changeCompany = () => {
                 <span class="d-block fw-bold fs-3" style="color: var(--bs-text-title);">{{ userName }}</span>
                 <small class="text-muted">{{ activeRoleLabel }}</small>
               </div>
-              <template v-if="authStore.canSwitchCompany">
-                <a class="dropdown-item py-2" href="javascript:void(0)" @click="changeCompany">
-                  <iconify-icon icon="solar:buildings-3-line-duotone" class="fs-5 text-primary"></iconify-icon>
-                  <span>Cambiar Sucursal</span>
-                </a>
-                <div class="dropdown-divider"></div>
-              </template>
               <a class="dropdown-item py-2 text-danger" href="javascript:void(0)" @click="logout">
                 <iconify-icon icon="solar:logout-2-line-duotone" class="fs-5"></iconify-icon>
                 <span>Cerrar Sesión</span>
@@ -221,6 +237,34 @@ const changeCompany = () => {
 </template>
 
 <style scoped>
+/* El estilo base del tema fuerza .badge a 40x40 px (círculo): en la barra se ajusta al contenido */
+.env-badge {
+  width: auto !important;
+  height: auto !important;
+  display: inline-flex !important;
+  align-items: center;
+  flex-shrink: 0;
+  padding: 0.2rem 0.55rem !important;
+  line-height: 1.2;
+  white-space: nowrap;
+  letter-spacing: 0.02em;
+}
+/* Textos largos (razón social, sucursal) no ensanchan la barra: se recortan con puntos suspensivos */
+.context-pill {
+  min-width: 0;
+  max-width: 100%;
+}
+.context-pill-action:hover {
+  border-color: var(--bs-primary) !important;
+}
+.company-name,
+.branch-name {
+  min-width: 0;
+  max-width: 220px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
 .cursor-pointer {
   cursor: pointer;
 }

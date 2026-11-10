@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, onMounted, computed, watch } from 'vue'
+import { ref, onMounted, computed, watch, nextTick } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import {
   getCustomers,
@@ -56,6 +56,14 @@ const editingId = ref<number | null>(null)
 const showCustomerModal = ref(false)
 const showProviderModal = ref(false)
 const showSellerModal = ref(false)
+// Mientras un formulario de registro/edición está abierto se muestra como página y se oculta el listado
+const isFormOpen = computed(() => showCustomerModal.value || showProviderModal.value || showSellerModal.value)
+watch(isFormOpen, async (open) => {
+  if (open) {
+    await nextTick()
+    document.getElementById('form-page')?.scrollIntoView({ block: 'start' })
+  }
+})
 
 // Modales de Ver Detalle
 const showViewCustomerModal = ref(false)
@@ -487,9 +495,9 @@ const paymentLabel = (p: string) => {
 </script>
 
 <template>
-  <div class="contacts-page">
+  <div class="contacts-page" :class="{ 'form-open': isFormOpen }">
     <!-- ENCABEZADO DE MÓDULO GENERAL -->
-    <div class="card rounded-4 border-0 shadow-sm p-4 mb-4 bg-navy-card">
+    <div class="card rounded-4 border-0 shadow-sm p-4 mb-4 bg-navy-card keep-in-form">
       <div class="d-flex flex-wrap justify-content-between align-items-center gap-3">
         <div>
           <div class="d-flex align-items-center gap-2 mb-1">
@@ -528,7 +536,7 @@ const paymentLabel = (p: string) => {
       </div>
 
       <!-- PESTAÑAS TIPO PILLS (SUB-MÓDULOS) -->
-      <ul class="nav nav-pills user-profile-tab mt-4 border-top border-dark-subtle pt-3" role="tablist">
+      <ul v-show="!isFormOpen" class="nav nav-pills user-profile-tab mt-4 border-top border-dark-subtle pt-3" role="tablist">
         <!-- SUB-MODULO CLIENTES -->
         <li class="nav-item me-2">
           <button
@@ -1098,8 +1106,8 @@ const paymentLabel = (p: string) => {
     <!-- ============================================================= -->
     <!-- MODAL CREAR / EDITAR CLIENTE -->
     <!-- ============================================================= -->
-    <div v-if="showCustomerModal" class="modal-backdrop-custom d-flex align-items-center justify-content-center">
-      <div class="modal-dialog-custom card bg-navy-card border border-secondary-subtle rounded-4 p-4 shadow-lg" style="max-width: 600px; width: 95%;">
+    <div v-if="showCustomerModal" id="form-page" class="form-page">
+      <div class="form-page-card card bg-navy-card border border-secondary-subtle rounded-4 p-4 shadow-sm">
         <div class="d-flex justify-content-between align-items-center pb-3 border-bottom border-dark-subtle mb-3">
           <div class="d-flex align-items-center gap-2">
             <span class="p-2 bg-primary-subtle text-primary rounded-3">
@@ -1109,8 +1117,9 @@ const paymentLabel = (p: string) => {
               {{ isEditMode ? 'Editar Cliente' : 'Registrar Nuevo Cliente' }}
             </h5>
           </div>
-          <button class="btn btn-link text-white-50 p-0" @click="showCustomerModal = false">
-            <iconify-icon icon="solar:close-circle-line-duotone" class="fs-6"></iconify-icon>
+          <button type="button" class="btn btn-outline-secondary btn-sm rounded-3 d-flex align-items-center gap-1" @click="showCustomerModal = false">
+            <iconify-icon icon="solar:alt-arrow-left-line-duotone" class="fs-5"></iconify-icon>
+            <span>Volver</span>
           </button>
         </div>
 
@@ -1223,8 +1232,8 @@ const paymentLabel = (p: string) => {
     <!-- ============================================================= -->
     <!-- MODAL CREAR / EDITAR PROVEEDOR -->
     <!-- ============================================================= -->
-    <div v-if="showProviderModal" class="modal-backdrop-custom d-flex align-items-center justify-content-center">
-      <div class="modal-dialog-custom card bg-navy-card border border-secondary-subtle rounded-4 p-4 shadow-lg" style="max-width: 650px; width: 95%;">
+    <div v-if="showProviderModal" id="form-page" class="form-page">
+      <div class="form-page-card card bg-navy-card border border-secondary-subtle rounded-4 p-4 shadow-sm">
         <div class="d-flex justify-content-between align-items-center pb-3 border-bottom border-dark-subtle mb-3">
           <div class="d-flex align-items-center gap-2">
             <span class="p-2 bg-warning-subtle text-warning rounded-3">
@@ -1234,8 +1243,9 @@ const paymentLabel = (p: string) => {
               {{ isEditMode ? 'Editar Proveedor' : 'Registrar Nuevo Proveedor' }}
             </h5>
           </div>
-          <button class="btn btn-link text-white-50 p-0" @click="showProviderModal = false">
-            <iconify-icon icon="solar:close-circle-line-duotone" class="fs-6"></iconify-icon>
+          <button type="button" class="btn btn-outline-secondary btn-sm rounded-3 d-flex align-items-center gap-1" @click="showProviderModal = false">
+            <iconify-icon icon="solar:alt-arrow-left-line-duotone" class="fs-5"></iconify-icon>
+            <span>Volver</span>
           </button>
         </div>
 
@@ -1368,8 +1378,8 @@ const paymentLabel = (p: string) => {
     <!-- ============================================================= -->
     <!-- MODAL CREAR / EDITAR VENDEDOR -->
     <!-- ============================================================= -->
-    <div v-if="showSellerModal" class="modal-backdrop-custom d-flex align-items-center justify-content-center">
-      <div class="modal-dialog-custom card bg-navy-card border border-secondary-subtle rounded-4 p-4 shadow-lg" style="max-width: 600px; width: 95%;">
+    <div v-if="showSellerModal" id="form-page" class="form-page">
+      <div class="form-page-card card bg-navy-card border border-secondary-subtle rounded-4 p-4 shadow-sm">
         <div class="d-flex justify-content-between align-items-center pb-3 border-bottom border-dark-subtle mb-3">
           <div class="d-flex align-items-center gap-2">
             <span class="p-2 bg-success-subtle text-success rounded-3">
@@ -1379,8 +1389,9 @@ const paymentLabel = (p: string) => {
               {{ isEditMode ? 'Editar Vendedor' : 'Registrar Nuevo Vendedor' }}
             </h5>
           </div>
-          <button class="btn btn-link text-white-50 p-0" @click="showSellerModal = false">
-            <iconify-icon icon="solar:close-circle-line-duotone" class="fs-6"></iconify-icon>
+          <button type="button" class="btn btn-outline-secondary btn-sm rounded-3 d-flex align-items-center gap-1" @click="showSellerModal = false">
+            <iconify-icon icon="solar:alt-arrow-left-line-duotone" class="fs-5"></iconify-icon>
+            <span>Volver</span>
           </button>
         </div>
 
@@ -1807,5 +1818,21 @@ const paymentLabel = (p: string) => {
     transform: scale(1);
     opacity: 1;
   }
+}
+
+/* Formularios de registro/edición como página (no modal): al abrirse reemplazan al listado */
+.form-open > :not(.form-page):not(.keep-in-form) {
+  display: none !important;
+}
+.form-page {
+  width: 100%;
+  scroll-margin-top: 110px; /* deja libre la barra superior fija */
+}
+.form-page-card {
+  max-width: none;
+  margin: 0 auto;
+}
+.form-page-card-lg {
+  max-width: none;
 }
 </style>
