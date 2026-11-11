@@ -330,8 +330,10 @@ const savePurchase = async () => {
   const companyId = getActiveCompanyId()
 
   try {
-    const payload: CreatePurchasePayload = {
-      provider_id: purchaseForm.value.provider_id || undefined,
+    const payload: any = {
+      companyId,
+      company_id: companyId,
+      provider_id: purchaseForm.value.provider_id ? Number(purchaseForm.value.provider_id) : undefined,
       provider_name: purchaseForm.value.provider_name.trim(),
       provider_id_type: purchaseForm.value.provider_id_type,
       provider_id_number: purchaseForm.value.provider_id_number.trim(),
@@ -348,10 +350,10 @@ const savePurchase = async () => {
       notes: purchaseForm.value.notes.trim() || undefined,
       items: purchaseForm.value.items.map((row) => ({
         item_type: row.item_type || 'PRODUCT',
-        item_id: row.item_id,
-        code: row.code,
-        description: row.description,
-        unit: row.unit || 'UND',
+        item_id: row.item_id ? Number(row.item_id) : undefined,
+        code: row.code?.trim() || undefined,
+        description: row.description.trim(),
+        unit: row.unit?.trim() || 'UND',
         quantity: Number(row.quantity),
         unit_cost: Number(row.unit_cost),
         tax_rate: Number(row.tax_rate ?? 15)
