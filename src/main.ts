@@ -4,6 +4,7 @@ import { createPinia } from 'pinia'
 import App from './App.vue'
 import router from './router'
 import './assets/theme.css'
+import './assets/crud-theme.css'
 import './assets/toastr-theme.css'
 import { toast } from './utils/toastr'
 

@@ -1,0 +1,418 @@
+/* ==========================================================================
+   DESKOUNTA ERP - UNIVERSAL CRUD THEME SYSTEM (Dark & Light Mode)
+   Regla global de estilos para todos los módulos CRUD del sistema.
+   Permite que cualquier cambio aquí se refleje en todo el ERP.
+   ========================================================================== */
+
+/* --------------------------------------------------------------------------
+   1. Contenedor de Página y Encabezados
+   -------------------------------------------------------------------------- */
+.crud-page,
+.emission-points-page,
+.purchases-page,
+.invoices-page,
+.contacts-page,
+.inventory-page {
+  width: 100%;
+}
+
+.crud-page-header {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  margin-bottom: 1.5rem;
+}
+
+@media (min-width: 768px) {
+  .crud-page-header {
+    flex-direction: row;
+    align-items: center;
+    justify-content: space-between;
+  }
+}
+
+.crud-title {
+  font-weight: 700;
+  font-size: 1.5rem;
+  line-height: 1.25;
+  margin-bottom: 0.25rem;
+  color: var(--bs-heading-color, #ffffff);
+}
+
+.crud-subtitle {
+  font-size: 0.85rem;
+  color: var(--bs-text-muted, #7c8fac);
+  margin-bottom: 0;
+}
+
+.crud-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+/* --------------------------------------------------------------------------
+   2. Indicadores y Tarjetas KPI
+   -------------------------------------------------------------------------- */
+.crud-kpi-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 1rem;
+  margin-bottom: 1.5rem;
+}
+
+.crud-kpi-card {
+  background: var(--bs-card-bg, #111c2d);
+  border: 1px solid var(--bs-border-color, rgba(189, 200, 240, 0.15));
+  border-radius: 1rem;
+  padding: 1.25rem;
+  box-shadow: var(--bs-card-shadow, 0 4px 20px rgba(0, 0, 0, 0.15));
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.crud-kpi-card:hover {
+  transform: translateY(-2px);
+}
+
+.crud-kpi-icon {
+  width: 48px;
+  height: 48px;
+  border-radius: 0.75rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.crud-kpi-icon.primary {
+  background: rgba(0, 133, 219, 0.12);
+  color: #0085db;
+}
+
+.crud-kpi-icon.success {
+  background: rgba(16, 185, 129, 0.12);
+  color: #10b981;
+}
+
+.crud-kpi-icon.info {
+  background: rgba(70, 202, 235, 0.12);
+  color: #46caeb;
+}
+
+.crud-kpi-icon.warning {
+  background: rgba(245, 158, 11, 0.12);
+  color: #f59e0b;
+}
+
+.crud-kpi-label {
+  display: block;
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  font-weight: 600;
+  letter-spacing: 0.03em;
+  color: var(--bs-text-muted, #7c8fac);
+}
+
+.crud-kpi-val {
+  font-size: 1.4rem;
+  font-weight: 700;
+  font-family: var(--bs-font-monospace, monospace);
+  color: var(--bs-heading-color, #ffffff);
+  margin-top: 0.2rem;
+  margin-bottom: 0;
+}
+
+/* --------------------------------------------------------------------------
+   3. Barra de Búsqueda y Filtros
+   -------------------------------------------------------------------------- */
+.crud-filters-card {
+  background: var(--bs-card-bg, #111c2d);
+  border: 1px solid var(--bs-border-color, rgba(189, 200, 240, 0.15));
+  border-radius: 1rem;
+  padding: 1rem;
+  margin-bottom: 1.5rem;
+  box-shadow: var(--bs-card-shadow, 0 4px 20px rgba(0, 0, 0, 0.08));
+}
+
+.crud-filters-card label {
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--bs-text-muted, #7c8fac);
+  margin-bottom: 0.35rem;
+}
+
+.crud-filters-card .form-control,
+.crud-filters-card .form-select {
+  background-color: var(--bs-body-bg, #0b1426);
+  border: 1px solid var(--bs-border-color, rgba(189, 200, 240, 0.15));
+  color: var(--bs-heading-color, #ffffff);
+  border-radius: 0.65rem;
+  font-size: 0.875rem;
+}
+
+.crud-filters-card .input-group-text {
+  background-color: var(--bs-body-bg, #0b1426);
+  border: 1px solid var(--bs-border-color, rgba(189, 200, 240, 0.15));
+  color: var(--bs-text-muted, #7c8fac);
+  border-top-left-radius: 0.65rem;
+  border-bottom-left-radius: 0.65rem;
+}
+
+/* --------------------------------------------------------------------------
+   4. Tablas CRUD
+   -------------------------------------------------------------------------- */
+.crud-table-card {
+  background: var(--bs-card-bg, #111c2d);
+  border: 1px solid var(--bs-border-color, rgba(189, 200, 240, 0.15));
+  border-radius: 1rem;
+  overflow: hidden;
+  box-shadow: var(--bs-card-shadow, 0 4px 20px rgba(0, 0, 0, 0.1));
+}
+
+.crud-table {
+  width: 100%;
+  margin-bottom: 0;
+  vertical-align: middle;
+  border-collapse: collapse;
+}
+
+.crud-table th {
+  padding: 0.875rem 1rem;
+  font-size: 0.75rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  background-color: rgba(255, 255, 255, 0.03);
+  color: var(--bs-text-muted, #7c8fac);
+  border-bottom: 1px solid var(--bs-border-color, rgba(189, 200, 240, 0.15));
+  white-space: nowrap;
+}
+
+.crud-table td {
+  padding: 0.875rem 1rem;
+  font-size: 0.875rem;
+  color: var(--bs-body-color, #EAEFF4);
+  border-bottom: 1px solid var(--bs-border-color, rgba(189, 200, 240, 0.1));
+  vertical-align: middle;
+}
+
+.crud-table tbody tr {
+  transition: background-color 0.15s ease-in-out;
+}
+
+.crud-table tbody tr:hover {
+  background-color: var(--bs-hover-bg, rgba(255, 255, 255, 0.04));
+}
+
+.crud-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.25rem 0.6rem;
+  border-radius: 0.5rem;
+  font-family: var(--bs-font-monospace, monospace);
+  font-size: 0.775rem;
+  font-weight: 600;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid var(--bs-border-color, rgba(189, 200, 240, 0.15));
+  color: var(--bs-heading-color, #ffffff);
+}
+
+/* --------------------------------------------------------------------------
+   5. Modales CRUD
+   -------------------------------------------------------------------------- */
+.crud-modal-backdrop,
+.modal-backdrop-custom {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  background-color: rgba(0, 0, 0, 0.75);
+  backdrop-filter: blur(4px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1055;
+  padding: 1rem;
+  animation: crudFadeIn 0.2s ease-out;
+}
+
+@keyframes crudFadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+.crud-modal-card,
+.modal-card-custom {
+  background-color: var(--bs-card-bg, #111c2d);
+  border: 1px solid var(--bs-border-color, rgba(189, 200, 240, 0.15));
+  border-radius: 1rem;
+  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+  width: 100%;
+  max-height: 90vh;
+  overflow-y: auto;
+  animation: crudSlideUp 0.25s ease-out;
+}
+
+@keyframes crudSlideUp {
+  from {
+    transform: translateY(20px) scale(0.98);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0) scale(1);
+    opacity: 1;
+  }
+}
+
+.crud-modal-card.modal-md,
+.modal-md-custom {
+  max-width: 560px;
+}
+
+.crud-modal-card.modal-lg,
+.modal-lg-custom {
+  max-width: 860px;
+}
+
+.crud-modal-header,
+.modal-header-custom {
+  padding: 1.25rem 1.5rem;
+  border-bottom: 1px solid var(--bs-border-color, rgba(189, 200, 240, 0.15));
+  background-color: rgba(255, 255, 255, 0.02);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.crud-modal-header h4,
+.crud-modal-header h5,
+.modal-header-custom h4,
+.modal-header-custom h5 {
+  color: var(--bs-heading-color, #ffffff);
+  font-weight: 700;
+  margin: 0;
+}
+
+.crud-modal-body {
+  padding: 1.5rem;
+}
+
+.crud-modal-footer {
+  padding: 1rem 1.5rem;
+  border-top: 1px solid var(--bs-border-color, rgba(189, 200, 240, 0.15));
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.5rem;
+}
+
+/* --------------------------------------------------------------------------
+   6. Reglas Específicas para MODO CLARO (data-bs-theme="light")
+   Aplica uniformemente a .crud-page y a todos los módulos existentes
+   -------------------------------------------------------------------------- */
+[data-bs-theme="light"] :is(.crud-page, .emission-points-page, .purchases-page) {
+  --bs-card-bg: #ffffff;
+  --bs-heading-color: #111c2d;
+  --bs-body-color: #2a3547;
+  --bs-border-color: #e6ecf1;
+  --bs-text-muted: #5a6a85;
+}
+
+/* Títulos y textos en modo claro */
+[data-bs-theme="light"] :is(.crud-page, .emission-points-page, .purchases-page) :is(.crud-title, h2, h3, h4, h5, h6, strong, .fw-bold.text-white) {
+  color: #111c2d !important;
+}
+
+[data-bs-theme="light"] :is(.crud-page, .emission-points-page, .purchases-page) :is(.crud-subtitle, .text-muted, .text-secondary, label, .form-label) {
+  color: #5a6a85 !important;
+}
+
+/* Tarjetas y Contenedores en modo claro */
+[data-bs-theme="light"] :is(.crud-page, .emission-points-page, .purchases-page) :is(.crud-kpi-card, .crud-filters-card, .crud-table-card, .card.bg-dark-subtle, .card.bg-dark) {
+  background: #ffffff !important;
+  color: #2a3547 !important;
+  border: 1px solid #e6ecf1 !important;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.05) !important;
+}
+
+[data-bs-theme="light"] :is(.crud-page, .emission-points-page, .purchases-page) .crud-kpi-val {
+  color: #111c2d !important;
+}
+
+/* Campos de formulario en modo claro */
+[data-bs-theme="light"] :is(.crud-page, .emission-points-page, .purchases-page, .modal-card-custom, .crud-modal-card) :is(input, select, textarea, .form-control, .form-select, .input-group-text) {
+  background-color: #ffffff !important;
+  color: #111c2d !important;
+  border-color: #ced4da !important;
+}
+
+[data-bs-theme="light"] :is(.crud-page, .emission-points-page, .purchases-page, .modal-card-custom, .crud-modal-card) :is(input, textarea)::placeholder {
+  color: #8a97ab !important;
+}
+
+[data-bs-theme="light"] :is(.crud-page, .emission-points-page, .purchases-page, .modal-card-custom, .crud-modal-card) option {
+  background-color: #ffffff !important;
+  color: #111c2d !important;
+}
+
+/* Tablas en modo claro: encabezado azul suave Spike y filas claras */
+[data-bs-theme="light"] :is(.crud-page, .emission-points-page, .purchases-page) table {
+  color: #2a3547 !important;
+}
+
+[data-bs-theme="light"] :is(.crud-page, .emission-points-page, .purchases-page) table thead,
+[data-bs-theme="light"] :is(.crud-page, .emission-points-page, .purchases-page) table thead th,
+[data-bs-theme="light"] :is(.crud-page, .emission-points-page, .purchases-page) .crud-table th {
+  background-color: #d9eaf9 !important;
+  color: #0a4f8f !important;
+  border-color: #bcd7ef !important;
+}
+
+[data-bs-theme="light"] :is(.crud-page, .emission-points-page, .purchases-page) table tbody td,
+[data-bs-theme="light"] :is(.crud-page, .emission-points-page, .purchases-page) .crud-table td {
+  color: #2a3547 !important;
+  border-color: #e6ecf1 !important;
+  background-color: transparent !important;
+}
+
+[data-bs-theme="light"] :is(.crud-page, .emission-points-page, .purchases-page) table tbody tr:hover,
+[data-bs-theme="light"] :is(.crud-page, .emission-points-page, .purchases-page) .crud-table tbody tr:hover {
+  background-color: #f5f9fd !important;
+}
+
+/* Modales en modo claro */
+[data-bs-theme="light"] :is(.crud-modal-card, .modal-card-custom) {
+  background-color: #ffffff !important;
+  color: #2a3547 !important;
+  border: 1px solid #e6ecf1 !important;
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.15) !important;
+}
+
+[data-bs-theme="light"] :is(.crud-modal-header, .modal-header-custom) {
+  background-color: #f8fafc !important;
+  border-bottom: 1px solid #e6ecf1 !important;
+}
+
+[data-bs-theme="light"] :is(.crud-modal-header, .modal-header-custom) :is(h1, h2, h3, h4, h5, h6, strong) {
+  color: #111c2d !important;
+}
+
+[data-bs-theme="light"] :is(.crud-modal-card, .modal-card-custom) .border-secondary {
+  border-color: #e6ecf1 !important;
+}
+
+[data-bs-theme="light"] :is(.crud-chip, .badge.bg-dark) {
+  background-color: #f1f5f9 !important;
+  color: #1e293b !important;
+  border-color: #e2e8f0 !important;
+}
+
+/* Textos blancos genéricos forzados que deben ser oscuros en modo claro */
+[data-bs-theme="light"] :is(.crud-page, .emission-points-page, .purchases-page, .modal-card-custom) .text-white:not(.btn):not(.badge) {
+  color: #111c2d !important;
+}

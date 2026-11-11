@@ -294,9 +294,9 @@ onMounted(() => {
 </script>
 
 <template>
-  <div class="emission-points-page">
-    <!-- CABECERA DE LA PÁGINA -->
-    <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-3 mb-4">
+  <div class="crud-page emission-points-page">
+    <!-- CABECERA UNIVERSAL CRUD -->
+    <div class="crud-page-header">
       <div>
         <div class="d-flex align-items-center gap-2 mb-1">
           <span class="badge bg-primary-subtle text-primary border border-primary-subtle px-2 py-1 fs-2">
@@ -306,13 +306,13 @@ onMounted(() => {
             SRI ECUADOR
           </span>
         </div>
-        <h3 class="fw-bold text-white mb-1">Puntos de Emisión</h3>
-        <p class="text-muted mb-0 fs-2">
+        <h3 class="crud-title">Puntos de Emisión</h3>
+        <p class="crud-subtitle">
           Gestión de series y correlativos de emisión para Facturas, Notas de Crédito, Guías de Remisión y Notas de Débito.
         </p>
       </div>
 
-      <div class="d-flex gap-2 align-items-center">
+      <div class="crud-header-actions">
         <button
           type="button"
           class="btn btn-outline-secondary d-flex align-items-center gap-1 rounded-pill px-3"
@@ -336,56 +336,44 @@ onMounted(() => {
     </div>
 
     <!-- TARJETAS DE INDICADORES (KPIs) -->
-    <div class="row g-3 mb-4">
-      <div class="col-12 col-sm-6 col-lg-4">
-        <div class="card h-100 border-0 shadow-sm bg-dark-subtle p-3 rounded-4">
-          <div class="d-flex align-items-center gap-3">
-            <div class="p-3 bg-primary-subtle rounded-3 text-primary d-flex align-items-center justify-content-center">
-              <iconify-icon icon="solar:printer-bold-duotone" class="fs-7"></iconify-icon>
-            </div>
-            <div>
-              <span class="text-secondary small fw-medium text-uppercase">Total Puntos de Emisión</span>
-              <h4 class="text-white fw-bold mb-0 mt-1 font-monospace">{{ totalPointsCount }}</h4>
-            </div>
-          </div>
+    <div class="crud-kpi-grid">
+      <div class="crud-kpi-card">
+        <div class="crud-kpi-icon primary">
+          <iconify-icon icon="solar:printer-bold-duotone" class="fs-7"></iconify-icon>
+        </div>
+        <div>
+          <span class="crud-kpi-label">Total Puntos de Emisión</span>
+          <h4 class="crud-kpi-val">{{ totalPointsCount }}</h4>
         </div>
       </div>
 
-      <div class="col-12 col-sm-6 col-lg-4">
-        <div class="card h-100 border-0 shadow-sm bg-dark-subtle p-3 rounded-4">
-          <div class="d-flex align-items-center gap-3">
-            <div class="p-3 bg-success-subtle rounded-3 text-success d-flex align-items-center justify-content-center">
-              <iconify-icon icon="solar:check-circle-bold-duotone" class="fs-7"></iconify-icon>
-            </div>
-            <div>
-              <span class="text-secondary small fw-medium text-uppercase">Puntos Activos</span>
-              <h4 class="text-white fw-bold mb-0 mt-1 font-monospace">{{ activePointsCount }}</h4>
-            </div>
-          </div>
+      <div class="crud-kpi-card">
+        <div class="crud-kpi-icon success">
+          <iconify-icon icon="solar:check-circle-bold-duotone" class="fs-7"></iconify-icon>
+        </div>
+        <div>
+          <span class="crud-kpi-label">Puntos Activos</span>
+          <h4 class="crud-kpi-val">{{ activePointsCount }}</h4>
         </div>
       </div>
 
-      <div class="col-12 col-sm-6 col-lg-4">
-        <div class="card h-100 border-0 shadow-sm bg-dark-subtle p-3 rounded-4">
-          <div class="d-flex align-items-center gap-3">
-            <div class="p-3 bg-info-subtle rounded-3 text-info d-flex align-items-center justify-content-center">
-              <iconify-icon icon="solar:shop-2-bold-duotone" class="fs-7"></iconify-icon>
-            </div>
-            <div>
-              <span class="text-secondary small fw-medium text-uppercase">Sucursales con Emisión</span>
-              <h4 class="text-white fw-bold mb-0 mt-1 font-monospace">{{ branchesWithPointsCount }}</h4>
-            </div>
-          </div>
+      <div class="crud-kpi-card">
+        <div class="crud-kpi-icon info">
+          <iconify-icon icon="solar:shop-2-bold-duotone" class="fs-7"></iconify-icon>
+        </div>
+        <div>
+          <span class="crud-kpi-label">Sucursales con Emisión</span>
+          <h4 class="crud-kpi-val">{{ branchesWithPointsCount }}</h4>
         </div>
       </div>
     </div>
 
     <!-- BARRA DE BÚSQUEDA Y FILTRO -->
-    <div class="card border-0 shadow-sm bg-dark-subtle p-3 rounded-4 mb-4">
+    <div class="crud-filters-card">
       <div class="row g-2 align-items-center">
         <div class="col-12 col-md-4">
-          <label class="form-label text-secondary small mb-1 fw-semibold">Filtrar por Sucursal</label>
-          <select v-model="filterBranchId" class="form-select bg-dark border-secondary text-white">
+          <label class="form-label">Filtrar por Sucursal</label>
+          <select v-model="filterBranchId" class="form-select">
             <option value="TODAS">-- Todas las Sucursales --</option>
             <option v-for="b in branchesList" :key="b.id" :value="b.id">
               {{ b.code }} - {{ b.name }}{{ b.isMatrix ? ' (Matriz)' : '' }}
@@ -394,15 +382,15 @@ onMounted(() => {
         </div>
 
         <div class="col-12 col-md-8">
-          <label class="form-label text-secondary small mb-1 fw-semibold">Buscar Punto de Emisión</label>
+          <label class="form-label">Buscar Punto de Emisión</label>
           <div class="input-group">
-            <span class="input-group-text bg-dark border-secondary text-secondary">
+            <span class="input-group-text">
               <iconify-icon icon="solar:magnifer-line-duotone" class="fs-5"></iconify-icon>
             </span>
             <input
               v-model="searchTerm"
               type="text"
-              class="form-control bg-dark border-secondary text-white"
+              class="form-control"
               placeholder="Buscar por descripción, número de serie o código de sucursal..."
             />
           </div>
@@ -411,10 +399,10 @@ onMounted(() => {
     </div>
 
     <!-- TABLA DE PUNTOS DE EMISIÓN -->
-    <div class="card border-0 shadow-sm bg-dark-subtle rounded-4 overflow-hidden">
+    <div class="crud-table-card">
       <div class="table-responsive">
-        <table class="table table-dark table-hover align-middle mb-0 text-white">
-          <thead class="table-dark text-secondary small text-uppercase fw-semibold border-secondary">
+        <table class="crud-table">
+          <thead>
             <tr>
               <th scope="col" style="min-width: 180px;">Sucursal / Establecimiento</th>
               <th scope="col" style="min-width: 180px;">Descripción</th>
@@ -434,7 +422,7 @@ onMounted(() => {
             <tr v-else-if="filteredPoints.length === 0">
               <td colspan="6" class="text-center py-5 text-muted">
                 <iconify-icon icon="solar:box-minimalistic-line-duotone" class="fs-8 text-secondary mb-2 d-block"></iconify-icon>
-                <p class="mb-1 fw-semibold text-white">No se encontraron puntos de emisión</p>
+                <p class="mb-1 fw-semibold text-body-emphasis">No se encontraron puntos de emisión</p>
                 <p class="mb-0 fs-2 text-muted">Haz clic en "Nuevo Punto de Emisión" para habilitar series de facturación.</p>
               </td>
             </tr>
@@ -445,7 +433,7 @@ onMounted(() => {
                     {{ point.branch?.code || '001' }}
                   </span>
                   <div>
-                    <span class="fw-semibold d-block text-white">
+                    <span class="fw-semibold d-block text-body-emphasis">
                       {{ point.branch?.name || 'Sucursal' }}
                     </span>
                     <small class="text-muted d-block fs-1">
@@ -455,7 +443,7 @@ onMounted(() => {
                 </div>
               </td>
               <td>
-                <span class="fw-semibold text-white">{{ point.description }}</span>
+                <span class="fw-semibold text-body-emphasis">{{ point.description }}</span>
               </td>
               <td class="text-center">
                 <span class="badge bg-info-subtle text-info border border-info-subtle font-monospace fs-3 px-3 py-1">
@@ -467,10 +455,10 @@ onMounted(() => {
                   <span
                     v-for="seq in point.sequences"
                     :key="seq.id"
-                    class="badge bg-dark border border-secondary text-light font-monospace small px-2 py-1"
+                    class="crud-chip"
                     :title="`${seq.document_type}: Último correlativo ${seq.correlative}`"
                   >
-                    <span class="text-secondary me-1">{{ seq.document_type === 'FACTURAS' ? 'FAC' : seq.document_type === 'NOTAS DE CRÉDITO' ? 'NC' : seq.document_type === 'GUÍAS DE REMISIÓN' ? 'GR' : 'ND' }}:</span>
+                    <span class="text-muted me-1">{{ seq.document_type === 'FACTURAS' ? 'FAC' : seq.document_type === 'NOTAS DE CRÉDITO' ? 'NC' : seq.document_type === 'GUÍAS DE REMISIÓN' ? 'GR' : 'ND' }}:</span>
                     <span class="text-info">#{{ seq.correlative }}</span>
                   </span>
                 </div>
@@ -523,28 +511,26 @@ onMounted(() => {
     </div>
 
     <!-- MODAL 1: REGISTRAR / EDITAR PUNTO DE EMISIÓN -->
-    <div v-if="showCreateModal" class="modal-backdrop-custom">
-      <div class="modal-card-custom modal-md-custom">
-        <div class="modal-header-custom d-flex justify-content-between align-items-center">
+    <div v-if="showCreateModal" class="crud-modal-backdrop">
+      <div class="crud-modal-card modal-md">
+        <div class="crud-modal-header">
           <div>
             <span class="badge bg-primary-subtle text-primary border border-primary-subtle mb-1">VENTAS</span>
-            <h4 class="text-white fw-bold mb-0">
-              {{ editingPoint ? 'Editar Punto de Emisión' : 'Nuevo Punto de Emisión' }}
-            </h4>
+            <h4>{{ editingPoint ? 'Editar Punto de Emisión' : 'Nuevo Punto de Emisión' }}</h4>
           </div>
           <button type="button" class="btn btn-outline-secondary btn-sm rounded-pill" @click="showCreateModal = false">
             <iconify-icon icon="solar:close-circle-line-duotone" class="fs-5"></iconify-icon>
           </button>
         </div>
 
-        <form @submit.prevent="submitPoint" class="p-3">
+        <form @submit.prevent="submitPoint" class="crud-modal-body">
           <div class="row g-3">
             <!-- Sucursal -->
             <div class="col-12">
-              <label class="form-label text-secondary small fw-semibold">Sucursal / Establecimiento *</label>
+              <label class="form-label small fw-semibold">Sucursal / Establecimiento *</label>
               <select
                 v-model="form.branch_id"
-                class="form-select bg-dark border-secondary text-white"
+                class="form-select"
                 :disabled="!!editingPoint"
                 required
               >
@@ -560,11 +546,11 @@ onMounted(() => {
 
             <!-- Descripción -->
             <div class="col-12">
-              <label class="form-label text-secondary small fw-semibold">Descripción del Punto de Emisión *</label>
+              <label class="form-label small fw-semibold">Descripción del Punto de Emisión *</label>
               <input
                 v-model="form.description"
                 type="text"
-                class="form-control bg-dark border-secondary text-white"
+                class="form-control"
                 placeholder="Ej: Facturación Mostrador, Caja 1, Punto Principal"
                 required
               />
@@ -572,12 +558,12 @@ onMounted(() => {
 
             <!-- Serie -->
             <div class="col-md-6">
-              <label class="form-label text-secondary small fw-semibold">N° de Serie (3 dígitos) *</label>
+              <label class="form-label small fw-semibold">N° de Serie (3 dígitos) *</label>
               <input
                 v-model="form.serie"
                 type="text"
                 maxlength="3"
-                class="form-control bg-dark border-secondary text-white font-monospace text-center fs-4"
+                class="form-control font-monospace text-center fs-4"
                 placeholder="001"
                 required
               />
@@ -586,12 +572,12 @@ onMounted(() => {
 
             <!-- Correlativo Inicial de Facturas (Solo en creación) -->
             <div v-if="!editingPoint" class="col-md-6">
-              <label class="form-label text-secondary small fw-semibold">Correlativo Inicial (Facturas)</label>
+              <label class="form-label small fw-semibold">Correlativo Inicial (Facturas)</label>
               <input
                 v-model.number="form.initial_correlative"
                 type="number"
                 min="0"
-                class="form-control bg-dark border-secondary text-white font-monospace text-center fs-4"
+                class="form-control font-monospace text-center fs-4"
                 placeholder="0"
               />
               <small class="text-muted fs-1 d-block mt-1">
@@ -608,14 +594,14 @@ onMounted(() => {
                   type="checkbox"
                   id="pointStatusSwitch"
                 />
-                <label class="form-check-label text-white fw-semibold small" for="pointStatusSwitch">
+                <label class="form-check-label text-body-emphasis fw-semibold small" for="pointStatusSwitch">
                   {{ form.enabled ? 'Punto Habilitado' : 'Punto Deshabilitado' }}
                 </label>
               </div>
             </div>
 
             <div v-if="!editingPoint" class="col-12">
-              <div class="p-2 rounded-3 bg-dark border border-secondary small text-muted">
+              <div class="p-3 rounded-3 bg-body-secondary border border-secondary-subtle small text-muted">
                 <iconify-icon icon="solar:info-circle-line-duotone" class="text-info me-1 fs-4 align-middle"></iconify-icon>
                 <span>
                   Al registrar el punto de emisión se generará automáticamente el detalle de 4 secuencias: <b>FACTURAS</b>, <b>NOTAS DE CRÉDITO</b>, <b>GUÍAS DE REMISIÓN</b> y <b>NOTAS DE DÉBITO</b>.
@@ -624,7 +610,7 @@ onMounted(() => {
             </div>
           </div>
 
-          <div class="d-flex justify-content-end gap-2 mt-4 pt-3 border-top border-secondary">
+          <div class="crud-modal-footer px-0 pb-0 mt-4">
             <button
               type="button"
               class="btn btn-outline-secondary rounded-pill px-3"
@@ -646,15 +632,15 @@ onMounted(() => {
       </div>
     </div>
 
-    <!-- MODAL 2: SECUENCIAS DEL PUNTO DE EMISIÓN (REPLICA EXACTA DE LA IMAGEN DEL USUARIO) -->
-    <div v-if="showSequencesModal && selectedPointForSequences" class="modal-backdrop-custom">
-      <div class="modal-card-custom modal-lg-custom">
-        <div class="modal-header-custom d-flex justify-content-between align-items-center">
+    <!-- MODAL 2: SECUENCIAS DEL PUNTO DE EMISIÓN -->
+    <div v-if="showSequencesModal && selectedPointForSequences" class="crud-modal-backdrop">
+      <div class="crud-modal-card modal-lg">
+        <div class="crud-modal-header">
           <div>
             <span class="badge bg-primary-subtle text-primary border border-primary-subtle mb-1">
               {{ selectedPointForSequences.branch?.code }} - {{ selectedPointForSequences.branch?.name }}
             </span>
-            <h4 class="text-white fw-bold mb-0">
+            <h4>
               Punto de Emisión: {{ selectedPointForSequences.description }} (Serie: {{ selectedPointForSequences.serie }})
             </h4>
           </div>
@@ -663,7 +649,7 @@ onMounted(() => {
           </button>
         </div>
 
-        <div class="p-4">
+        <div class="crud-modal-body">
           <!-- TÍTULO DE LA SECCIÓN IGUAL QUE EN LA IMAGEN DE REFERENCIA -->
           <div class="d-flex align-items-center gap-2 mb-3">
             <span class="text-primary fs-4">•</span>
@@ -671,10 +657,10 @@ onMounted(() => {
           </div>
 
           <!-- TABLA DE SECUENCIAS -->
-          <div class="card border border-secondary rounded-4 overflow-hidden bg-dark">
+          <div class="crud-table-card">
             <div class="table-responsive">
-              <table class="table table-dark table-hover align-middle mb-0 text-white">
-                <thead class="bg-dark-subtle text-info small fw-bold border-secondary">
+              <table class="crud-table">
+                <thead>
                   <tr>
                     <th scope="col" style="width: 60px;">N°</th>
                     <th scope="col" style="min-width: 200px;">Comprobante</th>
@@ -688,9 +674,9 @@ onMounted(() => {
                   <tr v-for="(seq, index) in selectedPointForSequences.sequences" :key="seq.id">
                     <td class="text-muted fw-bold">{{ index + 1 }}</td>
                     <td>
-                      <span class="fw-bold text-white">{{ seq.document_type }}</span>
+                      <span class="fw-bold text-body-emphasis">{{ seq.document_type }}</span>
                     </td>
-                    <td class="text-center font-monospace text-secondary fs-4">
+                    <td class="text-center font-monospace text-muted fs-4">
                       {{ seq.serie }}
                     </td>
                     <td class="text-center">
@@ -698,12 +684,12 @@ onMounted(() => {
                         v-model.number="editingCorrelative[seq.id]"
                         type="number"
                         min="0"
-                        class="form-control form-control-sm bg-dark-subtle border-secondary text-white font-monospace text-center mx-auto"
+                        class="form-control form-control-sm font-monospace text-center mx-auto"
                         style="max-width: 110px;"
                       />
                     </td>
                     <td class="text-center">
-                      <span class="badge bg-dark-subtle text-primary border border-primary-subtle font-monospace fs-2 px-2 py-1">
+                      <span class="badge bg-primary-subtle text-primary border border-primary-subtle font-monospace fs-2 px-2 py-1">
                         {{ selectedPointForSequences.branch?.code || '001' }}-{{ seq.serie }}-{{ padSequential(Number(editingCorrelative[seq.id] ?? seq.correlative) + 1) }}
                       </span>
                     </td>
@@ -725,7 +711,7 @@ onMounted(() => {
             </div>
           </div>
 
-          <div class="d-flex justify-content-between align-items-center mt-4 pt-3 border-top border-secondary">
+          <div class="d-flex justify-content-between align-items-center mt-4 pt-3 border-top border-secondary-subtle">
             <small class="text-muted">
               El correlativo se actualiza automáticamente al emitir comprobantes en el sistema.
             </small>
@@ -742,43 +728,3 @@ onMounted(() => {
     </div>
   </div>
 </template>
-
-<style scoped>
-.modal-backdrop-custom {
-  position: fixed;
-  top: 0;
-  left: 0;
-  width: 100vw;
-  height: 100vh;
-  background-color: rgba(0, 0, 0, 0.75);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  z-index: 1050;
-  padding: 1rem;
-}
-
-.modal-card-custom {
-  background-color: #171c23;
-  border: 1px solid #2d3748;
-  border-radius: 1rem;
-  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.5), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
-  width: 100%;
-  max-height: 90vh;
-  overflow-y: auto;
-}
-
-.modal-md-custom {
-  max-width: 550px;
-}
-
-.modal-lg-custom {
-  max-width: 850px;
-}
-
-.modal-header-custom {
-  padding: 1.25rem 1.5rem;
-  border-bottom: 1px solid #2d3748;
-  background-color: rgba(255, 255, 255, 0.02);
-}
-</style>
