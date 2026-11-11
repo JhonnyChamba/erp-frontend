@@ -136,7 +136,14 @@ const selectCompany = async (company: Company) => {
       return
     }
 
-    // Si tiene sucursales disponibles, abrir modal para seleccionar
+    // Si solo tiene una sucursal, se ingresa directo con ella sin pedir selección
+    const total = response?.meta?.total ?? branchList.length
+    if (branchList.length === 1 && total <= 1) {
+      await selectBranch(branchList[0])
+      return
+    }
+
+    // Si tiene varias sucursales, abrir modal para seleccionar
     showBranchesModal.value = true
   } catch (error) {
     console.error('Error al obtener sucursales', error)
@@ -293,7 +300,10 @@ onMounted(async () => {
         <!-- Datos básicos del usuario (sin accesos a otras pantallas) -->
         <div class="scroll-sidebar p-3 flex-grow-1" style="min-height: 0; overflow-y: auto;">
           <div v-if="profileLoading" class="text-center py-5">
-            <div class="spinner-border text-primary spinner-border-sm" role="status"></div>
+            <div class="d-flex align-items-center justify-content-center gap-2 mb-2">
+              <div class="spinner-grow text-primary spinner-grow-sm" role="status"><span class="visually-hidden">Cargando...</span></div>
+              <div class="spinner-grow text-info spinner-grow-sm" role="status"><span class="visually-hidden">Cargando...</span></div>
+            </div>
             <p class="profile-muted fs-2 mt-2 mb-0">Cargando datos del usuario...</p>
           </div>
 
@@ -361,7 +371,11 @@ onMounted(async () => {
             <div class="card-body p-4">
               <!-- Estado de Carga -->
               <div v-if="companyStore.loading" class="text-center py-5">
-                <div class="spinner-border text-primary" role="status"></div>
+                <div class="d-flex align-items-center justify-content-center gap-2 mb-2">
+                  <div class="spinner-grow text-primary" role="status"><span class="visually-hidden">Cargando...</span></div>
+                  <div class="spinner-grow text-info" role="status"><span class="visually-hidden">Cargando...</span></div>
+                  <div class="spinner-grow text-secondary" role="status"><span class="visually-hidden">Cargando...</span></div>
+                </div>
                 <p class="text-muted mt-2">Cargando empresas disponibles...</p>
               </div>
 
@@ -420,7 +434,7 @@ onMounted(async () => {
                           <p class="card-subtitle text-muted">{{ company.nombre_comercial }}</p>
                         </div>
                         <span class="text-primary display-6">
-                          <div v-if="loadingCompanyId === company.id" class="spinner-border text-info" role="status">
+                          <div v-if="loadingCompanyId === company.id" class="spinner-grow text-info" role="status">
                             <span class="visually-hidden">Cargando...</span>
                           </div>
                           <iconify-icon v-else icon="solar:buildings-3-line-duotone" class="text-primary fs-8"></iconify-icon>
@@ -463,7 +477,11 @@ onMounted(async () => {
           <!-- BODY -->
           <div class="modal-body p-4">
             <div v-if="branchStore.loading" class="text-center py-5">
-              <div class="spinner-border text-primary" role="status"></div>
+              <div class="d-flex align-items-center justify-content-center gap-2 mb-2">
+                <div class="spinner-grow text-primary" role="status"><span class="visually-hidden">Cargando...</span></div>
+                <div class="spinner-grow text-info" role="status"><span class="visually-hidden">Cargando...</span></div>
+                <div class="spinner-grow text-secondary" role="status"><span class="visually-hidden">Cargando...</span></div>
+              </div>
               <p class="text-muted mt-2 mb-0">Cargando sucursales...</p>
             </div>
 

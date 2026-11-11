@@ -282,13 +282,18 @@ const saveCustomer = async () => {
   }
 }
 
+const actionProcessingId = ref<number | null>(null)
+
 const handleToggleCustomerStatus = async (c: CustomerItem) => {
+  actionProcessingId.value = c.id
   try {
     const updated = await toggleCustomerStatus(c.id, currentCompanyId.value)
     successMsg.value = `Cliente "${updated.razon_social}" ahora está ${updated.estado.toUpperCase()}.`
     await loadData()
   } catch (err: any) {
     errorMsg.value = err.message || 'Error al cambiar estado'
+  } finally {
+    actionProcessingId.value = null
   }
 }
 
@@ -369,12 +374,15 @@ const saveProvider = async () => {
 }
 
 const handleToggleProviderStatus = async (p: ProviderItem) => {
+  actionProcessingId.value = p.id
   try {
     const updated = await toggleProviderStatus(p.id, currentCompanyId.value)
     successMsg.value = `Proveedor "${updated.razon_social}" ahora está ${updated.estado.toUpperCase()}.`
     await loadData()
   } catch (err: any) {
     errorMsg.value = err.message || 'Error al cambiar estado'
+  } finally {
+    actionProcessingId.value = null
   }
 }
 
@@ -451,12 +459,15 @@ const saveSeller = async () => {
 }
 
 const handleToggleSellerStatus = async (s: SellerItem) => {
+  actionProcessingId.value = s.id
   try {
     const updated = await toggleSellerStatus(s.id, currentCompanyId.value)
     successMsg.value = `Vendedor "${updated.nombres} ${updated.apellidos}" ahora está ${updated.estado.toUpperCase()}.`
     await loadData()
   } catch (err: any) {
     errorMsg.value = err.message || 'Error al cambiar estado'
+  } finally {
+    actionProcessingId.value = null
   }
 }
 
@@ -635,7 +646,18 @@ const paymentLabel = (p: string) => {
                 </tr>
               </thead>
               <tbody>
-                <tr v-if="filteredCustomers.length === 0">
+                <tr v-if="loading">
+                  <td colspan="6" class="text-center py-5">
+                    <div class="d-flex align-items-center justify-content-center gap-2 mb-2">
+                      <div class="spinner-grow text-primary" role="status"><span class="visually-hidden">Cargando...</span></div>
+                      <div class="spinner-grow text-info" role="status"><span class="visually-hidden">Cargando...</span></div>
+                      <div class="spinner-grow text-secondary" role="status"><span class="visually-hidden">Cargando...</span></div>
+                    </div>
+                    <span class="text-secondary small">Cargando clientes...</span>
+                  </td>
+                </tr>
+
+                <tr v-else-if="filteredCustomers.length === 0">
                   <td colspan="6" class="text-center py-5 text-secondary">
                     <iconify-icon icon="solar:ghost-line-duotone" class="fs-8 mb-2 d-block"></iconify-icon>
                     No se encontraron clientes con los filtros seleccionados.
@@ -728,10 +750,13 @@ const paymentLabel = (p: string) => {
                       <button
                         class="btn btn-sm btn-dark-subtle border-0 p-2 rounded-2"
                         :class="c.estado === 'activo' ? 'text-warning' : 'text-success'"
+                        :disabled="actionProcessingId === c.id"
                         :title="c.estado === 'activo' ? 'Deshabilitar cliente' : 'Habilitar cliente'"
                         @click="handleToggleCustomerStatus(c)"
                       >
+                        <span v-if="actionProcessingId === c.id" class="spinner-grow spinner-grow-sm text-warning" role="status" aria-hidden="true"></span>
                         <iconify-icon
+                          v-else
                           :icon="c.estado === 'activo' ? 'solar:pause-circle-line-duotone' : 'solar:play-circle-line-duotone'"
                           class="fs-4"
                         ></iconify-icon>
@@ -804,7 +829,18 @@ const paymentLabel = (p: string) => {
                 </tr>
               </thead>
               <tbody>
-                <tr v-if="filteredProviders.length === 0">
+                <tr v-if="loading">
+                  <td colspan="7" class="text-center py-5">
+                    <div class="d-flex align-items-center justify-content-center gap-2 mb-2">
+                      <div class="spinner-grow text-primary" role="status"><span class="visually-hidden">Cargando...</span></div>
+                      <div class="spinner-grow text-info" role="status"><span class="visually-hidden">Cargando...</span></div>
+                      <div class="spinner-grow text-secondary" role="status"><span class="visually-hidden">Cargando...</span></div>
+                    </div>
+                    <span class="text-secondary small">Cargando proveedores...</span>
+                  </td>
+                </tr>
+
+                <tr v-else-if="filteredProviders.length === 0">
                   <td colspan="7" class="text-center py-5 text-secondary">
                     <iconify-icon icon="solar:ghost-line-duotone" class="fs-8 mb-2 d-block"></iconify-icon>
                     No se encontraron proveedores registrados.
@@ -906,10 +942,13 @@ const paymentLabel = (p: string) => {
                       <button
                         class="btn btn-sm btn-dark-subtle border-0 p-2 rounded-2"
                         :class="p.estado === 'activo' ? 'text-warning' : 'text-success'"
+                        :disabled="actionProcessingId === p.id"
                         :title="p.estado === 'activo' ? 'Deshabilitar proveedor' : 'Habilitar proveedor'"
                         @click="handleToggleProviderStatus(p)"
                       >
+                        <span v-if="actionProcessingId === p.id" class="spinner-grow spinner-grow-sm text-warning" role="status" aria-hidden="true"></span>
                         <iconify-icon
+                          v-else
                           :icon="p.estado === 'activo' ? 'solar:pause-circle-line-duotone' : 'solar:play-circle-line-duotone'"
                           class="fs-4"
                         ></iconify-icon>
@@ -982,7 +1021,18 @@ const paymentLabel = (p: string) => {
                 </tr>
               </thead>
               <tbody>
-                <tr v-if="filteredSellers.length === 0">
+                <tr v-if="loading">
+                  <td colspan="7" class="text-center py-5">
+                    <div class="d-flex align-items-center justify-content-center gap-2 mb-2">
+                      <div class="spinner-grow text-primary" role="status"><span class="visually-hidden">Cargando...</span></div>
+                      <div class="spinner-grow text-info" role="status"><span class="visually-hidden">Cargando...</span></div>
+                      <div class="spinner-grow text-secondary" role="status"><span class="visually-hidden">Cargando...</span></div>
+                    </div>
+                    <span class="text-secondary small">Cargando vendedores...</span>
+                  </td>
+                </tr>
+
+                <tr v-else-if="filteredSellers.length === 0">
                   <td colspan="7" class="text-center py-5 text-secondary">
                     <iconify-icon icon="solar:ghost-line-duotone" class="fs-8 mb-2 d-block"></iconify-icon>
                     No se encontraron vendedores registrados.
@@ -1085,10 +1135,13 @@ const paymentLabel = (p: string) => {
                       <button
                         class="btn btn-sm btn-dark-subtle border-0 p-2 rounded-2"
                         :class="s.estado === 'activo' ? 'text-warning' : 'text-success'"
+                        :disabled="actionProcessingId === s.id"
                         :title="s.estado === 'activo' ? 'Deshabilitar vendedor' : 'Habilitar vendedor'"
                         @click="handleToggleSellerStatus(s)"
                       >
+                        <span v-if="actionProcessingId === s.id" class="spinner-grow spinner-grow-sm text-warning" role="status" aria-hidden="true"></span>
                         <iconify-icon
+                          v-else
                           :icon="s.estado === 'activo' ? 'solar:pause-circle-line-duotone' : 'solar:play-circle-line-duotone'"
                           class="fs-4"
                         ></iconify-icon>
@@ -1221,8 +1274,8 @@ const paymentLabel = (p: string) => {
               Cancelar
             </button>
             <button type="submit" class="btn btn-primary px-4 rounded-3 fw-bold" :disabled="loading">
-              <span v-if="loading" class="spinner-border spinner-border-sm me-1"></span>
-              {{ isEditMode ? 'Actualizar Cliente' : 'Guardar Cliente' }}
+              <span v-if="loading" class="spinner-grow spinner-grow-sm me-2" role="status" aria-hidden="true"></span>
+              <span>{{ loading ? (isEditMode ? 'Actualizando Cliente...' : 'Guardando Cliente...') : (isEditMode ? 'Actualizar Cliente' : 'Guardar Cliente') }}</span>
             </button>
           </div>
         </form>
@@ -1367,8 +1420,8 @@ const paymentLabel = (p: string) => {
               Cancelar
             </button>
             <button type="submit" class="btn btn-warning text-dark px-4 rounded-3 fw-bold" :disabled="loading">
-              <span v-if="loading" class="spinner-border spinner-border-sm me-1"></span>
-              {{ isEditMode ? 'Actualizar Proveedor' : 'Guardar Proveedor' }}
+              <span v-if="loading" class="spinner-grow spinner-grow-sm me-2" role="status" aria-hidden="true"></span>
+              <span>{{ loading ? (isEditMode ? 'Actualizando Proveedor...' : 'Guardando Proveedor...') : (isEditMode ? 'Actualizar Proveedor' : 'Guardar Proveedor') }}</span>
             </button>
           </div>
         </form>
@@ -1499,8 +1552,8 @@ const paymentLabel = (p: string) => {
               Cancelar
             </button>
             <button type="submit" class="btn btn-success px-4 rounded-3 fw-bold" :disabled="loading">
-              <span v-if="loading" class="spinner-border spinner-border-sm me-1"></span>
-              {{ isEditMode ? 'Actualizar Vendedor' : 'Guardar Vendedor' }}
+              <span v-if="loading" class="spinner-grow spinner-grow-sm me-2" role="status" aria-hidden="true"></span>
+              <span>{{ loading ? (isEditMode ? 'Actualizando Vendedor...' : 'Guardando Vendedor...') : (isEditMode ? 'Actualizar Vendedor' : 'Guardar Vendedor') }}</span>
             </button>
           </div>
         </form>

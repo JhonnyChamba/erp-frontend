@@ -1515,7 +1515,11 @@ const submitSubscription = async () => {
       </div>
 
       <div v-if="loading" class="text-center py-5">
-        <div class="spinner-border text-primary" role="status"></div>
+        <div class="d-flex align-items-center justify-content-center gap-2 mb-2">
+          <div class="spinner-grow text-primary" role="status"><span class="visually-hidden">Cargando...</span></div>
+          <div class="spinner-grow text-info" role="status"><span class="visually-hidden">Cargando...</span></div>
+          <div class="spinner-grow text-secondary" role="status"><span class="visually-hidden">Cargando...</span></div>
+        </div>
         <p class="text-muted mt-2">Cargando empresas...</p>
       </div>
 
@@ -1582,7 +1586,11 @@ const submitSubscription = async () => {
       </div>
 
       <div v-if="loading" class="text-center py-5">
-        <div class="spinner-border text-primary" role="status"></div>
+        <div class="d-flex align-items-center justify-content-center gap-2 mb-2">
+          <div class="spinner-grow text-primary" role="status"><span class="visually-hidden">Cargando...</span></div>
+          <div class="spinner-grow text-info" role="status"><span class="visually-hidden">Cargando...</span></div>
+          <div class="spinner-grow text-secondary" role="status"><span class="visually-hidden">Cargando...</span></div>
+        </div>
         <p class="text-muted mt-2">Cargando sucursales...</p>
       </div>
 
@@ -1662,7 +1670,11 @@ const submitSubscription = async () => {
       </div>
 
       <div v-if="loading" class="text-center py-5">
-        <div class="spinner-border text-primary" role="status"></div>
+        <div class="d-flex align-items-center justify-content-center gap-2 mb-2">
+          <div class="spinner-grow text-primary" role="status"><span class="visually-hidden">Cargando...</span></div>
+          <div class="spinner-grow text-info" role="status"><span class="visually-hidden">Cargando...</span></div>
+          <div class="spinner-grow text-secondary" role="status"><span class="visually-hidden">Cargando...</span></div>
+        </div>
         <p class="text-muted mt-2">Cargando usuarios...</p>
       </div>
 
@@ -1756,7 +1768,11 @@ const submitSubscription = async () => {
       </div>
 
       <div v-if="loading" class="text-center py-5">
-        <div class="spinner-border text-primary" role="status"></div>
+        <div class="d-flex align-items-center justify-content-center gap-2 mb-2">
+          <div class="spinner-grow text-primary" role="status"><span class="visually-hidden">Cargando...</span></div>
+          <div class="spinner-grow text-info" role="status"><span class="visually-hidden">Cargando...</span></div>
+          <div class="spinner-grow text-secondary" role="status"><span class="visually-hidden">Cargando...</span></div>
+        </div>
         <p class="text-muted mt-2">Cargando roles de la empresa...</p>
       </div>
 
@@ -1841,7 +1857,11 @@ const submitSubscription = async () => {
         </div>
 
         <div v-if="loading" class="text-center py-4">
-          <div class="spinner-border text-primary" role="status"></div>
+          <div class="d-flex align-items-center justify-content-center gap-2 mb-2">
+            <div class="spinner-grow text-primary" role="status"><span class="visually-hidden">Cargando...</span></div>
+            <div class="spinner-grow text-info" role="status"><span class="visually-hidden">Cargando...</span></div>
+            <div class="spinner-grow text-secondary" role="status"><span class="visually-hidden">Cargando...</span></div>
+          </div>
           <p class="text-muted mt-2">Cargando módulos...</p>
         </div>
 
@@ -2198,7 +2218,10 @@ const submitSubscription = async () => {
               </div>
               <div class="modal-footer d-flex justify-content-end gap-2 px-4 py-3 border-top border-dark-subtle">
                 <button type="button" class="btn btn-outline-secondary px-4 rounded-3" @click="showBranchModal = false">Cancelar</button>
-                <button type="submit" class="btn btn-primary px-4 rounded-3 fw-bold" :disabled="loading">{{ isEditingBranch ? 'Guardar Cambios' : 'Guardar Sucursal' }}</button>
+                <button type="submit" class="btn btn-primary px-4 rounded-3 fw-bold" :disabled="loading">
+                  <span v-if="loading" class="spinner-grow spinner-grow-sm me-2" role="status" aria-hidden="true"></span>
+                  <span>{{ loading ? 'Guardando...' : (isEditingBranch ? 'Guardar Cambios' : 'Guardar Sucursal') }}</span>
+                </button>
               </div>
             </form>
           </div>
@@ -2434,7 +2457,10 @@ const submitSubscription = async () => {
               </div>
               <div class="modal-footer d-flex justify-content-end gap-2 px-4 py-3 border-top border-dark-subtle">
                 <button type="button" class="btn btn-outline-secondary px-4 rounded-3" @click="showCompanyModal = false">Cancelar</button>
-                <button type="submit" class="btn btn-primary px-4 rounded-3 fw-bold" :disabled="loading">{{ isEditingCompany ? 'Guardar Cambios' : 'Guardar Empresa' }}</button>
+                <button type="submit" class="btn btn-primary px-4 rounded-3 fw-bold" :disabled="loading">
+                  <span v-if="loading" class="spinner-grow spinner-grow-sm me-2" role="status" aria-hidden="true"></span>
+                  <span>{{ loading ? 'Guardando...' : (isEditingCompany ? 'Guardar Cambios' : 'Guardar Empresa') }}</span>
+                </button>
               </div>
             </form>
           </div>
@@ -2735,7 +2761,8 @@ const submitSubscription = async () => {
               <div class="modal-footer d-flex justify-content-end gap-2 px-4 py-3 border-top border-dark-subtle">
                 <button type="button" class="btn btn-outline-secondary px-4 rounded-3" @click="closeUserModal">Cancelar</button>
                 <button type="submit" class="btn btn-primary px-4 rounded-3 fw-bold" :disabled="loading">
-                  {{ isEditingUser ? 'Actualizar Usuario' : 'Guardar Usuario' }}
+                  <span v-if="loading" class="spinner-grow spinner-grow-sm me-2" role="status" aria-hidden="true"></span>
+                  <span>{{ loading ? 'Guardando...' : (isEditingUser ? 'Actualizar Usuario' : 'Guardar Usuario') }}</span>
                 </button>
               </div>
             </form>
@@ -2945,7 +2972,8 @@ const submitSubscription = async () => {
               <div class="modal-footer d-flex justify-content-end gap-2 px-4 py-3 border-top border-dark-subtle">
                 <button type="button" class="btn btn-outline-secondary px-4 rounded-3" @click="showRoleModal = false">Cancelar</button>
                 <button type="submit" class="btn btn-primary px-4 rounded-3 fw-bold" :disabled="loading">
-                  {{ isEditingRole ? 'Actualizar Rol y Detalle' : 'Guardar Rol y Detalle' }}
+                  <span v-if="loading" class="spinner-grow spinner-grow-sm me-2" role="status" aria-hidden="true"></span>
+                  <span>{{ loading ? 'Guardando...' : (isEditingRole ? 'Actualizar Rol y Detalle' : 'Guardar Rol y Detalle') }}</span>
                 </button>
               </div>
             </form>
@@ -3045,7 +3073,8 @@ const submitSubscription = async () => {
               <div class="modal-footer d-flex justify-content-end gap-2 px-4 py-3 border-top border-dark-subtle">
                 <button type="button" class="btn btn-outline-secondary px-4 rounded-3" @click="showModuleModal = false">Cancelar</button>
                 <button type="submit" class="btn btn-primary px-4 rounded-3 fw-bold" :disabled="loading">
-                  {{ isEditingModule ? 'Actualizar Módulo' : 'Guardar Módulo' }}
+                  <span v-if="loading" class="spinner-grow spinner-grow-sm me-2" role="status" aria-hidden="true"></span>
+                  <span>{{ loading ? 'Guardando...' : (isEditingModule ? 'Actualizar Módulo' : 'Guardar Módulo') }}</span>
                 </button>
               </div>
             </form>
@@ -3167,7 +3196,8 @@ const submitSubscription = async () => {
               <div class="modal-footer d-flex justify-content-end gap-2 px-4 py-3 border-top border-dark-subtle">
                 <button type="button" class="btn btn-outline-secondary px-4 rounded-3" @click="showSubModuleModal = false">Cancelar</button>
                 <button type="submit" class="btn btn-info text-dark fw-semibold px-4" :disabled="loading">
-                  {{ isEditingSubModule ? 'Actualizar Submódulo' : 'Guardar Submódulo' }}
+                  <span v-if="loading" class="spinner-grow spinner-grow-sm me-2" role="status" aria-hidden="true"></span>
+                  <span>{{ loading ? 'Guardando...' : (isEditingSubModule ? 'Actualizar Submódulo' : 'Guardar Submódulo') }}</span>
                 </button>
               </div>
             </form>
@@ -3222,7 +3252,10 @@ const submitSubscription = async () => {
               </div>
               <div class="modal-footer d-flex justify-content-end gap-2 px-4 py-3 border-top border-dark-subtle">
                 <button type="button" class="btn btn-outline-secondary px-4 rounded-3" @click="showPlanModal = false">Cancelar</button>
-                <button type="submit" class="btn btn-primary px-4 rounded-3 fw-bold" :disabled="loading">Guardar Plan</button>
+                <button type="submit" class="btn btn-primary px-4 rounded-3 fw-bold" :disabled="loading">
+                  <span v-if="loading" class="spinner-grow spinner-grow-sm me-2" role="status" aria-hidden="true"></span>
+                  <span>{{ loading ? 'Guardando...' : 'Guardar Plan' }}</span>
+                </button>
               </div>
             </form>
           </div>
@@ -3410,7 +3443,8 @@ const submitSubscription = async () => {
               <div class="modal-footer d-flex justify-content-end gap-2 px-4 py-3 border-top border-dark-subtle">
                 <button type="button" class="btn btn-outline-secondary px-4 rounded-3" @click="showSubscriptionModal = false">Cancelar</button>
                 <button type="submit" class="btn btn-primary px-4 rounded-3 fw-bold" :disabled="loading">
-                  {{ isEditingSubscription ? 'Guardar Cambios de Suscripción' : 'Activar Suscripción y Accesos' }}
+                  <span v-if="loading" class="spinner-grow spinner-grow-sm me-2" role="status" aria-hidden="true"></span>
+                  <span>{{ loading ? 'Guardando...' : (isEditingSubscription ? 'Guardar Cambios de Suscripción' : 'Activar Suscripción y Accesos') }}</span>
                 </button>
               </div>
             </form>

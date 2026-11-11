@@ -210,7 +210,14 @@
           </thead>
           <tbody>
             <tr v-if="loading">
-              <td colspan="11" class="empty-cell">Cargando artículos del inventario...</td>
+              <td colspan="11" class="text-center py-5">
+                <div class="d-flex align-items-center justify-content-center gap-2 mb-2">
+                  <div class="spinner-grow text-primary" role="status"><span class="visually-hidden">Cargando...</span></div>
+                  <div class="spinner-grow text-info" role="status"><span class="visually-hidden">Cargando...</span></div>
+                  <div class="spinner-grow text-secondary" role="status"><span class="visually-hidden">Cargando...</span></div>
+                </div>
+                <span class="text-secondary small">Cargando artículos del inventario...</span>
+              </td>
             </tr>
             <tr v-else-if="filteredItems.length === 0">
               <td colspan="11" class="empty-cell">
@@ -264,8 +271,9 @@
                   <button class="act-btn edit" @click="openEditItem(item)" title="Editar artículo">
                     <iconify-icon icon="solar:pen-new-square-line-duotone" width="17"></iconify-icon>
                   </button>
-                  <button class="act-btn delete" @click="confirmDelete('articulos', item)" title="Eliminar artículo">
-                    <iconify-icon icon="solar:trash-bin-trash-line-duotone" width="17"></iconify-icon>
+                  <button class="act-btn delete" :disabled="deletingId === item.id" @click="confirmDelete('articulos', item)" title="Eliminar artículo">
+                    <span v-if="deletingId === item.id" class="spinner-grow spinner-grow-sm text-danger" role="status" aria-hidden="true"></span>
+                    <iconify-icon v-else icon="solar:trash-bin-trash-line-duotone" width="17"></iconify-icon>
                   </button>
                 </div>
               </td>
@@ -297,7 +305,14 @@
           </thead>
           <tbody>
             <tr v-if="loading">
-              <td colspan="10" class="empty-cell">Cargando catálogo de servicios...</td>
+              <td colspan="10" class="text-center py-5">
+                <div class="d-flex align-items-center justify-content-center gap-2 mb-2">
+                  <div class="spinner-grow text-primary" role="status"><span class="visually-hidden">Cargando...</span></div>
+                  <div class="spinner-grow text-info" role="status"><span class="visually-hidden">Cargando...</span></div>
+                  <div class="spinner-grow text-secondary" role="status"><span class="visually-hidden">Cargando...</span></div>
+                </div>
+                <span class="text-secondary small">Cargando catálogo de servicios...</span>
+              </td>
             </tr>
             <tr v-else-if="filteredServices.length === 0">
               <td colspan="10" class="empty-cell">
@@ -338,8 +353,9 @@
                   <button class="act-btn edit" @click="openEditService(srv)" title="Editar servicio">
                     <iconify-icon icon="solar:pen-new-square-line-duotone" width="17"></iconify-icon>
                   </button>
-                  <button class="act-btn delete" @click="confirmDelete('servicios', srv)" title="Eliminar servicio">
-                    <iconify-icon icon="solar:trash-bin-trash-line-duotone" width="17"></iconify-icon>
+                  <button class="act-btn delete" :disabled="deletingId === srv.id" @click="confirmDelete('servicios', srv)" title="Eliminar servicio">
+                    <span v-if="deletingId === srv.id" class="spinner-grow spinner-grow-sm text-danger" role="status" aria-hidden="true"></span>
+                    <iconify-icon v-else icon="solar:trash-bin-trash-line-duotone" width="17"></iconify-icon>
                   </button>
                 </div>
               </td>
@@ -372,7 +388,14 @@
           </thead>
           <tbody>
             <tr v-if="loading">
-              <td colspan="11" class="empty-cell">Cargando servicios de subcontratación y mano de obra...</td>
+              <td colspan="11" class="text-center py-5">
+                <div class="d-flex align-items-center justify-content-center gap-2 mb-2">
+                  <div class="spinner-grow text-primary" role="status"><span class="visually-hidden">Cargando...</span></div>
+                  <div class="spinner-grow text-info" role="status"><span class="visually-hidden">Cargando...</span></div>
+                  <div class="spinner-grow text-secondary" role="status"><span class="visually-hidden">Cargando...</span></div>
+                </div>
+                <span class="text-secondary small">Cargando servicios de subcontratación y mano de obra...</span>
+              </td>
             </tr>
             <tr v-else-if="filteredSubcontracts.length === 0">
               <td colspan="11" class="empty-cell">
@@ -423,8 +446,9 @@
                   <button class="act-btn edit" @click="openEditSubcontract(sub)" title="Editar rubro">
                     <iconify-icon icon="solar:pen-new-square-line-duotone" width="17"></iconify-icon>
                   </button>
-                  <button class="act-btn delete" @click="confirmDelete('subcontratacion', sub)" title="Eliminar rubro">
-                    <iconify-icon icon="solar:trash-bin-trash-line-duotone" width="17"></iconify-icon>
+                  <button class="act-btn delete" :disabled="deletingId === sub.id" @click="confirmDelete('subcontratacion', sub)" title="Eliminar rubro">
+                    <span v-if="deletingId === sub.id" class="spinner-grow spinner-grow-sm text-danger" role="status" aria-hidden="true"></span>
+                    <iconify-icon v-else icon="solar:trash-bin-trash-line-duotone" width="17"></iconify-icon>
                   </button>
                 </div>
               </td>
@@ -527,7 +551,8 @@
           <div class="modal-footer">
             <button type="button" class="btn-secondary" @click="showItemModal = false">Cancelar</button>
             <button type="submit" class="btn-primary" :disabled="saving">
-              <iconify-icon icon="solar:diskette-bold-duotone" width="18"></iconify-icon>
+              <span v-if="saving" class="spinner-grow spinner-grow-sm me-1" role="status" aria-hidden="true"></span>
+              <iconify-icon v-else icon="solar:diskette-bold-duotone" width="18"></iconify-icon>
               <span>{{ saving ? 'Guardando...' : (editingItemId ? 'Guardar Cambios' : 'Registrar Artículo') }}</span>
             </button>
           </div>
@@ -611,7 +636,8 @@
           <div class="modal-footer">
             <button type="button" class="btn-secondary" @click="showServiceModal = false">Cancelar</button>
             <button type="submit" class="btn-primary" :disabled="saving">
-              <iconify-icon icon="solar:diskette-bold-duotone" width="18"></iconify-icon>
+              <span v-if="saving" class="spinner-grow spinner-grow-sm me-1" role="status" aria-hidden="true"></span>
+              <iconify-icon v-else icon="solar:diskette-bold-duotone" width="18"></iconify-icon>
               <span>{{ saving ? 'Guardando...' : (editingServiceId ? 'Guardar Cambios' : 'Registrar Servicio') }}</span>
             </button>
           </div>
@@ -711,7 +737,8 @@
           <div class="modal-footer">
             <button type="button" class="btn-secondary" @click="showSubcontractModal = false">Cancelar</button>
             <button type="submit" class="btn-primary" :disabled="saving">
-              <iconify-icon icon="solar:diskette-bold-duotone" width="18"></iconify-icon>
+              <span v-if="saving" class="spinner-grow spinner-grow-sm me-1" role="status" aria-hidden="true"></span>
+              <iconify-icon v-else icon="solar:diskette-bold-duotone" width="18"></iconify-icon>
               <span>{{ saving ? 'Guardando...' : (editingSubcontractId ? 'Guardar Cambios' : 'Registrar Mano de Obra') }}</span>
             </button>
           </div>
@@ -1199,9 +1226,12 @@ const openCreateModal = () => {
   }
 }
 
+const deletingId = ref<number | null>(null)
+
 const confirmDelete = async (tab: InventoryTab, record: any) => {
   const companyId = getActiveCompanyId()
   if (!window.confirm(`¿Estás seguro de eliminar "${record.name}" (${record.code})?`)) return
+  deletingId.value = record.id
   try {
     if (tab === 'articulos') {
       await deleteInventoryItem(record.id, companyId)
@@ -1214,6 +1244,8 @@ const confirmDelete = async (tab: InventoryTab, record: any) => {
     await loadAllInventory()
   } catch (err: any) {
     showFeedback(err?.response?.data?.message || 'No se pudo eliminar el registro', 'error')
+  } finally {
+    deletingId.value = null
   }
 }
 

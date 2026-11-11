@@ -64,6 +64,17 @@ const saving = ref(false)
 const successMsg = ref('')
 const errorMsg = ref('')
 
+const dismissAlert = () => {
+  successMsg.value = ''
+  errorMsg.value = ''
+}
+// Los avisos de éxito se cierran solos; los errores permanecen hasta cerrarlos
+let alertTimer: ReturnType<typeof setTimeout> | undefined
+watch(successMsg, (v) => {
+  if (alertTimer) clearTimeout(alertTimer)
+  if (v) alertTimer = setTimeout(() => { successMsg.value = '' }, 10000)
+})
+
 const invoices = ref<InvoiceItem[]>([])
 const searchInvoice = ref('')
 const statusFilter = ref<'TODOS' | 'ISSUED' | 'CANCELED'>('TODOS')
@@ -87,9 +98,13 @@ const articlesList = ref<InventoryArticle[]>([])
 const servicesList = ref<InventoryServiceItem[]>([])
 const subcontractsList = ref<InventorySubcontractItem[]>([])
 const branchesList = ref<BranchItem[]>([])
-// Solo las sucursales activas pueden emitir; el filtro del listado incluye todas (historial)
+// Solo las sucursales activas pueden emitir
 const activeBranches = computed(() => branchesList.value.filter((b) => b.enabled))
-// Filtro del listado: 'TODAS' o el id de la sucursal
+// Sucursales en las que se puede emitir: únicamente la seleccionada al ingresar (si hay una)
+const issuableBranches = computed(() =>
+  branchFilter.value === 'TODAS' ? activeBranches.value : activeBranches.value.filter((b) => b.id === Number(branchFilter.value)),
+)
+// Sucursal seleccionada ('TODAS' solo si no hay una sucursal válida seleccionada)
 const branchFilter = ref<'TODAS' | number>('TODAS')
 const branchName = (id?: number | null) => {
   const b = branchesList.value.find((x) => x.id === id)
@@ -349,7 +364,7 @@ const setFinalConsumer = () => {
 
 // Aplica los datos de la sucursal elegida: establecimiento y punto de emisión por defecto
 const applyBranch = (branchId?: number) => {
-  const b = activeBranches.value.find((x) => x.id === branchId)
+  const b = issuableBranches.value.find((x) => x.id === branchId)
   form.value.branchId = b?.id
   if (b) {
     form.value.establishment = b.code
@@ -358,21 +373,19 @@ const applyBranch = (branchId?: number) => {
 }
 
 const preselectBranch = () => {
-  if (activeBranches.value.length === 0) return
-  // Sucursal del filtro, si no la sucursal con la que se entró, si no la matriz
-  const filterId = branchFilter.value === 'TODAS' ? 0 : Number(branchFilter.value)
+  if (issuableBranches.value.length === 0) return
+  // Sucursal seleccionada; si no hay una, la matriz
   const preferred =
-    activeBranches.value.find((b) => b.id === filterId) ||
-    activeBranches.value.find((b) => b.id === getActiveBranchId()) ||
-    activeBranches.value.find((b) => b.isMatrix) ||
-    activeBranches.value[0]
+    issuableBranches.value.find((b) => b.id === getActiveBranchId()) ||
+    issuableBranches.value.find((b) => b.isMatrix) ||
+    issuableBranches.value[0]
   applyBranch(preferred?.id)
 }
 
 const openCreateModal = () => {
   successMsg.value = ''
   // Toda factura pertenece a una empresa y a una sucursal: sin sucursales activas no se puede emitir
-  if (activeBranches.value.length === 0) {
+  if (issuableBranches.value.length === 0) {
     errorMsg.value = 'Para emitir facturas primero registra y activa al menos una sucursal en Configuración > Sucursales.'
     return
   }
@@ -447,8 +460,14 @@ const submitInvoice = async () => {
 }
 
 // Firmar con el .p12 de la empresa y descargar el XML firmado
+const signingInvoiceId = ref<number | null>(null)
+const sendingSriInvoiceId = ref<number | null>(null)
+const cancelingInvoiceId = ref<number | null>(null)
+const downloadingXmlId = ref<number | null>(null)
+
 const onSignInvoice = async (inv: InvoiceItem) => {
   errorMsg.value = ''
+  signingInvoiceId.value = inv.id
   try {
     await signInvoice(inv.id, getActiveCompanyId())
     successMsg.value = `Factura ${inv.invoice_number} firmada electrónicamente.`
@@ -459,6 +478,8 @@ const onSignInvoice = async (inv: InvoiceItem) => {
   } catch (err: any) {
     const m = err?.response?.data?.message
     errorMsg.value = (Array.isArray(m) ? m.join(', ') : m) || 'No se pudo firmar la factura'
+  } finally {
+    signingInvoiceId.value = null
   }
 }
 
@@ -517,6 +538,7 @@ const onSendToSri = async (inv: InvoiceItem) => {
   errorMsg.value = ''
   successMsg.value = ''
   sendingSri.value = true
+  sendingSriInvoiceId.value = inv.id
   try {
     const result = await sendInvoiceToSri(inv.id, getActiveCompanyId())
     describeSriResult(inv, result)
@@ -526,6 +548,7 @@ const onSendToSri = async (inv: InvoiceItem) => {
     errorMsg.value = (Array.isArray(m) ? m.join(', ') : m) || 'No se pudo enviar la factura al SRI'
   } finally {
     sendingSri.value = false
+    sendingSriInvoiceId.value = null
   }
 }
 
@@ -533,6 +556,7 @@ const onCheckSri = async (inv: InvoiceItem) => {
   errorMsg.value = ''
   successMsg.value = ''
   sendingSri.value = true
+  sendingSriInvoiceId.value = inv.id
   try {
     const result = await checkInvoiceSri(inv.id, getActiveCompanyId())
     describeSriResult(inv, result)
@@ -542,11 +566,13 @@ const onCheckSri = async (inv: InvoiceItem) => {
     errorMsg.value = (Array.isArray(m) ? m.join(', ') : m) || 'No se pudo consultar la autorización en el SRI'
   } finally {
     sendingSri.value = false
+    sendingSriInvoiceId.value = null
   }
 }
 
 const downloadXml = async (inv: InvoiceItem) => {
   errorMsg.value = ''
+  downloadingXmlId.value = inv.id
   try {
     const { file_name, xml } = await getInvoiceXml(inv.id, getActiveCompanyId())
     const url = URL.createObjectURL(new Blob([xml], { type: 'text/xml;charset=utf-8' }))
@@ -557,18 +583,23 @@ const downloadXml = async (inv: InvoiceItem) => {
     URL.revokeObjectURL(url)
   } catch (err: any) {
     errorMsg.value = err?.response?.data?.message || 'No se pudo descargar el XML'
+  } finally {
+    downloadingXmlId.value = null
   }
 }
 
 // Anular factura
 const onCancelInvoice = async (inv: InvoiceItem) => {
   if (!confirm(`¿Estás seguro de anular la factura ${inv.invoice_number}?`)) return
+  cancelingInvoiceId.value = inv.id
   try {
     await cancelInvoice(inv.id, getActiveCompanyId())
     successMsg.value = `Factura ${inv.invoice_number} anulada correctamente.`
     await loadData()
   } catch (err: any) {
     errorMsg.value = err?.response?.data?.message || 'Error al anular la factura'
+  } finally {
+    cancelingInvoiceId.value = null
   }
 }
 
@@ -651,6 +682,24 @@ watch(() => route.path, () => {
 
 <template>
   <div class="invoices-page" :class="{ 'form-open': isFormOpen }">
+    <!-- AlertBox flotante: queda por encima de los modales y de la página -->
+    <Teleport to="body">
+      <Transition name="alertbox">
+        <div v-if="errorMsg || successMsg" class="alertbox-wrap" role="alert">
+          <div
+            class="alert d-flex align-items-start gap-2 shadow-lg mb-0 py-3 px-3"
+            :class="errorMsg ? 'alert-danger' : 'alert-success'"
+          >
+            <iconify-icon
+              :icon="errorMsg ? 'solar:danger-triangle-bold' : 'solar:check-circle-bold'"
+              class="fs-4 flex-shrink-0"
+            ></iconify-icon>
+            <span class="flex-grow-1 alertbox-text">{{ errorMsg || successMsg }}</span>
+            <button type="button" class="btn-close" aria-label="Cerrar" @click="dismissAlert"></button>
+          </div>
+        </div>
+      </Transition>
+    </Teleport>
     <!-- Encabezado del Submódulo -->
     <div class="page-header d-flex flex-wrap justify-content-between align-items-center gap-3">
       <div class="d-flex align-items-center gap-3">
@@ -698,15 +747,7 @@ watch(() => route.path, () => {
 
     <!-- VISTA PRINCIPAL DE FACTURACIÓN ECUADOR -->
     <template v-else>
-      <!-- Alertas -->
-      <div v-if="successMsg" class="alert alert-success d-flex align-items-center gap-2 mt-3 mb-0 py-2">
-        <iconify-icon icon="solar:check-circle-bold" class="fs-5"></iconify-icon>
-        <span>{{ successMsg }}</span>
-      </div>
-      <div v-if="errorMsg" class="alert alert-danger d-flex align-items-center gap-2 mt-3 mb-0 py-2">
-        <iconify-icon icon="solar:danger-triangle-bold" class="fs-5"></iconify-icon>
-        <span>{{ errorMsg }}</span>
-      </div>
+      <!-- Las alertas se muestran en un aviso flotante (ver AlertBox al final), visible incluso sobre los modales -->
 
       <!-- Barra de Filtros y Búsqueda -->
       <div class="card rounded-4 border-0 shadow-sm p-3 bg-dark text-white mt-3">
@@ -727,10 +768,10 @@ watch(() => route.path, () => {
 
           <div class="d-flex align-items-center gap-2">
             <label class="text-secondary small fw-semibold">Sucursal:</label>
-            <select v-model="branchFilter" @change="reloadInvoices" class="form-select bg-dark-subtle border-secondary text-white w-auto">
-              <option value="TODAS">Todas las sucursales</option>
-              <option v-for="b in branchesList" :key="b.id" :value="b.id">{{ b.code }} - {{ b.name }}{{ b.enabled ? '' : ' (inactiva)' }}</option>
-            </select>
+            <!-- El listado y la emisión quedan fijos a la empresa y sucursal seleccionadas al ingresar (se cambian con "Cambiar") -->
+            <span class="badge bg-primary-subtle text-primary border border-primary-subtle px-3 py-2" title="Sucursal seleccionada">
+              {{ branchFilter === 'TODAS' ? 'Todas las sucursales de la empresa' : branchName(Number(branchFilter)) }}
+            </span>
             <label class="text-secondary small fw-semibold ms-2">Estado:</label>
             <select v-model="statusFilter" class="form-select bg-dark-subtle border-secondary text-white w-auto">
               <option value="TODOS">Todos</option>
@@ -760,7 +801,14 @@ watch(() => route.path, () => {
             </thead>
             <tbody>
               <tr v-if="loading">
-                <td colspan="9" class="text-center py-4 text-secondary">Cargando facturas...</td>
+                <td colspan="9" class="text-center py-5">
+                  <div class="d-flex align-items-center justify-content-center gap-2 mb-2">
+                    <div class="spinner-grow text-primary" role="status"><span class="visually-hidden">Cargando...</span></div>
+                    <div class="spinner-grow text-info" role="status"><span class="visually-hidden">Cargando...</span></div>
+                    <div class="spinner-grow text-secondary" role="status"><span class="visually-hidden">Cargando...</span></div>
+                  </div>
+                  <span class="text-secondary small">Cargando facturas...</span>
+                </td>
               </tr>
               <tr v-else-if="filteredInvoices.length === 0">
                 <td colspan="9" class="text-center py-5 text-secondary">
@@ -806,40 +854,46 @@ watch(() => route.path, () => {
                   </span>
                 </td>
                 <td class="text-end">
-                  <div class="d-inline-flex gap-1">
+                  <div class="d-inline-flex gap-1 align-items-center">
                     <button
                       v-if="inv.status === 'ISSUED' && inv.sign_status !== 'SIGNED'"
                       class="btn btn-sm btn-outline-warning rounded-pill px-2"
+                      :disabled="signingInvoiceId === inv.id"
                       @click="onSignInvoice(inv)"
                       title="Firmar electrónicamente"
                     >
-                      <iconify-icon icon="solar:pen-new-square-line-duotone"></iconify-icon>
+                      <span v-if="signingInvoiceId === inv.id" class="spinner-grow spinner-grow-sm text-warning" role="status" aria-hidden="true"></span>
+                      <iconify-icon v-else icon="solar:pen-new-square-line-duotone"></iconify-icon>
                     </button>
                     <button
                       v-if="inv.sign_status === 'SIGNED'"
                       class="btn btn-sm btn-outline-success rounded-pill px-2"
+                      :disabled="downloadingXmlId === inv.id"
                       @click="downloadXml(inv)"
                       title="Descargar XML firmado"
                     >
-                      <iconify-icon icon="solar:download-minimalistic-bold"></iconify-icon>
+                      <span v-if="downloadingXmlId === inv.id" class="spinner-grow spinner-grow-sm text-success" role="status" aria-hidden="true"></span>
+                      <iconify-icon v-else icon="solar:download-minimalistic-bold"></iconify-icon>
                     </button>
                     <button
                       v-if="inv.sign_status === 'SIGNED' && inv.status !== 'CANCELED' && (!inv.sri_status || inv.sri_status === 'NOT_SENT' || inv.sri_status === 'RETURNED' || inv.sri_status === 'NOT_AUTHORIZED')"
                       class="btn btn-sm btn-outline-primary rounded-pill px-2"
-                      :disabled="sendingSri"
+                      :disabled="sendingSriInvoiceId === inv.id || sendingSri"
                       @click="onSendToSri(inv)"
                       title="Enviar al SRI"
                     >
-                      <iconify-icon icon="solar:plain-2-bold-duotone"></iconify-icon>
+                      <span v-if="sendingSriInvoiceId === inv.id" class="spinner-grow spinner-grow-sm text-primary" role="status" aria-hidden="true"></span>
+                      <iconify-icon v-else icon="solar:plain-2-bold-duotone"></iconify-icon>
                     </button>
                     <button
                       v-if="inv.sri_status === 'IN_PROCESS'"
                       class="btn btn-sm btn-outline-warning rounded-pill px-2"
-                      :disabled="sendingSri"
+                      :disabled="sendingSriInvoiceId === inv.id || sendingSri"
                       @click="onCheckSri(inv)"
                       title="Consultar autorización SRI"
                     >
-                      <iconify-icon icon="solar:refresh-circle-bold-duotone"></iconify-icon>
+                      <span v-if="sendingSriInvoiceId === inv.id" class="spinner-grow spinner-grow-sm text-warning" role="status" aria-hidden="true"></span>
+                      <iconify-icon v-else icon="solar:refresh-circle-bold-duotone"></iconify-icon>
                     </button>
                     <button class="btn btn-sm btn-outline-info rounded-pill px-2" @click="openDetailModal(inv)" title="Ver Detalle y RIDE">
                       <iconify-icon icon="solar:eye-line-duotone"></iconify-icon>
@@ -847,10 +901,12 @@ watch(() => route.path, () => {
                     <button
                       v-if="inv.status === 'ISSUED'"
                       class="btn btn-sm btn-outline-danger rounded-pill px-2"
+                      :disabled="cancelingInvoiceId === inv.id"
                       @click="onCancelInvoice(inv)"
                       title="Anular Factura"
                     >
-                      <iconify-icon icon="solar:trash-bin-trash-line-duotone"></iconify-icon>
+                      <span v-if="cancelingInvoiceId === inv.id" class="spinner-grow spinner-grow-sm text-danger" role="status" aria-hidden="true"></span>
+                      <iconify-icon v-else icon="solar:trash-bin-trash-line-duotone"></iconify-icon>
                     </button>
                   </div>
                 </td>
@@ -876,16 +932,12 @@ watch(() => route.path, () => {
         </div>
 
         <form @submit.prevent="submitInvoice" class="p-3">
-          <div v-if="errorMsg" class="alert alert-danger d-flex align-items-center gap-2 py-2">
-            <iconify-icon icon="solar:danger-circle-line-duotone"></iconify-icon>
-            <span>{{ errorMsg }}</span>
-          </div>
           <!-- Datos de Cabecera SRI -->
           <div class="row g-3">
             <div class="col-12">
               <label class="form-label text-secondary small fw-semibold">Sucursal / Establecimiento emisor *</label>
               <select :value="form.branchId" @change="applyBranch(Number(($event.target as HTMLSelectElement).value) || undefined)" class="form-select bg-dark-subtle border-secondary text-white" required>
-                <option v-for="b in activeBranches" :key="b.id" :value="b.id">{{ b.code }} - {{ b.name }}{{ b.isMatrix ? ' (Matriz)' : '' }} · {{ b.address }}</option>
+                <option v-for="b in issuableBranches" :key="b.id" :value="b.id">{{ b.code }} - {{ b.name }}{{ b.isMatrix ? ' (Matriz)' : '' }} · {{ b.address }}</option>
               </select>
             </div>
             <div class="col-md-3">
@@ -1074,8 +1126,9 @@ watch(() => route.path, () => {
           <div class="d-flex justify-content-end gap-2 mt-4 pt-3 border-top border-secondary">
             <button type="button" class="btn btn-secondary" @click="showCreateModal = false">Cancelar</button>
             <button type="submit" class="btn btn-primary d-flex align-items-center gap-2" :disabled="saving">
-              <iconify-icon icon="solar:diskette-bold-duotone"></iconify-icon>
-              <span>{{ saving ? 'Emitiendo...' : 'Emitir Factura' }}</span>
+              <span v-if="saving" class="spinner-grow spinner-grow-sm" role="status" aria-hidden="true"></span>
+              <iconify-icon v-else icon="solar:diskette-bold-duotone"></iconify-icon>
+              <span>{{ saving ? 'Emitiendo Factura...' : 'Emitir Factura' }}</span>
             </button>
           </div>
         </form>
@@ -1188,8 +1241,9 @@ watch(() => route.path, () => {
             :disabled="sendingSri"
             @click="onSendToSri(viewingInvoice)"
           >
-            <iconify-icon icon="solar:plain-2-bold-duotone"></iconify-icon>
-            <span>{{ sendingSri ? 'Enviando…' : 'Enviar al SRI' }}</span>
+            <span v-if="sendingSri" class="spinner-grow spinner-grow-sm text-primary" role="status" aria-hidden="true"></span>
+            <iconify-icon v-else icon="solar:plain-2-bold-duotone"></iconify-icon>
+            <span>{{ sendingSri ? 'Enviando al SRI…' : 'Enviar al SRI' }}</span>
           </button>
           <button
             v-if="viewingInvoice.sri_status === 'IN_PROCESS'"
@@ -1197,23 +1251,28 @@ watch(() => route.path, () => {
             :disabled="sendingSri"
             @click="onCheckSri(viewingInvoice)"
           >
-            <iconify-icon icon="solar:refresh-circle-bold-duotone"></iconify-icon>
-            <span>{{ sendingSri ? 'Consultando…' : 'Consultar autorización SRI' }}</span>
+            <span v-if="sendingSri" class="spinner-grow spinner-grow-sm text-warning" role="status" aria-hidden="true"></span>
+            <iconify-icon v-else icon="solar:refresh-circle-bold-duotone"></iconify-icon>
+            <span>{{ sendingSri ? 'Consultando SRI…' : 'Consultar autorización SRI' }}</span>
           </button>
           <button
             v-if="viewingInvoice.status === 'ISSUED' && viewingInvoice.sign_status !== 'SIGNED'"
             class="btn btn-outline-warning d-flex align-items-center gap-2"
+            :disabled="signingInvoiceId === viewingInvoice.id"
             @click="onSignInvoice(viewingInvoice)"
           >
-            <iconify-icon icon="solar:pen-new-square-line-duotone"></iconify-icon>
-            <span>Firmar XML</span>
+            <span v-if="signingInvoiceId === viewingInvoice.id" class="spinner-grow spinner-grow-sm text-warning" role="status" aria-hidden="true"></span>
+            <iconify-icon v-else icon="solar:pen-new-square-line-duotone"></iconify-icon>
+            <span>{{ signingInvoiceId === viewingInvoice.id ? 'Firmando XML...' : 'Firmar XML' }}</span>
           </button>
           <button
             v-if="viewingInvoice.sign_status === 'SIGNED'"
             class="btn btn-outline-success d-flex align-items-center gap-2"
+            :disabled="downloadingXmlId === viewingInvoice.id"
             @click="downloadXml(viewingInvoice)"
           >
-            <iconify-icon icon="solar:download-minimalistic-bold"></iconify-icon>
+            <span v-if="downloadingXmlId === viewingInvoice.id" class="spinner-grow spinner-grow-sm text-success" role="status" aria-hidden="true"></span>
+            <iconify-icon v-else icon="solar:download-minimalistic-bold"></iconify-icon>
             <span>Descargar XML firmado</span>
           </button>
           <button class="btn btn-outline-info d-flex align-items-center gap-2" @click="printRide(viewingInvoice)">
@@ -1228,6 +1287,27 @@ watch(() => route.path, () => {
 </template>
 
 <style scoped>
+.alertbox-wrap {
+  position: fixed;
+  top: 16px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: min(680px, calc(100vw - 32px));
+  z-index: 3000; /* por encima de los modales */
+}
+.alertbox-text {
+  white-space: pre-line;
+  word-break: break-word;
+}
+.alertbox-enter-active,
+.alertbox-leave-active {
+  transition: opacity 0.2s ease, transform 0.2s ease;
+}
+.alertbox-enter-from,
+.alertbox-leave-to {
+  opacity: 0;
+  transform: translate(-50%, -12px);
+}
 .invoices-page {
   display: flex;
   flex-direction: column;

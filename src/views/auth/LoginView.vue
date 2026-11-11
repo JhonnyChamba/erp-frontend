@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { useAuthStore } from '@/stores/auth.store'
 import { useThemeStore } from '@/stores/theme.store'
+import { getBranches } from '@/services/config.service'
 import { ref } from 'vue'
 import { useRouter } from 'vue-router'
 
@@ -38,6 +39,15 @@ const login = async () => {
         })
       )
       await authStore.fetchCompanyAccess(assignedCompId)
+      // Si la empresa solo tiene una sucursal, se inicia directamente en ella
+      localStorage.removeItem('selectedBranch')
+      try {
+        const res: any = await getBranches(assignedCompId, { onlyEnabled: true })
+        const list = Array.isArray(res?.data) ? res.data : Array.isArray(res) ? res : []
+        if (list.length === 1) localStorage.setItem('selectedBranch', JSON.stringify(list[0]))
+      } catch {
+        // sin sucursal seleccionada: se continúa al dashboard
+      }
       router.push('/dashboard')
     }
   } catch (error: any) {
@@ -197,7 +207,7 @@ const login = async () => {
               class="btn btn-primary w-100 py-3 rounded-3 fw-bold text-white d-flex align-items-center justify-content-center gap-2 btn-login"
               :disabled="loading"
             >
-              <span v-if="loading" class="spinner-border spinner-border-sm"></span>
+              <span v-if="loading" class="spinner-grow spinner-grow-sm" role="status" aria-hidden="true"></span>
               <iconify-icon v-else icon="solar:login-2-line-duotone" class="fs-5"></iconify-icon>
               <span>{{ loading ? 'Iniciando sesión...' : 'Iniciar Sesión' }}</span>
             </button>
