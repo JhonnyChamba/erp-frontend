@@ -63,83 +63,20 @@
                     v-show="isOpen(mod.code)"
                     class="list-unstyled ps-3 pt-1 mb-2 first-level"
                   >
-                    <!-- Agrupación especial para MOD-003 Inventario con apartado Configuración -->
-                    <template v-if="mod.code === 'MOD-003'">
-                      <li
-                        v-for="sub in getOperationalSubItems(mod)"
-                        :key="sub.code"
-                        class="sidebar-item mb-1"
+                    <li
+                      v-for="sub in (mod.code === 'MOD-003' ? getInventorySubItems(mod) : mod.children)"
+                      :key="sub.code"
+                      class="sidebar-item mb-1"
+                    >
+                      <router-link
+                        :to="sub.url"
+                        class="sidebar-sublink"
+                        :class="{ active: isSubActive(sub.url) }"
                       >
-                        <router-link
-                          :to="sub.url"
-                          class="sidebar-sublink"
-                          :class="{ active: isSubActive(sub.url) }"
-                        >
-                          <span class="sidebar-icon"></span>
-                          <span class="hide-menu">{{ sub.description }}</span>
-                        </router-link>
-                      </li>
-
-                      <!-- Sub-apartado Configuración (Categorías y Bodegas) -->
-                      <li class="sidebar-item mb-1 mt-1">
-                        <a
-                          href="javascript:void(0)"
-                          class="sidebar-sublink d-flex align-items-center justify-content-between config-sublink"
-                          :class="{ 'text-primary fw-bold': isInvConfigActive }"
-                          @click="toggleInvConfig"
-                        >
-                          <div class="d-flex align-items-center">
-                            <iconify-icon icon="solar:settings-line-duotone" class="fs-5 me-2 text-warning"></iconify-icon>
-                            <span class="hide-menu">Configuración</span>
-                          </div>
-                          <iconify-icon
-                            :icon="isInvConfigOpen ? 'solar:alt-arrow-up-line-duotone' : 'solar:alt-arrow-down-line-duotone'"
-                            class="fs-3 text-muted"
-                          ></iconify-icon>
-                        </a>
-
-                        <ul v-show="isInvConfigOpen" class="list-unstyled ps-3 pt-1 mb-1 second-level">
-                          <li class="sidebar-item mb-1">
-                            <router-link
-                              to="/inventario?tab=categorias"
-                              class="sidebar-sublink sidebar-sublink-nested"
-                              :class="{ active: isSubActive('/inventario?tab=categorias') }"
-                            >
-                              <span class="sidebar-icon"></span>
-                              <span class="hide-menu">Categorías</span>
-                            </router-link>
-                          </li>
-                          <li class="sidebar-item mb-1">
-                            <router-link
-                              to="/inventario?tab=bodegas"
-                              class="sidebar-sublink sidebar-sublink-nested"
-                              :class="{ active: isSubActive('/inventario?tab=bodegas') }"
-                            >
-                              <span class="sidebar-icon"></span>
-                              <span class="hide-menu">Bodegas</span>
-                            </router-link>
-                          </li>
-                        </ul>
-                      </li>
-                    </template>
-
-                    <!-- Otros módulos ERP normales -->
-                    <template v-else>
-                      <li
-                        v-for="sub in mod.children"
-                        :key="sub.code"
-                        class="sidebar-item mb-1"
-                      >
-                        <router-link
-                          :to="sub.url"
-                          class="sidebar-sublink"
-                          :class="{ active: isSubActive(sub.url) }"
-                        >
-                          <span class="sidebar-icon"></span>
-                          <span class="hide-menu">{{ sub.description }}</span>
-                        </router-link>
-                      </li>
-                    </template>
+                        <span class="sidebar-icon"></span>
+                        <span class="hide-menu">{{ sub.description }}</span>
+                      </router-link>
+                    </li>
                   </ul>
                 </li>
               </template>
@@ -310,41 +247,34 @@ const isSubActive = (subUrl: string) => {
   return route.path.toLowerCase() === subUrl.toLowerCase()
 }
 
-// Configuración especial de Inventario en el Sidebar (Apartado Configuración: Categorías y Bodegas)
-const invConfigManuallyToggled = ref<boolean | null>(null)
+// Submódulos independientes de Inventario: Categorías y Bodegas primero en el menú
+const getInventorySubItems = (mod: any) => {
+  const children = [...(mod.children || [])]
+  const hasCat = children.some((s: any) => s.url?.toLowerCase().includes('tab=categorias'))
+  const hasBod = children.some((s: any) => s.url?.toLowerCase().includes('tab=bodegas'))
+  const hasKar = children.some((s: any) => s.url?.toLowerCase().includes('tab=kardex'))
 
-const isInvConfigActive = computed(() => {
-  return isSubActive('/inventario?tab=categorias') || isSubActive('/inventario?tab=bodegas')
-})
-
-const isInvConfigOpen = computed(() => {
-  if (invConfigManuallyToggled.value !== null) {
-    return invConfigManuallyToggled.value
+  if (!hasCat) {
+    children.push({ id: 23, code: 'SUB-023', description: 'Categorías', url: '/inventario?tab=categorias' })
   }
-  return true
-})
-
-const toggleInvConfig = () => {
-  invConfigManuallyToggled.value = !isInvConfigOpen.value
-}
-
-const getOperationalSubItems = (mod: any) => {
-  const children = mod.children || []
-  const filtered = children.filter(
-    (sub: any) =>
-      !sub.url?.toLowerCase().includes('tab=categorias') &&
-      !sub.url?.toLowerCase().includes('tab=bodegas')
-  )
-  const hasKardex = filtered.some((s: any) => s.url?.toLowerCase().includes('tab=kardex'))
-  if (!hasKardex) {
-    filtered.push({
-      id: 22,
-      code: 'SUB-022',
-      description: 'Kardex / Movimientos',
-      url: '/inventario?tab=kardex'
-    })
+  if (!hasBod) {
+    children.push({ id: 24, code: 'SUB-024', description: 'Bodegas', url: '/inventario?tab=bodegas' })
   }
-  return filtered
+  if (!hasKar) {
+    children.push({ id: 22, code: 'SUB-022', description: 'Kardex / Movimientos', url: '/inventario?tab=kardex' })
+  }
+
+  // Categorías y Bodegas primero, seguidos de Artículos, Servicios, Subcontratación y Kardex
+  const priority = ['tab=categorias', 'tab=bodegas', 'tab=articulos', 'tab=servicios', 'tab=subcontratacion', 'tab=kardex']
+  children.sort((a, b) => {
+    const aUrl = (a.url || '').toLowerCase()
+    const bUrl = (b.url || '').toLowerCase()
+    const aIdx = priority.findIndex((p) => aUrl.includes(p))
+    const bIdx = priority.findIndex((p) => bUrl.includes(p))
+    return (aIdx === -1 ? 99 : aIdx) - (bIdx === -1 ? 99 : bIdx)
+  })
+
+  return children
 }
 
 const isOpen = (moduleCode: string) => {
@@ -454,15 +384,5 @@ const logout = () => {
 .hover-sublink:hover {
   color: var(--bs-primary) !important;
   background: var(--bs-hover-bg);
-}
-
-.sidebar-sublink-nested {
-  padding-left: 2.85rem !important;
-  font-size: 0.82rem !important;
-}
-
-.config-sublink {
-  font-weight: 600;
-  cursor: pointer;
 }
 </style>

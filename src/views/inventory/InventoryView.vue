@@ -34,9 +34,29 @@
       </div>
     </div>
 
-    <!-- Main 5-Tab Switcher con Apartado Configuración -->
+    <!-- Main Tab Switcher -->
     <div class="tabs-bar">
       <div class="tabs-pills">
+        <button
+          class="tab-pill"
+          :class="{ active: activeTab === 'categorias' }"
+          @click="switchTab('categorias')"
+        >
+          <iconify-icon icon="solar:tag-price-line-duotone" width="18"></iconify-icon>
+          <span>Categorías</span>
+          <span class="pill-count">{{ categoriesList.length }}</span>
+        </button>
+
+        <button
+          class="tab-pill"
+          :class="{ active: activeTab === 'bodegas' }"
+          @click="switchTab('bodegas')"
+        >
+          <iconify-icon icon="solar:home-smile-line-duotone" width="18"></iconify-icon>
+          <span>Bodegas / Almacenes</span>
+          <span class="pill-count">{{ warehousesList.length }}</span>
+        </button>
+
         <button
           class="tab-pill"
           :class="{ active: activeTab === 'articulos' }"
@@ -76,18 +96,6 @@
           <span>Kardex / Movimientos</span>
           <span class="pill-count">{{ kardexMovements.length }}</span>
         </button>
-
-        <div class="tabs-divider"></div>
-
-        <button
-          class="tab-pill config-pill"
-          :class="{ active: isConfigTabActive }"
-          @click="switchTab(configSubTab)"
-        >
-          <iconify-icon icon="solar:settings-line-duotone" width="18"></iconify-icon>
-          <span>Configuración</span>
-          <span class="pill-count">{{ categoriesList.length + warehousesList.length }}</span>
-        </button>
       </div>
 
       <!-- Search & Filters -->
@@ -121,40 +129,6 @@
           <option value="INACTIVE">Inactivos</option>
           <option v-if="activeTab === 'articulos'" value="LOW_STOCK">Stock Bajo</option>
         </select>
-      </div>
-    </div>
-
-    <!-- Sub-módulos de Configuración de Inventario (Categorías y Bodegas) -->
-    <div v-if="isConfigTabActive" class="config-subtabs-banner">
-      <div class="config-subtabs-header">
-        <div class="d-flex align-items-center gap-2">
-          <iconify-icon icon="solar:settings-line-duotone" width="20" class="text-warning"></iconify-icon>
-          <span class="config-subtabs-title">Apartado de Configuración</span>
-          <span class="badge bg-warning-subtle text-warning font-mono" style="font-size: 11px;">SUB-MÓDULOS BASE</span>
-        </div>
-        <span class="text-secondary small">Administra las categorías de clasificación y bodegas de almacenamiento para la empresa</span>
-      </div>
-
-      <div class="config-subtabs-pills">
-        <button
-          class="subtab-pill"
-          :class="{ active: activeTab === 'categorias' }"
-          @click="switchTab('categorias')"
-        >
-          <iconify-icon icon="solar:tag-price-line-duotone" width="17"></iconify-icon>
-          <span>Categorías</span>
-          <span class="pill-count">{{ categoriesList.length }}</span>
-        </button>
-
-        <button
-          class="subtab-pill"
-          :class="{ active: activeTab === 'bodegas' }"
-          @click="switchTab('bodegas')"
-        >
-          <iconify-icon icon="solar:home-smile-line-duotone" width="17"></iconify-icon>
-          <span>Bodegas / Almacenes</span>
-          <span class="pill-count">{{ warehousesList.length }}</span>
-        </button>
       </div>
     </div>
 
@@ -1542,25 +1516,17 @@ const loadKardex = async () => {
   }
 }
 
-// Sub-pestaña recordada de Configuración (Categorías o Bodegas)
-const configSubTab = ref<'categorias' | 'bodegas'>('categorias')
-const isConfigTabActive = computed(() => activeTab.value === 'categorias' || activeTab.value === 'bodegas')
-
-// Sync tab with URL query (?tab=articulos | servicios | subcontratacion | categorias | bodegas | kardex) or route param
+// Sync tab with URL query (?tab=categorias | bodegas | articulos | servicios | subcontratacion | kardex) or route param
 const syncTabFromRoute = () => {
   const qTab = String(route.query.tab || route.params.sub || '').toLowerCase()
-  if (qTab.includes('serv')) {
+  if (qTab.includes('cat')) {
+    activeTab.value = 'categorias'
+  } else if (qTab.includes('bod') || qTab.includes('ware') || qTab.includes('almacen')) {
+    activeTab.value = 'bodegas'
+  } else if (qTab.includes('serv')) {
     activeTab.value = 'servicios'
   } else if (qTab.includes('sub') || qTab.includes('mano') || qTab.includes('obra')) {
     activeTab.value = 'subcontratacion'
-  } else if (qTab.includes('cat')) {
-    activeTab.value = 'categorias'
-    configSubTab.value = 'categorias'
-  } else if (qTab.includes('bod') || qTab.includes('ware') || qTab.includes('almacen')) {
-    activeTab.value = 'bodegas'
-    configSubTab.value = 'bodegas'
-  } else if (qTab.includes('config')) {
-    activeTab.value = configSubTab.value || 'categorias'
   } else if (qTab.includes('kardex') || qTab.includes('mov')) {
     activeTab.value = 'kardex'
     loadKardex()
@@ -1571,9 +1537,6 @@ const syncTabFromRoute = () => {
 
 const switchTab = (tab: InventoryTab) => {
   activeTab.value = tab
-  if (tab === 'categorias' || tab === 'bodegas') {
-    configSubTab.value = tab
-  }
   statusFilter.value = 'ALL'
   router.replace({ path: '/inventario', query: { tab } })
   if (tab === 'kardex') {
@@ -1586,10 +1549,10 @@ watch(() => [route.query.tab, route.params.sub], () => {
 })
 
 const activeTabBadge = computed(() => {
+  if (activeTab.value === 'categorias') return { code: 'CONFIG · CATEGORÍAS' }
+  if (activeTab.value === 'bodegas') return { code: 'CONFIG · BODEGAS' }
   if (activeTab.value === 'servicios') return { code: 'SUB-009 · SERVICIOS' }
   if (activeTab.value === 'subcontratacion') return { code: 'SUB-010 · MANO DE OBRA' }
-  if (activeTab.value === 'categorias') return { code: 'CONFIGURACIÓN · CATEGORÍAS' }
-  if (activeTab.value === 'bodegas') return { code: 'CONFIGURACIÓN · BODEGAS' }
   if (activeTab.value === 'kardex') return { code: 'SUB-022 · KARDEX' }
   return { code: 'SUB-008 · ARTÍCULOS' }
 })
@@ -2688,90 +2651,6 @@ onMounted(() => {
   background: rgba(0, 133, 219, 0.16);
   color: #38bdf8;
   border-color: rgba(56, 189, 248, 0.3);
-}
-
-.tabs-divider {
-  width: 1px;
-  height: 26px;
-  background: rgba(255, 255, 255, 0.12);
-  margin: 0 4px;
-}
-
-.tab-pill.config-pill.active {
-  background: rgba(245, 158, 11, 0.18);
-  color: #fbbf24;
-  border-color: rgba(245, 158, 11, 0.4);
-}
-
-.tab-pill.config-pill.active .pill-count {
-  background: #f59e0b;
-  color: #0b1426;
-  font-weight: 700;
-}
-
-/* Banner de Sub-módulos de Configuración */
-.config-subtabs-banner {
-  background: #111c2d;
-  border: 1px solid rgba(245, 158, 11, 0.25);
-  border-radius: 14px;
-  padding: 14px 18px;
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2);
-}
-
-.config-subtabs-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  flex-wrap: wrap;
-  gap: 8px;
-}
-
-.config-subtabs-title {
-  font-size: 14px;
-  font-weight: 700;
-  color: #f8fafc;
-}
-
-.config-subtabs-pills {
-  display: flex;
-  gap: 10px;
-  flex-wrap: wrap;
-}
-
-.subtab-pill {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  padding: 8px 16px;
-  border-radius: 9px;
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  background: #0b1426;
-  color: #cbd5e1;
-  font-size: 13.5px;
-  font-weight: 600;
-  cursor: pointer;
-  transition: all 0.15s ease;
-}
-
-.subtab-pill:hover {
-  background: #17233b;
-  color: #f8fafc;
-  border-color: rgba(245, 158, 11, 0.4);
-}
-
-.subtab-pill.active {
-  background: rgba(245, 158, 11, 0.16);
-  color: #fbbf24;
-  border-color: #f59e0b;
-}
-
-.subtab-pill.active .pill-count {
-  background: #f59e0b;
-  color: #0b1426;
-  font-weight: 700;
 }
 
 .pill-count {
