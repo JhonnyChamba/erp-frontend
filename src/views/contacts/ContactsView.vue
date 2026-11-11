@@ -542,18 +542,6 @@ const paymentLabel = (p: string) => {
         </div>
       </div>
 
-      <!-- ALERTS DE RETROALIMENTACIÓN -->
-      <div v-if="successMsg" class="alert alert-success mt-3 mb-0 rounded-3 alert-dismissible fade show" role="alert">
-        <iconify-icon icon="solar:check-circle-line-duotone" class="me-2 fs-5 align-middle"></iconify-icon>
-        {{ successMsg }}
-        <button type="button" class="btn-close" @click="successMsg = ''"></button>
-      </div>
-      <div v-if="errorMsg" class="alert alert-danger mt-3 mb-0 rounded-3 alert-dismissible fade show" role="alert">
-        <iconify-icon icon="solar:danger-circle-line-duotone" class="me-2 fs-5 align-middle"></iconify-icon>
-        {{ errorMsg }}
-        <button type="button" class="btn-close" @click="errorMsg = ''"></button>
-      </div>
-
       <!-- PESTAÑAS TIPO PILLS (SUB-MÓDULOS) -->
       <ul v-show="!isFormOpen" class="nav nav-pills user-profile-tab mt-4 border-top border-dark-subtle pt-3" role="tablist">
         <!-- SUB-MODULO CLIENTES -->

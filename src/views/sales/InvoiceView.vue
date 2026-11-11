@@ -66,18 +66,16 @@ const loading = ref(false)
 const saving = ref(false)
 const successMsg = ref('')
 const errorMsg = ref('')
+const modalAlert = ref<{ text: string; type: 'success' | 'warning' | 'error' | '' }>({ text: '', type: '' })
 
 const dismissAlert = () => {
   successMsg.value = ''
   errorMsg.value = ''
 }
-// Los avisos de éxito se cierran solos; los errores permanecen hasta cerrarlos
-let alertTimer: ReturnType<typeof setTimeout> | undefined
+
 watch(successMsg, (v) => {
-  if (alertTimer) clearTimeout(alertTimer)
   if (v) {
     toast.success(v, 'Facturación')
-    alertTimer = setTimeout(() => { successMsg.value = '' }, 10000)
   }
 })
 
@@ -90,10 +88,10 @@ watch(errorMsg, (v) => {
 watch(() => modalAlert.value.text, (text) => {
   if (!text) return
   const type = modalAlert.value.type || 'info'
-  if (type === 'success') toast.success(text, 'Facturación')
-  else if (type === 'error') toast.error(text, 'Error en Factura')
-  else if (type === 'warning') toast.warning(text, 'Atención')
-  else toast.info(text, 'Información')
+  if (type === 'success') toast.success(text, 'Éxito SRI')
+  else if (type === 'error') toast.error(text, 'Respuesta SRI')
+  else if (type === 'warning') toast.warning(text, 'SRI en proceso')
+  else toast.info(text, 'Información SRI')
 })
 
 const invoices = ref<InvoiceItem[]>([])
@@ -112,7 +110,6 @@ watch(isFormOpen, async (open) => {
 })
 const showDetailModal = ref(false)
 const viewingInvoice = ref<InvoiceItem | null>(null)
-const modalAlert = ref<{ text: string; type: 'success' | 'warning' | 'error' | '' }>({ text: '', type: '' })
 
 // Catálogos auxiliares para la emisión
 const customersList = ref<CustomerItem[]>([])
@@ -748,24 +745,6 @@ watch(() => route.path, () => {
 
 <template>
   <div class="invoices-page" :class="{ 'form-open': isFormOpen }">
-    <!-- AlertBox flotante: queda por encima de los modales y de la página -->
-    <Teleport to="body">
-      <Transition name="alertbox">
-        <div v-if="errorMsg || successMsg" class="alertbox-wrap" role="alert">
-          <div
-            class="alert d-flex align-items-start gap-2 shadow-lg mb-0 py-3 px-3"
-            :class="errorMsg ? 'alert-danger' : 'alert-success'"
-          >
-            <iconify-icon
-              :icon="errorMsg ? 'solar:danger-triangle-bold' : 'solar:check-circle-bold'"
-              class="fs-4 flex-shrink-0"
-            ></iconify-icon>
-            <span class="flex-grow-1 alertbox-text">{{ errorMsg || successMsg }}</span>
-            <button type="button" class="btn-close" aria-label="Cerrar" @click="dismissAlert"></button>
-          </div>
-        </div>
-      </Transition>
-    </Teleport>
     <!-- Encabezado del Submódulo -->
     <div class="page-header d-flex flex-wrap justify-content-between align-items-center gap-3">
       <div class="d-flex align-items-center gap-3">
@@ -1229,22 +1208,6 @@ watch(() => route.path, () => {
           <button class="btn btn-link text-secondary p-0 fs-5" @click="showDetailModal = false">
             <iconify-icon icon="solar:close-circle-bold"></iconify-icon>
           </button>
-        </div>
-
-        <!-- Alerta visible sobre el modal tras enviar al SRI o firmar -->
-        <div v-if="modalAlert.text" class="alert alert-dismissible fade show m-3 mb-0" :class="{
-          'alert-success': modalAlert.type === 'success',
-          'alert-warning': modalAlert.type === 'warning',
-          'alert-danger': modalAlert.type === 'error'
-        }" role="alert">
-          <div class="d-flex align-items-center gap-2">
-            <iconify-icon :icon="modalAlert.type === 'success' ? 'solar:check-circle-bold' : (modalAlert.type === 'warning' ? 'solar:danger-triangle-bold' : 'solar:close-circle-bold')" width="22"></iconify-icon>
-            <div>
-              <strong>{{ modalAlert.type === 'success' ? 'Éxito SRI:' : (modalAlert.type === 'warning' ? 'SRI en proceso:' : 'Respuesta SRI:') }}</strong>
-              <span class="ms-1">{{ modalAlert.text }}</span>
-            </div>
-          </div>
-          <button type="button" class="btn-close" @click="modalAlert.text = ''"></button>
         </div>
 
         <div class="p-4 modal-body-custom">

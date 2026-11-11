@@ -292,15 +292,6 @@
       </div>
     </div>
 
-    <!-- Status Banner -->
-    <div v-if="feedbackBanner.text" class="feedback-banner keep-in-form" :class="feedbackBanner.type">
-      <iconify-icon
-        :icon="feedbackBanner.type === 'success' ? 'solar:check-circle-bold' : 'solar:danger-circle-bold'"
-        width="18"
-      ></iconify-icon>
-      <span>{{ feedbackBanner.text }}</span>
-    </div>
-
     <!-- ========================================================== -->
     <!-- TAB 1: TABLA DE ÍTEMS / ARTÍCULOS                          -->
     <!-- ========================================================== -->
@@ -1462,21 +1453,9 @@ const kardexProductFilter = ref<number>(0)
 const kardexWarehouseFilter = ref<number>(0)
 const loadingKardex = ref(false)
 
-const feedbackBanner = ref<{ text: string; type: 'success' | 'error' | '' }>({
-  text: '',
-  type: ''
-})
-
 const showFeedback = (text: string, type: 'success' | 'error' | 'warning' | 'info' = 'success', title?: string) => {
-  feedbackBanner.value = { text, type: type === 'warning' || type === 'info' ? 'error' : type }
-  setTimeout(() => {
-    if (feedbackBanner.value.text === text) {
-      feedbackBanner.value = { text: '', type: '' }
-    }
-  }, 4000)
-
   if (type === 'success') {
-    toast.success(text, title || 'Inventario Actualizado')
+    toast.success(text, title || 'Inventario')
   } else if (type === 'error') {
     toast.error(text, title || 'Error en Inventario')
   } else if (type === 'warning') {

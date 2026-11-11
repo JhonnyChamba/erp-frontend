@@ -148,12 +148,6 @@ const login = async () => {
             </p>
           </div>
 
-          <!-- ALERTA DE ERROR ELEGANTE -->
-          <div v-if="errorMessage" class="alert alert-danger py-2 px-3 rounded-3 d-flex align-items-center gap-2 mb-4" role="alert">
-            <iconify-icon icon="solar:danger-triangle-line-duotone" class="fs-5 text-danger flex-shrink-0"></iconify-icon>
-            <span class="fs-2">{{ errorMessage }}</span>
-          </div>
-
           <!-- FORMULARIO -->
           <form @submit.prevent="login">
             <!-- Correo / Usuario -->

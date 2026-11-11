@@ -35,24 +35,16 @@ const getActiveCompanyId = (): number => {
   return Number(authStore.accessInfo?.companyId || 1)
 }
 
-// Estados de carga y alertas
+// Estados de carga
 const loading = ref(false)
 const saving = ref(false)
 const cancelingId = ref<number | null>(null)
-const feedbackBanner = ref<{ text: string; type: 'success' | 'error' | '' }>({ text: '', type: '' })
 
-let feedbackTimer: any = null
 const showFeedback = (text: string, type: 'success' | 'error' | 'warning' | 'info' = 'success', title?: string) => {
-  feedbackBanner.value = { text, type: type === 'warning' || type === 'info' ? 'error' : type }
-  if (feedbackTimer) clearTimeout(feedbackTimer)
-  feedbackTimer = setTimeout(() => {
-    feedbackBanner.value = { text: '', type: '' }
-  }, 7000)
-
   if (type === 'success') {
-    toast.success(text, title || 'Operación Exitosa')
+    toast.success(text, title || 'Compras')
   } else if (type === 'error') {
-    toast.error(text, title || 'Error')
+    toast.error(text, title || 'Error en Compra')
   } else if (type === 'warning') {
     toast.warning(text, title || 'Atención')
   } else {
@@ -504,15 +496,6 @@ onMounted(() => {
           <h4 class="kpi-val">{{ canceledPurchasesCount }}</h4>
         </div>
       </div>
-    </div>
-
-    <!-- Feedback Banner -->
-    <div v-if="feedbackBanner.text" class="feedback-banner" :class="feedbackBanner.type">
-      <iconify-icon
-        :icon="feedbackBanner.type === 'success' ? 'solar:check-circle-bold' : 'solar:danger-triangle-bold'"
-        width="20"
-      ></iconify-icon>
-      <span>{{ feedbackBanner.text }}</span>
     </div>
 
     <!-- Filters Row -->
