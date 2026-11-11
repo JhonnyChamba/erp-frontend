@@ -9,6 +9,7 @@
    -------------------------------------------------------------------------- */
 .crud-page,
 .emission-points-page,
+.credit-notes-page,
 .purchases-page,
 .invoices-page,
 .contacts-page,
@@ -358,7 +359,7 @@
    6. Reglas Específicas para MODO CLARO (data-bs-theme="light")
    Aplica uniformemente a .crud-page y a todos los módulos existentes
    -------------------------------------------------------------------------- */
-[data-bs-theme="light"] :is(.crud-page, .emission-points-page, .purchases-page) {
+[data-bs-theme="light"] :is(.crud-page, .emission-points-page, .purchases-page, .credit-notes-page) {
   --bs-card-bg: #ffffff;
   --bs-heading-color: #111c2d;
   --bs-body-color: #2a3547;
@@ -367,73 +368,73 @@
 }
 
 /* Títulos y textos en modo claro */
-[data-bs-theme="light"] :is(.crud-page, .emission-points-page, .purchases-page) :is(.crud-title, h2, h3, h4, h5, h6, strong, .fw-bold.text-white) {
+[data-bs-theme="light"] :is(.crud-page, .emission-points-page, .purchases-page, .credit-notes-page) :is(.crud-title, h2, h3, h4, h5, h6, strong, .fw-bold.text-white) {
   color: #111c2d !important;
 }
 
-[data-bs-theme="light"] :is(.crud-page, .emission-points-page, .purchases-page) :is(.crud-subtitle, .text-muted, .text-secondary, label, .form-label) {
+[data-bs-theme="light"] :is(.crud-page, .emission-points-page, .purchases-page, .credit-notes-page) :is(.crud-subtitle, .text-muted, .text-secondary, label, .form-label) {
   color: #5a6a85 !important;
 }
 
 /* Tarjetas y Contenedores en modo claro */
-[data-bs-theme="light"] :is(.crud-page, .emission-points-page, .purchases-page) :is(.crud-kpi-card, .crud-filters-card, .crud-table-card, .form-page-card, .card.bg-dark-subtle, .card.bg-dark) {
+[data-bs-theme="light"] :is(.crud-page, .emission-points-page, .purchases-page, .credit-notes-page) :is(.crud-kpi-card, .crud-filters-card, .crud-table-card, .form-page-card, .card.bg-dark-subtle, .card.bg-dark) {
   background: #ffffff !important;
   color: #2a3547 !important;
   border: 1px solid #e6ecf1 !important;
   box-shadow: 0 4px 20px rgba(0, 0, 0, 0.05) !important;
 }
 
-[data-bs-theme="light"] :is(.crud-page, .emission-points-page, .purchases-page) .form-page-header {
+[data-bs-theme="light"] :is(.crud-page, .emission-points-page, .purchases-page, .credit-notes-page) .form-page-header {
   background-color: #f8fafc !important;
   border-bottom: 1px solid #e6ecf1 !important;
 }
 
-[data-bs-theme="light"] :is(.crud-page, .emission-points-page, .purchases-page) .form-page-footer {
+[data-bs-theme="light"] :is(.crud-page, .emission-points-page, .purchases-page, .credit-notes-page) .form-page-footer {
   border-top: 1px solid #e6ecf1 !important;
 }
 
-[data-bs-theme="light"] :is(.crud-page, .emission-points-page, .purchases-page) .crud-kpi-val {
+[data-bs-theme="light"] :is(.crud-page, .emission-points-page, .purchases-page, .credit-notes-page) .crud-kpi-val {
   color: #111c2d !important;
 }
 
 /* Campos de formulario en modo claro */
-[data-bs-theme="light"] :is(.crud-page, .emission-points-page, .purchases-page, .modal-card-custom, .crud-modal-card) :is(input, select, textarea, .form-control, .form-select, .input-group-text) {
+[data-bs-theme="light"] :is(.crud-page, .emission-points-page, .purchases-page, .credit-notes-page, .modal-card-custom, .crud-modal-card) :is(input, select, textarea, .form-control, .form-select, .input-group-text) {
   background-color: #ffffff !important;
   color: #111c2d !important;
   border-color: #ced4da !important;
 }
 
-[data-bs-theme="light"] :is(.crud-page, .emission-points-page, .purchases-page, .modal-card-custom, .crud-modal-card) :is(input, textarea)::placeholder {
+[data-bs-theme="light"] :is(.crud-page, .emission-points-page, .purchases-page, .credit-notes-page, .modal-card-custom, .crud-modal-card) :is(input, textarea)::placeholder {
   color: #8a97ab !important;
 }
 
-[data-bs-theme="light"] :is(.crud-page, .emission-points-page, .purchases-page, .modal-card-custom, .crud-modal-card) option {
+[data-bs-theme="light"] :is(.crud-page, .emission-points-page, .purchases-page, .credit-notes-page, .modal-card-custom, .crud-modal-card) option {
   background-color: #ffffff !important;
   color: #111c2d !important;
 }
 
 /* Tablas en modo claro: encabezado azul suave Spike y filas claras */
-[data-bs-theme="light"] :is(.crud-page, .emission-points-page, .purchases-page) table {
+[data-bs-theme="light"] :is(.crud-page, .emission-points-page, .purchases-page, .credit-notes-page) table {
   color: #2a3547 !important;
 }
 
-[data-bs-theme="light"] :is(.crud-page, .emission-points-page, .purchases-page) table thead,
-[data-bs-theme="light"] :is(.crud-page, .emission-points-page, .purchases-page) table thead th,
-[data-bs-theme="light"] :is(.crud-page, .emission-points-page, .purchases-page) .crud-table th {
+[data-bs-theme="light"] :is(.crud-page, .emission-points-page, .purchases-page, .credit-notes-page) table thead,
+[data-bs-theme="light"] :is(.crud-page, .emission-points-page, .purchases-page, .credit-notes-page) table thead th,
+[data-bs-theme="light"] :is(.crud-page, .emission-points-page, .purchases-page, .credit-notes-page) .crud-table th {
   background-color: #d9eaf9 !important;
   color: #0a4f8f !important;
   border-color: #bcd7ef !important;
 }
 
-[data-bs-theme="light"] :is(.crud-page, .emission-points-page, .purchases-page) table tbody td,
-[data-bs-theme="light"] :is(.crud-page, .emission-points-page, .purchases-page) .crud-table td {
+[data-bs-theme="light"] :is(.crud-page, .emission-points-page, .purchases-page, .credit-notes-page) table tbody td,
+[data-bs-theme="light"] :is(.crud-page, .emission-points-page, .purchases-page, .credit-notes-page) .crud-table td {
   color: #2a3547 !important;
   border-color: #e6ecf1 !important;
   background-color: transparent !important;
 }
 
-[data-bs-theme="light"] :is(.crud-page, .emission-points-page, .purchases-page) table tbody tr:hover,
-[data-bs-theme="light"] :is(.crud-page, .emission-points-page, .purchases-page) .crud-table tbody tr:hover {
+[data-bs-theme="light"] :is(.crud-page, .emission-points-page, .purchases-page, .credit-notes-page) table tbody tr:hover,
+[data-bs-theme="light"] :is(.crud-page, .emission-points-page, .purchases-page, .credit-notes-page) .crud-table tbody tr:hover {
   background-color: #f5f9fd !important;
 }
 
@@ -465,7 +466,7 @@
 }
 
 /* Textos blancos genéricos forzados que deben ser oscuros en modo claro */
-[data-bs-theme="light"] :is(.crud-page, .emission-points-page, .purchases-page, .modal-card-custom) .text-white:not(.btn):not(.badge) {
+[data-bs-theme="light"] :is(.crud-page, .emission-points-page, .purchases-page, .credit-notes-page, .modal-card-custom) .text-white:not(.btn):not(.badge) {
   color: #111c2d !important;
 }
 
