@@ -40,6 +40,7 @@ const emit = defineEmits<{
 }>()
 
 const isOpen = ref(false)
+const openUpwards = ref(false)
 const searchQuery = ref('')
 const highlightedIndex = ref(-1)
 const rootRef = ref<HTMLElement | null>(null)
@@ -101,6 +102,12 @@ const openDropdown = () => {
     highlightedIndex.value = 0
   }
   nextTick(() => {
+    if (rootRef.value) {
+      const rect = rootRef.value.getBoundingClientRect()
+      const spaceBelow = window.innerHeight - rect.bottom
+      const dropdownHeight = 280
+      openUpwards.value = spaceBelow < dropdownHeight && rect.top > dropdownHeight
+    }
     searchInputRef.value?.focus()
   })
 }
@@ -239,7 +246,7 @@ onBeforeUnmount(() => {
     </div>
 
     <!-- Dropdown con Buscador Integrado -->
-    <div v-if="isOpen" class="select2-dropdown-custom">
+    <div v-if="isOpen" class="select2-dropdown-custom" :class="{ 'open-upwards': openUpwards }">
       <!-- Buscador -->
       <div class="select2-search-container">
         <div class="select2-search-input-wrapper">

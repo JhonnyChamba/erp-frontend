@@ -1370,20 +1370,20 @@ watch(() => route.path, () => {
               </button>
             </div>
 
-            <div class="table-responsive border rounded-3">
-              <table class="table table-hover table-sm align-middle mb-0">
+            <div class="table-responsive border rounded-3 invoice-details-table-wrapper">
+              <table class="table table-hover table-sm align-middle mb-0 invoice-items-table">
                 <thead class="table-primary fs-1 text-uppercase">
                   <tr>
-                    <th width="32%">
+                    <th class="col-item-catalog">
                       {{ activeDetailTab === 'ITEM' ? 'Artículo Físico del Catálogo' : (activeDetailTab === 'SERVICE' ? 'Servicio Propio' : (activeDetailTab === 'SUBCONTRACT' ? 'Mano de Obra / Subcontrato' : 'Producto / Servicio / Subcontrato')) }}
                     </th>
-                    <th width="15%">Bodega Despacho</th>
-                    <th width="8%" class="text-center">Cant.</th>
-                    <th width="12%" class="text-end">Precio ($)</th>
-                    <th width="10%" class="text-end">Desc. ($)</th>
-                    <th width="10%" class="text-center">IVA</th>
-                    <th width="10%" class="text-end">Subtotal</th>
-                    <th width="3%" class="text-center"></th>
+                    <th class="col-warehouse">Bodega Despacho</th>
+                    <th class="col-qty text-center">Cant.</th>
+                    <th class="col-price text-end">Precio ($)</th>
+                    <th class="col-desc text-end">Desc. ($)</th>
+                    <th class="col-iva text-center">IVA</th>
+                    <th class="col-subtotal text-end">Subtotal</th>
+                    <th class="col-actions text-center"></th>
                   </tr>
                 </thead>
                 <tbody>
@@ -1834,5 +1834,76 @@ watch(() => route.path, () => {
 }
 .modal-card-custom.form-page-card-lg {
   max-width: none;
+}
+
+/* Contenedor responsivo del detalle de ítems de la factura */
+.invoice-details-table-wrapper {
+  min-height: 450px;
+  overflow-x: auto;
+  position: relative;
+  background-color: var(--bs-card-bg, #111c2d);
+  border-color: var(--bs-border-color, rgba(189, 200, 240, 0.15)) !important;
+  padding-bottom: 30px;
+}
+
+@media (min-width: 992px) {
+  .invoice-details-table-wrapper {
+    overflow: visible;
+  }
+}
+
+.invoice-items-table {
+  min-width: 960px;
+  width: 100%;
+}
+
+.invoice-items-table th {
+  padding: 0.75rem 0.85rem;
+  white-space: nowrap;
+}
+
+.invoice-items-table td {
+  padding: 0.75rem 0.85rem;
+  vertical-align: top;
+}
+
+.col-item-catalog {
+  min-width: 330px;
+  width: 35%;
+}
+
+.col-warehouse {
+  min-width: 150px;
+  width: 16%;
+}
+
+.col-qty {
+  min-width: 85px;
+  width: 8%;
+}
+
+.col-price {
+  min-width: 110px;
+  width: 11%;
+}
+
+.col-desc {
+  min-width: 95px;
+  width: 10%;
+}
+
+.col-iva {
+  min-width: 95px;
+  width: 9%;
+}
+
+.col-subtotal {
+  min-width: 110px;
+  width: 10%;
+}
+
+.col-actions {
+  min-width: 45px;
+  width: 2%;
 }
 </style>
