@@ -1,0 +1,287 @@
+/* ==========================================================================
+   SPIKE BOOTSTRAP ADMIN - SELECT2 COMPONENT THEME
+   Estilo y comportamiento idéntico a form-select2.html de Spike Admin.
+   Totalmente compatible con data-bs-theme="dark" y data-bs-theme="light".
+   ========================================================================== */
+
+/* --------------------------------------------------------------------------
+   1. Contenedor Principal Select2
+   -------------------------------------------------------------------------- */
+.select2-container-custom {
+  position: relative;
+  display: inline-block;
+  width: 100%;
+  vertical-align: middle;
+  font-family: 'Plus Jakarta Sans', sans-serif;
+  user-select: none;
+}
+
+/* --------------------------------------------------------------------------
+   2. Barra de Selección (Selection Box / Trigger)
+   -------------------------------------------------------------------------- */
+.select2-selection-custom {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  min-height: 40px;
+  padding: 0.45rem 0.85rem;
+  background-color: var(--bs-card-bg, #111c2d);
+  border: 1px solid var(--bs-border-color, rgba(189, 200, 240, 0.15));
+  border-radius: 8px;
+  color: var(--bs-heading-color, #ffffff);
+  cursor: pointer;
+  transition: border-color 0.15s ease-in-out, box-shadow 0.15s ease-in-out, background-color 0.2s ease;
+  font-size: 0.875rem;
+  line-height: 1.5;
+}
+
+.select2-container-custom.is-open .select2-selection-custom,
+.select2-selection-custom:focus {
+  border-color: var(--bs-primary, #0085db);
+  box-shadow: 0 0 0 0.2rem rgba(var(--bs-primary-rgb, 0, 133, 219), 0.15);
+  outline: 0;
+}
+
+.select2-container-custom.is-disabled .select2-selection-custom {
+  background-color: var(--bs-body-bg, #0b1426);
+  opacity: 0.65;
+  cursor: not-allowed;
+  border-color: var(--bs-border-color, rgba(189, 200, 240, 0.1));
+}
+
+.select2-rendered-text {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--bs-heading-color, #ffffff);
+  font-weight: 500;
+}
+
+.select2-rendered-text.is-placeholder {
+  color: var(--bs-text-muted, #7c8fac);
+  font-weight: 400;
+}
+
+.select2-arrow-icon {
+  margin-left: 0.5rem;
+  color: var(--bs-text-muted, #7c8fac);
+  font-size: 1.1rem;
+  transition: transform 0.2s ease;
+  flex-shrink: 0;
+}
+
+.select2-container-custom.is-open .select2-arrow-icon {
+  transform: rotate(180deg);
+  color: var(--bs-primary, #0085db);
+}
+
+.select2-clear-btn {
+  background: transparent;
+  border: none;
+  color: var(--bs-text-muted, #7c8fac);
+  font-size: 1rem;
+  cursor: pointer;
+  padding: 0 0.25rem;
+  margin-right: 0.25rem;
+  display: flex;
+  align-items: center;
+  transition: color 0.15s;
+}
+
+.select2-clear-btn:hover {
+  color: #ef4444;
+}
+
+/* --------------------------------------------------------------------------
+   3. Dropdown Flotante con Buscador
+   -------------------------------------------------------------------------- */
+.select2-dropdown-custom {
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 0;
+  right: 0;
+  z-index: 1060;
+  background-color: var(--bs-card-bg, #111c2d);
+  border: 1px solid var(--bs-border-color, rgba(189, 200, 240, 0.15));
+  border-radius: 8px;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.4);
+  overflow: hidden;
+  animation: select2DropdownFadeIn 0.15s ease-out;
+}
+
+@keyframes select2DropdownFadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(-4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Campo de búsqueda integrado en el dropdown */
+.select2-search-container {
+  padding: 0.5rem;
+  border-bottom: 1px solid var(--bs-border-color, rgba(189, 200, 240, 0.15));
+  background-color: rgba(255, 255, 255, 0.02);
+}
+
+.select2-search-input-wrapper {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.select2-search-input-wrapper .search-icon {
+  position: absolute;
+  left: 10px;
+  color: var(--bs-text-muted, #7c8fac);
+  font-size: 1rem;
+  pointer-events: none;
+}
+
+.select2-search-input {
+  width: 100%;
+  padding: 0.4rem 0.6rem 0.4rem 2.1rem;
+  background-color: var(--bs-body-bg, #0b1426);
+  border: 1px solid var(--bs-border-color, rgba(189, 200, 240, 0.15));
+  border-radius: 6px;
+  color: var(--bs-heading-color, #ffffff);
+  font-size: 0.85rem;
+  outline: none;
+  transition: border-color 0.15s ease;
+}
+
+.select2-search-input:focus {
+  border-color: var(--bs-primary, #0085db);
+}
+
+.select2-search-input::placeholder {
+  color: var(--bs-text-muted, #7c8fac);
+}
+
+/* --------------------------------------------------------------------------
+   4. Lista de Resultados y Opciones
+   -------------------------------------------------------------------------- */
+.select2-results-list {
+  max-height: 230px;
+  overflow-y: auto;
+  margin: 0;
+  padding: 0.25rem 0;
+  list-style: none;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(124, 143, 172, 0.35) transparent;
+}
+
+.select2-results-list::-webkit-scrollbar {
+  width: 6px;
+}
+
+.select2-results-list::-webkit-scrollbar-thumb {
+  background: rgba(124, 143, 172, 0.35);
+  border-radius: 6px;
+}
+
+.select2-option-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.55rem 0.85rem;
+  font-size: 0.875rem;
+  color: var(--bs-body-color, #EAEFF4);
+  cursor: pointer;
+  transition: background-color 0.12s ease, color 0.12s ease;
+}
+
+.select2-option-item:hover,
+.select2-option-item.is-highlighted {
+  background-color: var(--bs-primary, #0085db);
+  color: #ffffff !important;
+}
+
+.select2-option-item:hover .option-subtext,
+.select2-option-item.is-highlighted .option-subtext {
+  color: rgba(255, 255, 255, 0.85) !important;
+}
+
+.select2-option-item.is-selected {
+  background-color: rgba(var(--bs-primary-rgb, 0, 133, 219), 0.15);
+  color: var(--bs-primary, #0085db);
+  font-weight: 600;
+}
+
+.select2-option-item.is-disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+  pointer-events: none;
+}
+
+.option-subtext {
+  font-size: 0.775rem;
+  color: var(--bs-text-muted, #7c8fac);
+  margin-left: 0.5rem;
+}
+
+.select2-empty-message {
+  padding: 1rem;
+  text-align: center;
+  color: var(--bs-text-muted, #7c8fac);
+  font-size: 0.85rem;
+}
+
+/* --------------------------------------------------------------------------
+   5. Compatibilidad Modo Claro (data-bs-theme="light")
+   -------------------------------------------------------------------------- */
+[data-bs-theme="light"] .select2-selection-custom {
+  background-color: #ffffff !important;
+  border-color: #ced4da !important;
+  color: #111c2d !important;
+}
+
+[data-bs-theme="light"] .select2-rendered-text {
+  color: #111c2d !important;
+}
+
+[data-bs-theme="light"] .select2-rendered-text.is-placeholder {
+  color: #8a97ab !important;
+}
+
+[data-bs-theme="light"] .select2-dropdown-custom {
+  background-color: #ffffff !important;
+  border-color: #e6ecf1 !important;
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.08) !important;
+}
+
+[data-bs-theme="light"] .select2-search-container {
+  background-color: #f8fafc !important;
+  border-bottom: 1px solid #e6ecf1 !important;
+}
+
+[data-bs-theme="light"] .select2-search-input {
+  background-color: #ffffff !important;
+  border-color: #ced4da !important;
+  color: #111c2d !important;
+}
+
+[data-bs-theme="light"] .select2-option-item {
+  color: #2a3547 !important;
+}
+
+[data-bs-theme="light"] .select2-option-item:hover,
+[data-bs-theme="light"] .select2-option-item.is-highlighted {
+  background-color: var(--bs-primary, #0085db) !important;
+  color: #ffffff !important;
+}
+
+[data-bs-theme="light"] .select2-option-item.is-selected {
+  background-color: #e3f1fd !important;
+  color: #0085db !important;
+}
+
+[data-bs-theme="light"] .select2-container-custom.is-disabled .select2-selection-custom {
+  background-color: #f1f4f8 !important;
+  border-color: #ced4da !important;
+  color: #8a97ab !important;
+}

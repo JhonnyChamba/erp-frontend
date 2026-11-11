@@ -451,6 +451,59 @@ const onEmissionPointChange = async () => {
   await updateSequentialPreview()
 }
 
+// Opciones de Select2 para Facturación
+const branchSelectOptions = computed(() =>
+  issuableBranches.value.map((b) => ({
+    value: b.id,
+    label: `${b.code} - ${b.name}${b.isMatrix ? ' (Matriz)' : ''}`,
+    sublabel: b.address,
+  }))
+)
+
+const warehouseSelectOptions = computed(() => [
+  { value: null, label: '-- Predeterminada / Automática --' },
+  ...activeWarehouses.value.map((w) => ({
+    value: w.id,
+    label: `${w.code ? `[${w.code}] ` : ''}${w.name}${w.isDefault ? ' ★ (Predeterminada)' : ''}`,
+  })),
+])
+
+const emissionPointSelectOptions = computed(() => {
+  if (branchEmissionPoints.value.length === 0) {
+    return [
+      {
+        value: form.value.emission_point || '001',
+        label: `${form.value.emission_point || '001'} - Serie Predeterminada`,
+      },
+    ]
+  }
+  return branchEmissionPoints.value.map((pt) => ({
+    value: pt.serie,
+    label: `${pt.serie} - ${pt.description}`,
+  }))
+})
+
+const customerSelectOptions = computed(() =>
+  customersList.value.map((c) => ({
+    value: c.id,
+    label: `${c.razon_social} (${c.num_document})`,
+    sublabel: c.email || c.direccion || '',
+  }))
+)
+
+const onSelectCustomerSelect2 = (custId: number | null) => {
+  if (!custId) return
+  const cust = customersList.value.find((c) => c.id === Number(custId))
+  if (cust) {
+    form.value.customer_id_type = cust.tipo_documento
+    form.value.customer_id_number = cust.num_document || ''
+    form.value.customer_name = cust.razon_social || ''
+    form.value.customer_address = cust.direccion || ''
+    form.value.customer_email = cust.email || ''
+    form.value.customer_phone = cust.telefono || ''
+  }
+}
+
 // Aplica los datos de la sucursal elegida: establecimiento y punto de emisión por defecto
 const applyBranch = async (branchId?: number) => {
   const b = issuableBranches.value.find((x) => x.id === branchId)
@@ -1042,18 +1095,24 @@ watch(() => route.path, () => {
           <div class="row g-3">
             <div class="col-md-6">
               <label class="form-label text-secondary small fw-semibold">Sucursal / Establecimiento emisor *</label>
-              <select :value="form.branchId" @change="applyBranch(Number(($event.target as HTMLSelectElement).value) || undefined)" class="form-select bg-dark-subtle border-secondary text-white" required>
-                <option v-for="b in issuableBranches" :key="b.id" :value="b.id">{{ b.code }} - {{ b.name }}{{ b.isMatrix ? ' (Matriz)' : '' }} · {{ b.address }}</option>
-              </select>
+              <AppSelect2
+                :model-value="form.branchId"
+                :options="branchSelectOptions"
+                placeholder="Seleccionar Sucursal..."
+                search-placeholder="Buscar sucursal por código o nombre..."
+                @update:model-value="applyBranch(Number($event) || undefined)"
+                required
+              />
             </div>
             <div class="col-md-6">
               <label class="form-label text-secondary small fw-semibold">Bodega de Despacho (Inventario)</label>
-              <select v-model="form.warehouseId" class="form-select bg-dark-subtle border-secondary text-white">
-                <option :value="undefined">-- Predeterminada / Automática --</option>
-                <option v-for="w in activeWarehouses" :key="w.id" :value="w.id">
-                  {{ w.code ? `[${w.code}] ` : '' }}{{ w.name }}{{ w.isDefault ? ' ★ (Predeterminada)' : '' }}
-                </option>
-              </select>
+              <AppSelect2
+                v-model="form.warehouseId"
+                :options="warehouseSelectOptions"
+                placeholder="-- Predeterminada / Automática --"
+                search-placeholder="Buscar bodega..."
+                allow-clear
+              />
             </div>
             <div class="col-md-3">
               <label class="form-label text-secondary small fw-semibold">Establecimiento (Sucursal)</label>
@@ -1069,23 +1128,18 @@ watch(() => route.path, () => {
               <small class="text-muted d-block mt-1 fs-1">Bloqueado según sucursal</small>
             </div>
             <div class="col-md-3">
-              <div class="d-flex justify-content-between align-items-center">
-                <label class="form-label text-secondary small fw-semibold mb-1">Punto de Emisión *</label>
+              <div class="d-flex justify-content-between align-items-center mb-1">
+                <label class="form-label text-secondary small fw-semibold mb-0">Punto de Emisión *</label>
                 <span v-if="loadingSequential" class="spinner-grow spinner-grow-sm text-info" role="status"></span>
               </div>
-              <select
+              <AppSelect2
                 v-model="form.emission_point"
+                :options="emissionPointSelectOptions"
+                placeholder="Seleccionar Punto..."
+                search-placeholder="Buscar punto de emisión..."
                 @change="onEmissionPointChange"
-                class="form-select bg-dark-subtle border-secondary text-white font-monospace"
                 required
-              >
-                <option v-for="pt in branchEmissionPoints" :key="pt.id" :value="pt.serie">
-                  {{ pt.serie }} - {{ pt.description }}
-                </option>
-                <option v-if="branchEmissionPoints.length === 0" :value="form.emission_point">
-                  {{ form.emission_point }} - Serie Predeterminada
-                </option>
-              </select>
+              />
               <small v-if="nextSequentialPreview" class="text-info font-monospace d-block mt-1 fs-1 fw-semibold">
                 Secuencial: #{{ nextSequentialPreview }}
               </small>
@@ -1109,16 +1163,19 @@ watch(() => route.path, () => {
           <div class="card rounded-3 border-secondary p-3 bg-dark-subtle mt-3">
             <div class="d-flex justify-content-between align-items-center mb-2">
               <span class="text-info small fw-bold text-uppercase">Datos del Cliente (Comprador)</span>
-              <div class="d-flex gap-2">
+              <div class="d-flex align-items-center gap-2">
                 <button type="button" class="btn btn-xs btn-outline-info rounded-pill" @click="setFinalConsumer">
                   Consumidor Final
                 </button>
-                <select @change="onSelectCustomer" class="form-select form-select-sm bg-dark text-white border-secondary w-auto">
-                  <option value="">Seleccionar de Contactos...</option>
-                  <option v-for="c in customersList" :key="c.id" :value="c.id">
-                    {{ c.razon_social }} ({{ c.num_document }})
-                  </option>
-                </select>
+                <div style="min-width: 260px;">
+                  <AppSelect2
+                    :options="customerSelectOptions"
+                    placeholder="Seleccionar de Contactos..."
+                    search-placeholder="Buscar cliente por nombre o RUC..."
+                    allow-clear
+                    @change="onSelectCustomerSelect2"
+                  />
+                </div>
               </div>
             </div>
 

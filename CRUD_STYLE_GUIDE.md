@@ -230,6 +230,44 @@ const backToList = () => {
 ## 3. Resumen de Reglas de Oro
 
 1. **Formularios en Página:** NUNCA crear formularios en modales flotantes (`modal-backdrop`). Siempre usar la vista de página completa (`.form-page` / `.form-page-card`) con el botón **"Volver al Listado"**.
-2. **No usar colores fijos oscuros:** NUNCA colocar clases como `table-dark`, `bg-dark`, `bg-dark-subtle`, `text-white` en textos o fondos generales. Utilizar `crud-table`, `text-body-emphasis`, `text-muted`, `form-control`.
-3. **Notificaciones:** Usar exclusivamente Spike Toastr (`toast.success`, `toast.error`, etc.). No colocar banners horizontales en el template.
-4. **Spinners:** Colocar `<span v-if="loading" class="spinner-grow spinner-grow-sm" role="status"></span>` en botones de acción mientras se ejecuta la petición.
+2. **Select2 Dinámico:** Usar siempre `<AppSelect2>` para desplegables de búsqueda (sucursales, clientes, proveedores, bodegas, puntos de emisión, etc.) con buscador integrado y navegación por teclado.
+3. **No usar colores fijos oscuros:** NUNCA colocar clases como `table-dark`, `bg-dark`, `bg-dark-subtle`, `text-white` en textos o fondos generales. Utilizar `crud-table`, `text-body-emphasis`, `text-muted`, `form-control`.
+4. **Notificaciones:** Usar exclusivamente Spike Toastr (`toast.success`, `toast.error`, etc.). No colocar banners horizontales en el template.
+5. **Spinners:** Colocar `<span v-if="loading" class="spinner-grow spinner-grow-sm" role="status"></span>` en botones de acción mientras se ejecuta la petición.
+
+---
+
+## 4. Componente Select2 Dinámico (Estilo Spike Admin)
+
+Todos los selectores de búsqueda en Deskounta ERP deben usar el componente global `<AppSelect2>` (o `<Select2>`), el cual replica fielmente el diseño y funcionamiento de Spike Bootstrap Admin (`form-select2.html`):
+
+### Uso Básico:
+```html
+<AppSelect2
+  v-model="form.branch_id"
+  :options="branchOptions"
+  placeholder="-- Seleccione una sucursal --"
+  search-placeholder="Buscar por código o nombre..."
+  allow-clear
+  required
+/>
+```
+
+### Formato de las Opciones (`options`):
+```ts
+const branchOptions = computed(() =>
+  branches.value.map((b) => ({
+    value: b.id,
+    label: `${b.code} - ${b.name}`,
+    sublabel: b.address || '', // Opcional: texto secundario aclaratorio
+    disabled: b.status === 'INACTIVO' // Opcional
+  }))
+)
+```
+
+### Características Principales:
+* **Buscador en tiempo real:** Filtra instantáneamente por label, sublabel y valor con autofocus automático al desplegar.
+* **Navegación con teclado:** Flecha abajo/arriba para resaltar opciones y tecla Enter para seleccionar. Escape para cerrar.
+* **Cierre Inteligente:** Detección de clic fuera del contenedor para cerrar el dropdown.
+* **Compatibilidad Temas:** `src/assets/select2-theme.css` provee variables automáticas para modo oscuro y modo claro con foco en color primario (`--bs-primary: #0085db`).
+

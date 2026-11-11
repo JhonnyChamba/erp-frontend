@@ -103,6 +103,23 @@ const activeBranches = computed(() =>
   branchesList.value.filter((b: BranchItem) => b.enabled !== false)
 )
 
+// Opciones Select2
+const branchFilterOptions = computed(() => [
+  { value: 'TODAS', label: '-- Todas las Sucursales --' },
+  ...branchesList.value.map((b) => ({
+    value: String(b.id),
+    label: `${b.code} - ${b.name}${b.isMatrix ? ' (Matriz)' : ''}`,
+  })),
+])
+
+const branchSelectOptions = computed(() =>
+  activeBranches.value.map((b) => ({
+    value: b.id,
+    label: `${b.code} - ${b.name}${b.isMatrix ? ' (Matriz)' : ''}`,
+    sublabel: b.address || '',
+  }))
+)
+
 // Puntos filtrados
 const filteredPoints = computed(() => {
   let list = emissionPointsList.value
@@ -386,12 +403,12 @@ onMounted(() => {
         <div class="row g-2 align-items-center">
           <div class="col-12 col-md-4">
             <label class="form-label">Filtrar por Sucursal</label>
-            <select v-model="filterBranchId" class="form-select">
-              <option value="TODAS">-- Todas las Sucursales --</option>
-              <option v-for="b in branchesList" :key="b.id" :value="b.id">
-                {{ b.code }} - {{ b.name }}{{ b.isMatrix ? ' (Matriz)' : '' }}
-              </option>
-            </select>
+            <AppSelect2
+              v-model="filterBranchId"
+              :options="branchFilterOptions"
+              placeholder="Todas las Sucursales"
+              search-placeholder="Buscar sucursal..."
+            />
           </div>
 
           <div class="col-12 col-md-8">
@@ -566,17 +583,14 @@ onMounted(() => {
               <!-- Sucursal -->
               <div class="col-12 col-md-6">
                 <label class="form-label fw-semibold">Sucursal / Establecimiento *</label>
-                <select
+                <AppSelect2
                   v-model="form.branch_id"
-                  class="form-select"
+                  :options="branchSelectOptions"
+                  placeholder="-- Selecciona la Sucursal --"
+                  search-placeholder="Buscar sucursal..."
                   :disabled="!!editingPoint"
                   required
-                >
-                  <option :value="null">-- Selecciona la Sucursal --</option>
-                  <option v-for="b in activeBranches" :key="b.id" :value="b.id">
-                    {{ b.code }} - {{ b.name }}{{ b.isMatrix ? ' (Matriz)' : '' }} · {{ b.address }}
-                  </option>
-                </select>
+                />
                 <small v-if="editingPoint" class="text-muted fs-1 d-block mt-1">
                   La sucursal está vinculada a este punto y no se modifica para mantener coherencia fiscal.
                 </small>

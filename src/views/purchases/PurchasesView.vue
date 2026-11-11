@@ -174,6 +174,32 @@ const onProviderSelect = () => {
   }
 }
 
+// Opciones Select2 para Compras
+const providerSelectOptions = computed(() => [
+  { value: null, label: '-- Seleccionar de la agenda o ingresar abajo --' },
+  ...activeProviders.value.map((prov) => ({
+    value: prov.id,
+    label: `${prov.razon_social || prov.nombre_comercial} (${prov.num_document})`,
+    sublabel: prov.direccion || prov.email || '',
+  })),
+])
+
+const warehouseSelectOptions = computed(() => [
+  ...activeWarehouses.value.map((wh) => ({
+    value: wh.id,
+    label: `${wh.name}${wh.isDefault ? ' ★ (Predeterminada)' : ''}`,
+    sublabel: wh.code ? `Código: ${wh.code}` : '',
+  })),
+])
+
+const filterWarehouseOptions = computed(() => [
+  { value: null, label: 'Todas las bodegas de destino' },
+  ...activeWarehouses.value.map((wh) => ({
+    value: wh.id,
+    label: wh.name,
+  })),
+])
+
 // Filas de detalle
 const addItemRow = () => {
   purchaseForm.value.items.push({
@@ -505,12 +531,14 @@ onMounted(() => {
         <input v-model="searchTerm" type="text" placeholder="Buscar por factura, proveedor o RUC..." />
       </div>
 
-      <select v-model="filterWarehouseId" class="filter-select">
-        <option :value="null">Todas las bodegas de destino</option>
-        <option v-for="wh in activeWarehouses" :key="wh.id" :value="wh.id">
-          {{ wh.name }}
-        </option>
-      </select>
+      <div style="min-width: 260px;">
+        <AppSelect2
+          v-model="filterWarehouseId"
+          :options="filterWarehouseOptions"
+          placeholder="Todas las bodegas de destino"
+          search-placeholder="Buscar bodega..."
+        />
+      </div>
 
       <select v-model="filterStatus" class="filter-select">
         <option value="TODOS">Todos los estados</option>
@@ -636,12 +664,14 @@ onMounted(() => {
           <div class="form-grid mb-4">
             <div class="form-group span-2">
               <label>Seleccionar Proveedor Registrado (Opcional si es nuevo)</label>
-              <select v-model="purchaseForm.provider_id" @change="onProviderSelect">
-                <option :value="null">-- Seleccionar de la agenda de proveedores o ingresar manualmente abajo --</option>
-                <option v-for="prov in activeProviders" :key="prov.id" :value="prov.id">
-                  {{ prov.razon_social || prov.nombre_comercial }} ({{ prov.num_document }})
-                </option>
-              </select>
+              <AppSelect2
+                v-model="purchaseForm.provider_id"
+                :options="providerSelectOptions"
+                placeholder="-- Seleccionar de la agenda de proveedores --"
+                search-placeholder="Buscar proveedor por razón social o RUC..."
+                @change="onProviderSelect"
+                allow-clear
+              />
             </div>
 
             <div class="form-group span-2">
@@ -723,12 +753,13 @@ onMounted(() => {
             <!-- Bodega Destino Obligatoria -->
             <div class="form-group span-2 highlight-group">
               <label class="fw-bold text-primary">Bodega de Destino para Ingreso de Mercadería *</label>
-              <select v-model="purchaseForm.warehouse_id" required class="form-select-lg">
-                <option :value="null" disabled>-- Seleccione la bodega que recibe los productos --</option>
-                <option v-for="wh in activeWarehouses" :key="wh.id" :value="wh.id">
-                  {{ wh.name }} {{ wh.isDefault ? ' ★ (Predeterminada)' : '' }}
-                </option>
-              </select>
+              <AppSelect2
+                v-model="purchaseForm.warehouse_id"
+                :options="warehouseSelectOptions"
+                placeholder="-- Seleccione la bodega que recibe los productos --"
+                search-placeholder="Buscar bodega..."
+                required
+              />
               <small class="text-muted">Todos los productos físicos ingresarán directamente al saldo de esta bodega.</small>
             </div>
           </div>
