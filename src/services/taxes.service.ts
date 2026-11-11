@@ -58,3 +58,4 @@ export const deleteTax = async (id: number): Promise<{ success: boolean; message
   const res = await api.delete(`/taxes/${id}`)
   return res.data
 }
+

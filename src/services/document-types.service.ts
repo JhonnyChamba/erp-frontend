@@ -62,3 +62,4 @@ export const deleteDocumentType = async (id: number): Promise<{ success: boolean
   const res = await api.delete(`/document-types/${id}`)
   return res.data
 }
+

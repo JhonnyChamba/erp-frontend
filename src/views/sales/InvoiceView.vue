@@ -138,6 +138,20 @@ const branchName = (id?: number | null) => {
 }
 
 // Formulario de emisión de factura
+let detailUidSeq = 1
+const createDetailRow = (type: 'ITEM' | 'SERVICE' | 'SUBCONTRACT' = 'ITEM') => ({
+  _uid: detailUidSeq++,
+  item_type: type,
+  item_id: undefined as number | undefined,
+  warehouse_id: type === 'ITEM' ? (form.value?.warehouseId || undefined) : undefined,
+  code: '',
+  description: '',
+  quantity: 1,
+  unit_price: 0,
+  discount: 0,
+  tax_rate: 15,
+})
+
 const initialInvoiceForm = () => ({
   branchId: undefined as number | undefined,
   warehouseId: undefined as number | undefined,
@@ -154,6 +168,7 @@ const initialInvoiceForm = () => ({
   notes: '',
   details: [
     {
+      _uid: detailUidSeq++,
       item_type: 'ITEM',
       item_id: undefined as number | undefined,
       warehouse_id: undefined as number | undefined,
@@ -302,19 +317,23 @@ const calculatedTotals = computed(() => {
   }
 })
 
-// Acciones sobre los ítems del detalle
-const addDetailRow = () => {
-  form.value.details.push({
-    item_type: 'ITEM',
-    item_id: undefined,
-    warehouse_id: form.value.warehouseId || undefined,
-    code: '',
-    description: '',
-    quantity: 1,
-    unit_price: 0,
-    discount: 0,
-    tax_rate: 15,
-  })
+// Estado del nav de ítems de la factura: 'ITEM' (Artículos) | 'SERVICE' (Servicios) | 'SUBCONTRACT' (Subcontratos) | 'ALL' (Todos)
+const activeDetailTab = ref<'ITEM' | 'SERVICE' | 'SUBCONTRACT' | 'ALL'>('ITEM')
+
+const countArticles = computed(() => form.value.details.filter((d: any) => d.item_type === 'ITEM').length)
+const countServices = computed(() => form.value.details.filter((d: any) => d.item_type === 'SERVICE').length)
+const countSubcontracts = computed(() => form.value.details.filter((d: any) => d.item_type === 'SUBCONTRACT').length)
+
+const addRowButtonLabel = computed(() => {
+  if (activeDetailTab.value === 'ITEM') return 'Agregar Artículo'
+  if (activeDetailTab.value === 'SERVICE') return 'Agregar Servicio'
+  if (activeDetailTab.value === 'SUBCONTRACT') return 'Agregar Subcontrato'
+  return 'Agregar Línea'
+})
+
+const addDetailRow = (type?: 'ITEM' | 'SERVICE' | 'SUBCONTRACT' | 'ALL') => {
+  const targetType = (!type || type === 'ALL') ? 'ITEM' : type
+  form.value.details.push(createDetailRow(targetType))
 }
 
 const removeDetailRow = (index: number) => {
@@ -322,52 +341,111 @@ const removeDetailRow = (index: number) => {
   form.value.details.splice(index, 1)
 }
 
-// Al seleccionar un ítem del catálogo pre-llenar precio, código y tarifa IVA
-const onSelectItem = (index: number, e: Event) => {
-  const target = e.target as HTMLSelectElement
-  const val = target.value
-  if (!val) return
-
-  const [type, idStr] = val.split(':')
-  const id = Number(idStr)
-  const row = form.value.details[index]
-  if (!row) return
-
-  if (type === 'ITEM') {
-    const item = articlesList.value.find((a) => a.id === id)
-    if (item) {
-      row.item_type = 'ITEM'
-      row.item_id = item.id
-      row.warehouse_id = row.warehouse_id || item.warehouseId || form.value.warehouseId || undefined
-      row.code = item.code
-      row.description = item.name
-      row.unit_price = Number(item.salePrice || 0)
-      row.tax_rate = Number(item.taxRate ?? 15)
-    }
-  } else if (type === 'SERVICE') {
-    const srv = servicesList.value.find((s) => s.id === id)
-    if (srv) {
-      row.item_type = 'SERVICE'
-      row.item_id = srv.id
-      row.warehouse_id = undefined
-      row.code = srv.code
-      row.description = srv.name
-      row.unit_price = Number(srv.salePrice || 0)
-      row.tax_rate = Number(srv.taxRate ?? 15)
-    }
-  } else if (type === 'SUBCONTRACT') {
-    const sub = subcontractsList.value.find((m) => m.id === id)
-    if (sub) {
-      row.item_type = 'SUBCONTRACT'
-      row.item_id = sub.id
-      row.warehouse_id = undefined
-      row.code = sub.code
-      row.description = sub.name
-      row.unit_price = Number(sub.suggestedPrice || 0)
-      row.tax_rate = Number(sub.taxRate ?? 15)
-    }
+const removeDetailRowByUid = (uid: number) => {
+  if (form.value.details.length <= 1) {
+    const targetType = activeDetailTab.value === 'ALL' ? 'ITEM' : activeDetailTab.value
+    form.value.details = [createDetailRow(targetType)]
+    return
+  }
+  const idx = form.value.details.findIndex((d: any) => d._uid === uid)
+  if (idx !== -1) {
+    form.value.details.splice(idx, 1)
   }
 }
+
+// Opciones de Select2 separadas por cada tipo
+const articleSelectOptions = computed(() =>
+  articlesList.value.map((a) => ({
+    value: a.id,
+    label: `${a.code} - ${a.name} ($${formatNumber(a.salePrice)})`,
+    sublabel: `Stock disponible: ${Number(a.stockCurrent ?? 0)} ${a.unit || 'UND'}`,
+  }))
+)
+
+const serviceSelectOptions = computed(() =>
+  servicesList.value.map((s) => ({
+    value: s.id,
+    label: `${s.code} - ${s.name} ($${formatNumber(s.salePrice)})`,
+    sublabel: s.category || 'Servicio Propio',
+  }))
+)
+
+const subcontractSelectOptions = computed(() =>
+  subcontractsList.value.map((m) => ({
+    value: m.id,
+    label: `${m.code} - ${m.name} ($${formatNumber(m.suggestedPrice)})`,
+    sublabel: m.specialty ? `Especialidad: ${m.specialty}` : 'Mano de Obra / Subcontrato',
+  }))
+)
+
+// Obtener info de stock y unidad de un artículo seleccionado
+const getArticleStockInfo = (itemId?: number) => {
+  if (!itemId) return null
+  const item = articlesList.value.find((a) => a.id === Number(itemId))
+  if (!item) return null
+  return {
+    stock: Number(item.stockCurrent ?? 0),
+    unit: item.unit || 'UND',
+  }
+}
+
+// Handlers de selección por Select2
+const onSelectArticle = (row: any, itemId: any) => {
+  if (!itemId) {
+    row.item_id = undefined
+    return
+  }
+  const item = articlesList.value.find((a) => a.id === Number(itemId))
+  if (item) {
+    row.item_type = 'ITEM'
+    row.item_id = item.id
+    row.warehouse_id = row.warehouse_id || item.warehouseId || form.value.warehouseId || undefined
+    row.code = item.code
+    row.description = item.name
+    row.unit_price = Number(item.salePrice || 0)
+    row.tax_rate = Number(item.taxRate ?? 15)
+  }
+}
+
+const onSelectService = (row: any, srvId: any) => {
+  if (!srvId) {
+    row.item_id = undefined
+    return
+  }
+  const srv = servicesList.value.find((s) => s.id === Number(srvId))
+  if (srv) {
+    row.item_type = 'SERVICE'
+    row.item_id = srv.id
+    row.warehouse_id = undefined
+    row.code = srv.code
+    row.description = srv.name
+    row.unit_price = Number(srv.salePrice || 0)
+    row.tax_rate = Number(srv.taxRate ?? 15)
+  }
+}
+
+const onSelectSubcontract = (row: any, subId: any) => {
+  if (!subId) {
+    row.item_id = undefined
+    return
+  }
+  const sub = subcontractsList.value.find((m) => m.id === Number(subId))
+  if (sub) {
+    row.item_type = 'SUBCONTRACT'
+    row.item_id = sub.id
+    row.warehouse_id = undefined
+    row.code = sub.code
+    row.description = sub.name
+    row.unit_price = Number(sub.suggestedPrice || 0)
+    row.tax_rate = Number(sub.taxRate ?? 15)
+  }
+}
+
+// Filtro de presentación para la tabla (todos van al mismo array form.details)
+const visibleDetails = computed(() => {
+  if (activeDetailTab.value === 'ALL') return form.value.details
+  return form.value.details.filter((d: any) => d.item_type === activeDetailTab.value)
+})
 
 // Al seleccionar un cliente guardado
 const onSelectCustomer = (e: Event) => {
@@ -1212,13 +1290,83 @@ watch(() => route.path, () => {
             </div>
           </div>
 
-          <!-- Detalle de Productos y Servicios -->
+          <!-- Detalle de Productos, Servicios y Subcontratos -->
           <div class="mt-3">
-            <div class="d-flex justify-content-between align-items-center mb-2">
-              <span class="text-white fw-bold">Ítems / Detalle de la Factura</span>
-              <button type="button" class="btn btn-sm btn-outline-primary d-flex align-items-center gap-1 rounded-pill" @click="addDetailRow">
-                <iconify-icon icon="solar:add-circle-line-duotone"></iconify-icon>
-                <span>Agregar Línea</span>
+            <div class="d-flex flex-column flex-md-row justify-content-between align-items-start align-items-md-center gap-2 mb-3">
+              <!-- Nav Tabs por tipo: Artículos / Servicios / Subcontratos -->
+              <ul class="nav nav-pills gap-1" role="tablist">
+                <li class="nav-item">
+                  <button
+                    type="button"
+                    class="nav-link btn-sm rounded-pill px-3 py-1 fs-2 d-flex align-items-center gap-2"
+                    :class="{
+                      'active bg-primary text-white': activeDetailTab === 'ITEM',
+                      'bg-dark-subtle text-secondary border border-secondary-subtle': activeDetailTab !== 'ITEM'
+                    }"
+                    @click="activeDetailTab = 'ITEM'"
+                  >
+                    <iconify-icon icon="solar:box-minimalistic-line-duotone" class="fs-4"></iconify-icon>
+                    <span>Artículos Físicos</span>
+                    <span class="badge bg-primary-subtle text-primary border border-primary-subtle rounded-pill">{{ countArticles }}</span>
+                  </button>
+                </li>
+
+                <li class="nav-item">
+                  <button
+                    type="button"
+                    class="nav-link btn-sm rounded-pill px-3 py-1 fs-2 d-flex align-items-center gap-2"
+                    :class="{
+                      'active bg-primary text-white': activeDetailTab === 'SERVICE',
+                      'bg-dark-subtle text-secondary border border-secondary-subtle': activeDetailTab !== 'SERVICE'
+                    }"
+                    @click="activeDetailTab = 'SERVICE'"
+                  >
+                    <iconify-icon icon="solar:wrench-line-duotone" class="fs-4"></iconify-icon>
+                    <span>Servicios Propios</span>
+                    <span class="badge bg-info-subtle text-info border border-info-subtle rounded-pill">{{ countServices }}</span>
+                  </button>
+                </li>
+
+                <li class="nav-item">
+                  <button
+                    type="button"
+                    class="nav-link btn-sm rounded-pill px-3 py-1 fs-2 d-flex align-items-center gap-2"
+                    :class="{
+                      'active bg-primary text-white': activeDetailTab === 'SUBCONTRACT',
+                      'bg-dark-subtle text-secondary border border-secondary-subtle': activeDetailTab !== 'SUBCONTRACT'
+                    }"
+                    @click="activeDetailTab = 'SUBCONTRACT'"
+                  >
+                    <iconify-icon icon="solar:users-group-two-rounded-line-duotone" class="fs-4"></iconify-icon>
+                    <span>Subcontratos / Mano de Obra</span>
+                    <span class="badge bg-warning-subtle text-warning border border-warning-subtle rounded-pill">{{ countSubcontracts }}</span>
+                  </button>
+                </li>
+
+                <li class="nav-item">
+                  <button
+                    type="button"
+                    class="nav-link btn-sm rounded-pill px-3 py-1 fs-2 d-flex align-items-center gap-2"
+                    :class="{
+                      'active bg-info text-white': activeDetailTab === 'ALL',
+                      'bg-dark-subtle text-secondary border border-secondary-subtle': activeDetailTab !== 'ALL'
+                    }"
+                    @click="activeDetailTab = 'ALL'"
+                  >
+                    <iconify-icon icon="solar:list-check-bold" class="fs-4"></iconify-icon>
+                    <span>Todos ({{ form.details.length }})</span>
+                  </button>
+                </li>
+              </ul>
+
+              <!-- Botón Agregar Línea según el tipo actual -->
+              <button
+                type="button"
+                class="btn btn-sm btn-outline-primary d-flex align-items-center gap-1 rounded-pill px-3 py-1 fw-semibold"
+                @click="addDetailRow(activeDetailTab)"
+              >
+                <iconify-icon icon="solar:add-circle-line-duotone" class="fs-4"></iconify-icon>
+                <span>{{ addRowButtonLabel }}</span>
               </button>
             </div>
 
@@ -1226,55 +1374,120 @@ watch(() => route.path, () => {
               <table class="table table-hover table-sm align-middle mb-0">
                 <thead class="table-primary fs-1 text-uppercase">
                   <tr>
-                    <th width="28%">Producto / Servicio del Catálogo</th>
+                    <th width="32%">
+                      {{ activeDetailTab === 'ITEM' ? 'Artículo Físico del Catálogo' : (activeDetailTab === 'SERVICE' ? 'Servicio Propio' : (activeDetailTab === 'SUBCONTRACT' ? 'Mano de Obra / Subcontrato' : 'Producto / Servicio / Subcontrato')) }}
+                    </th>
                     <th width="15%">Bodega Despacho</th>
                     <th width="8%" class="text-center">Cant.</th>
                     <th width="12%" class="text-end">Precio ($)</th>
                     <th width="10%" class="text-end">Desc. ($)</th>
                     <th width="10%" class="text-center">IVA</th>
-                    <th width="12%" class="text-end">Subtotal</th>
-                    <th width="5%" class="text-center"></th>
+                    <th width="10%" class="text-end">Subtotal</th>
+                    <th width="3%" class="text-center"></th>
                   </tr>
                 </thead>
                 <tbody>
-                  <tr v-for="(row, idx) in form.details" :key="idx">
+                  <tr v-for="(row, idx) in visibleDetails" :key="row._uid || idx">
                     <td>
-                      <select @change="onSelectItem(idx, $event)" class="form-select form-select-sm bg-dark-subtle border-secondary text-white mb-1">
-                        <option value="">-- Cargar de Inventario --</option>
-                        <optgroup label="Artículos Físicos">
-                          <option v-for="a in articlesList" :key="'art-'+a.id" :value="'ITEM:'+a.id">
-                            {{ a.code }} - {{ a.name }} (${{ a.salePrice }})
-                          </option>
-                        </optgroup>
-                        <optgroup label="Servicios Propios">
-                          <option v-for="s in servicesList" :key="'srv-'+s.id" :value="'SERVICE:'+s.id">
-                            {{ s.code }} - {{ s.name }} (${{ s.salePrice }})
-                          </option>
-                        </optgroup>
-                        <optgroup label="Subcontratos / Mano de Obra">
-                          <option v-for="m in subcontractsList" :key="'mo-'+m.id" :value="'SUBCONTRACT:'+m.id">
-                            {{ m.code }} - {{ m.name }} (${{ m.suggestedPrice }})
-                          </option>
-                        </optgroup>
-                      </select>
-                      <input v-model="row.description" type="text" class="form-control form-control-sm bg-dark border-secondary text-white" placeholder="Descripción detallada del ítem o servicio *" required />
+                      <!-- SELECT2 SEGÚN EL TIPO -->
+                      <div class="d-flex flex-column gap-1">
+                        <!-- Identificador si está en la pestaña TODOS -->
+                        <div v-if="activeDetailTab === 'ALL'" class="d-flex align-items-center gap-1 mb-1">
+                          <span
+                            class="badge px-2 py-1 fs-1 fw-bold"
+                            :class="{
+                              'bg-primary-subtle text-primary border border-primary-subtle': row.item_type === 'ITEM',
+                              'bg-info-subtle text-info border border-info-subtle': row.item_type === 'SERVICE',
+                              'bg-warning-subtle text-warning border border-warning-subtle': row.item_type === 'SUBCONTRACT'
+                            }"
+                          >
+                            {{ row.item_type === 'ITEM' ? '📦 Artículo' : (row.item_type === 'SERVICE' ? '🛠️ Servicio' : '🤝 Subcontrato') }}
+                          </span>
+                        </div>
+
+                        <!-- 1. Caso ARTÍCULO FÍSICO -->
+                        <template v-if="row.item_type === 'ITEM'">
+                          <AppSelect2
+                            :model-value="row.item_id"
+                            :options="articleSelectOptions"
+                            placeholder="-- Seleccionar Artículo Físico --"
+                            search-placeholder="Buscar artículo por código o nombre..."
+                            @update:model-value="onSelectArticle(row, $event)"
+                          />
+                          <!-- Muestra el STOCK del producto seleccionado -->
+                          <div v-if="getArticleStockInfo(row.item_id)" class="d-flex flex-wrap align-items-center gap-2 mt-1">
+                            <span
+                              class="badge px-2 py-1 fs-1 d-inline-flex align-items-center gap-1"
+                              :class="getArticleStockInfo(row.item_id)!.stock > 0
+                                ? 'bg-success-subtle text-success border border-success-subtle'
+                                : 'bg-danger-subtle text-danger border border-danger-subtle'"
+                            >
+                              <iconify-icon icon="solar:box-minimalistic-bold"></iconify-icon>
+                              Stock disponible: <b>{{ getArticleStockInfo(row.item_id)!.stock }} {{ getArticleStockInfo(row.item_id)!.unit }}</b>
+                            </span>
+                            <span
+                              v-if="Number(row.quantity || 0) > getArticleStockInfo(row.item_id)!.stock"
+                              class="badge bg-warning-subtle text-warning border border-warning-subtle fs-1 d-inline-flex align-items-center gap-1"
+                            >
+                              <iconify-icon icon="solar:danger-triangle-bold"></iconify-icon>
+                              ⚠️ Cantidad ingresada supera el stock disponible
+                            </span>
+                          </div>
+                        </template>
+
+                        <!-- 2. Caso SERVICIO PROPIO -->
+                        <template v-else-if="row.item_type === 'SERVICE'">
+                          <AppSelect2
+                            :model-value="row.item_id"
+                            :options="serviceSelectOptions"
+                            placeholder="-- Seleccionar Servicio Propio --"
+                            search-placeholder="Buscar servicio por código o nombre..."
+                            @update:model-value="onSelectService(row, $event)"
+                          />
+                        </template>
+
+                        <!-- 3. Caso SUBCONTRATO / MANO DE OBRA -->
+                        <template v-else-if="row.item_type === 'SUBCONTRACT'">
+                          <AppSelect2
+                            :model-value="row.item_id"
+                            :options="subcontractSelectOptions"
+                            placeholder="-- Seleccionar Subcontrato / Mano de Obra --"
+                            search-placeholder="Buscar subcontrato..."
+                            @update:model-value="onSelectSubcontract(row, $event)"
+                          />
+                        </template>
+
+                        <!-- Input para descripción detallada editable -->
+                        <input
+                          v-model="row.description"
+                          type="text"
+                          class="form-control form-control-sm bg-dark border-secondary text-white mt-1"
+                          :placeholder="row.item_type === 'ITEM' ? 'Descripción del artículo *' : (row.item_type === 'SERVICE' ? 'Descripción del servicio *' : 'Descripción del subcontrato *')"
+                          required
+                        />
+                      </div>
                     </td>
+
                     <td>
                       <select v-if="row.item_type === 'ITEM'" v-model="row.warehouse_id" class="form-select form-select-sm bg-dark border-secondary text-white">
                         <option :value="undefined">Por Defecto</option>
                         <option v-for="w in activeWarehouses" :key="w.id" :value="w.id">{{ w.name }}</option>
                       </select>
-                      <span v-else class="text-secondary small fst-italic">No aplica</span>
+                      <span v-else class="text-secondary small fst-italic">No aplica (Intangible)</span>
                     </td>
+
                     <td>
                       <input v-model.number="row.quantity" type="number" step="0.01" min="0.01" class="form-control form-control-sm bg-dark border-secondary text-white text-center" required />
                     </td>
+
                     <td>
                       <input v-model.number="row.unit_price" type="number" step="0.01" min="0" class="form-control form-control-sm bg-dark border-secondary text-white text-end" required />
                     </td>
+
                     <td>
                       <input v-model.number="row.discount" type="number" step="0.01" min="0" class="form-control form-control-sm bg-dark border-secondary text-white text-end" />
                     </td>
+
                     <td>
                       <select v-model.number="row.tax_rate" class="form-select form-select-sm bg-dark border-secondary text-white text-center">
                         <option :value="15">15%</option>
@@ -1282,13 +1495,33 @@ watch(() => route.path, () => {
                         <option :value="5">5%</option>
                       </select>
                     </td>
+
                     <td class="text-end font-monospace fw-semibold text-white">
                       ${{ formatNumber(Math.max(0, Number(row.quantity || 0) * Number(row.unit_price || 0) - Number(row.discount || 0))) }}
                     </td>
+
                     <td class="text-center">
-                      <button type="button" class="btn btn-link text-danger p-0" @click="removeDetailRow(idx)" :disabled="form.details.length === 1">
-                        <iconify-icon icon="solar:trash-bin-minimalistic-bold"></iconify-icon>
+                      <button type="button" class="btn btn-link text-danger p-0" @click="removeDetailRowByUid(row._uid)" title="Eliminar ítem">
+                        <iconify-icon icon="solar:trash-bin-minimalistic-bold" class="fs-5"></iconify-icon>
                       </button>
+                    </td>
+                  </tr>
+
+                  <!-- Mensaje si la pestaña no tiene ítems -->
+                  <tr v-if="visibleDetails.length === 0">
+                    <td colspan="8" class="text-center py-4 text-muted">
+                      <div class="d-flex flex-column align-items-center gap-2">
+                        <iconify-icon
+                          :icon="activeDetailTab === 'ITEM' ? 'solar:box-minimalistic-line-duotone' : (activeDetailTab === 'SERVICE' ? 'solar:wrench-line-duotone' : 'solar:users-group-two-rounded-line-duotone')"
+                          class="fs-1 text-secondary"
+                        ></iconify-icon>
+                        <span>
+                          No hay {{ activeDetailTab === 'ITEM' ? 'artículos físicos' : (activeDetailTab === 'SERVICE' ? 'servicios propios' : (activeDetailTab === 'SUBCONTRACT' ? 'subcontratos' : 'ítems')) }} en la factura.
+                        </span>
+                        <button type="button" class="btn btn-xs btn-outline-primary rounded-pill mt-1" @click="addDetailRow(activeDetailTab)">
+                          + {{ addRowButtonLabel }}
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 </tbody>
