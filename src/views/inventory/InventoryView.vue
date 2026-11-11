@@ -820,7 +820,7 @@
     <!-- ========================================================== -->
     <!-- MODAL 1: CREAR / EDITAR ÍTEM / ARTÍCULO                    -->
     <!-- ========================================================== -->
-    <div v-if="showItemModal" id="form-page" class="form-page">
+    <div v-if="showItemModal" class="form-page">
       <div class="modal-card form-page-card">
         <div class="modal-header">
           <div>
@@ -937,7 +937,7 @@
     <!-- ========================================================== -->
     <!-- MODAL 2: CREAR / EDITAR SERVICIO                           -->
     <!-- ========================================================== -->
-    <div v-if="showServiceModal" id="form-page" class="form-page">
+    <div v-if="showServiceModal" class="form-page">
       <div class="modal-card form-page-card">
         <div class="modal-header">
           <div>
@@ -1027,7 +1027,7 @@
     <!-- ========================================================== -->
     <!-- MODAL 3: CREAR / EDITAR SUBCONTRATACIÓN / MANO DE OBRA     -->
     <!-- ========================================================== -->
-    <div v-if="showSubcontractModal" id="form-page" class="form-page">
+    <div v-if="showSubcontractModal" class="form-page">
       <div class="modal-card form-page-card">
         <div class="modal-header">
           <div>
@@ -1138,7 +1138,7 @@
     <!-- ========================================================== -->
     <!-- MODAL 4: CREAR / EDITAR CATEGORÍA                          -->
     <!-- ========================================================== -->
-    <div v-if="showCategoryModal" id="form-page" class="form-page">
+    <div v-if="showCategoryModal" class="form-page">
       <div class="modal-card form-page-card">
         <div class="modal-header">
           <div>
@@ -1202,7 +1202,7 @@
     <!-- ========================================================== -->
     <!-- MODAL 5: CREAR / EDITAR BODEGA                             -->
     <!-- ========================================================== -->
-    <div v-if="showWarehouseModal" id="form-page" class="form-page">
+    <div v-if="showWarehouseModal" class="form-page">
       <div class="modal-card form-page-card">
         <div class="modal-header">
           <div>
@@ -1273,7 +1273,7 @@
     <!-- ========================================================== -->
     <!-- MODAL 6: TRANSFERENCIA ENTRE BODEGAS                       -->
     <!-- ========================================================== -->
-    <div v-if="showTransferModal" id="form-page" class="form-page">
+    <div v-if="showTransferModal" class="form-page">
       <div class="modal-card form-page-card">
         <div class="modal-header">
           <div>
@@ -1344,7 +1344,7 @@
     <!-- ========================================================== -->
     <!-- MODAL 7: AJUSTE FÍSICO DE STOCK                            -->
     <!-- ========================================================== -->
-    <div v-if="showAdjustmentModal" id="form-page" class="form-page">
+    <div v-if="showAdjustmentModal" class="form-page">
       <div class="modal-card form-page-card">
         <div class="modal-header">
           <div>
@@ -1500,6 +1500,20 @@ const getActiveCompanyId = (): number => {
     // ignore
   }
   return 1
+}
+
+const loadKardex = async () => {
+  loadingKardex.value = true
+  try {
+    const companyId = getActiveCompanyId()
+    const pId = kardexProductFilter.value || undefined
+    const wId = kardexWarehouseFilter.value || undefined
+    kardexMovements.value = await getInventoryKardex(pId, companyId, wId)
+  } catch (err: any) {
+    showFeedback(err?.response?.data?.message || 'Error al consultar movimientos del Kardex', 'error')
+  } finally {
+    loadingKardex.value = false
+  }
 }
 
 // Sync tab with URL query (?tab=articulos | servicios | subcontratacion | categorias | bodegas | kardex) or route param
@@ -1762,9 +1776,37 @@ const loadAllInventory = async () => {
 }
 
 // ==========================================
-// 1. CRUD ARTÍCULOS
+// CONTROL DE FORMULARIOS / MODALES
 // ==========================================
 const showItemModal = ref(false)
+const showServiceModal = ref(false)
+const showSubcontractModal = ref(false)
+const showCategoryModal = ref(false)
+const showWarehouseModal = ref(false)
+const showTransferModal = ref(false)
+const showAdjustmentModal = ref(false)
+
+// Mientras un formulario de registro/edición está abierto se muestra como página y se oculta el listado
+const isFormOpen = computed(() =>
+  showItemModal.value ||
+  showServiceModal.value ||
+  showSubcontractModal.value ||
+  showCategoryModal.value ||
+  showWarehouseModal.value ||
+  showTransferModal.value ||
+  showAdjustmentModal.value
+)
+
+watch(isFormOpen, async (open) => {
+  if (open) {
+    await nextTick()
+    document.querySelector('.form-page')?.scrollIntoView({ block: 'start', behavior: 'smooth' })
+  }
+})
+
+// ==========================================
+// 1. CRUD ARTÍCULOS
+// ==========================================
 const editingItemId = ref<number | null>(null)
 const itemForm = ref({
   code: '',
@@ -1903,7 +1945,6 @@ const toggleItemStatus = async (item: InventoryArticle) => {
 // ==========================================
 // 2. CRUD SERVICIOS
 // ==========================================
-const showServiceModal = ref(false)
 const editingServiceId = ref<number | null>(null)
 const serviceForm = ref({
   code: '',
@@ -2012,23 +2053,6 @@ const toggleServiceStatus = async (srv: InventoryServiceItem) => {
 // ==========================================
 // 3. CRUD SUBCONTRATACIÓN / MANO DE OBRA
 // ==========================================
-const showSubcontractModal = ref(false)
-// Mientras un formulario de registro/edición está abierto se muestra como página y se oculta el listado
-const isFormOpen = computed(() =>
-  showItemModal.value ||
-  showServiceModal.value ||
-  showSubcontractModal.value ||
-  showCategoryModal.value ||
-  showWarehouseModal.value ||
-  showTransferModal.value ||
-  showAdjustmentModal.value
-)
-watch(isFormOpen, async (open) => {
-  if (open) {
-    await nextTick()
-    document.getElementById('form-page')?.scrollIntoView({ block: 'start' })
-  }
-})
 const editingSubcontractId = ref<number | null>(null)
 const subcontractForm = ref({
   code: '',
@@ -2126,7 +2150,6 @@ const toggleSubcontractStatus = async (sub: InventorySubcontractItem) => {
 // ==========================================
 // 4. CRUD CATEGORÍAS
 // ==========================================
-const showCategoryModal = ref(false)
 const editingCategoryId = ref<number | null>(null)
 const categoryForm = ref({
   code: '',
@@ -2202,7 +2225,6 @@ const toggleCategoryStatus = async (cat: InventoryCategory) => {
 // ==========================================
 // 5. CRUD BODEGAS
 // ==========================================
-const showWarehouseModal = ref(false)
 const editingWarehouseId = ref<number | null>(null)
 const warehouseForm = ref({
   code: '',
@@ -2279,20 +2301,6 @@ const toggleWarehouseStatus = async (wh: InventoryWarehouse) => {
 // ==========================================
 // 6. KARDEX, TRANSFERENCIAS Y AJUSTES
 // ==========================================
-const loadKardex = async () => {
-  loadingKardex.value = true
-  try {
-    const companyId = getActiveCompanyId()
-    const pId = kardexProductFilter.value || undefined
-    const wId = kardexWarehouseFilter.value || undefined
-    kardexMovements.value = await getInventoryKardex(pId, companyId, wId)
-  } catch (err: any) {
-    showFeedback(err?.response?.data?.message || 'Error al consultar movimientos del Kardex', 'error')
-  } finally {
-    loadingKardex.value = false
-  }
-}
-
 const viewItemKardex = (item: InventoryArticle) => {
   kardexProductFilter.value = item.id
   kardexWarehouseFilter.value = 0
@@ -2301,7 +2309,6 @@ const viewItemKardex = (item: InventoryArticle) => {
 }
 
 // Transferencias
-const showTransferModal = ref(false)
 const transferForm = ref({
   product_id: null as number | null,
   from_warehouse_id: null as number | null,
@@ -2364,7 +2371,6 @@ const saveTransferForm = async () => {
 }
 
 // Ajustes físicos de stock
-const showAdjustmentModal = ref(false)
 const adjustmentForm = ref({
   product_id: null as number | null,
   warehouse_id: null as number | null,
@@ -3102,17 +3108,29 @@ onMounted(() => {
 .form-page {
   width: 100%;
   scroll-margin-top: 110px; /* deja libre la barra superior fija */
+  animation: fadeIn 0.2s ease-in-out;
 }
 .form-page-card {
-  max-width: none;
+  max-width: 980px;
   margin: 0 auto;
 }
 .form-page-card-lg {
-  max-width: none;
+  max-width: 1100px;
 }
 .modal-card.form-page-card {
-  max-width: none;
+  max-width: 980px;
   margin: 0 auto;
-  box-shadow: none;
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.4);
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 </style>
