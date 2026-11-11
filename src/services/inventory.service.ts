@@ -32,6 +32,7 @@ export interface InventoryCategory {
   description?: string
   enabled?: boolean
   status?: boolean
+  ind_active?: boolean
   created_at?: string
 }
 
@@ -49,6 +50,7 @@ export interface InventoryWarehouse {
   is_default?: boolean
   enabled?: boolean
   status?: boolean
+  ind_active?: boolean
   created_at?: string
 }
 

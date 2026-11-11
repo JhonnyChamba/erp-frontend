@@ -2196,17 +2196,30 @@ const saveCategoryForm = async () => {
   saving.value = true
   const companyId = getActiveCompanyId()
   try {
+    const payload = {
+      code: categoryForm.value.code?.trim() || undefined,
+      name: categoryForm.value.name.trim(),
+      description: categoryForm.value.description?.trim() || '',
+      category_type: categoryForm.value.category_type || 'PRODUCT',
+      enabled: Boolean(categoryForm.value.status),
+      status: Boolean(categoryForm.value.status),
+      ind_active: Boolean(categoryForm.value.status),
+      companyId
+    }
     if (editingCategoryId.value) {
-      await updateInventoryCategory(editingCategoryId.value, { ...categoryForm.value, companyId })
+      await updateInventoryCategory(editingCategoryId.value, payload)
       showFeedback('Categoría actualizada con éxito')
     } else {
-      await createInventoryCategory({ ...categoryForm.value, companyId })
+      await createInventoryCategory(payload)
       showFeedback('Categoría registrada con éxito')
     }
     showCategoryModal.value = false
     await loadAllInventory()
   } catch (err: any) {
-    showFeedback(err?.response?.data?.message || 'Error al guardar la categoría', 'error')
+    const msg = Array.isArray(err?.response?.data?.message)
+      ? err.response.data.message.join(', ')
+      : err?.response?.data?.message || 'Error al guardar la categoría'
+    showFeedback(msg, 'error')
   } finally {
     saving.value = false
   }
@@ -2214,8 +2227,14 @@ const saveCategoryForm = async () => {
 
 const toggleCategoryStatus = async (cat: InventoryCategory) => {
   try {
-    await updateInventoryCategory(cat.id, { companyId: getActiveCompanyId(), status: !cat.status })
-    cat.status = !cat.status
+    const newStatus = !cat.status
+    await updateInventoryCategory(cat.id, {
+      companyId: getActiveCompanyId(),
+      enabled: newStatus,
+      status: newStatus,
+      ind_active: newStatus
+    })
+    cat.status = newStatus
     showFeedback(`Categoría "${cat.name}" ahora está ${cat.status ? 'activa' : 'inactiva'}`)
   } catch {
     showFeedback('No se pudo cambiar el estado de la categoría', 'error')
@@ -2272,17 +2291,33 @@ const saveWarehouseForm = async () => {
   saving.value = true
   const companyId = getActiveCompanyId()
   try {
+    const payload = {
+      code: warehouseForm.value.code?.trim() || undefined,
+      name: warehouseForm.value.name.trim(),
+      address: warehouseForm.value.address?.trim() || '',
+      responsible: warehouseForm.value.responsible?.trim() || '',
+      phone: warehouseForm.value.phone?.trim() || '',
+      isDefault: Boolean(warehouseForm.value.isDefault),
+      is_default: Boolean(warehouseForm.value.isDefault),
+      enabled: Boolean(warehouseForm.value.status),
+      status: Boolean(warehouseForm.value.status),
+      ind_active: Boolean(warehouseForm.value.status),
+      companyId
+    }
     if (editingWarehouseId.value) {
-      await updateInventoryWarehouse(editingWarehouseId.value, { ...warehouseForm.value, companyId })
+      await updateInventoryWarehouse(editingWarehouseId.value, payload)
       showFeedback('Bodega actualizada con éxito')
     } else {
-      await createInventoryWarehouse({ ...warehouseForm.value, companyId })
+      await createInventoryWarehouse(payload)
       showFeedback('Bodega registrada con éxito')
     }
     showWarehouseModal.value = false
     await loadAllInventory()
   } catch (err: any) {
-    showFeedback(err?.response?.data?.message || 'Error al guardar la bodega', 'error')
+    const msg = Array.isArray(err?.response?.data?.message)
+      ? err.response.data.message.join(', ')
+      : err?.response?.data?.message || 'Error al guardar la bodega'
+    showFeedback(msg, 'error')
   } finally {
     saving.value = false
   }
@@ -2290,8 +2325,14 @@ const saveWarehouseForm = async () => {
 
 const toggleWarehouseStatus = async (wh: InventoryWarehouse) => {
   try {
-    await updateInventoryWarehouse(wh.id, { companyId: getActiveCompanyId(), status: !wh.status })
-    wh.status = !wh.status
+    const newStatus = !wh.status
+    await updateInventoryWarehouse(wh.id, {
+      companyId: getActiveCompanyId(),
+      enabled: newStatus,
+      status: newStatus,
+      ind_active: newStatus
+    })
+    wh.status = newStatus
     showFeedback(`Bodega "${wh.name}" ahora está ${wh.status ? 'habilitada' : 'inactiva'}`)
   } catch {
     showFeedback('No se pudo cambiar el estado de la bodega', 'error')
@@ -3111,14 +3152,17 @@ onMounted(() => {
   animation: fadeIn 0.2s ease-in-out;
 }
 .form-page-card {
-  max-width: 980px;
+  width: 100%;
+  max-width: none;
   margin: 0 auto;
 }
 .form-page-card-lg {
-  max-width: 1100px;
+  width: 100%;
+  max-width: none;
 }
 .modal-card.form-page-card {
-  max-width: 980px;
+  width: 100%;
+  max-width: none;
   margin: 0 auto;
   box-shadow: 0 16px 40px rgba(0, 0, 0, 0.4);
 }
@@ -3132,5 +3176,171 @@ onMounted(() => {
     opacity: 1;
     transform: translateY(0);
   }
+}
+
+/* ==========================================================================
+   ESTILOS ADAPTATIVOS PARA MODO CLARO (Spike Light Theme)
+   ========================================================================== */
+[data-bs-theme='light'] .inventory-page {
+  color: #2a3547;
+}
+
+[data-bs-theme='light'] .page-title {
+  color: #111c2d;
+}
+
+[data-bs-theme='light'] .page-subtitle {
+  color: #5a6a85;
+}
+
+[data-bs-theme='light'] .tabs-bar {
+  background: #ffffff;
+  border-color: #ebf1f6;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.03);
+}
+
+[data-bs-theme='light'] .tab-pill {
+  color: #5a6a85;
+}
+
+[data-bs-theme='light'] .tab-pill:hover {
+  background: #f6f9fc;
+  color: #111c2d;
+}
+
+[data-bs-theme='light'] .tab-pill.active {
+  background: rgba(0, 133, 219, 0.1);
+  color: #0085db;
+  border-color: rgba(0, 133, 219, 0.25);
+}
+
+[data-bs-theme='light'] .pill-count {
+  background: #ebf1f6;
+  color: #5a6a85;
+}
+
+[data-bs-theme='light'] .search-box input,
+[data-bs-theme='light'] .filter-select {
+  background: #ffffff;
+  border-color: #dfe5ef;
+  color: #111c2d;
+}
+
+[data-bs-theme='light'] .search-box input::placeholder {
+  color: #94a3b8;
+}
+
+[data-bs-theme='light'] .search-ic {
+  color: #7c8fac;
+}
+
+[data-bs-theme='light'] .kpi-card {
+  background: #ffffff;
+  border-color: #ebf1f6;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.03);
+}
+
+[data-bs-theme='light'] .kpi-label {
+  color: #5a6a85;
+}
+
+[data-bs-theme='light'] .kpi-val {
+  color: #111c2d;
+}
+
+[data-bs-theme='light'] .table-card {
+  background: #ffffff;
+  border-color: #ebf1f6;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.03);
+}
+
+[data-bs-theme='light'] .erp-table th {
+  background: #f6f9fc;
+  color: #5a6a85;
+  border-color: #ebf1f6;
+}
+
+[data-bs-theme='light'] .erp-table td {
+  border-color: #ebf1f6;
+  color: #2a3547;
+}
+
+[data-bs-theme='light'] .erp-table tr:hover td {
+  background: #f8fafc;
+}
+
+[data-bs-theme='light'] .cell-sub {
+  color: #7c8fac;
+}
+
+[data-bs-theme='light'] .empty-state {
+  color: #7c8fac;
+}
+
+[data-bs-theme='light'] .btn-secondary {
+  background: #f6f9fc;
+  border-color: #dfe5ef;
+  color: #5a6a85;
+}
+
+[data-bs-theme='light'] .btn-secondary:hover:not(:disabled) {
+  background: #ebf1f6;
+  color: #111c2d;
+}
+
+[data-bs-theme='light'] .act-btn {
+  background: #f6f9fc;
+  border-color: #dfe5ef;
+  color: #5a6a85;
+}
+
+[data-bs-theme='light'] .act-btn:hover {
+  background: #ebf1f6;
+  color: #111c2d;
+}
+
+[data-bs-theme='light'] .modal-card {
+  background: #ffffff;
+  border-color: #ebf1f6;
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.08);
+}
+
+[data-bs-theme='light'] .modal-header {
+  border-color: #ebf1f6;
+}
+
+[data-bs-theme='light'] .modal-header h3 {
+  color: #111c2d;
+}
+
+[data-bs-theme='light'] .form-group label {
+  color: #2a3547;
+}
+
+[data-bs-theme='light'] .form-group input,
+[data-bs-theme='light'] .form-group select,
+[data-bs-theme='light'] .form-group textarea {
+  background: #ffffff;
+  border-color: #dfe5ef;
+  color: #111c2d;
+}
+
+[data-bs-theme='light'] .form-group input:disabled {
+  background: #f6f9fc;
+  color: #7c8fac;
+}
+
+[data-bs-theme='light'] .checkbox-row {
+  background: #f6f9fc;
+  border: 1px solid #ebf1f6;
+  color: #2a3547;
+}
+
+[data-bs-theme='light'] .modal-footer {
+  border-color: #ebf1f6;
+}
+
+[data-bs-theme='light'] .close-btn {
+  color: #7c8fac;
 }
 </style>

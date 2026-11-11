@@ -247,9 +247,11 @@ const isSubActive = (subUrl: string) => {
   return route.path.toLowerCase() === subUrl.toLowerCase()
 }
 
-// Submódulos independientes de Inventario: Categorías y Bodegas primero en el menú
+// Submódulos independientes de Inventario: Categorías y Bodegas primero en el menú (sin sub-módulos ni anidamientos)
 const getInventorySubItems = (mod: any) => {
-  const children = [...(mod.children || [])]
+  const children = (mod.children || []).filter(
+    (s: any) => !s.description?.toLowerCase().includes('configuraci') && !s.url?.toLowerCase().includes('configuracion')
+  )
   const hasCat = children.some((s: any) => s.url?.toLowerCase().includes('tab=categorias'))
   const hasBod = children.some((s: any) => s.url?.toLowerCase().includes('tab=bodegas'))
   const hasKar = children.some((s: any) => s.url?.toLowerCase().includes('tab=kardex'))
@@ -266,7 +268,7 @@ const getInventorySubItems = (mod: any) => {
 
   // Categorías y Bodegas primero, seguidos de Artículos, Servicios, Subcontratación y Kardex
   const priority = ['tab=categorias', 'tab=bodegas', 'tab=articulos', 'tab=servicios', 'tab=subcontratacion', 'tab=kardex']
-  children.sort((a, b) => {
+  children.sort((a: any, b: any) => {
     const aUrl = (a.url || '').toLowerCase()
     const bUrl = (b.url || '').toLowerCase()
     const aIdx = priority.findIndex((p) => aUrl.includes(p))
