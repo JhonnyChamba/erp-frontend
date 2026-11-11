@@ -18,6 +18,7 @@ import {
   type InventoryWarehouse,
   type InventoryArticle
 } from '@/services/inventory.service'
+import { toast } from '@/utils/toastr'
 
 const route = useRoute()
 const authStore = useAuthStore()
@@ -41,12 +42,22 @@ const cancelingId = ref<number | null>(null)
 const feedbackBanner = ref<{ text: string; type: 'success' | 'error' | '' }>({ text: '', type: '' })
 
 let feedbackTimer: any = null
-const showFeedback = (text: string, type: 'success' | 'error' = 'success') => {
-  feedbackBanner.value = { text, type }
+const showFeedback = (text: string, type: 'success' | 'error' | 'warning' | 'info' = 'success', title?: string) => {
+  feedbackBanner.value = { text, type: type === 'warning' || type === 'info' ? 'error' : type }
   if (feedbackTimer) clearTimeout(feedbackTimer)
   feedbackTimer = setTimeout(() => {
     feedbackBanner.value = { text: '', type: '' }
   }, 7000)
+
+  if (type === 'success') {
+    toast.success(text, title || 'Operación Exitosa')
+  } else if (type === 'error') {
+    toast.error(text, title || 'Error')
+  } else if (type === 'warning') {
+    toast.warning(text, title || 'Atención')
+  } else {
+    toast.info(text, title || 'Información')
+  }
 }
 
 // Datos principales

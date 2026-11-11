@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { ref, onMounted, computed, watch, nextTick } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
+import { toast } from '@/utils/toastr'
 import {
   getCompanies,
   createCompany,
@@ -94,6 +95,13 @@ const activeTab = ref<'companies' | 'branches' | 'users' | 'roles' | 'modules' |
 const loading = ref(false)
 const successMsg = ref('')
 const errorMsg = ref('')
+
+watch(successMsg, (msg) => {
+  if (msg) toast.success(msg, 'Configuración')
+})
+watch(errorMsg, (msg) => {
+  if (msg) toast.error(msg, 'Error en Configuración')
+})
 
 // Contexto de empresa seleccionada
 const selectedCompany = ref<any>(null)

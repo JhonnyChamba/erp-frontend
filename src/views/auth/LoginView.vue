@@ -2,14 +2,19 @@
 import { useAuthStore } from '@/stores/auth.store'
 import { useThemeStore } from '@/stores/theme.store'
 import { getBranches } from '@/services/config.service'
-import { ref } from 'vue'
+import { ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
+import { toast } from '@/utils/toastr'
 
 const email = ref('')
 const password = ref('')
 const showPassword = ref(false)
 const loading = ref(false)
 const errorMessage = ref('')
+
+watch(errorMessage, (msg) => {
+  if (msg) toast.error(msg, 'Inicio de Sesión')
+})
 
 const authStore = useAuthStore()
 const themeStore = useThemeStore()
@@ -48,6 +53,7 @@ const login = async () => {
       } catch {
         // sin sucursal seleccionada: se continúa al dashboard
       }
+      toast.success('¡Bienvenido al sistema!', 'Sesión Iniciada')
       router.push('/dashboard')
     }
   } catch (error: any) {

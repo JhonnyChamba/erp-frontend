@@ -1406,6 +1406,7 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, watch, nextTick } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
+import { toast } from '@/utils/toastr'
 import {
   getInventoryItems,
   createInventoryItem,
@@ -1466,13 +1467,23 @@ const feedbackBanner = ref<{ text: string; type: 'success' | 'error' | '' }>({
   type: ''
 })
 
-const showFeedback = (text: string, type: 'success' | 'error' = 'success') => {
-  feedbackBanner.value = { text, type }
+const showFeedback = (text: string, type: 'success' | 'error' | 'warning' | 'info' = 'success', title?: string) => {
+  feedbackBanner.value = { text, type: type === 'warning' || type === 'info' ? 'error' : type }
   setTimeout(() => {
     if (feedbackBanner.value.text === text) {
       feedbackBanner.value = { text: '', type: '' }
     }
   }, 4000)
+
+  if (type === 'success') {
+    toast.success(text, title || 'Inventario Actualizado')
+  } else if (type === 'error') {
+    toast.error(text, title || 'Error en Inventario')
+  } else if (type === 'warning') {
+    toast.warning(text, title || 'Atención')
+  } else {
+    toast.info(text, title || 'Información')
+  }
 }
 
 const getActiveCompanyId = (): number => {

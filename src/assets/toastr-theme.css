@@ -1,0 +1,202 @@
+/* ==========================================================================
+   SPIKE ADMIN TOASTR NOTIFICATION THEME
+   Matches: https://bootstrapdemos.wrappixel.com/spike/dist/dark/component-toastr.html
+   ========================================================================== */
+
+#toast-container {
+  position: fixed !important;
+  z-index: 9999999 !important;
+  pointer-events: none !important;
+  display: flex !important;
+  flex-direction: column !important;
+  gap: 12px !important;
+  max-width: 420px !important;
+  width: auto !important;
+  font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif !important;
+}
+
+#toast-container.toast-top-right {
+  top: 24px !important;
+  right: 24px !important;
+  left: auto !important;
+  bottom: auto !important;
+}
+
+#toast-container.toast-top-left {
+  top: 24px !important;
+  left: 24px !important;
+  right: auto !important;
+  bottom: auto !important;
+}
+
+#toast-container.toast-top-center {
+  top: 24px !important;
+  left: 50% !important;
+  transform: translateX(-50%) !important;
+  right: auto !important;
+  bottom: auto !important;
+}
+
+#toast-container.toast-bottom-right {
+  bottom: 24px !important;
+  right: 24px !important;
+  top: auto !important;
+  left: auto !important;
+}
+
+#toast-container.toast-bottom-left {
+  bottom: 24px !important;
+  left: 24px !important;
+  top: auto !important;
+  right: auto !important;
+}
+
+#toast-container.toast-bottom-center {
+  bottom: 24px !important;
+  left: 50% !important;
+  transform: translateX(-50%) !important;
+  top: auto !important;
+  right: auto !important;
+}
+
+/* --------------------------------------------------------------------------
+   Toast Card Base Styling
+   -------------------------------------------------------------------------- */
+#toast-container > .toast,
+.toast-container > .toast {
+  position: relative !important;
+  top: auto !important;
+  right: auto !important;
+  bottom: auto !important;
+  left: auto !important;
+  margin: 0 !important;
+  pointer-events: auto !important;
+  overflow: hidden !important;
+  width: 340px !important;
+  max-width: calc(100vw - 32px) !important;
+  min-height: 64px !important;
+  padding: 14px 20px 14px 54px !important;
+  border-radius: 14px !important;
+  border: 1px solid rgba(255, 255, 255, 0.15) !important;
+  color: #ffffff !important;
+  background-position: 18px center !important;
+  background-repeat: no-repeat !important;
+  background-size: 22px 22px !important;
+  box-shadow: 0 12px 30px -6px rgba(0, 0, 0, 0.35), 0 4px 12px rgba(0, 0, 0, 0.15) !important;
+  opacity: 1 !important;
+  transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1) !important;
+}
+
+#toast-container > .toast:hover,
+.toast-container > .toast:hover {
+  transform: translateY(-2px) !important;
+  box-shadow: 0 16px 36px -6px rgba(0, 0, 0, 0.45), 0 6px 16px rgba(0, 0, 0, 0.2) !important;
+}
+
+/* --------------------------------------------------------------------------
+   Toast Types: Spike Theme Colors & Crisp SVG Icons
+   -------------------------------------------------------------------------- */
+
+/* SUCCESS: Vibrant Spike Mint Green */
+#toast-container > .toast-success,
+.toast-container > .toast-success {
+  background-color: #13deb9 !important;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23ffffff' stroke-width='3' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='20 6 9 17 4 12'/%3E%3C/svg%3E") !important;
+  box-shadow: 0 10px 28px -4px rgba(19, 222, 185, 0.45), 0 4px 12px rgba(0, 0, 0, 0.12) !important;
+}
+
+/* INFO: Spike Indigo / Blue */
+#toast-container > .toast-info,
+.toast-container > .toast-info {
+  background-color: #5d87ff !important;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23ffffff' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Ccircle cx='12' cy='12' r='10'/%3E%3Cline x1='12' y1='16' x2='12' y2='12'/%3E%3Cline x1='12' y1='8' x2='12.01' y2='8'/%3E%3C/svg%3E") !important;
+  box-shadow: 0 10px 28px -4px rgba(93, 135, 255, 0.45), 0 4px 12px rgba(0, 0, 0, 0.12) !important;
+}
+
+/* WARNING: Spike Warm Amber */
+#toast-container > .toast-warning,
+.toast-container > .toast-warning {
+  background-color: #ffae1f !important;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23ffffff' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z'/%3E%3Cline x1='12' y1='9' x2='12' y2='13'/%3E%3Cline x1='12' y1='17' x2='12.01' y2='17'/%3E%3C/svg%3E") !important;
+  box-shadow: 0 10px 28px -4px rgba(255, 174, 31, 0.45), 0 4px 12px rgba(0, 0, 0, 0.12) !important;
+}
+
+/* ERROR: Spike Coral Crimson Red */
+#toast-container > .toast-error,
+.toast-container > .toast-error {
+  background-color: #fa896b !important;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23ffffff' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Ccircle cx='12' cy='12' r='10'/%3E%3Cline x1='15' y1='9' x2='9' y2='15'/%3E%3Cline x1='9' y1='9' x2='15' y2='15'/%3E%3C/svg%3E") !important;
+  box-shadow: 0 10px 28px -4px rgba(250, 137, 107, 0.45), 0 4px 12px rgba(0, 0, 0, 0.12) !important;
+}
+
+/* --------------------------------------------------------------------------
+   Typography Inside Toasts
+   -------------------------------------------------------------------------- */
+.toast-title {
+  font-family: 'Plus Jakarta Sans', sans-serif !important;
+  font-weight: 700 !important;
+  font-size: 14px !important;
+  letter-spacing: -0.01em !important;
+  color: #ffffff !important;
+  margin-bottom: 2px !important;
+  line-height: 1.35 !important;
+}
+
+.toast-message {
+  font-family: 'Plus Jakarta Sans', sans-serif !important;
+  font-weight: 500 !important;
+  font-size: 13px !important;
+  letter-spacing: -0.005em !important;
+  color: rgba(255, 255, 255, 0.94) !important;
+  line-height: 1.42 !important;
+  word-break: break-word !important;
+}
+
+/* --------------------------------------------------------------------------
+   Close Button & Progress Bar
+   -------------------------------------------------------------------------- */
+.toast-close-button {
+  position: absolute !important;
+  top: 10px !important;
+  right: 12px !important;
+  font-size: 18px !important;
+  line-height: 1 !important;
+  color: #ffffff !important;
+  opacity: 0.75 !important;
+  background: transparent !important;
+  border: none !important;
+  cursor: pointer !important;
+  padding: 4px 6px !important;
+  border-radius: 6px !important;
+  transition: opacity 0.2s, background-color 0.2s !important;
+}
+
+.toast-close-button:hover {
+  opacity: 1 !important;
+  background: rgba(255, 255, 255, 0.2) !important;
+}
+
+.toast-progress {
+  position: absolute !important;
+  left: 0 !important;
+  bottom: 0 !important;
+  height: 3px !important;
+  background-color: rgba(255, 255, 255, 0.5) !important;
+  opacity: 1 !important;
+}
+
+/* --------------------------------------------------------------------------
+   Mobile responsiveness
+   -------------------------------------------------------------------------- */
+@media (max-width: 576px) {
+  #toast-container {
+    width: 100% !important;
+    left: 12px !important;
+    right: 12px !important;
+    max-width: calc(100vw - 24px) !important;
+  }
+  #toast-container > .toast,
+  .toast-container > .toast {
+    width: 100% !important;
+  }
+}

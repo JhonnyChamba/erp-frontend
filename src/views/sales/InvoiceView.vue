@@ -2,6 +2,7 @@
 import { ref, computed, onMounted, watch, nextTick } from 'vue'
 import { useRoute } from 'vue-router'
 import { useAuthStore } from '@/stores/auth.store'
+import { toast } from '@/utils/toastr'
 import {
   getInvoices,
   createInvoice,
@@ -74,7 +75,25 @@ const dismissAlert = () => {
 let alertTimer: ReturnType<typeof setTimeout> | undefined
 watch(successMsg, (v) => {
   if (alertTimer) clearTimeout(alertTimer)
-  if (v) alertTimer = setTimeout(() => { successMsg.value = '' }, 10000)
+  if (v) {
+    toast.success(v, 'Facturación')
+    alertTimer = setTimeout(() => { successMsg.value = '' }, 10000)
+  }
+})
+
+watch(errorMsg, (v) => {
+  if (v) {
+    toast.error(v, 'Facturación')
+  }
+})
+
+watch(() => modalAlert.value.text, (text) => {
+  if (!text) return
+  const type = modalAlert.value.type || 'info'
+  if (type === 'success') toast.success(text, 'Facturación')
+  else if (type === 'error') toast.error(text, 'Error en Factura')
+  else if (type === 'warning') toast.warning(text, 'Atención')
+  else toast.info(text, 'Información')
 })
 
 const invoices = ref<InvoiceItem[]>([])

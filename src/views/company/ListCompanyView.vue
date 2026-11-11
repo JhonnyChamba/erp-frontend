@@ -3,8 +3,9 @@ import { useBranchStore, useListCompanyUserStore } from '@/stores/ListCompanyUse
 import { useAuthStore } from '@/stores/auth.store'
 import { useThemeStore } from '@/stores/theme.store'
 import { getMyProfile, type MyProfile } from '@/services/auth.service'
-import { ref, onMounted, computed } from 'vue'
+import { ref, onMounted, computed, watch } from 'vue'
 import { useRouter } from 'vue-router'
+import { toast } from '@/utils/toastr'
 
 const router = useRouter()
 const authStore = useAuthStore()
@@ -99,6 +100,9 @@ const logout = () => {
 // EMPRESAS
 // ===============================
 const fetchError = ref<string | null>(null)
+watch(fetchError, (err) => {
+  if (err) toast.error(err, 'Empresas')
+})
 const fetchCompanies = async () => {
   fetchError.value = null
   try {

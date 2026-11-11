@@ -4,6 +4,8 @@ import { createPinia } from 'pinia'
 import App from './App.vue'
 import router from './router'
 import './assets/theme.css'
+import './assets/toastr-theme.css'
+import { toast } from './utils/toastr'
 
 // Inicializar tema de color y modo oscuro/claro
 const savedColorTheme = localStorage.getItem('userTheme') || 'Blue_Theme'
@@ -13,6 +15,8 @@ document.documentElement.setAttribute('data-color-theme', savedColorTheme)
 document.documentElement.setAttribute('data-bs-theme', savedThemeMode)
 
 const app = createApp(App)
+
+app.config.globalProperties.$toast = toast
 
 app.use(createPinia())
 app.use(router)

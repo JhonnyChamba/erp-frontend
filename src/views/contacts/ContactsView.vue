@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { ref, onMounted, computed, watch, nextTick } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
+import { toast } from '@/utils/toastr'
 import {
   getCustomers,
   createCustomer,
@@ -29,6 +30,13 @@ const activeTab = ref<'clientes' | 'proveedores' | 'vendedores'>('clientes')
 const loading = ref(false)
 const successMsg = ref('')
 const errorMsg = ref('')
+
+watch(successMsg, (msg) => {
+  if (msg) toast.success(msg, 'Contactos')
+})
+watch(errorMsg, (msg) => {
+  if (msg) toast.error(msg, 'Error en Contactos')
+})
 
 // Empresa seleccionada
 const selectedCompany = ref<any>(null)
