@@ -6,6 +6,8 @@ export interface InventoryArticle {
   code: string
   sku: string
   name: string
+  categoryId?: number | null
+  category_id?: number | null
   category: string
   unit: string
   costPrice: number
@@ -13,9 +15,39 @@ export interface InventoryArticle {
   taxRate: number
   stockCurrent: number
   stockMin: number
+  warehouseId?: number | null
+  warehouse_id?: number | null
   location: string
   description: string
   status: boolean
+}
+
+export interface InventoryCategory {
+  id: number
+  companyId?: number
+  code: string
+  name: string
+  description?: string
+  enabled?: boolean
+  status?: boolean
+  created_at?: string
+}
+
+export interface InventoryWarehouse {
+  id: number
+  companyId?: number
+  code: string
+  name: string
+  address?: string
+  responsible?: string
+  phone?: string
+  branchId?: number
+  branch_id?: number
+  isDefault?: boolean
+  is_default?: boolean
+  enabled?: boolean
+  status?: boolean
+  created_at?: string
 }
 
 export interface InventoryServiceItem {
@@ -120,6 +152,56 @@ export const updateInventorySubcontract = async (id: number, payload: Partial<In
 
 export const deleteInventorySubcontract = async (id: number, companyId?: number) => {
   const { data } = await api.delete(`/inventory/subcontracts/${id}`, {
+    params: companyId ? { companyId } : {}
+  })
+  return data
+}
+
+// 4. CATEGORÍAS DE INVENTARIO
+export const getInventoryCategories = async (companyId?: number): Promise<InventoryCategory[]> => {
+  const { data } = await api.get('/inventory/categories', {
+    params: companyId ? { companyId } : {}
+  })
+  return data
+}
+
+export const createInventoryCategory = async (payload: Partial<InventoryCategory>): Promise<InventoryCategory> => {
+  const { data } = await api.post('/inventory/categories', payload)
+  return data
+}
+
+export const updateInventoryCategory = async (id: number, payload: Partial<InventoryCategory>): Promise<InventoryCategory> => {
+  const { data } = await api.patch(`/inventory/categories/${id}`, payload)
+  return data
+}
+
+export const deleteInventoryCategory = async (id: number, companyId?: number) => {
+  const { data } = await api.delete(`/inventory/categories/${id}`, {
+    params: companyId ? { companyId } : {}
+  })
+  return data
+}
+
+// 5. BODEGAS / ALMACENES
+export const getInventoryWarehouses = async (companyId?: number): Promise<InventoryWarehouse[]> => {
+  const { data } = await api.get('/inventory/warehouses', {
+    params: companyId ? { companyId } : {}
+  })
+  return data
+}
+
+export const createInventoryWarehouse = async (payload: Partial<InventoryWarehouse>): Promise<InventoryWarehouse> => {
+  const { data } = await api.post('/inventory/warehouses', payload)
+  return data
+}
+
+export const updateInventoryWarehouse = async (id: number, payload: Partial<InventoryWarehouse>): Promise<InventoryWarehouse> => {
+  const { data } = await api.patch(`/inventory/warehouses/${id}`, payload)
+  return data
+}
+
+export const deleteInventoryWarehouse = async (id: number, companyId?: number) => {
+  const { data } = await api.delete(`/inventory/warehouses/${id}`, {
     params: companyId ? { companyId } : {}
   })
   return data

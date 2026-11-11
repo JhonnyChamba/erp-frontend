@@ -24,7 +24,7 @@
       </div>
     </div>
 
-    <!-- Main 3-Tab Switcher -->
+    <!-- Main 5-Tab Switcher -->
     <div class="tabs-bar">
       <div class="tabs-pills">
         <button
@@ -55,6 +55,26 @@
           <iconify-icon icon="solar:users-group-rounded-line-duotone" width="18"></iconify-icon>
           <span>Subcontratación / Mano de Obra</span>
           <span class="pill-count">{{ subcontractsList.length }}</span>
+        </button>
+
+        <button
+          class="tab-pill"
+          :class="{ active: activeTab === 'categorias' }"
+          @click="switchTab('categorias')"
+        >
+          <iconify-icon icon="solar:tag-price-line-duotone" width="18"></iconify-icon>
+          <span>Categorías</span>
+          <span class="pill-count">{{ categoriesList.length }}</span>
+        </button>
+
+        <button
+          class="tab-pill"
+          :class="{ active: activeTab === 'bodegas' }"
+          @click="switchTab('bodegas')"
+        >
+          <iconify-icon icon="solar:home-smile-line-duotone" width="18"></iconify-icon>
+          <span>Bodegas / Almacenes</span>
+          <span class="pill-count">{{ warehousesList.length }}</span>
         </button>
       </div>
 
@@ -148,7 +168,7 @@
       </div>
     </div>
 
-    <div class="kpi-grid" v-else>
+    <div class="kpi-grid" v-else-if="activeTab === 'subcontratacion'">
       <div class="kpi-card">
         <div class="kpi-icon blue">
           <iconify-icon icon="solar:users-group-rounded-bold-duotone" width="24"></iconify-icon>
@@ -174,6 +194,66 @@
         <div>
           <span class="kpi-label">Costo Promedio Rubro</span>
           <h4 class="kpi-val">${{ formatNumber(averageSubcontractCost) }}</h4>
+        </div>
+      </div>
+    </div>
+
+    <div class="kpi-grid" v-else-if="activeTab === 'categorias'">
+      <div class="kpi-card">
+        <div class="kpi-icon blue">
+          <iconify-icon icon="solar:tag-price-bold-duotone" width="24"></iconify-icon>
+        </div>
+        <div>
+          <span class="kpi-label">Total Categorías</span>
+          <h4 class="kpi-val">{{ categoriesList.length }}</h4>
+        </div>
+      </div>
+      <div class="kpi-card">
+        <div class="kpi-icon green">
+          <iconify-icon icon="solar:check-circle-bold-duotone" width="24"></iconify-icon>
+        </div>
+        <div>
+          <span class="kpi-label">Categorías Activas</span>
+          <h4 class="kpi-val">{{ categoriesList.filter(c => c.status).length }}</h4>
+        </div>
+      </div>
+      <div class="kpi-card">
+        <div class="kpi-icon purple">
+          <iconify-icon icon="solar:box-minimalistic-bold-duotone" width="24"></iconify-icon>
+        </div>
+        <div>
+          <span class="kpi-label">Artículos Categorizados</span>
+          <h4 class="kpi-val">{{ itemsList.filter(i => i.categoryId || i.category).length }}</h4>
+        </div>
+      </div>
+    </div>
+
+    <div class="kpi-grid" v-else>
+      <div class="kpi-card">
+        <div class="kpi-icon blue">
+          <iconify-icon icon="solar:home-smile-bold-duotone" width="24"></iconify-icon>
+        </div>
+        <div>
+          <span class="kpi-label">Total Bodegas</span>
+          <h4 class="kpi-val">{{ warehousesList.length }}</h4>
+        </div>
+      </div>
+      <div class="kpi-card">
+        <div class="kpi-icon green">
+          <iconify-icon icon="solar:star-circle-bold-duotone" width="24"></iconify-icon>
+        </div>
+        <div>
+          <span class="kpi-label">Bodega Principal</span>
+          <h4 class="kpi-val fs-3">{{ defaultWarehouseName }}</h4>
+        </div>
+      </div>
+      <div class="kpi-card">
+        <div class="kpi-icon amber">
+          <iconify-icon icon="solar:buildings-3-bold-duotone" width="24"></iconify-icon>
+        </div>
+        <div>
+          <span class="kpi-label">Bodegas Habilitadas</span>
+          <h4 class="kpi-val">{{ warehousesList.filter(w => w.status).length }}</h4>
         </div>
       </div>
     </div>
@@ -459,6 +539,157 @@
     </div>
 
     <!-- ========================================================== -->
+    <!-- TAB 4: TABLA DE CATEGORÍAS                                 -->
+    <!-- ========================================================== -->
+    <div v-if="activeTab === 'categorias'" class="table-card">
+      <div class="table-scroll">
+        <table class="erp-table">
+          <thead>
+            <tr>
+              <th style="width: 110px;">Código</th>
+              <th>Nombre de la Categoría</th>
+              <th>Descripción</th>
+              <th class="text-center" style="width: 150px;">Artículos Asociados</th>
+              <th class="text-center" style="width: 110px;">Estado</th>
+              <th class="text-right" style="width: 120px;">Acciones</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr v-if="loading">
+              <td colspan="6" class="text-center py-5">
+                <div class="d-flex align-items-center justify-content-center gap-2 mb-2">
+                  <div class="spinner-grow text-primary" role="status"><span class="visually-hidden">Cargando...</span></div>
+                  <div class="spinner-grow text-info" role="status"><span class="visually-hidden">Cargando...</span></div>
+                  <div class="spinner-grow text-secondary" role="status"><span class="visually-hidden">Cargando...</span></div>
+                </div>
+                <span class="text-secondary small">Cargando categorías de inventario...</span>
+              </td>
+            </tr>
+            <tr v-else-if="filteredCategories.length === 0">
+              <td colspan="6" class="empty-cell">
+                No se encontraron categorías registradas. Haz clic en <strong>+ Nueva Categoría</strong> para crear la primera.
+              </td>
+            </tr>
+            <tr v-for="cat in filteredCategories" :key="cat.id">
+              <td><span class="code-chip cat">{{ cat.code }}</span></td>
+              <td>
+                <span class="item-name fw-bold">{{ cat.name }}</span>
+              </td>
+              <td>
+                <span class="text-secondary small">{{ cat.description || 'Sin descripción' }}</span>
+              </td>
+              <td class="text-center">
+                <span class="badge bg-primary-subtle text-primary border border-primary-subtle px-2 py-1">
+                  {{ countItemsByCategory(cat) }} artículos
+                </span>
+              </td>
+              <td class="text-center">
+                <button
+                  class="status-pill"
+                  :class="cat.status ? 'active' : 'inactive'"
+                  @click="toggleCategoryStatus(cat)"
+                  title="Clic para cambiar estado"
+                >
+                  {{ cat.status ? 'Activo' : 'Inactivo' }}
+                </button>
+              </td>
+              <td class="text-right">
+                <div class="row-actions">
+                  <button class="act-btn edit" @click="openEditCategory(cat)" title="Editar categoría">
+                    <iconify-icon icon="solar:pen-new-square-line-duotone" width="17"></iconify-icon>
+                  </button>
+                  <button class="act-btn delete" :disabled="deletingId === cat.id" @click="confirmDelete('categorias', cat)" title="Eliminar categoría">
+                    <span v-if="deletingId === cat.id" class="spinner-grow spinner-grow-sm text-danger" role="status" aria-hidden="true"></span>
+                    <iconify-icon v-else icon="solar:trash-bin-trash-line-duotone" width="17"></iconify-icon>
+                  </button>
+                </div>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- ========================================================== -->
+    <!-- TAB 5: TABLA DE BODEGAS / ALMACENES                        -->
+    <!-- ========================================================== -->
+    <div v-if="activeTab === 'bodegas'" class="table-card">
+      <div class="table-scroll">
+        <table class="erp-table">
+          <thead>
+            <tr>
+              <th style="width: 110px;">Código</th>
+              <th>Nombre de Bodega</th>
+              <th>Dirección / Ubicación</th>
+              <th>Responsable</th>
+              <th>Teléfono</th>
+              <th class="text-center" style="width: 150px;">Artículos Alojados</th>
+              <th class="text-center" style="width: 110px;">Estado</th>
+              <th class="text-right" style="width: 120px;">Acciones</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr v-if="loading">
+              <td colspan="8" class="text-center py-5">
+                <div class="d-flex align-items-center justify-content-center gap-2 mb-2">
+                  <div class="spinner-grow text-primary" role="status"><span class="visually-hidden">Cargando...</span></div>
+                  <div class="spinner-grow text-info" role="status"><span class="visually-hidden">Cargando...</span></div>
+                  <div class="spinner-grow text-secondary" role="status"><span class="visually-hidden">Cargando...</span></div>
+                </div>
+                <span class="text-secondary small">Cargando bodegas de la empresa...</span>
+              </td>
+            </tr>
+            <tr v-else-if="filteredWarehouses.length === 0">
+              <td colspan="8" class="empty-cell">
+                No se encontraron bodegas registradas. Haz clic en <strong>+ Nueva Bodega</strong> para crear la primera.
+              </td>
+            </tr>
+            <tr v-for="wh in filteredWarehouses" :key="wh.id">
+              <td><span class="code-chip bod">{{ wh.code }}</span></td>
+              <td>
+                <div class="d-flex align-items-center gap-2">
+                  <span class="item-name fw-bold">{{ wh.name }}</span>
+                  <span v-if="wh.isDefault" class="badge bg-success-subtle text-success border border-success-subtle fs-1">
+                    Principal
+                  </span>
+                </div>
+              </td>
+              <td><span class="text-secondary small">{{ wh.address || 'Sin dirección asignada' }}</span></td>
+              <td><span class="text-secondary small">{{ wh.responsible || 'Sin responsable' }}</span></td>
+              <td><span class="text-secondary small">{{ wh.phone || 'Sin teléfono' }}</span></td>
+              <td class="text-center">
+                <span class="badge bg-info-subtle text-info border border-info-subtle px-2 py-1">
+                  {{ countItemsByWarehouse(wh) }} artículos
+                </span>
+              </td>
+              <td class="text-center">
+                <button
+                  class="status-pill"
+                  :class="wh.status ? 'active' : 'inactive'"
+                  @click="toggleWarehouseStatus(wh)"
+                  title="Clic para cambiar estado"
+                >
+                  {{ wh.status ? 'Activo' : 'Inactivo' }}
+                </button>
+              </td>
+              <td class="text-right">
+                <div class="row-actions">
+                  <button class="act-btn edit" @click="openEditWarehouse(wh)" title="Editar bodega">
+                    <iconify-icon icon="solar:pen-new-square-line-duotone" width="17"></iconify-icon>
+                  </button>
+                  <button class="act-btn delete" :disabled="deletingId === wh.id" @click="confirmDelete('bodegas', wh)" title="Eliminar bodega">
+                    <span v-if="deletingId === wh.id" class="spinner-grow spinner-grow-sm text-danger" role="status" aria-hidden="true"></span>
+                    <iconify-icon v-else icon="solar:trash-bin-trash-line-duotone" width="17"></iconify-icon>
+                  </button>
+                </div>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- ========================================================== -->
     <!-- MODAL 1: CREAR / EDITAR ÍTEM / ARTÍCULO                    -->
     <!-- ========================================================== -->
     <div v-if="showItemModal" id="form-page" class="form-page">
@@ -491,8 +722,13 @@
             </div>
 
             <div class="form-group">
-              <label>Categoría</label>
-              <input v-model="itemForm.category" type="text" placeholder="Ej: Equipos, Repuestos, Suministros" />
+              <label>Categoría * <span class="badge bg-primary-subtle text-primary" style="font-size: 10px; margin-left: 6px;">Obligatoria</span></label>
+              <select v-model="itemForm.categoryId" @change="onCategorySelect" required>
+                <option :value="null" disabled>-- Selecciona una categoría obligatoria --</option>
+                <option v-for="cat in activeCategories" :key="cat.id" :value="cat.id">
+                  {{ cat.code ? `[${cat.code}] ` : '' }}{{ cat.name }}
+                </option>
+              </select>
             </div>
 
             <div class="form-group">
@@ -528,7 +764,17 @@
             </div>
 
             <div class="form-group">
-              <label>Ubicación / Bodega</label>
+              <label>Bodega de Almacenamiento</label>
+              <select v-model="itemForm.warehouseId" @change="onWarehouseSelect">
+                <option :value="null">-- Ninguna / Sin asignar --</option>
+                <option v-for="wh in activeWarehouses" :key="wh.id" :value="wh.id">
+                  {{ wh.name }}{{ wh.isDefault ? ' ★ (Principal)' : '' }}
+                </option>
+              </select>
+            </div>
+
+            <div class="form-group">
+              <label>Ubicación / Percha</label>
               <input v-model="itemForm.location" type="text" placeholder="Ej: Bodega Central - Percha A2" />
             </div>
 
@@ -745,6 +991,131 @@
         </form>
       </div>
     </div>
+
+    <!-- ========================================================== -->
+    <!-- MODAL 4: CREAR / EDITAR CATEGORÍA                          -->
+    <!-- ========================================================== -->
+    <div v-if="showCategoryModal" id="form-page" class="form-page">
+      <div class="modal-card form-page-card">
+        <div class="modal-header">
+          <div>
+            <span class="mod-code-badge cat">CONFIGURACIÓN DE CATEGORÍAS</span>
+            <h3>{{ editingCategoryId ? `Editar Categoría (${categoryForm.code})` : 'Registrar Nueva Categoría' }}</h3>
+          </div>
+          <button type="button" class="btn-secondary" @click="showCategoryModal = false">
+            <iconify-icon icon="solar:alt-arrow-left-line-duotone" width="18"></iconify-icon>
+            <span>Volver</span>
+          </button>
+        </div>
+
+        <form class="modal-body" @submit.prevent="saveCategoryForm">
+          <div class="form-grid">
+            <div class="form-group">
+              <label>Código de Categoría (Autogenerado si se deja vacío)</label>
+              <input v-model="categoryForm.code" type="text" placeholder="Ej: CAT-001" :disabled="Boolean(editingCategoryId)" />
+            </div>
+
+            <div class="form-group">
+              <label>Estado</label>
+              <select v-model="categoryForm.status">
+                <option :value="true">Activa (Disponible para productos)</option>
+                <option :value="false">Inactiva</option>
+              </select>
+            </div>
+
+            <div class="form-group span-2">
+              <label>Nombre de la Categoría *</label>
+              <input v-model="categoryForm.name" type="text" required placeholder="Ej: Equipos Informáticos, Repuestos, Suministros..." />
+            </div>
+
+            <div class="form-group span-2">
+              <label>Descripción / Observaciones</label>
+              <textarea v-model="categoryForm.description" rows="3" placeholder="Detalle o alcance de los productos incluidos en esta categoría..."></textarea>
+            </div>
+          </div>
+
+          <div class="modal-footer">
+            <button type="button" class="btn-secondary" @click="showCategoryModal = false">Cancelar</button>
+            <button type="submit" class="btn-primary" :disabled="saving">
+              <span v-if="saving" class="spinner-grow spinner-grow-sm me-1" role="status" aria-hidden="true"></span>
+              <iconify-icon v-else icon="solar:diskette-bold-duotone" width="18"></iconify-icon>
+              <span>{{ saving ? 'Guardando...' : (editingCategoryId ? 'Guardar Cambios' : 'Registrar Categoría') }}</span>
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <!-- ========================================================== -->
+    <!-- MODAL 5: CREAR / EDITAR BODEGA                             -->
+    <!-- ========================================================== -->
+    <div v-if="showWarehouseModal" id="form-page" class="form-page">
+      <div class="modal-card form-page-card">
+        <div class="modal-header">
+          <div>
+            <span class="mod-code-badge bod">LOGÍSTICA Y BODEGAS</span>
+            <h3>{{ editingWarehouseId ? `Editar Bodega (${warehouseForm.code})` : 'Registrar Nueva Bodega' }}</h3>
+          </div>
+          <button type="button" class="btn-secondary" @click="showWarehouseModal = false">
+            <iconify-icon icon="solar:alt-arrow-left-line-duotone" width="18"></iconify-icon>
+            <span>Volver</span>
+          </button>
+        </div>
+
+        <form class="modal-body" @submit.prevent="saveWarehouseForm">
+          <div class="form-grid">
+            <div class="form-group">
+              <label>Código de Bodega (Autogenerado si se deja vacío)</label>
+              <input v-model="warehouseForm.code" type="text" placeholder="Ej: BOD-001" :disabled="Boolean(editingWarehouseId)" />
+            </div>
+
+            <div class="form-group">
+              <label>Estado</label>
+              <select v-model="warehouseForm.status">
+                <option :value="true">Habilitada</option>
+                <option :value="false">Inactiva / Bloqueada</option>
+              </select>
+            </div>
+
+            <div class="form-group span-2">
+              <label>Nombre de la Bodega *</label>
+              <input v-model="warehouseForm.name" type="text" required placeholder="Ej: Bodega Central Quito, Almacén Guayaquil, Percha 1..." />
+            </div>
+
+            <div class="form-group">
+              <label>Responsable / Custodio</label>
+              <input v-model="warehouseForm.responsible" type="text" placeholder="Ej: Ing. Marco Salgado" />
+            </div>
+
+            <div class="form-group">
+              <label>Teléfono de Contacto</label>
+              <input v-model="warehouseForm.phone" type="text" placeholder="Ej: 0991234567" />
+            </div>
+
+            <div class="form-group span-2">
+              <label>Dirección / Ubicación Física</label>
+              <input v-model="warehouseForm.address" type="text" placeholder="Ej: Av. 10 de Agosto N24-102 y Orellana" />
+            </div>
+
+            <div class="form-group span-2">
+              <label class="checkbox-row">
+                <input v-model="warehouseForm.isDefault" type="checkbox" />
+                <span>Marcar como Bodega Principal / Predeterminada de la empresa</span>
+              </label>
+            </div>
+          </div>
+
+          <div class="modal-footer">
+            <button type="button" class="btn-secondary" @click="showWarehouseModal = false">Cancelar</button>
+            <button type="submit" class="btn-primary" :disabled="saving">
+              <span v-if="saving" class="spinner-grow spinner-grow-sm me-1" role="status" aria-hidden="true"></span>
+              <iconify-icon v-else icon="solar:diskette-bold-duotone" width="18"></iconify-icon>
+              <span>{{ saving ? 'Guardando...' : (editingWarehouseId ? 'Guardar Cambios' : 'Registrar Bodega') }}</span>
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
   </div>
 </template>
 
@@ -764,12 +1135,22 @@ import {
   createInventorySubcontract,
   updateInventorySubcontract,
   deleteInventorySubcontract,
+  getInventoryCategories,
+  createInventoryCategory,
+  updateInventoryCategory,
+  deleteInventoryCategory,
+  getInventoryWarehouses,
+  createInventoryWarehouse,
+  updateInventoryWarehouse,
+  deleteInventoryWarehouse,
   type InventoryArticle,
   type InventoryServiceItem,
-  type InventorySubcontractItem
+  type InventorySubcontractItem,
+  type InventoryCategory,
+  type InventoryWarehouse
 } from '@/services/inventory.service'
 
-type InventoryTab = 'articulos' | 'servicios' | 'subcontratacion'
+type InventoryTab = 'articulos' | 'servicios' | 'subcontratacion' | 'categorias' | 'bodegas'
 
 const route = useRoute()
 const router = useRouter()
@@ -783,6 +1164,8 @@ const statusFilter = ref<'ALL' | 'ACTIVE' | 'INACTIVE' | 'LOW_STOCK'>('ALL')
 const itemsList = ref<InventoryArticle[]>([])
 const servicesList = ref<InventoryServiceItem[]>([])
 const subcontractsList = ref<InventorySubcontractItem[]>([])
+const categoriesList = ref<InventoryCategory[]>([])
+const warehousesList = ref<InventoryWarehouse[]>([])
 
 const feedbackBanner = ref<{ text: string; type: 'success' | 'error' | '' }>({
   text: '',
@@ -812,13 +1195,17 @@ const getActiveCompanyId = (): number => {
   return 1
 }
 
-// Sync tab with URL query (?tab=articulos | servicios | subcontratacion) or route param
+// Sync tab with URL query (?tab=articulos | servicios | subcontratacion | categorias | bodegas) or route param
 const syncTabFromRoute = () => {
   const qTab = String(route.query.tab || route.params.sub || '').toLowerCase()
   if (qTab.includes('serv')) {
     activeTab.value = 'servicios'
   } else if (qTab.includes('sub') || qTab.includes('mano') || qTab.includes('obra')) {
     activeTab.value = 'subcontratacion'
+  } else if (qTab.includes('cat')) {
+    activeTab.value = 'categorias'
+  } else if (qTab.includes('bod') || qTab.includes('ware') || qTab.includes('almacen')) {
+    activeTab.value = 'bodegas'
   } else {
     activeTab.value = 'articulos'
   }
@@ -837,18 +1224,24 @@ watch(() => [route.query.tab, route.params.sub], () => {
 const activeTabBadge = computed(() => {
   if (activeTab.value === 'servicios') return { code: 'SUB-009 · SERVICIOS' }
   if (activeTab.value === 'subcontratacion') return { code: 'SUB-010 · MANO DE OBRA' }
+  if (activeTab.value === 'categorias') return { code: 'CONFIG · CATEGORÍAS' }
+  if (activeTab.value === 'bodegas') return { code: 'LOGÍSTICA · BODEGAS' }
   return { code: 'SUB-008 · ARTÍCULOS' }
 })
 
 const createButtonLabel = computed(() => {
   if (activeTab.value === 'servicios') return 'Nuevo Servicio'
   if (activeTab.value === 'subcontratacion') return 'Nueva Mano de Obra / Subcontrato'
+  if (activeTab.value === 'categorias') return 'Nueva Categoría'
+  if (activeTab.value === 'bodegas') return 'Nueva Bodega'
   return 'Nuevo Artículo'
 })
 
 const searchPlaceholder = computed(() => {
   if (activeTab.value === 'servicios') return 'Buscar por código SRV, nombre o categoría...'
   if (activeTab.value === 'subcontratacion') return 'Buscar por código MO, rubro, contratista o especialidad...'
+  if (activeTab.value === 'categorias') return 'Buscar categoría por código, nombre o descripción...'
+  if (activeTab.value === 'bodegas') return 'Buscar bodega por código, nombre, responsable o dirección...'
   return 'Buscar por código ART, SKU, nombre o bodega...'
 })
 
@@ -927,19 +1320,73 @@ const filteredSubcontracts = computed(() => {
   })
 })
 
-// Load All 3 Catalogs
+const activeCategories = computed(() => categoriesList.value.filter(c => c.status))
+const activeWarehouses = computed(() => warehousesList.value.filter(w => w.status))
+const defaultWarehouseName = computed(() => warehousesList.value.find(w => w.isDefault)?.name || 'Sin predeterminada')
+
+const countItemsByCategory = (cat: InventoryCategory) => {
+  return itemsList.value.filter(item => {
+    if (item.categoryId && item.categoryId === cat.id) return true
+    if (item.category && cat.name && item.category.trim().toLowerCase() === cat.name.trim().toLowerCase()) return true
+    return false
+  }).length
+}
+
+const countItemsByWarehouse = (wh: InventoryWarehouse) => {
+  return itemsList.value.filter(item => {
+    if (item.warehouseId && item.warehouseId === wh.id) return true
+    if (item.location && wh.name && item.location.toLowerCase().includes(wh.name.toLowerCase())) return true
+    return false
+  }).length
+}
+
+const filteredCategories = computed(() => {
+  const q = searchQuery.value.trim().toLowerCase()
+  return categoriesList.value.filter(cat => {
+    if (statusFilter.value === 'ACTIVE' && !cat.status) return false
+    if (statusFilter.value === 'INACTIVE' && cat.status) return false
+    if (!q) return true
+    return (
+      cat.code?.toLowerCase().includes(q) ||
+      cat.name?.toLowerCase().includes(q) ||
+      cat.description?.toLowerCase().includes(q)
+    )
+  })
+})
+
+const filteredWarehouses = computed(() => {
+  const q = searchQuery.value.trim().toLowerCase()
+  return warehousesList.value.filter(wh => {
+    if (statusFilter.value === 'ACTIVE' && !wh.status) return false
+    if (statusFilter.value === 'INACTIVE' && wh.status) return false
+    if (!q) return true
+    return (
+      wh.code?.toLowerCase().includes(q) ||
+      wh.name?.toLowerCase().includes(q) ||
+      wh.address?.toLowerCase().includes(q) ||
+      wh.responsible?.toLowerCase().includes(q) ||
+      wh.phone?.toLowerCase().includes(q)
+    )
+  })
+})
+
+// Load All Catalogs
 const loadAllInventory = async () => {
   loading.value = true
   const companyId = getActiveCompanyId()
   try {
-    const [items, services, subcontracts] = await Promise.all([
+    const [items, services, subcontracts, categories, warehouses] = await Promise.all([
       getInventoryItems(companyId),
       getInventoryServices(companyId),
-      getInventorySubcontracts(companyId)
+      getInventorySubcontracts(companyId),
+      getInventoryCategories(companyId),
+      getInventoryWarehouses(companyId)
     ])
     itemsList.value = Array.isArray(items) ? items : []
     servicesList.value = Array.isArray(services) ? services : []
     subcontractsList.value = Array.isArray(subcontracts) ? subcontracts : []
+    categoriesList.value = Array.isArray(categories) ? categories : []
+    warehousesList.value = Array.isArray(warehouses) ? warehouses : []
   } catch (err: any) {
     showFeedback(err?.response?.data?.message || 'Error al cargar los catálogos de inventario', 'error')
   } finally {
@@ -956,32 +1403,52 @@ const itemForm = ref({
   code: '',
   sku: '',
   name: '',
-  category: 'General',
+  categoryId: null as number | null,
+  category: '',
+  warehouseId: null as number | null,
   unit: 'UND',
   costPrice: 0,
   salePrice: 0,
   taxRate: 15,
   stockCurrent: 0,
   stockMin: 5,
-  location: 'Bodega Principal',
+  location: '',
   description: '',
   status: true
 })
 
+const onCategorySelect = () => {
+  const found = categoriesList.value.find(c => c.id === itemForm.value.categoryId)
+  if (found) {
+    itemForm.value.category = found.name
+  }
+}
+
+const onWarehouseSelect = () => {
+  const found = warehousesList.value.find(w => w.id === itemForm.value.warehouseId)
+  if (found && !itemForm.value.location) {
+    itemForm.value.location = found.name
+  }
+}
+
 const openCreateItem = () => {
   editingItemId.value = null
+  const firstCat = activeCategories.value[0] || null
+  const defWh = warehousesList.value.find(w => w.isDefault && w.status) || activeWarehouses.value[0] || null
   itemForm.value = {
     code: '',
     sku: '',
     name: '',
-    category: 'Equipos y Suministros',
+    categoryId: firstCat ? firstCat.id : null,
+    category: firstCat ? firstCat.name : '',
+    warehouseId: defWh ? defWh.id : null,
     unit: 'UND',
     costPrice: 0,
     salePrice: 0,
     taxRate: 15,
     stockCurrent: 1,
     stockMin: 2,
-    location: 'Bodega Principal',
+    location: defWh ? defWh.name : '',
     description: '',
     status: true
   }
@@ -990,18 +1457,29 @@ const openCreateItem = () => {
 
 const openEditItem = (item: InventoryArticle) => {
   editingItemId.value = item.id
+  const catMatch = categoriesList.value.find(c =>
+    (item.categoryId && c.id === item.categoryId) ||
+    (item.category && c.name.toLowerCase() === item.category.toLowerCase())
+  )
+  const whMatch = warehousesList.value.find(w =>
+    (item.warehouseId && w.id === item.warehouseId) ||
+    (item.location && item.location.toLowerCase().includes(w.name.toLowerCase()))
+  )
+
   itemForm.value = {
     code: item.code || '',
     sku: item.sku || '',
     name: item.name || '',
-    category: item.category || 'General',
+    categoryId: catMatch ? catMatch.id : (item.categoryId || null),
+    category: item.category || catMatch?.name || '',
+    warehouseId: whMatch ? whMatch.id : (item.warehouseId || null),
     unit: item.unit || 'UND',
     costPrice: Number(item.costPrice || 0),
     salePrice: Number(item.salePrice || 0),
     taxRate: Number(item.taxRate ?? 15),
     stockCurrent: Number(item.stockCurrent || 0),
     stockMin: Number(item.stockMin || 0),
-    location: item.location || 'Bodega Principal',
+    location: item.location || (whMatch ? whMatch.name : ''),
     description: item.description || '',
     status: Boolean(item.status)
   }
@@ -1009,14 +1487,32 @@ const openEditItem = (item: InventoryArticle) => {
 }
 
 const saveItemForm = async () => {
+  if (!itemForm.value.categoryId) {
+    showFeedback('Debe seleccionar obligatoriamente una categoría para el producto', 'error')
+    return
+  }
+  const matchedCat = categoriesList.value.find(c => c.id === itemForm.value.categoryId)
+  if (matchedCat) {
+    itemForm.value.category = matchedCat.name
+  }
+
   saving.value = true
   const companyId = getActiveCompanyId()
   try {
+    const payload = {
+      ...itemForm.value,
+      companyId,
+      categoryId: itemForm.value.categoryId,
+      category_id: itemForm.value.categoryId,
+      category: itemForm.value.category,
+      warehouseId: itemForm.value.warehouseId,
+      warehouse_id: itemForm.value.warehouseId
+    }
     if (editingItemId.value) {
-      await updateInventoryItem(editingItemId.value, { ...itemForm.value, companyId })
+      await updateInventoryItem(editingItemId.value, payload)
       showFeedback('Artículo actualizado correctamente')
     } else {
-      await createInventoryItem({ ...itemForm.value, companyId })
+      await createInventoryItem(payload)
       showFeedback('Artículo registrado con éxito')
     }
     showItemModal.value = false
@@ -1123,7 +1619,13 @@ const toggleServiceStatus = async (srv: InventoryServiceItem) => {
 // ==========================================
 const showSubcontractModal = ref(false)
 // Mientras un formulario de registro/edición está abierto se muestra como página y se oculta el listado
-const isFormOpen = computed(() => showItemModal.value || showServiceModal.value || showSubcontractModal.value)
+const isFormOpen = computed(() =>
+  showItemModal.value ||
+  showServiceModal.value ||
+  showSubcontractModal.value ||
+  showCategoryModal.value ||
+  showWarehouseModal.value
+)
 watch(isFormOpen, async (open) => {
   if (open) {
     await nextTick()
@@ -1214,6 +1716,151 @@ const toggleSubcontractStatus = async (sub: InventorySubcontractItem) => {
 }
 
 // ==========================================
+// 4. CRUD CATEGORÍAS
+// ==========================================
+const showCategoryModal = ref(false)
+const editingCategoryId = ref<number | null>(null)
+const categoryForm = ref({
+  code: '',
+  name: '',
+  description: '',
+  status: true
+})
+
+const openCreateCategory = () => {
+  editingCategoryId.value = null
+  categoryForm.value = {
+    code: '',
+    name: '',
+    description: '',
+    status: true
+  }
+  showCategoryModal.value = true
+}
+
+const openEditCategory = (cat: InventoryCategory) => {
+  editingCategoryId.value = cat.id
+  categoryForm.value = {
+    code: cat.code || '',
+    name: cat.name || '',
+    description: cat.description || '',
+    status: Boolean(cat.status)
+  }
+  showCategoryModal.value = true
+}
+
+const saveCategoryForm = async () => {
+  if (!categoryForm.value.name.trim()) {
+    showFeedback('El nombre de la categoría es obligatorio', 'error')
+    return
+  }
+  saving.value = true
+  const companyId = getActiveCompanyId()
+  try {
+    if (editingCategoryId.value) {
+      await updateInventoryCategory(editingCategoryId.value, { ...categoryForm.value, companyId })
+      showFeedback('Categoría actualizada con éxito')
+    } else {
+      await createInventoryCategory({ ...categoryForm.value, companyId })
+      showFeedback('Categoría registrada con éxito')
+    }
+    showCategoryModal.value = false
+    await loadAllInventory()
+  } catch (err: any) {
+    showFeedback(err?.response?.data?.message || 'Error al guardar la categoría', 'error')
+  } finally {
+    saving.value = false
+  }
+}
+
+const toggleCategoryStatus = async (cat: InventoryCategory) => {
+  try {
+    await updateInventoryCategory(cat.id, { companyId: getActiveCompanyId(), status: !cat.status })
+    cat.status = !cat.status
+    showFeedback(`Categoría "${cat.name}" ahora está ${cat.status ? 'activa' : 'inactiva'}`)
+  } catch {
+    showFeedback('No se pudo cambiar el estado de la categoría', 'error')
+  }
+}
+
+// ==========================================
+// 5. CRUD BODEGAS
+// ==========================================
+const showWarehouseModal = ref(false)
+const editingWarehouseId = ref<number | null>(null)
+const warehouseForm = ref({
+  code: '',
+  name: '',
+  address: '',
+  responsible: '',
+  phone: '',
+  isDefault: false,
+  status: true
+})
+
+const openCreateWarehouse = () => {
+  editingWarehouseId.value = null
+  warehouseForm.value = {
+    code: '',
+    name: '',
+    address: '',
+    responsible: '',
+    phone: '',
+    isDefault: warehousesList.value.length === 0,
+    status: true
+  }
+  showWarehouseModal.value = true
+}
+
+const openEditWarehouse = (wh: InventoryWarehouse) => {
+  editingWarehouseId.value = wh.id
+  warehouseForm.value = {
+    code: wh.code || '',
+    name: wh.name || '',
+    address: wh.address || '',
+    responsible: wh.responsible || '',
+    phone: wh.phone || '',
+    isDefault: Boolean(wh.isDefault),
+    status: Boolean(wh.status)
+  }
+  showWarehouseModal.value = true
+}
+
+const saveWarehouseForm = async () => {
+  if (!warehouseForm.value.name.trim()) {
+    showFeedback('El nombre de la bodega es obligatorio', 'error')
+    return
+  }
+  saving.value = true
+  const companyId = getActiveCompanyId()
+  try {
+    if (editingWarehouseId.value) {
+      await updateInventoryWarehouse(editingWarehouseId.value, { ...warehouseForm.value, companyId })
+      showFeedback('Bodega actualizada con éxito')
+    } else {
+      await createInventoryWarehouse({ ...warehouseForm.value, companyId })
+      showFeedback('Bodega registrada con éxito')
+    }
+    showWarehouseModal.value = false
+    await loadAllInventory()
+  } catch (err: any) {
+    showFeedback(err?.response?.data?.message || 'Error al guardar la bodega', 'error')
+  } finally {
+    saving.value = false
+  }
+}
+
+const toggleWarehouseStatus = async (wh: InventoryWarehouse) => {
+  try {
+    await updateInventoryWarehouse(wh.id, { companyId: getActiveCompanyId(), status: !wh.status })
+    wh.status = !wh.status
+    showFeedback(`Bodega "${wh.name}" ahora está ${wh.status ? 'habilitada' : 'inactiva'}`)
+  } catch {
+    showFeedback('No se pudo cambiar el estado de la bodega', 'error')
+  }
+}
+
+// ==========================================
 // DISPATCHER BOTÓN CREAR Y ELIMINAR
 // ==========================================
 const openCreateModal = () => {
@@ -1221,6 +1868,10 @@ const openCreateModal = () => {
     openCreateService()
   } else if (activeTab.value === 'subcontratacion') {
     openCreateSubcontract()
+  } else if (activeTab.value === 'categorias') {
+    openCreateCategory()
+  } else if (activeTab.value === 'bodegas') {
+    openCreateWarehouse()
   } else {
     openCreateItem()
   }
@@ -1237,8 +1888,12 @@ const confirmDelete = async (tab: InventoryTab, record: any) => {
       await deleteInventoryItem(record.id, companyId)
     } else if (tab === 'servicios') {
       await deleteInventoryService(record.id, companyId)
-    } else {
+    } else if (tab === 'subcontratacion') {
       await deleteInventorySubcontract(record.id, companyId)
+    } else if (tab === 'categorias') {
+      await deleteInventoryCategory(record.id, companyId)
+    } else if (tab === 'bodegas') {
+      await deleteInventoryWarehouse(record.id, companyId)
     }
     showFeedback(`Registro ${record.code} eliminado correctamente`)
     await loadAllInventory()
@@ -1301,6 +1956,18 @@ onMounted(() => {
   background: rgba(245, 158, 11, 0.18);
   color: #fcd34d;
   border-color: rgba(252, 211, 77, 0.3);
+}
+
+.mod-code-badge.cat {
+  background: rgba(16, 185, 129, 0.18);
+  color: #34d399;
+  border-color: rgba(52, 211, 153, 0.3);
+}
+
+.mod-code-badge.bod {
+  background: rgba(6, 182, 212, 0.18);
+  color: #22d3ee;
+  border-color: rgba(34, 211, 238, 0.3);
 }
 
 .mod-sub-badge {
@@ -1602,6 +2269,16 @@ onMounted(() => {
 .code-chip.mo {
   background: rgba(251, 191, 36, 0.15);
   color: #fcd34d;
+}
+
+.code-chip.cat {
+  background: rgba(16, 185, 129, 0.15);
+  color: #34d399;
+}
+
+.code-chip.bod {
+  background: rgba(6, 182, 212, 0.15);
+  color: #22d3ee;
 }
 
 .sku-sub {
