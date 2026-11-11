@@ -34,6 +34,9 @@ const saving = ref(false)
 const savingSequenceId = ref<number | null>(null)
 const deletingId = ref<number | null>(null)
 
+// Vista actual: 'list' (tabla y KPIs), 'form' (formulario de registro/edición), 'sequences' (detalle de secuencias)
+const currentView = ref<'list' | 'form' | 'sequences'>('list')
+
 // Datos
 const emissionPointsList = ref<EmissionPointItem[]>([])
 const branchesList = ref<BranchItem[]>([])
@@ -42,10 +45,8 @@ const branchesList = ref<BranchItem[]>([])
 const searchTerm = ref('')
 const filterBranchId = ref<string>('TODAS')
 
-// Modales
-const showCreateModal = ref(false)
+// Selección
 const editingPoint = ref<EmissionPointItem | null>(null)
-const showSequencesModal = ref(false)
 const selectedPointForSequences = ref<EmissionPointItem | null>(null)
 
 // Formulario Punto de Emisión
@@ -63,7 +64,7 @@ const form = ref<{
   enabled: true
 })
 
-// Edición de correlativo en modal de secuencias
+// Edición de correlativo en vista de secuencias
 const editingCorrelative = ref<Record<number, number>>({})
 
 const showFeedback = (text: string, type: 'success' | 'error' | 'warning' | 'info' = 'success', title?: string) => {
@@ -136,8 +137,8 @@ const branchesWithPointsCount = computed(() => {
   return branchIds.size
 })
 
-// Abrir modal de creación
-const openCreateModal = () => {
+// Navegar a formulario de creación
+const openCreateForm = () => {
   editingPoint.value = null
   const defaultBranch = activeBranches.value[0]
   form.value = {
@@ -147,11 +148,11 @@ const openCreateModal = () => {
     initial_correlative: 0,
     enabled: true
   }
-  showCreateModal.value = true
+  currentView.value = 'form'
 }
 
-// Abrir modal de edición
-const openEditModal = (point: EmissionPointItem) => {
+// Navegar a formulario de edición
+const openEditForm = (point: EmissionPointItem) => {
   editingPoint.value = point
   form.value = {
     branch_id: point.branch?.id || null,
@@ -160,7 +161,14 @@ const openEditModal = (point: EmissionPointItem) => {
     initial_correlative: 0,
     enabled: point.enabled
   }
-  showCreateModal.value = true
+  currentView.value = 'form'
+}
+
+// Volver al listado
+const backToList = () => {
+  currentView.value = 'list'
+  editingPoint.value = null
+  selectedPointForSequences.value = null
 }
 
 // Guardar punto de emisión (crear o editar)
@@ -204,7 +212,7 @@ const submitPoint = async () => {
       showFeedback('Punto de emisión y secuencias registradas con éxito.', 'success')
     }
 
-    showCreateModal.value = false
+    backToList()
     await loadData()
   } catch (err: any) {
     showFeedback(
@@ -216,8 +224,8 @@ const submitPoint = async () => {
   }
 }
 
-// Abrir modal de secuencias
-const openSequencesModal = (point: EmissionPointItem) => {
+// Abrir vista de secuencias
+const openSequencesView = (point: EmissionPointItem) => {
   selectedPointForSequences.value = point
   editingCorrelative.value = {}
   if (point.sequences) {
@@ -225,7 +233,7 @@ const openSequencesModal = (point: EmissionPointItem) => {
       editingCorrelative.value[seq.id] = seq.correlative
     }
   }
-  showSequencesModal.value = true
+  currentView.value = 'sequences'
 }
 
 // Guardar correlativo de una secuencia específica
@@ -244,7 +252,7 @@ const saveSequenceCorrelative = async (seq: EmissionPointSequence) => {
     seq.correlative = updated.correlative
     showFeedback(`Correlativo de ${seq.document_type} actualizado a ${updated.correlative}.`, 'success')
     await loadData()
-    // Actualizar referencia en el modal
+    // Actualizar referencia en la vista
     if (selectedPointForSequences.value) {
       const refreshed = emissionPointsList.value.find((p) => p.id === selectedPointForSequences.value?.id)
       if (refreshed) selectedPointForSequences.value = refreshed
@@ -295,326 +303,363 @@ onMounted(() => {
 
 <template>
   <div class="crud-page emission-points-page">
-    <!-- CABECERA UNIVERSAL CRUD -->
-    <div class="crud-page-header">
-      <div>
-        <div class="d-flex align-items-center gap-2 mb-1">
-          <span class="badge bg-primary-subtle text-primary border border-primary-subtle px-2 py-1 fs-2">
-            MOD-001 CONFIG · VENTAS
-          </span>
-          <span class="badge bg-info-subtle text-info border border-info-subtle px-2 py-1 fs-2">
-            SRI ECUADOR
-          </span>
-        </div>
-        <h3 class="crud-title">Puntos de Emisión</h3>
-        <p class="crud-subtitle">
-          Gestión de series y correlativos de emisión para Facturas, Notas de Crédito, Guías de Remisión y Notas de Débito.
-        </p>
-      </div>
-
-      <div class="crud-header-actions">
-        <button
-          type="button"
-          class="btn btn-outline-secondary d-flex align-items-center gap-1 rounded-pill px-3"
-          :disabled="loading"
-          @click="loadData"
-        >
-          <span v-if="loading" class="spinner-grow spinner-grow-sm text-secondary" role="status" aria-hidden="true"></span>
-          <iconify-icon v-else icon="solar:refresh-line-duotone" class="fs-4"></iconify-icon>
-          <span>Actualizar</span>
-        </button>
-
-        <button
-          type="button"
-          class="btn btn-primary d-flex align-items-center gap-1 rounded-pill px-3 fw-semibold shadow-sm"
-          @click="openCreateModal"
-        >
-          <iconify-icon icon="solar:add-circle-line-duotone" class="fs-4"></iconify-icon>
-          <span>Nuevo Punto de Emisión</span>
-        </button>
-      </div>
-    </div>
-
-    <!-- TARJETAS DE INDICADORES (KPIs) -->
-    <div class="crud-kpi-grid">
-      <div class="crud-kpi-card">
-        <div class="crud-kpi-icon primary">
-          <iconify-icon icon="solar:printer-bold-duotone" class="fs-7"></iconify-icon>
-        </div>
+    
+    <!-- ============================================================== -->
+    <!-- VISTA 1: LISTADO PRINCIPAL (TABLA, KPIS Y FILTROS)             -->
+    <!-- ============================================================== -->
+    <template v-if="currentView === 'list'">
+      <!-- CABECERA PRINCIPAL -->
+      <div class="crud-page-header">
         <div>
-          <span class="crud-kpi-label">Total Puntos de Emisión</span>
-          <h4 class="crud-kpi-val">{{ totalPointsCount }}</h4>
-        </div>
-      </div>
-
-      <div class="crud-kpi-card">
-        <div class="crud-kpi-icon success">
-          <iconify-icon icon="solar:check-circle-bold-duotone" class="fs-7"></iconify-icon>
-        </div>
-        <div>
-          <span class="crud-kpi-label">Puntos Activos</span>
-          <h4 class="crud-kpi-val">{{ activePointsCount }}</h4>
-        </div>
-      </div>
-
-      <div class="crud-kpi-card">
-        <div class="crud-kpi-icon info">
-          <iconify-icon icon="solar:shop-2-bold-duotone" class="fs-7"></iconify-icon>
-        </div>
-        <div>
-          <span class="crud-kpi-label">Sucursales con Emisión</span>
-          <h4 class="crud-kpi-val">{{ branchesWithPointsCount }}</h4>
-        </div>
-      </div>
-    </div>
-
-    <!-- BARRA DE BÚSQUEDA Y FILTRO -->
-    <div class="crud-filters-card">
-      <div class="row g-2 align-items-center">
-        <div class="col-12 col-md-4">
-          <label class="form-label">Filtrar por Sucursal</label>
-          <select v-model="filterBranchId" class="form-select">
-            <option value="TODAS">-- Todas las Sucursales --</option>
-            <option v-for="b in branchesList" :key="b.id" :value="b.id">
-              {{ b.code }} - {{ b.name }}{{ b.isMatrix ? ' (Matriz)' : '' }}
-            </option>
-          </select>
-        </div>
-
-        <div class="col-12 col-md-8">
-          <label class="form-label">Buscar Punto de Emisión</label>
-          <div class="input-group">
-            <span class="input-group-text">
-              <iconify-icon icon="solar:magnifer-line-duotone" class="fs-5"></iconify-icon>
+          <div class="d-flex align-items-center gap-2 mb-1">
+            <span class="badge bg-primary-subtle text-primary border border-primary-subtle px-2 py-1 fs-2">
+              MOD-001 CONFIG · VENTAS
             </span>
-            <input
-              v-model="searchTerm"
-              type="text"
-              class="form-control"
-              placeholder="Buscar por descripción, número de serie o código de sucursal..."
-            />
+            <span class="badge bg-info-subtle text-info border border-info-subtle px-2 py-1 fs-2">
+              SRI ECUADOR
+            </span>
+          </div>
+          <h3 class="crud-title">Puntos de Emisión</h3>
+          <p class="crud-subtitle">
+            Gestión de series y correlativos de emisión para Facturas, Notas de Crédito, Guías de Remisión y Notas de Débito.
+          </p>
+        </div>
+
+        <div class="crud-header-actions">
+          <button
+            type="button"
+            class="btn btn-outline-secondary d-flex align-items-center gap-1 rounded-pill px-3"
+            :disabled="loading"
+            @click="loadData"
+          >
+            <span v-if="loading" class="spinner-grow spinner-grow-sm text-secondary" role="status" aria-hidden="true"></span>
+            <iconify-icon v-else icon="solar:refresh-line-duotone" class="fs-4"></iconify-icon>
+            <span>Actualizar</span>
+          </button>
+
+          <button
+            type="button"
+            class="btn btn-primary d-flex align-items-center gap-1 rounded-pill px-3 fw-semibold shadow-sm"
+            @click="openCreateForm"
+          >
+            <iconify-icon icon="solar:add-circle-line-duotone" class="fs-4"></iconify-icon>
+            <span>Nuevo Punto de Emisión</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- TARJETAS DE INDICADORES (KPIs) -->
+      <div class="crud-kpi-grid">
+        <div class="crud-kpi-card">
+          <div class="crud-kpi-icon primary">
+            <iconify-icon icon="solar:printer-bold-duotone" class="fs-7"></iconify-icon>
+          </div>
+          <div>
+            <span class="crud-kpi-label">Total Puntos de Emisión</span>
+            <h4 class="crud-kpi-val">{{ totalPointsCount }}</h4>
+          </div>
+        </div>
+
+        <div class="crud-kpi-card">
+          <div class="crud-kpi-icon success">
+            <iconify-icon icon="solar:check-circle-bold-duotone" class="fs-7"></iconify-icon>
+          </div>
+          <div>
+            <span class="crud-kpi-label">Puntos Activos</span>
+            <h4 class="crud-kpi-val">{{ activePointsCount }}</h4>
+          </div>
+        </div>
+
+        <div class="crud-kpi-card">
+          <div class="crud-kpi-icon info">
+            <iconify-icon icon="solar:shop-2-bold-duotone" class="fs-7"></iconify-icon>
+          </div>
+          <div>
+            <span class="crud-kpi-label">Sucursales con Emisión</span>
+            <h4 class="crud-kpi-val">{{ branchesWithPointsCount }}</h4>
           </div>
         </div>
       </div>
-    </div>
 
-    <!-- TABLA DE PUNTOS DE EMISIÓN -->
-    <div class="crud-table-card">
-      <div class="table-responsive">
-        <table class="crud-table">
-          <thead>
-            <tr>
-              <th scope="col" style="min-width: 180px;">Sucursal / Establecimiento</th>
-              <th scope="col" style="min-width: 180px;">Descripción</th>
-              <th scope="col" class="text-center" style="width: 110px;">Serie</th>
-              <th scope="col" style="min-width: 220px;">Secuencias de Documentos</th>
-              <th scope="col" class="text-center" style="width: 110px;">Estado</th>
-              <th scope="col" class="text-end" style="min-width: 140px;">Acciones</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr v-if="loading">
-              <td colspan="6" class="text-center py-5 text-muted">
-                <div class="spinner-grow spinner-grow-sm text-primary mb-2" role="status"></div>
-                <p class="mb-0 fs-2">Cargando puntos de emisión...</p>
-              </td>
-            </tr>
-            <tr v-else-if="filteredPoints.length === 0">
-              <td colspan="6" class="text-center py-5 text-muted">
-                <iconify-icon icon="solar:box-minimalistic-line-duotone" class="fs-8 text-secondary mb-2 d-block"></iconify-icon>
-                <p class="mb-1 fw-semibold text-body-emphasis">No se encontraron puntos de emisión</p>
-                <p class="mb-0 fs-2 text-muted">Haz clic en "Nuevo Punto de Emisión" para habilitar series de facturación.</p>
-              </td>
-            </tr>
-            <tr v-for="point in filteredPoints" :key="point.id">
-              <td>
-                <div class="d-flex align-items-center gap-2">
-                  <span class="badge bg-primary-subtle text-primary border border-primary-subtle font-monospace px-2 py-1">
-                    {{ point.branch?.code || '001' }}
-                  </span>
-                  <div>
-                    <span class="fw-semibold d-block text-body-emphasis">
-                      {{ point.branch?.name || 'Sucursal' }}
-                    </span>
-                    <small class="text-muted d-block fs-1">
-                      {{ point.branch?.address || 'Sin dirección' }}
-                    </small>
-                  </div>
-                </div>
-              </td>
-              <td>
-                <span class="fw-semibold text-body-emphasis">{{ point.description }}</span>
-              </td>
-              <td class="text-center">
-                <span class="badge bg-info-subtle text-info border border-info-subtle font-monospace fs-3 px-3 py-1">
-                  {{ point.serie }}
-                </span>
-              </td>
-              <td>
-                <div class="d-flex flex-wrap gap-1 align-items-center">
-                  <span
-                    v-for="seq in point.sequences"
-                    :key="seq.id"
-                    class="crud-chip"
-                    :title="`${seq.document_type}: Último correlativo ${seq.correlative}`"
-                  >
-                    <span class="text-muted me-1">{{ seq.document_type === 'FACTURAS' ? 'FAC' : seq.document_type === 'NOTAS DE CRÉDITO' ? 'NC' : seq.document_type === 'GUÍAS DE REMISIÓN' ? 'GR' : 'ND' }}:</span>
-                    <span class="text-info">#{{ seq.correlative }}</span>
-                  </span>
-                </div>
-              </td>
-              <td class="text-center">
-                <span
-                  class="badge"
-                  :class="point.enabled ? 'bg-success-subtle text-success border border-success-subtle' : 'bg-danger-subtle text-danger border border-danger-subtle'"
-                >
-                  {{ point.enabled ? 'Activo' : 'Inactivo' }}
-                </span>
-              </td>
-              <td class="text-end">
-                <div class="d-inline-flex gap-1 align-items-center">
-                  <!-- Botón Secuencias -->
-                  <button
-                    class="btn btn-sm btn-outline-info rounded-pill px-2 d-inline-flex align-items-center gap-1"
-                    @click="openSequencesModal(point)"
-                    title="Ver y editar secuencias de comprobantes"
-                  >
-                    <iconify-icon icon="solar:document-text-line-duotone" class="fs-4"></iconify-icon>
-                    <span class="d-none d-md-inline small">Secuencias</span>
-                  </button>
-
-                  <!-- Botón Editar -->
-                  <button
-                    class="btn btn-sm btn-outline-warning rounded-pill px-2"
-                    @click="openEditModal(point)"
-                    title="Editar punto de emisión"
-                  >
-                    <iconify-icon icon="solar:pen-new-square-line-duotone" class="fs-4"></iconify-icon>
-                  </button>
-
-                  <!-- Botón Eliminar -->
-                  <button
-                    class="btn btn-sm btn-outline-danger rounded-pill px-2"
-                    :disabled="deletingId === point.id"
-                    @click="onDeletePoint(point)"
-                    title="Eliminar punto de emisión"
-                  >
-                    <span v-if="deletingId === point.id" class="spinner-grow spinner-grow-sm text-danger" role="status" aria-hidden="true"></span>
-                    <iconify-icon v-else icon="solar:trash-bin-trash-line-duotone" class="fs-4"></iconify-icon>
-                  </button>
-                </div>
-              </td>
-            </tr>
-          </tbody>
-        </table>
-      </div>
-    </div>
-
-    <!-- MODAL 1: REGISTRAR / EDITAR PUNTO DE EMISIÓN -->
-    <div v-if="showCreateModal" class="crud-modal-backdrop">
-      <div class="crud-modal-card modal-md">
-        <div class="crud-modal-header">
-          <div>
-            <span class="badge bg-primary-subtle text-primary border border-primary-subtle mb-1">VENTAS</span>
-            <h4>{{ editingPoint ? 'Editar Punto de Emisión' : 'Nuevo Punto de Emisión' }}</h4>
+      <!-- BARRA DE BÚSQUEDA Y FILTRO -->
+      <div class="crud-filters-card">
+        <div class="row g-2 align-items-center">
+          <div class="col-12 col-md-4">
+            <label class="form-label">Filtrar por Sucursal</label>
+            <select v-model="filterBranchId" class="form-select">
+              <option value="TODAS">-- Todas las Sucursales --</option>
+              <option v-for="b in branchesList" :key="b.id" :value="b.id">
+                {{ b.code }} - {{ b.name }}{{ b.isMatrix ? ' (Matriz)' : '' }}
+              </option>
+            </select>
           </div>
-          <button type="button" class="btn btn-outline-secondary btn-sm rounded-pill" @click="showCreateModal = false">
-            <iconify-icon icon="solar:close-circle-line-duotone" class="fs-5"></iconify-icon>
+
+          <div class="col-12 col-md-8">
+            <label class="form-label">Buscar Punto de Emisión</label>
+            <div class="input-group">
+              <span class="input-group-text">
+                <iconify-icon icon="solar:magnifer-line-duotone" class="fs-5"></iconify-icon>
+              </span>
+              <input
+                v-model="searchTerm"
+                type="text"
+                class="form-control"
+                placeholder="Buscar por descripción, número de serie o código de sucursal..."
+              />
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- TABLA DE PUNTOS DE EMISIÓN -->
+      <div class="crud-table-card">
+        <div class="table-responsive">
+          <table class="crud-table">
+            <thead>
+              <tr>
+                <th scope="col" style="min-width: 180px;">Sucursal / Establecimiento</th>
+                <th scope="col" style="min-width: 180px;">Descripción</th>
+                <th scope="col" class="text-center" style="width: 110px;">Serie</th>
+                <th scope="col" style="min-width: 220px;">Secuencias de Documentos</th>
+                <th scope="col" class="text-center" style="width: 110px;">Estado</th>
+                <th scope="col" class="text-end" style="min-width: 140px;">Acciones</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr v-if="loading">
+                <td colspan="6" class="text-center py-5 text-muted">
+                  <div class="spinner-grow spinner-grow-sm text-primary mb-2" role="status"></div>
+                  <p class="mb-0 fs-2">Cargando puntos de emisión...</p>
+                </td>
+              </tr>
+              <tr v-else-if="filteredPoints.length === 0">
+                <td colspan="6" class="text-center py-5 text-muted">
+                  <iconify-icon icon="solar:box-minimalistic-line-duotone" class="fs-8 text-secondary mb-2 d-block"></iconify-icon>
+                  <p class="mb-1 fw-semibold text-body-emphasis">No se encontraron puntos de emisión</p>
+                  <p class="mb-0 fs-2 text-muted">Haz clic en "Nuevo Punto de Emisión" para habilitar series de facturación.</p>
+                </td>
+              </tr>
+              <tr v-for="point in filteredPoints" :key="point.id">
+                <td>
+                  <div class="d-flex align-items-center gap-2">
+                    <span class="badge bg-primary-subtle text-primary border border-primary-subtle font-monospace px-2 py-1">
+                      {{ point.branch?.code || '001' }}
+                    </span>
+                    <div>
+                      <span class="fw-semibold d-block text-body-emphasis">
+                        {{ point.branch?.name || 'Sucursal' }}
+                      </span>
+                      <small class="text-muted d-block fs-1">
+                        {{ point.branch?.address || 'Sin dirección' }}
+                      </small>
+                    </div>
+                  </div>
+                </td>
+                <td>
+                  <span class="fw-semibold text-body-emphasis">{{ point.description }}</span>
+                </td>
+                <td class="text-center">
+                  <span class="badge bg-info-subtle text-info border border-info-subtle font-monospace fs-3 px-3 py-1">
+                    {{ point.serie }}
+                  </span>
+                </td>
+                <td>
+                  <div class="d-flex flex-wrap gap-1 align-items-center">
+                    <span
+                      v-for="seq in point.sequences"
+                      :key="seq.id"
+                      class="crud-chip"
+                      :title="`${seq.document_type}: Último correlativo ${seq.correlative}`"
+                    >
+                      <span class="text-muted me-1">{{ seq.document_type === 'FACTURAS' ? 'FAC' : seq.document_type === 'NOTAS DE CRÉDITO' ? 'NC' : seq.document_type === 'GUÍAS DE REMISIÓN' ? 'GR' : 'ND' }}:</span>
+                      <span class="text-info">#{{ seq.correlative }}</span>
+                    </span>
+                  </div>
+                </td>
+                <td class="text-center">
+                  <span
+                    class="badge"
+                    :class="point.enabled ? 'bg-success-subtle text-success border border-success-subtle' : 'bg-danger-subtle text-danger border border-danger-subtle'"
+                  >
+                    {{ point.enabled ? 'Activo' : 'Inactivo' }}
+                  </span>
+                </td>
+                <td class="text-end">
+                  <div class="d-inline-flex gap-1 align-items-center">
+                    <!-- Botón Secuencias -->
+                    <button
+                      class="btn btn-sm btn-outline-info rounded-pill px-2 d-inline-flex align-items-center gap-1"
+                      @click="openSequencesView(point)"
+                      title="Ver y editar secuencias de comprobantes"
+                    >
+                      <iconify-icon icon="solar:document-text-line-duotone" class="fs-4"></iconify-icon>
+                      <span class="d-none d-md-inline small">Secuencias</span>
+                    </button>
+
+                    <!-- Botón Editar -->
+                    <button
+                      class="btn btn-sm btn-outline-warning rounded-pill px-2"
+                      @click="openEditForm(point)"
+                      title="Editar punto de emisión"
+                    >
+                      <iconify-icon icon="solar:pen-new-square-line-duotone" class="fs-4"></iconify-icon>
+                    </button>
+
+                    <!-- Botón Eliminar -->
+                    <button
+                      class="btn btn-sm btn-outline-danger rounded-pill px-2"
+                      :disabled="deletingId === point.id"
+                      @click="onDeletePoint(point)"
+                      title="Eliminar punto de emisión"
+                    >
+                      <span v-if="deletingId === point.id" class="spinner-grow spinner-grow-sm text-danger" role="status" aria-hidden="true"></span>
+                      <iconify-icon v-else icon="solar:trash-bin-trash-line-duotone" class="fs-4"></iconify-icon>
+                    </button>
+                  </div>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </template>
+
+    <!-- ============================================================== -->
+    <!-- VISTA 2: FORMULARIO NORMAL EN PÁGINA (CREAR / EDITAR)         -->
+    <!-- REGLA DEL SISTEMA: FORMULARIO NORMAL, NO MODAL FLOTANTE        -->
+    <!-- ============================================================== -->
+    <div v-else-if="currentView === 'form'" class="form-page">
+      <div class="form-page-card">
+        <!-- CABECERA DEL FORMULARIO CON BOTÓN VOLVER -->
+        <div class="form-page-header">
+          <div>
+            <div class="d-flex align-items-center gap-2 mb-1">
+              <span class="badge bg-primary-subtle text-primary border border-primary-subtle px-2 py-1 fs-2">
+                VENTAS · CONFIGURACIÓN
+              </span>
+              <span class="badge bg-info-subtle text-info border border-info-subtle px-2 py-1 fs-2">
+                {{ editingPoint ? 'MODIFICACIÓN' : 'REGISTRO' }}
+              </span>
+            </div>
+            <h3 class="crud-title mb-0">
+              {{ editingPoint ? `Editar Punto de Emisión (${editingPoint.serie})` : 'Nuevo Punto de Emisión' }}
+            </h3>
+            <p class="crud-subtitle">
+              Configura los datos del punto de emisión y sus secuencias autorizadas por el SRI.
+            </p>
+          </div>
+
+          <button
+            type="button"
+            class="btn btn-outline-secondary d-flex align-items-center gap-1 rounded-pill px-3"
+            @click="backToList"
+          >
+            <iconify-icon icon="solar:alt-arrow-left-line-duotone" class="fs-4"></iconify-icon>
+            <span>Volver al Listado</span>
           </button>
         </div>
 
-        <form @submit.prevent="submitPoint" class="crud-modal-body">
-          <div class="row g-3">
-            <!-- Sucursal -->
-            <div class="col-12">
-              <label class="form-label small fw-semibold">Sucursal / Establecimiento *</label>
-              <select
-                v-model="form.branch_id"
-                class="form-select"
-                :disabled="!!editingPoint"
-                required
-              >
-                <option :value="null">-- Selecciona la Sucursal --</option>
-                <option v-for="b in activeBranches" :key="b.id" :value="b.id">
-                  {{ b.code }} - {{ b.name }}{{ b.isMatrix ? ' (Matriz)' : '' }} · {{ b.address }}
-                </option>
-              </select>
-              <small v-if="editingPoint" class="text-muted fs-1 d-block mt-1">
-                La sucursal está vinculada y no puede modificarse una vez creada.
-              </small>
-            </div>
-
-            <!-- Descripción -->
-            <div class="col-12">
-              <label class="form-label small fw-semibold">Descripción del Punto de Emisión *</label>
-              <input
-                v-model="form.description"
-                type="text"
-                class="form-control"
-                placeholder="Ej: Facturación Mostrador, Caja 1, Punto Principal"
-                required
-              />
-            </div>
-
-            <!-- Serie -->
-            <div class="col-md-6">
-              <label class="form-label small fw-semibold">N° de Serie (3 dígitos) *</label>
-              <input
-                v-model="form.serie"
-                type="text"
-                maxlength="3"
-                class="form-control font-monospace text-center fs-4"
-                placeholder="001"
-                required
-              />
-              <small class="text-muted fs-1 d-block mt-1">Ej: 001, 002, 856</small>
-            </div>
-
-            <!-- Correlativo Inicial de Facturas (Solo en creación) -->
-            <div v-if="!editingPoint" class="col-md-6">
-              <label class="form-label small fw-semibold">Correlativo Inicial (Facturas)</label>
-              <input
-                v-model.number="form.initial_correlative"
-                type="number"
-                min="0"
-                class="form-control font-monospace text-center fs-4"
-                placeholder="0"
-              />
-              <small class="text-muted fs-1 d-block mt-1">
-                El próximo secuencial será {{ padSequential((form.initial_correlative || 0) + 1) }}
-              </small>
-            </div>
-
-            <!-- Estado Activo -->
-            <div v-if="editingPoint" class="col-md-6 d-flex align-items-center">
-              <div class="form-check form-switch mt-4">
-                <input
-                  v-model="form.enabled"
-                  class="form-check-input"
-                  type="checkbox"
-                  id="pointStatusSwitch"
-                />
-                <label class="form-check-label text-body-emphasis fw-semibold small" for="pointStatusSwitch">
-                  {{ form.enabled ? 'Punto Habilitado' : 'Punto Deshabilitado' }}
-                </label>
+        <!-- CUERPO DEL FORMULARIO -->
+        <form @submit.prevent="submitPoint">
+          <div class="form-page-body">
+            <div class="row g-4">
+              <!-- Sucursal -->
+              <div class="col-12 col-md-6">
+                <label class="form-label fw-semibold">Sucursal / Establecimiento *</label>
+                <select
+                  v-model="form.branch_id"
+                  class="form-select"
+                  :disabled="!!editingPoint"
+                  required
+                >
+                  <option :value="null">-- Selecciona la Sucursal --</option>
+                  <option v-for="b in activeBranches" :key="b.id" :value="b.id">
+                    {{ b.code }} - {{ b.name }}{{ b.isMatrix ? ' (Matriz)' : '' }} · {{ b.address }}
+                  </option>
+                </select>
+                <small v-if="editingPoint" class="text-muted fs-1 d-block mt-1">
+                  La sucursal está vinculada a este punto y no se modifica para mantener coherencia fiscal.
+                </small>
               </div>
-            </div>
 
-            <div v-if="!editingPoint" class="col-12">
-              <div class="p-3 rounded-3 bg-body-secondary border border-secondary-subtle small text-muted">
-                <iconify-icon icon="solar:info-circle-line-duotone" class="text-info me-1 fs-4 align-middle"></iconify-icon>
-                <span>
-                  Al registrar el punto de emisión se generará automáticamente el detalle de 4 secuencias: <b>FACTURAS</b>, <b>NOTAS DE CRÉDITO</b>, <b>GUÍAS DE REMISIÓN</b> y <b>NOTAS DE DÉBITO</b>.
-                </span>
+              <!-- Serie -->
+              <div class="col-12 col-md-6">
+                <label class="form-label fw-semibold">N° de Serie (3 dígitos SRI) *</label>
+                <input
+                  v-model="form.serie"
+                  type="text"
+                  maxlength="3"
+                  class="form-control font-monospace text-center fs-4 fw-bold"
+                  placeholder="001"
+                  required
+                />
+                <small class="text-muted fs-1 d-block mt-1">Ej: 001, 002, 856</small>
+              </div>
+
+              <!-- Descripción -->
+              <div class="col-12">
+                <label class="form-label fw-semibold">Descripción del Punto de Emisión *</label>
+                <input
+                  v-model="form.description"
+                  type="text"
+                  class="form-control"
+                  placeholder="Ej: Facturación Mostrador, Caja Principal 1, Punto Norte"
+                  required
+                />
+              </div>
+
+              <!-- Correlativo Inicial de Facturas (Solo en creación) -->
+              <div v-if="!editingPoint" class="col-12 col-md-6">
+                <label class="form-label fw-semibold">Correlativo Inicial (Facturas)</label>
+                <input
+                  v-model.number="form.initial_correlative"
+                  type="number"
+                  min="0"
+                  class="form-control font-monospace text-center fs-4"
+                  placeholder="0"
+                />
+                <small class="text-muted fs-1 d-block mt-1">
+                  El próximo secuencial será: <strong class="text-info">{{ padSequential((form.initial_correlative || 0) + 1) }}</strong>
+                </small>
+              </div>
+
+              <!-- Estado Activo (En edición) -->
+              <div v-if="editingPoint" class="col-12 col-md-6 d-flex align-items-center">
+                <div class="form-check form-switch mt-2">
+                  <input
+                    v-model="form.enabled"
+                    class="form-check-input"
+                    type="checkbox"
+                    id="pointStatusSwitch"
+                  />
+                  <label class="form-check-label text-body-emphasis fw-semibold small ms-2" for="pointStatusSwitch">
+                    {{ form.enabled ? 'Punto Habilitado para Facturación' : 'Punto Deshabilitado' }}
+                  </label>
+                </div>
+              </div>
+
+              <!-- Nota informativa sobre secuencias -->
+              <div v-if="!editingPoint" class="col-12">
+                <div class="p-3 rounded-3 bg-body-secondary border border-secondary-subtle small text-muted">
+                  <iconify-icon icon="solar:info-circle-line-duotone" class="text-info me-1 fs-4 align-middle"></iconify-icon>
+                  <span>
+                    Al registrar este punto de emisión, el sistema insertará automáticamente el detalle de 4 secuencias:
+                    <strong class="text-body-emphasis">FACTURAS</strong>, 
+                    <strong class="text-body-emphasis">NOTAS DE CRÉDITO</strong>, 
+                    <strong class="text-body-emphasis">GUÍAS DE REMISIÓN</strong> y 
+                    <strong class="text-body-emphasis">NOTAS DE DÉBITO</strong>.
+                  </span>
+                </div>
               </div>
             </div>
           </div>
 
-          <div class="crud-modal-footer px-0 pb-0 mt-4">
+          <!-- PIE DE ACCIONES DEL FORMULARIO -->
+          <div class="form-page-footer">
             <button
               type="button"
-              class="btn btn-outline-secondary rounded-pill px-3"
-              @click="showCreateModal = false"
+              class="btn btn-outline-secondary rounded-pill px-4"
+              @click="backToList"
             >
               Cancelar
             </button>
@@ -625,31 +670,49 @@ onMounted(() => {
             >
               <span v-if="saving" class="spinner-grow spinner-grow-sm text-white" role="status" aria-hidden="true"></span>
               <iconify-icon v-else icon="solar:check-circle-line-duotone" class="fs-4"></iconify-icon>
-              <span>{{ editingPoint ? 'Guardar Cambios' : 'Registrar Punto' }}</span>
+              <span>{{ editingPoint ? 'Guardar Cambios' : 'Registrar Punto de Emisión' }}</span>
             </button>
           </div>
         </form>
       </div>
     </div>
 
-    <!-- MODAL 2: SECUENCIAS DEL PUNTO DE EMISIÓN -->
-    <div v-if="showSequencesModal && selectedPointForSequences" class="crud-modal-backdrop">
-      <div class="crud-modal-card modal-lg">
-        <div class="crud-modal-header">
+    <!-- ============================================================== -->
+    <!-- VISTA 3: SECUENCIAS DEL PUNTO DE EMISIÓN EN PÁGINA (NO MODAL)  -->
+    <!-- REPLICA EXACTA DE LA IMAGEN DE REFERENCIA                      -->
+    <!-- ============================================================== -->
+    <div v-else-if="currentView === 'sequences' && selectedPointForSequences" class="form-page">
+      <div class="form-page-card">
+        <!-- CABECERA DE SECUENCIAS -->
+        <div class="form-page-header">
           <div>
-            <span class="badge bg-primary-subtle text-primary border border-primary-subtle mb-1">
-              {{ selectedPointForSequences.branch?.code }} - {{ selectedPointForSequences.branch?.name }}
-            </span>
-            <h4>
-              Punto de Emisión: {{ selectedPointForSequences.description }} (Serie: {{ selectedPointForSequences.serie }})
-            </h4>
+            <div class="d-flex align-items-center gap-2 mb-1">
+              <span class="badge bg-primary-subtle text-primary border border-primary-subtle px-2 py-1 fs-2">
+                {{ selectedPointForSequences.branch?.code }} - {{ selectedPointForSequences.branch?.name }}
+              </span>
+              <span class="badge bg-info-subtle text-info border border-info-subtle px-2 py-1 fs-2">
+                SERIE: {{ selectedPointForSequences.serie }}
+              </span>
+            </div>
+            <h3 class="crud-title mb-0">
+              Punto de Emisión: {{ selectedPointForSequences.description }}
+            </h3>
+            <p class="crud-subtitle">
+              Secuencias activas y correlativos para emisión de documentos electrónicos SRI.
+            </p>
           </div>
-          <button type="button" class="btn btn-outline-secondary btn-sm rounded-pill" @click="showSequencesModal = false">
-            <iconify-icon icon="solar:close-circle-line-duotone" class="fs-5"></iconify-icon>
+
+          <button
+            type="button"
+            class="btn btn-outline-secondary d-flex align-items-center gap-1 rounded-pill px-3"
+            @click="backToList"
+          >
+            <iconify-icon icon="solar:alt-arrow-left-line-duotone" class="fs-4"></iconify-icon>
+            <span>Volver al Listado</span>
           </button>
         </div>
 
-        <div class="crud-modal-body">
+        <div class="form-page-body">
           <!-- TÍTULO DE LA SECCIÓN IGUAL QUE EN LA IMAGEN DE REFERENCIA -->
           <div class="d-flex align-items-center gap-2 mb-3">
             <span class="text-primary fs-4">•</span>
@@ -718,13 +781,14 @@ onMounted(() => {
             <button
               type="button"
               class="btn btn-outline-secondary rounded-pill px-4"
-              @click="showSequencesModal = false"
+              @click="backToList"
             >
-              Cerrar
+              Volver al Listado
             </button>
           </div>
         </div>
       </div>
     </div>
+
   </div>
 </template>

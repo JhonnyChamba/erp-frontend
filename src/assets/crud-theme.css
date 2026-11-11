@@ -223,8 +223,51 @@
 }
 
 /* --------------------------------------------------------------------------
-   5. Modales CRUD
+   5. Modales y Formularios en Página (.form-page / .form-page-card)
+   REGLA DEL SISTEMA: En los nuevos módulos el formulario de registro y edición
+   debe ser una vista de formulario normal en página (con botón "Volver al Listado"),
+   NO un modal emergente flotante con backdrop oscuro.
    -------------------------------------------------------------------------- */
+.form-open > :not(.form-page) {
+  display: none !important;
+}
+
+.form-page {
+  width: 100%;
+  animation: crudFadeIn 0.2s ease-in-out;
+}
+
+.form-page-card {
+  width: 100%;
+  background: var(--bs-card-bg, #111c2d);
+  border: 1px solid var(--bs-border-color, rgba(189, 200, 240, 0.15));
+  border-radius: 1rem;
+  overflow: hidden;
+  box-shadow: var(--bs-card-shadow, 0 4px 20px rgba(0, 0, 0, 0.15));
+  margin: 0 auto;
+}
+
+.form-page-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 1.25rem 1.5rem;
+  border-bottom: 1px solid var(--bs-border-color, rgba(189, 200, 240, 0.15));
+  background-color: rgba(255, 255, 255, 0.02);
+}
+
+.form-page-body {
+  padding: 1.5rem;
+}
+
+.form-page-footer {
+  padding: 1.25rem 1.5rem;
+  border-top: 1px solid var(--bs-border-color, rgba(189, 200, 240, 0.15));
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.75rem;
+}
+
 .crud-modal-backdrop,
 .modal-backdrop-custom {
   position: fixed;
@@ -333,11 +376,20 @@
 }
 
 /* Tarjetas y Contenedores en modo claro */
-[data-bs-theme="light"] :is(.crud-page, .emission-points-page, .purchases-page) :is(.crud-kpi-card, .crud-filters-card, .crud-table-card, .card.bg-dark-subtle, .card.bg-dark) {
+[data-bs-theme="light"] :is(.crud-page, .emission-points-page, .purchases-page) :is(.crud-kpi-card, .crud-filters-card, .crud-table-card, .form-page-card, .card.bg-dark-subtle, .card.bg-dark) {
   background: #ffffff !important;
   color: #2a3547 !important;
   border: 1px solid #e6ecf1 !important;
   box-shadow: 0 4px 20px rgba(0, 0, 0, 0.05) !important;
+}
+
+[data-bs-theme="light"] :is(.crud-page, .emission-points-page, .purchases-page) .form-page-header {
+  background-color: #f8fafc !important;
+  border-bottom: 1px solid #e6ecf1 !important;
+}
+
+[data-bs-theme="light"] :is(.crud-page, .emission-points-page, .purchases-page) .form-page-footer {
+  border-top: 1px solid #e6ecf1 !important;
 }
 
 [data-bs-theme="light"] :is(.crud-page, .emission-points-page, .purchases-page) .crud-kpi-val {
@@ -416,3 +468,4 @@
 [data-bs-theme="light"] :is(.crud-page, .emission-points-page, .purchases-page, .modal-card-custom) .text-white:not(.btn):not(.badge) {
   color: #111c2d !important;
 }
+
