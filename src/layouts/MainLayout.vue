@@ -64,7 +64,7 @@
                     class="list-unstyled ps-3 pt-1 mb-2 first-level"
                   >
                     <li
-                      v-for="sub in (mod.code === 'MOD-003' ? getInventorySubItems(mod) : mod.children)"
+                      v-for="sub in (mod.code === 'MOD-003' ? getInventorySubItems(mod) : (mod.code === 'MOD-002' ? getPurchasesSubItems(mod) : mod.children))"
                       :key="sub.code"
                       class="sidebar-item mb-1"
                     >
@@ -279,11 +279,29 @@ const getInventorySubItems = (mod: any) => {
   return children
 }
 
+const getPurchasesSubItems = (mod: any) => {
+  const children = [...(mod.children || [])]
+  if (children.length === 0) {
+    children.push({ id: 201, code: 'SUB-201', description: 'Facturas de Compra / Ingresos', url: '/compras' })
+  } else {
+    // Si los submódulos apuntan a /compras/..., asegurarse de que tengan URL válida
+    for (const sub of children) {
+      if (!sub.url || sub.url === '#' || sub.url === '/compras') {
+        sub.url = '/compras'
+      }
+    }
+  }
+  return children
+}
+
 const isOpen = (moduleCode: string) => {
   if (openModules[moduleCode] !== undefined) {
     return openModules[moduleCode]
   }
   if (moduleCode === 'MOD-003' && route.path.toLowerCase().startsWith('/inventario')) {
+    return true
+  }
+  if (moduleCode === 'MOD-002' && route.path.toLowerCase().startsWith('/compras')) {
     return true
   }
   const found = (authStore.accessInfo?.menu || []).find((m) => m.code === moduleCode)

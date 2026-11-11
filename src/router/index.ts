@@ -34,9 +34,14 @@ const routes = [
         component: () => import('@/views/sales/InvoiceView.vue')
       },
       {
+        path: 'compras',
+        name: 'compras',
+        component: () => import('@/views/purchases/PurchasesView.vue')
+      },
+      {
         path: 'compras/:sub',
         name: 'compras-submodule',
-        component: () => import('@/views/sales/InvoiceView.vue')
+        component: () => import('@/views/purchases/PurchasesView.vue')
       },
       {
         path: 'inventario',
