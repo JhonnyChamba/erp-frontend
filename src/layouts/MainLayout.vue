@@ -64,7 +64,7 @@
                     class="list-unstyled ps-3 pt-1 mb-2 first-level"
                   >
                     <li
-                      v-for="sub in (mod.code === 'MOD-003' ? getInventorySubItems(mod) : (mod.code === 'MOD-002' ? getPurchasesSubItems(mod) : mod.children))"
+                      v-for="sub in (mod.code === 'MOD-003' ? getInventorySubItems(mod) : (mod.code === 'MOD-002' ? getPurchasesSubItems(mod) : (mod.code === 'MOD-001' ? getSalesSubItems(mod) : mod.children)))"
                       :key="sub.code"
                       class="sidebar-item mb-1"
                     >
@@ -294,9 +294,26 @@ const getPurchasesSubItems = (mod: any) => {
   return children
 }
 
+const getSalesSubItems = (mod: any) => {
+  const children = [...(mod.children || [])]
+  const hasPoints = children.some((s: any) => s.url?.toLowerCase().includes('puntos-emision'))
+  if (!hasPoints) {
+    children.push({
+      id: 25,
+      code: 'SUB-025',
+      description: 'Puntos de Emisión',
+      url: '/ventas/puntos-emision'
+    })
+  }
+  return children
+}
+
 const isOpen = (moduleCode: string) => {
   if (openModules[moduleCode] !== undefined) {
     return openModules[moduleCode]
+  }
+  if (moduleCode === 'MOD-001' && route.path.toLowerCase().startsWith('/ventas')) {
+    return true
   }
   if (moduleCode === 'MOD-003' && route.path.toLowerCase().startsWith('/inventario')) {
     return true

@@ -29,6 +29,11 @@ const routes = [
         component: () => import('@/views/dashboard/DashboardView.vue')
       },
       {
+        path: 'ventas/puntos-emision',
+        name: 'ventas-puntos-emision',
+        component: () => import('@/views/sales/EmissionPointsView.vue')
+      },
+      {
         path: 'ventas/:sub',
         name: 'ventas-submodule',
         component: () => import('@/views/sales/InvoiceView.vue')

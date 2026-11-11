@@ -27,6 +27,11 @@ import {
 } from '@/services/inventory.service'
 import { getCustomers, type CustomerItem } from '@/services/contacts.service'
 import { getBranches, type BranchItem } from '@/services/config.service'
+import {
+  getEmissionPoints,
+  getNextSequential,
+  type EmissionPointItem,
+} from '@/services/emission-points.service'
 
 const route = useRoute()
 const authStore = useAuthStore()
@@ -391,24 +396,80 @@ const setFinalConsumer = () => {
   form.value.customer_phone = ''
 }
 
+// Puntos de emisión de la sucursal seleccionada y secuencial dinámico
+const branchEmissionPoints = ref<EmissionPointItem[]>([])
+const nextSequentialPreview = ref<string>('')
+const loadingSequential = ref(false)
+
+const loadEmissionPointsForBranch = async (branchId?: number) => {
+  if (!branchId) {
+    branchEmissionPoints.value = []
+    nextSequentialPreview.value = ''
+    return
+  }
+  const companyId = getActiveCompanyId()
+  try {
+    const points = await getEmissionPoints(companyId, branchId).catch(() => [])
+    branchEmissionPoints.value = points.filter((p) => p.enabled)
+
+    // Si la serie actual no está en la lista de puntos de la sucursal, seleccionar el primero
+    if (branchEmissionPoints.value.length > 0) {
+      const match = branchEmissionPoints.value.find((p) => p.serie === form.value.emission_point)
+      if (!match && branchEmissionPoints.value[0]) {
+        form.value.emission_point = branchEmissionPoints.value[0].serie
+      }
+    }
+    await updateSequentialPreview()
+  } catch (e) {
+    console.error('Error al cargar puntos de emisión:', e)
+  }
+}
+
+const updateSequentialPreview = async () => {
+  if (!form.value.branchId) {
+    nextSequentialPreview.value = ''
+    return
+  }
+  loadingSequential.value = true
+  const companyId = getActiveCompanyId()
+  try {
+    const res = await getNextSequential({
+      branchId: form.value.branchId,
+      serie: form.value.emission_point,
+      documentType: 'FACTURAS',
+      companyId,
+    })
+    nextSequentialPreview.value = res.sequential
+  } catch (e) {
+    console.error('Error al consultar siguiente secuencial:', e)
+  } finally {
+    loadingSequential.value = false
+  }
+}
+
+const onEmissionPointChange = async () => {
+  await updateSequentialPreview()
+}
+
 // Aplica los datos de la sucursal elegida: establecimiento y punto de emisión por defecto
-const applyBranch = (branchId?: number) => {
+const applyBranch = async (branchId?: number) => {
   const b = issuableBranches.value.find((x) => x.id === branchId)
   form.value.branchId = b?.id
   if (b) {
     form.value.establishment = b.code
     form.value.emission_point = b.emissionPoint || '001'
+    await loadEmissionPointsForBranch(b.id)
   }
 }
 
-const preselectBranch = () => {
+const preselectBranch = async () => {
   if (issuableBranches.value.length === 0) return
   // Sucursal seleccionada; si no hay una, la matriz
   const preferred =
     issuableBranches.value.find((b) => b.id === getActiveBranchId()) ||
     issuableBranches.value.find((b) => b.isMatrix) ||
     issuableBranches.value[0]
-  applyBranch(preferred?.id)
+  await applyBranch(preferred?.id)
 }
 
 const preselectWarehouse = () => {
@@ -422,7 +483,7 @@ const preselectWarehouse = () => {
   }
 }
 
-const openCreateModal = () => {
+const openCreateModal = async () => {
   successMsg.value = ''
   // Toda factura pertenece a una empresa y a una sucursal: sin sucursales activas no se puede emitir
   if (issuableBranches.value.length === 0) {
@@ -430,8 +491,8 @@ const openCreateModal = () => {
     return
   }
   form.value = initialInvoiceForm()
-  preselectBranch()
   preselectWarehouse()
+  await preselectBranch()
   successMsg.value = ''
   errorMsg.value = ''
   showCreateModal.value = true
@@ -995,12 +1056,39 @@ watch(() => route.path, () => {
               </select>
             </div>
             <div class="col-md-3">
-              <label class="form-label text-secondary small fw-semibold">Establecimiento</label>
-              <input v-model="form.establishment" :readonly="!!form.branchId" type="text" maxlength="3" class="form-control bg-dark-subtle border-secondary text-white font-monospace text-center" required />
+              <label class="form-label text-secondary small fw-semibold">Establecimiento (Sucursal)</label>
+              <input
+                :value="form.establishment"
+                type="text"
+                maxlength="3"
+                class="form-control bg-dark-subtle border-secondary text-white font-monospace text-center opacity-75"
+                disabled
+                readonly
+                title="El código del establecimiento viene definido por la sucursal seleccionada"
+              />
+              <small class="text-muted d-block mt-1 fs-1">Bloqueado según sucursal</small>
             </div>
             <div class="col-md-3">
-              <label class="form-label text-secondary small fw-semibold">Punto de Emisión</label>
-              <input v-model="form.emission_point" type="text" maxlength="3" class="form-control bg-dark-subtle border-secondary text-white font-monospace text-center" required />
+              <div class="d-flex justify-content-between align-items-center">
+                <label class="form-label text-secondary small fw-semibold mb-1">Punto de Emisión *</label>
+                <span v-if="loadingSequential" class="spinner-grow spinner-grow-sm text-info" role="status"></span>
+              </div>
+              <select
+                v-model="form.emission_point"
+                @change="onEmissionPointChange"
+                class="form-select bg-dark-subtle border-secondary text-white font-monospace"
+                required
+              >
+                <option v-for="pt in branchEmissionPoints" :key="pt.id" :value="pt.serie">
+                  {{ pt.serie }} - {{ pt.description }}
+                </option>
+                <option v-if="branchEmissionPoints.length === 0" :value="form.emission_point">
+                  {{ form.emission_point }} - Serie Predeterminada
+                </option>
+              </select>
+              <small v-if="nextSequentialPreview" class="text-info font-monospace d-block mt-1 fs-1 fw-semibold">
+                Secuencial: #{{ nextSequentialPreview }}
+              </small>
             </div>
             <div class="col-md-3">
               <label class="form-label text-secondary small fw-semibold">Fecha de Emisión *</label>
