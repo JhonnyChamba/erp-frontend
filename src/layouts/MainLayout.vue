@@ -296,6 +296,15 @@ const getPurchasesSubItems = (mod: any) => {
 
 const getSalesSubItems = (mod: any) => {
   const children = [...(mod.children || [])]
+  const hasCreditNotes = children.some((s: any) => s.url?.toLowerCase().includes('notas-credito'))
+  if (!hasCreditNotes) {
+    children.push({
+      id: 26,
+      code: 'SUB-026',
+      description: 'Notas de Crédito',
+      url: '/ventas/notas-credito'
+    })
+  }
   const hasPoints = children.some((s: any) => s.url?.toLowerCase().includes('puntos-emision'))
   if (!hasPoints) {
     children.push({
