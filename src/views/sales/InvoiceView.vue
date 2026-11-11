@@ -18,9 +18,11 @@ import {
   getInventoryItems,
   getInventoryServices,
   getInventorySubcontracts,
+  getInventoryWarehouses,
   type InventoryArticle,
   type InventoryServiceItem,
   type InventorySubcontractItem,
+  type InventoryWarehouse,
 } from '@/services/inventory.service'
 import { getCustomers, type CustomerItem } from '@/services/contacts.service'
 import { getBranches, type BranchItem } from '@/services/config.service'
@@ -91,6 +93,7 @@ watch(isFormOpen, async (open) => {
 })
 const showDetailModal = ref(false)
 const viewingInvoice = ref<InvoiceItem | null>(null)
+const modalAlert = ref<{ text: string; type: 'success' | 'warning' | 'error' | '' }>({ text: '', type: '' })
 
 // Catálogos auxiliares para la emisión
 const customersList = ref<CustomerItem[]>([])
@@ -98,8 +101,10 @@ const articlesList = ref<InventoryArticle[]>([])
 const servicesList = ref<InventoryServiceItem[]>([])
 const subcontractsList = ref<InventorySubcontractItem[]>([])
 const branchesList = ref<BranchItem[]>([])
+const warehousesList = ref<InventoryWarehouse[]>([])
 // Solo las sucursales activas pueden emitir
 const activeBranches = computed(() => branchesList.value.filter((b) => b.enabled))
+const activeWarehouses = computed(() => warehousesList.value.filter((w) => w.status))
 // Sucursales en las que se puede emitir: únicamente la seleccionada al ingresar (si hay una)
 const issuableBranches = computed(() =>
   branchFilter.value === 'TODAS' ? activeBranches.value : activeBranches.value.filter((b) => b.id === Number(branchFilter.value)),
@@ -114,6 +119,7 @@ const branchName = (id?: number | null) => {
 // Formulario de emisión de factura
 const initialInvoiceForm = () => ({
   branchId: undefined as number | undefined,
+  warehouseId: undefined as number | undefined,
   establishment: '001',
   emission_point: '001',
   issue_date: new Date().toISOString().slice(0, 10),
@@ -129,6 +135,7 @@ const initialInvoiceForm = () => ({
     {
       item_type: 'ITEM',
       item_id: undefined as number | undefined,
+      warehouse_id: undefined as number | undefined,
       code: '',
       description: '',
       quantity: 1,
@@ -202,12 +209,13 @@ const loadData = async () => {
       if (branchesList.value.some((b) => b.id === activeId)) branchFilter.value = activeId
     }
 
-    const [invs, custs, arts, srvs, subs] = await Promise.all([
+    const [invs, custs, arts, srvs, subs, whs] = await Promise.all([
       getInvoices(companyId, selectedBranchFilterId()).catch(() => []),
       getCustomers(companyId).catch(() => []),
       getInventoryItems(companyId).catch(() => []),
       getInventoryServices(companyId).catch(() => []),
       getInventorySubcontracts(companyId).catch(() => []),
+      getInventoryWarehouses(companyId).catch(() => []),
     ])
 
     invoices.value = invs
@@ -215,6 +223,7 @@ const loadData = async () => {
     articlesList.value = arts
     servicesList.value = srvs
     subcontractsList.value = subs
+    warehousesList.value = Array.isArray(whs) ? whs : []
   } catch (err: any) {
     errorMsg.value = err?.response?.data?.message || 'Error al cargar datos de facturación'
   } finally {
@@ -277,6 +286,7 @@ const addDetailRow = () => {
   form.value.details.push({
     item_type: 'ITEM',
     item_id: undefined,
+    warehouse_id: form.value.warehouseId || undefined,
     code: '',
     description: '',
     quantity: 1,
@@ -307,6 +317,7 @@ const onSelectItem = (index: number, e: Event) => {
     if (item) {
       row.item_type = 'ITEM'
       row.item_id = item.id
+      row.warehouse_id = row.warehouse_id || item.warehouseId || form.value.warehouseId || undefined
       row.code = item.code
       row.description = item.name
       row.unit_price = Number(item.salePrice || 0)
@@ -317,6 +328,7 @@ const onSelectItem = (index: number, e: Event) => {
     if (srv) {
       row.item_type = 'SERVICE'
       row.item_id = srv.id
+      row.warehouse_id = undefined
       row.code = srv.code
       row.description = srv.name
       row.unit_price = Number(srv.salePrice || 0)
@@ -327,6 +339,7 @@ const onSelectItem = (index: number, e: Event) => {
     if (sub) {
       row.item_type = 'SUBCONTRACT'
       row.item_id = sub.id
+      row.warehouse_id = undefined
       row.code = sub.code
       row.description = sub.name
       row.unit_price = Number(sub.suggestedPrice || 0)
@@ -382,6 +395,17 @@ const preselectBranch = () => {
   applyBranch(preferred?.id)
 }
 
+const preselectWarehouse = () => {
+  if (activeWarehouses.value.length === 0) return
+  const def = activeWarehouses.value.find((w) => w.isDefault) || activeWarehouses.value[0]
+  if (def) {
+    form.value.warehouseId = def.id
+    if (form.value.details[0]) {
+      form.value.details[0].warehouse_id = def.id
+    }
+  }
+}
+
 const openCreateModal = () => {
   successMsg.value = ''
   // Toda factura pertenece a una empresa y a una sucursal: sin sucursales activas no se puede emitir
@@ -391,12 +415,14 @@ const openCreateModal = () => {
   }
   form.value = initialInvoiceForm()
   preselectBranch()
+  preselectWarehouse()
   successMsg.value = ''
   errorMsg.value = ''
   showCreateModal.value = true
 }
 
 const openDetailModal = (inv: InvoiceItem) => {
+  modalAlert.value = { text: '', type: '' }
   viewingInvoice.value = inv
   showDetailModal.value = true
 }
@@ -426,6 +452,8 @@ const submitInvoice = async () => {
     const payload: CreateInvoicePayload = {
       companyId: getActiveCompanyId(),
       branchId: form.value.branchId as number,
+      warehouseId: form.value.warehouseId || undefined,
+      warehouse_id: form.value.warehouseId || undefined,
       emission_point: form.value.emission_point,
       issue_date: form.value.issue_date,
       customer_id_type: form.value.customer_id_type,
@@ -439,6 +467,8 @@ const submitInvoice = async () => {
       details: form.value.details.map((d) => ({
         item_type: d.item_type,
         item_id: d.item_id,
+        warehouse_id: d.warehouse_id || form.value.warehouseId || undefined,
+        warehouseId: d.warehouse_id || form.value.warehouseId || undefined,
         code: d.code,
         description: d.description,
         quantity: Number(d.quantity),
@@ -467,17 +497,22 @@ const downloadingXmlId = ref<number | null>(null)
 
 const onSignInvoice = async (inv: InvoiceItem) => {
   errorMsg.value = ''
+  modalAlert.value = { text: '', type: '' }
   signingInvoiceId.value = inv.id
   try {
     await signInvoice(inv.id, getActiveCompanyId())
-    successMsg.value = `Factura ${inv.invoice_number} firmada electrónicamente.`
+    const okMsg = `Factura ${inv.invoice_number} firmada electrónicamente.`
+    successMsg.value = okMsg
+    modalAlert.value = { text: okMsg, type: 'success' }
     await loadData()
     if (viewingInvoice.value?.id === inv.id) {
       viewingInvoice.value = invoices.value.find((i) => i.id === inv.id) || viewingInvoice.value
     }
   } catch (err: any) {
     const m = err?.response?.data?.message
-    errorMsg.value = (Array.isArray(m) ? m.join(', ') : m) || 'No se pudo firmar la factura'
+    const failMsg = (Array.isArray(m) ? m.join(', ') : m) || 'No se pudo firmar la factura'
+    errorMsg.value = failMsg
+    modalAlert.value = { text: failMsg, type: 'error' }
   } finally {
     signingInvoiceId.value = null
   }
@@ -518,12 +553,18 @@ const sriStatusClass = (status?: string) => {
 const describeSriResult = (inv: InvoiceItem, result: SriSendResult) => {
   const reasons = (result.sri_messages || []).map((m) => `${m.identificador ? `[${m.identificador}] ` : ''}${m.mensaje}${m.informacionAdicional ? ` — ${m.informacionAdicional}` : ''}`)
   if (result.sri_status === 'AUTHORIZED') {
-    successMsg.value = `Factura ${inv.invoice_number} autorizada por el SRI. No. ${result.sri_authorization_number}`
+    const msg = `Factura ${inv.invoice_number} autorizada por el SRI. No. ${result.sri_authorization_number}`
+    successMsg.value = msg
+    modalAlert.value = { text: msg, type: 'success' }
   } else if (result.sri_status === 'IN_PROCESS') {
-    successMsg.value = `Factura ${inv.invoice_number} recibida por el SRI; la autorización aún está en proceso. Consulta de nuevo en unos minutos.`
+    const msg = `Factura ${inv.invoice_number} recibida por el SRI; la autorización aún está en proceso. Consulta de nuevo en unos minutos.`
+    successMsg.value = msg
+    modalAlert.value = { text: msg, type: 'warning' }
   } else {
     const title = result.sri_status === 'RETURNED' ? 'devuelta' : 'no autorizada'
-    errorMsg.value = `Factura ${inv.invoice_number} ${title} por el SRI. ${reasons.join(' | ') || 'Sin detalle del motivo.'}`
+    const msg = `Factura ${inv.invoice_number} ${title} por el SRI. ${reasons.join(' | ') || 'Sin detalle del motivo.'}`
+    errorMsg.value = msg
+    modalAlert.value = { text: msg, type: 'error' }
   }
 }
 
@@ -537,6 +578,7 @@ const refreshAfterSri = async (inv: InvoiceItem) => {
 const onSendToSri = async (inv: InvoiceItem) => {
   errorMsg.value = ''
   successMsg.value = ''
+  modalAlert.value = { text: '', type: '' }
   sendingSri.value = true
   sendingSriInvoiceId.value = inv.id
   try {
@@ -545,7 +587,9 @@ const onSendToSri = async (inv: InvoiceItem) => {
     await refreshAfterSri(inv)
   } catch (err: any) {
     const m = err?.response?.data?.message
-    errorMsg.value = (Array.isArray(m) ? m.join(', ') : m) || 'No se pudo enviar la factura al SRI'
+    const failMsg = (Array.isArray(m) ? m.join(', ') : m) || 'No se pudo enviar la factura al SRI'
+    errorMsg.value = failMsg
+    modalAlert.value = { text: failMsg, type: 'error' }
   } finally {
     sendingSri.value = false
     sendingSriInvoiceId.value = null
@@ -555,6 +599,7 @@ const onSendToSri = async (inv: InvoiceItem) => {
 const onCheckSri = async (inv: InvoiceItem) => {
   errorMsg.value = ''
   successMsg.value = ''
+  modalAlert.value = { text: '', type: '' }
   sendingSri.value = true
   sendingSriInvoiceId.value = inv.id
   try {
@@ -563,7 +608,9 @@ const onCheckSri = async (inv: InvoiceItem) => {
     await refreshAfterSri(inv)
   } catch (err: any) {
     const m = err?.response?.data?.message
-    errorMsg.value = (Array.isArray(m) ? m.join(', ') : m) || 'No se pudo consultar la autorización en el SRI'
+    const failMsg = (Array.isArray(m) ? m.join(', ') : m) || 'No se pudo consultar la autorización en el SRI'
+    errorMsg.value = failMsg
+    modalAlert.value = { text: failMsg, type: 'error' }
   } finally {
     sendingSri.value = false
     sendingSriInvoiceId.value = null
@@ -934,10 +981,19 @@ watch(() => route.path, () => {
         <form @submit.prevent="submitInvoice" class="p-3">
           <!-- Datos de Cabecera SRI -->
           <div class="row g-3">
-            <div class="col-12">
+            <div class="col-md-6">
               <label class="form-label text-secondary small fw-semibold">Sucursal / Establecimiento emisor *</label>
               <select :value="form.branchId" @change="applyBranch(Number(($event.target as HTMLSelectElement).value) || undefined)" class="form-select bg-dark-subtle border-secondary text-white" required>
                 <option v-for="b in issuableBranches" :key="b.id" :value="b.id">{{ b.code }} - {{ b.name }}{{ b.isMatrix ? ' (Matriz)' : '' }} · {{ b.address }}</option>
+              </select>
+            </div>
+            <div class="col-md-6">
+              <label class="form-label text-secondary small fw-semibold">Bodega de Despacho (Inventario)</label>
+              <select v-model="form.warehouseId" class="form-select bg-dark-subtle border-secondary text-white">
+                <option :value="undefined">-- Predeterminada / Automática --</option>
+                <option v-for="w in activeWarehouses" :key="w.id" :value="w.id">
+                  {{ w.code ? `[${w.code}] ` : '' }}{{ w.name }}{{ w.isDefault ? ' ★ (Predeterminada)' : '' }}
+                </option>
               </select>
             </div>
             <div class="col-md-3">
@@ -1027,13 +1083,14 @@ watch(() => route.path, () => {
               <table class="table table-hover table-sm align-middle mb-0">
                 <thead class="table-primary fs-1 text-uppercase">
                   <tr>
-                    <th width="32%">Producto / Servicio del Catálogo</th>
-                    <th width="10%" class="text-center">Cant.</th>
-                    <th width="14%" class="text-end">Precio ($)</th>
-                    <th width="12%" class="text-end">Desc. ($)</th>
-                    <th width="12%" class="text-center">IVA</th>
-                    <th width="14%" class="text-end">Subtotal</th>
-                    <th width="6%" class="text-center"></th>
+                    <th width="28%">Producto / Servicio del Catálogo</th>
+                    <th width="15%">Bodega Despacho</th>
+                    <th width="8%" class="text-center">Cant.</th>
+                    <th width="12%" class="text-end">Precio ($)</th>
+                    <th width="10%" class="text-end">Desc. ($)</th>
+                    <th width="10%" class="text-center">IVA</th>
+                    <th width="12%" class="text-end">Subtotal</th>
+                    <th width="5%" class="text-center"></th>
                   </tr>
                 </thead>
                 <tbody>
@@ -1058,6 +1115,13 @@ watch(() => route.path, () => {
                         </optgroup>
                       </select>
                       <input v-model="row.description" type="text" class="form-control form-control-sm bg-dark border-secondary text-white" placeholder="Descripción detallada del ítem o servicio *" required />
+                    </td>
+                    <td>
+                      <select v-if="row.item_type === 'ITEM'" v-model="row.warehouse_id" class="form-select form-select-sm bg-dark border-secondary text-white">
+                        <option :value="undefined">Por Defecto</option>
+                        <option v-for="w in activeWarehouses" :key="w.id" :value="w.id">{{ w.name }}</option>
+                      </select>
+                      <span v-else class="text-secondary small fst-italic">No aplica</span>
                     </td>
                     <td>
                       <input v-model.number="row.quantity" type="number" step="0.01" min="0.01" class="form-control form-control-sm bg-dark border-secondary text-white text-center" required />
@@ -1146,6 +1210,22 @@ watch(() => route.path, () => {
           <button class="btn btn-link text-secondary p-0 fs-5" @click="showDetailModal = false">
             <iconify-icon icon="solar:close-circle-bold"></iconify-icon>
           </button>
+        </div>
+
+        <!-- Alerta visible sobre el modal tras enviar al SRI o firmar -->
+        <div v-if="modalAlert.text" class="alert alert-dismissible fade show m-3 mb-0" :class="{
+          'alert-success': modalAlert.type === 'success',
+          'alert-warning': modalAlert.type === 'warning',
+          'alert-danger': modalAlert.type === 'error'
+        }" role="alert">
+          <div class="d-flex align-items-center gap-2">
+            <iconify-icon :icon="modalAlert.type === 'success' ? 'solar:check-circle-bold' : (modalAlert.type === 'warning' ? 'solar:danger-triangle-bold' : 'solar:close-circle-bold')" width="22"></iconify-icon>
+            <div>
+              <strong>{{ modalAlert.type === 'success' ? 'Éxito SRI:' : (modalAlert.type === 'warning' ? 'SRI en proceso:' : 'Respuesta SRI:') }}</strong>
+              <span class="ms-1">{{ modalAlert.text }}</span>
+            </div>
+          </div>
+          <button type="button" class="btn-close" @click="modalAlert.text = ''"></button>
         </div>
 
         <div class="p-4 modal-body-custom">

@@ -4,6 +4,7 @@ export interface InvoiceDetailItem {
   id?: number
   item_type?: 'ITEM' | 'SERVICE' | 'SUBCONTRACT'
   item_id?: number
+  warehouse_id?: number | null
   code?: string
   description: string
   quantity: number
@@ -34,6 +35,7 @@ export interface InvoiceItem {
   id: number
   /** Sucursal con la que se emitió (null en facturas anteriores a las sucursales) */
   branch_id?: number | null
+  warehouse_id?: number | null
   establishment: string
   emission_point: string
   sequential: string
@@ -69,6 +71,8 @@ export interface CreateInvoicePayload {
   companyId?: number
   /** Sucursal (establecimiento) con la que se emite: obligatoria; define establecimiento, punto de emisión y dirección */
   branchId: number
+  warehouseId?: number | null
+  warehouse_id?: number | null
   emission_point?: string
   issue_date?: string
   customer_id_type: string
@@ -82,6 +86,8 @@ export interface CreateInvoicePayload {
   details: {
     item_type?: string
     item_id?: number
+    warehouse_id?: number | null
+    warehouseId?: number | null
     code?: string
     description: string
     quantity: number

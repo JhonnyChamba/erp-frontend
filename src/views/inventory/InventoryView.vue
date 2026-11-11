@@ -17,7 +17,17 @@
           <iconify-icon icon="solar:refresh-line-duotone" width="18" :class="{ 'spin-anim': loading }"></iconify-icon>
           <span>Actualizar</span>
         </button>
-        <button class="btn-primary" @click="openCreateModal">
+        <template v-if="activeTab === 'kardex'">
+          <button class="btn-secondary" @click="openCreateTransfer">
+            <iconify-icon icon="solar:transfer-horizontal-bold-duotone" width="18"></iconify-icon>
+            <span>Transferencia</span>
+          </button>
+          <button class="btn-primary" @click="openCreateAdjustment">
+            <iconify-icon icon="solar:tuning-square-2-bold-duotone" width="18"></iconify-icon>
+            <span>Ajuste de Stock</span>
+          </button>
+        </template>
+        <button v-else class="btn-primary" @click="openCreateModal">
           <iconify-icon icon="solar:add-circle-line-duotone" width="18"></iconify-icon>
           <span>{{ createButtonLabel }}</span>
         </button>
@@ -76,6 +86,16 @@
           <span>Bodegas / Almacenes</span>
           <span class="pill-count">{{ warehousesList.length }}</span>
         </button>
+
+        <button
+          class="tab-pill"
+          :class="{ active: activeTab === 'kardex' }"
+          @click="switchTab('kardex')"
+        >
+          <iconify-icon icon="solar:history-bold-duotone" width="18"></iconify-icon>
+          <span>Kardex / Movimientos</span>
+          <span class="pill-count">{{ kardexMovements.length }}</span>
+        </button>
       </div>
 
       <!-- Search & Filters -->
@@ -89,7 +109,21 @@
           />
         </div>
 
-        <select v-model="statusFilter" class="filter-select">
+        <select v-if="activeTab === 'kardex'" v-model="kardexProductFilter" @change="loadKardex" class="filter-select" style="min-width: 220px;">
+          <option :value="0">-- Todos los productos --</option>
+          <option v-for="it in itemsList" :key="it.id" :value="it.id">
+            {{ it.code ? `[${it.code}] ` : '' }}{{ it.name }}
+          </option>
+        </select>
+
+        <select v-if="activeTab === 'kardex'" v-model="kardexWarehouseFilter" @change="loadKardex" class="filter-select">
+          <option :value="0">-- Todas las bodegas --</option>
+          <option v-for="wh in activeWarehouses" :key="wh.id" :value="wh.id">
+            {{ wh.name }}
+          </option>
+        </select>
+
+        <select v-if="activeTab !== 'kardex'" v-model="statusFilter" class="filter-select">
           <option value="ALL">Todos los estados</option>
           <option value="ACTIVE">Solo Activos</option>
           <option value="INACTIVE">Inactivos</option>
@@ -348,6 +382,9 @@
               </td>
               <td class="text-right">
                 <div class="row-actions">
+                  <button class="act-btn" @click="viewItemKardex(item)" title="Ver Kardex / Movimientos">
+                    <iconify-icon icon="solar:history-bold-duotone" width="17"></iconify-icon>
+                  </button>
                   <button class="act-btn edit" @click="openEditItem(item)" title="Editar artículo">
                     <iconify-icon icon="solar:pen-new-square-line-duotone" width="17"></iconify-icon>
                   </button>
@@ -548,6 +585,7 @@
             <tr>
               <th style="width: 110px;">Código</th>
               <th>Nombre de la Categoría</th>
+              <th style="width: 150px;">Tipo de Concepto</th>
               <th>Descripción</th>
               <th class="text-center" style="width: 150px;">Artículos Asociados</th>
               <th class="text-center" style="width: 110px;">Estado</th>
@@ -556,7 +594,7 @@
           </thead>
           <tbody>
             <tr v-if="loading">
-              <td colspan="6" class="text-center py-5">
+              <td colspan="7" class="text-center py-5">
                 <div class="d-flex align-items-center justify-content-center gap-2 mb-2">
                   <div class="spinner-grow text-primary" role="status"><span class="visually-hidden">Cargando...</span></div>
                   <div class="spinner-grow text-info" role="status"><span class="visually-hidden">Cargando...</span></div>
@@ -566,7 +604,7 @@
               </td>
             </tr>
             <tr v-else-if="filteredCategories.length === 0">
-              <td colspan="6" class="empty-cell">
+              <td colspan="7" class="empty-cell">
                 No se encontraron categorías registradas. Haz clic en <strong>+ Nueva Categoría</strong> para crear la primera.
               </td>
             </tr>
@@ -574,6 +612,20 @@
               <td><span class="code-chip cat">{{ cat.code }}</span></td>
               <td>
                 <span class="item-name fw-bold">{{ cat.name }}</span>
+              </td>
+              <td>
+                <span v-if="cat.category_type === 'SERVICE'" class="badge border" style="background: rgba(139, 92, 246, 0.15); color: #c4b5fd; border-color: rgba(196, 181, 253, 0.3);">
+                  Servicios
+                </span>
+                <span v-else-if="cat.category_type === 'LABOR'" class="badge bg-warning-subtle text-warning border border-warning-subtle">
+                  Mano de Obra
+                </span>
+                <span v-else-if="cat.category_type === 'ALL'" class="badge border" style="background: rgba(20, 184, 166, 0.15); color: #2dd4bf; border-color: rgba(45, 212, 191, 0.3);">
+                  Universal / Todos
+                </span>
+                <span v-else class="badge bg-primary-subtle text-primary border border-primary-subtle">
+                  Productos Físicos
+                </span>
               </td>
               <td>
                 <span class="text-secondary small">{{ cat.description || 'Sin descripción' }}</span>
@@ -682,6 +734,82 @@
                     <iconify-icon v-else icon="solar:trash-bin-trash-line-duotone" width="17"></iconify-icon>
                   </button>
                 </div>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- ========================================================== -->
+    <!-- TAB 6: KARDEX / MOVIMIENTOS HISTÓRICOS                     -->
+    <!-- ========================================================== -->
+    <div v-if="activeTab === 'kardex'" class="table-card">
+      <div class="table-scroll">
+        <table class="erp-table">
+          <thead>
+            <tr>
+              <th style="width: 140px;">Fecha / Hora</th>
+              <th style="width: 110px;">Tipo</th>
+              <th style="width: 130px;">Motivo</th>
+              <th>Artículo / Producto</th>
+              <th>Bodega</th>
+              <th class="text-right" style="width: 100px;">Cantidad</th>
+              <th class="text-right" style="width: 110px;">Costo Unit.</th>
+              <th class="text-right" style="width: 110px;">Costo Total</th>
+              <th class="text-right" style="width: 110px;">Saldo Físico</th>
+              <th>Doc. Origen / Referencia</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr v-if="loadingKardex">
+              <td colspan="10" class="text-center py-5">
+                <div class="d-flex align-items-center justify-content-center gap-2 mb-2">
+                  <div class="spinner-grow text-primary" role="status"><span class="visually-hidden">Cargando...</span></div>
+                  <div class="spinner-grow text-info" role="status"><span class="visually-hidden">Cargando...</span></div>
+                  <div class="spinner-grow text-secondary" role="status"><span class="visually-hidden">Cargando...</span></div>
+                </div>
+                <span class="text-secondary small">Consultando movimientos del Kardex...</span>
+              </td>
+            </tr>
+            <tr v-else-if="filteredKardexMovements.length === 0">
+              <td colspan="10" class="empty-cell">
+                No se encontraron movimientos registrados con los filtros actuales. Registra una factura, ajuste o transferencia.
+              </td>
+            </tr>
+            <tr v-for="mov in filteredKardexMovements" :key="mov.id">
+              <td>
+                <span class="text-secondary font-mono small">{{ formatDateTime(mov.date) }}</span>
+              </td>
+              <td>
+                <span
+                  class="badge border px-2 py-1"
+                  :style="mov.type === 'IN' ? 'background: rgba(16, 185, 129, 0.15); color: #34d399; border-color: rgba(52, 211, 153, 0.3);' : 'background: rgba(239, 68, 68, 0.15); color: #f87171; border-color: rgba(248, 113, 113, 0.3);'"
+                >
+                  <iconify-icon :icon="mov.type === 'IN' ? 'solar:arrow-down-left-line-duotone' : 'solar:arrow-up-right-line-duotone'"></iconify-icon>
+                  {{ mov.type === 'IN' ? 'ENTRADA' : 'SALIDA' }}
+                </span>
+              </td>
+              <td>
+                <span class="badge bg-dark-subtle text-white border border-secondary">{{ formatMovementReason(mov.reason) }}</span>
+              </td>
+              <td>
+                <div class="item-cell">
+                  <span class="item-title font-mono small text-info">{{ mov.productCode }}</span>
+                  <span class="item-desc">{{ mov.productName }}</span>
+                </div>
+              </td>
+              <td>
+                <span class="text-secondary">{{ mov.warehouseName || 'Bodega' }}</span>
+              </td>
+              <td class="text-right font-mono fw-bold" :class="mov.type === 'IN' ? 'text-success' : 'text-danger'">
+                {{ mov.type === 'IN' ? '+' : '' }}{{ formatNumber(mov.quantity) }}
+              </td>
+              <td class="text-right font-mono">${{ formatNumber(mov.unitCost) }}</td>
+              <td class="text-right font-mono">${{ formatNumber(mov.totalCost) }}</td>
+              <td class="text-right font-mono text-warning fw-bold">{{ formatNumber(mov.stockAfter) }}</td>
+              <td>
+                <span class="text-secondary small font-mono">{{ mov.originDocument || mov.originName || 'Ajuste Interno' }}</span>
               </td>
             </tr>
           </tbody>
@@ -830,8 +958,13 @@
             </div>
 
             <div class="form-group">
-              <label>Categoría del Servicio</label>
-              <input v-model="serviceForm.category" type="text" placeholder="Ej: Consultoría, Soporte, Mantenimiento" />
+              <label>Categoría del Servicio * <span class="badge bg-primary-subtle text-primary" style="font-size: 10px; margin-left: 6px;">Obligatoria</span></label>
+              <select v-model="serviceForm.categoryId" @change="onServiceCategorySelect" required>
+                <option :value="null" disabled>-- Selecciona una categoría obligatoria --</option>
+                <option v-for="cat in serviceCategories" :key="cat.id" :value="cat.id">
+                  {{ cat.code ? `[${cat.code}] ` : '' }}{{ cat.name }}
+                </option>
+              </select>
             </div>
 
             <div class="form-group span-2">
@@ -919,6 +1052,16 @@
             <div class="form-group">
               <label>Especialidad / Área Técnica</label>
               <input v-model="subcontractForm.specialty" type="text" placeholder="Ej: Electricidad, Obra Civil, Soldadura, TI" />
+            </div>
+
+            <div class="form-group">
+              <label>Categoría de Mano de Obra</label>
+              <select v-model="subcontractForm.categoryId" @change="onSubcontractCategorySelect">
+                <option :value="null">-- Seleccionar categoría (opcional) --</option>
+                <option v-for="cat in laborCategories" :key="cat.id" :value="cat.id">
+                  {{ cat.code ? `[${cat.code}] ` : '' }}{{ cat.name }}
+                </option>
+              </select>
             </div>
 
             <div class="form-group span-2">
@@ -1029,6 +1172,16 @@
             </div>
 
             <div class="form-group span-2">
+              <label>Tipo de Catálogo / Concepto que clasifica *</label>
+              <select v-model="categoryForm.category_type" required>
+                <option value="PRODUCT">PRODUCT · Artículos y Productos Físicos (Control de Inventario)</option>
+                <option value="SERVICE">SERVICE · Servicios Profesionales y Comerciales</option>
+                <option value="LABOR">LABOR · Mano de Obra y Subcontratación</option>
+                <option value="ALL">ALL · Universal (Aplica a cualquier concepto)</option>
+              </select>
+            </div>
+
+            <div class="form-group span-2">
               <label>Descripción / Observaciones</label>
               <textarea v-model="categoryForm.description" rows="3" placeholder="Detalle o alcance de los productos incluidos en esta categoría..."></textarea>
             </div>
@@ -1116,6 +1269,150 @@
         </form>
       </div>
     </div>
+
+    <!-- ========================================================== -->
+    <!-- MODAL 6: TRANSFERENCIA ENTRE BODEGAS                       -->
+    <!-- ========================================================== -->
+    <div v-if="showTransferModal" id="form-page" class="form-page">
+      <div class="modal-card form-page-card">
+        <div class="modal-header">
+          <div>
+            <span class="mod-code-badge bod">MOVIMIENTOS DE STOCK</span>
+            <h3>Transferencia entre Bodegas</h3>
+          </div>
+          <button type="button" class="btn-secondary" @click="showTransferModal = false">
+            <iconify-icon icon="solar:alt-arrow-left-line-duotone" width="18"></iconify-icon>
+            <span>Volver</span>
+          </button>
+        </div>
+
+        <form class="modal-body" @submit.prevent="saveTransferForm">
+          <div class="form-grid">
+            <div class="form-group span-2">
+              <label>Artículo / Producto a Transferir *</label>
+              <select v-model="transferForm.product_id" required>
+                <option :value="null" disabled>-- Selecciona un artículo físico --</option>
+                <option v-for="item in itemsList" :key="item.id" :value="item.id">
+                  {{ item.code ? `[${item.code}] ` : '' }}{{ item.name }} (Stock Total: {{ formatNumber(item.stockCurrent) }})
+                </option>
+              </select>
+            </div>
+
+            <div class="form-group">
+              <label>Bodega de Origen (Sale stock) *</label>
+              <select v-model="transferForm.from_warehouse_id" required>
+                <option :value="null" disabled>-- Selecciona bodega origen --</option>
+                <option v-for="wh in activeWarehouses" :key="'from-'+wh.id" :value="wh.id">
+                  {{ wh.name }}
+                </option>
+              </select>
+            </div>
+
+            <div class="form-group">
+              <label>Bodega de Destino (Entra stock) *</label>
+              <select v-model="transferForm.to_warehouse_id" required>
+                <option :value="null" disabled>-- Selecciona bodega destino --</option>
+                <option v-for="wh in activeWarehouses" :key="'to-'+wh.id" :value="wh.id">
+                  {{ wh.name }}
+                </option>
+              </select>
+            </div>
+
+            <div class="form-group">
+              <label>Cantidad a Transferir *</label>
+              <input v-model.number="transferForm.quantity" type="number" step="0.01" min="0.01" required />
+            </div>
+
+            <div class="form-group">
+              <label>Motivo / Observación de Transferencia</label>
+              <input v-model="transferForm.notes" type="text" placeholder="Ej: Reabastecimiento punto de venta norte" />
+            </div>
+          </div>
+
+          <div class="modal-footer">
+            <button type="button" class="btn-secondary" @click="showTransferModal = false">Cancelar</button>
+            <button type="submit" class="btn-primary" :disabled="saving">
+              <span v-if="saving" class="spinner-grow spinner-grow-sm me-1" role="status" aria-hidden="true"></span>
+              <iconify-icon v-else icon="solar:transfer-horizontal-bold-duotone" width="18"></iconify-icon>
+              <span>{{ saving ? 'Transfiriendo...' : 'Procesar Transferencia' }}</span>
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <!-- ========================================================== -->
+    <!-- MODAL 7: AJUSTE FÍSICO DE STOCK                            -->
+    <!-- ========================================================== -->
+    <div v-if="showAdjustmentModal" id="form-page" class="form-page">
+      <div class="modal-card form-page-card">
+        <div class="modal-header">
+          <div>
+            <span class="mod-code-badge" style="background: rgba(245, 158, 11, 0.18); color: #fcd34d;">AJUSTE DE INVENTARIO</span>
+            <h3>Ajuste Físico de Existencias</h3>
+          </div>
+          <button type="button" class="btn-secondary" @click="showAdjustmentModal = false">
+            <iconify-icon icon="solar:alt-arrow-left-line-duotone" width="18"></iconify-icon>
+            <span>Volver</span>
+          </button>
+        </div>
+
+        <form class="modal-body" @submit.prevent="saveAdjustmentForm">
+          <div class="form-grid">
+            <div class="form-group span-2">
+              <label>Artículo / Producto a Ajustar *</label>
+              <select v-model="adjustmentForm.product_id" @change="onAdjustmentProductChange" required>
+                <option :value="null" disabled>-- Selecciona un artículo --</option>
+                <option v-for="item in itemsList" :key="item.id" :value="item.id">
+                  {{ item.code ? `[${item.code}] ` : '' }}{{ item.name }} (Stock registrado: {{ formatNumber(item.stockCurrent) }})
+                </option>
+              </select>
+            </div>
+
+            <div class="form-group">
+              <label>Bodega donde se realiza el conteo *</label>
+              <select v-model="adjustmentForm.warehouse_id" required>
+                <option :value="null" disabled>-- Selecciona bodega --</option>
+                <option v-for="wh in activeWarehouses" :key="wh.id" :value="wh.id">
+                  {{ wh.name }}
+                </option>
+              </select>
+            </div>
+
+            <div class="form-group">
+              <label>Motivo del Ajuste *</label>
+              <select v-model="adjustmentForm.reason" required>
+                <option value="COUNT_CORRECTION">Conteo Físico / Corrección de Inventario</option>
+                <option value="OPENING">Carga de Stock Inicial</option>
+                <option value="DAMAGED">Mercadería Dañada / Merma</option>
+                <option value="EXPIRED">Producto Caducado / Vencido</option>
+                <option value="INTERNAL_USE">Consumo Interno de la Empresa</option>
+                <option value="OTHER">Otro Motivo</option>
+              </select>
+            </div>
+
+            <div class="form-group">
+              <label>Nuevo Stock Físico Real *</label>
+              <input v-model.number="adjustmentForm.new_stock" type="number" step="0.01" min="0" required placeholder="0.00" />
+            </div>
+
+            <div class="form-group">
+              <label>Costo Unitario de Referencia ($)</label>
+              <input v-model.number="adjustmentForm.unit_cost" type="number" step="0.01" min="0" placeholder="0.00" />
+            </div>
+          </div>
+
+          <div class="modal-footer">
+            <button type="button" class="btn-secondary" @click="showAdjustmentModal = false">Cancelar</button>
+            <button type="submit" class="btn-primary" :disabled="saving">
+              <span v-if="saving" class="spinner-grow spinner-grow-sm me-1" role="status" aria-hidden="true"></span>
+              <iconify-icon v-else icon="solar:tuning-square-2-bold-duotone" width="18"></iconify-icon>
+              <span>{{ saving ? 'Aplicando ajuste...' : 'Confirmar Ajuste de Stock' }}</span>
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
   </div>
 </template>
 
@@ -1143,14 +1440,20 @@ import {
   createInventoryWarehouse,
   updateInventoryWarehouse,
   deleteInventoryWarehouse,
+  getInventoryKardex,
+  createInventoryTransfer,
+  createInventoryAdjustment,
   type InventoryArticle,
   type InventoryServiceItem,
   type InventorySubcontractItem,
   type InventoryCategory,
-  type InventoryWarehouse
+  type InventoryWarehouse,
+  type InventoryKardexMovement,
+  type InventoryTransferPayload,
+  type InventoryAdjustmentPayload
 } from '@/services/inventory.service'
 
-type InventoryTab = 'articulos' | 'servicios' | 'subcontratacion' | 'categorias' | 'bodegas'
+type InventoryTab = 'articulos' | 'servicios' | 'subcontratacion' | 'categorias' | 'bodegas' | 'kardex'
 
 const route = useRoute()
 const router = useRouter()
@@ -1166,6 +1469,10 @@ const servicesList = ref<InventoryServiceItem[]>([])
 const subcontractsList = ref<InventorySubcontractItem[]>([])
 const categoriesList = ref<InventoryCategory[]>([])
 const warehousesList = ref<InventoryWarehouse[]>([])
+const kardexMovements = ref<InventoryKardexMovement[]>([])
+const kardexProductFilter = ref<number>(0)
+const kardexWarehouseFilter = ref<number>(0)
+const loadingKardex = ref(false)
 
 const feedbackBanner = ref<{ text: string; type: 'success' | 'error' | '' }>({
   text: '',
@@ -1195,7 +1502,7 @@ const getActiveCompanyId = (): number => {
   return 1
 }
 
-// Sync tab with URL query (?tab=articulos | servicios | subcontratacion | categorias | bodegas) or route param
+// Sync tab with URL query (?tab=articulos | servicios | subcontratacion | categorias | bodegas | kardex) or route param
 const syncTabFromRoute = () => {
   const qTab = String(route.query.tab || route.params.sub || '').toLowerCase()
   if (qTab.includes('serv')) {
@@ -1206,6 +1513,9 @@ const syncTabFromRoute = () => {
     activeTab.value = 'categorias'
   } else if (qTab.includes('bod') || qTab.includes('ware') || qTab.includes('almacen')) {
     activeTab.value = 'bodegas'
+  } else if (qTab.includes('kardex') || qTab.includes('mov')) {
+    activeTab.value = 'kardex'
+    loadKardex()
   } else {
     activeTab.value = 'articulos'
   }
@@ -1215,6 +1525,9 @@ const switchTab = (tab: InventoryTab) => {
   activeTab.value = tab
   statusFilter.value = 'ALL'
   router.replace({ path: '/inventario', query: { tab } })
+  if (tab === 'kardex') {
+    loadKardex()
+  }
 }
 
 watch(() => [route.query.tab, route.params.sub], () => {
@@ -1226,6 +1539,7 @@ const activeTabBadge = computed(() => {
   if (activeTab.value === 'subcontratacion') return { code: 'SUB-010 · MANO DE OBRA' }
   if (activeTab.value === 'categorias') return { code: 'CONFIG · CATEGORÍAS' }
   if (activeTab.value === 'bodegas') return { code: 'LOGÍSTICA · BODEGAS' }
+  if (activeTab.value === 'kardex') return { code: 'AUDITORÍA · KARDEX' }
   return { code: 'SUB-008 · ARTÍCULOS' }
 })
 
@@ -1234,6 +1548,7 @@ const createButtonLabel = computed(() => {
   if (activeTab.value === 'subcontratacion') return 'Nueva Mano de Obra / Subcontrato'
   if (activeTab.value === 'categorias') return 'Nueva Categoría'
   if (activeTab.value === 'bodegas') return 'Nueva Bodega'
+  if (activeTab.value === 'kardex') return 'Ajuste de Stock'
   return 'Nuevo Artículo'
 })
 
@@ -1242,12 +1557,37 @@ const searchPlaceholder = computed(() => {
   if (activeTab.value === 'subcontratacion') return 'Buscar por código MO, rubro, contratista o especialidad...'
   if (activeTab.value === 'categorias') return 'Buscar categoría por código, nombre o descripción...'
   if (activeTab.value === 'bodegas') return 'Buscar bodega por código, nombre, responsable o dirección...'
+  if (activeTab.value === 'kardex') return 'Buscar movimiento por código, producto, bodega o doc. origen...'
   return 'Buscar por código ART, SKU, nombre o bodega...'
 })
 
 const formatNumber = (val: any) => {
   const num = Number(val || 0)
   return num.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+}
+
+const formatDateTime = (val?: string) => {
+  if (!val) return '—'
+  try {
+    const d = new Date(val)
+    return isNaN(d.getTime()) ? val : d.toLocaleString()
+  } catch {
+    return val
+  }
+}
+
+const formatMovementReason = (reason?: string) => {
+  switch (reason) {
+    case 'OPENING': return 'Apertura Inicial'
+    case 'PURCHASE': return 'Compra'
+    case 'SALE': return 'Venta / Factura'
+    case 'CUSTOMER_RETURN': return 'Devolución Cliente'
+    case 'SUPPLIER_RETURN': return 'Devolución Proveedor'
+    case 'ADJUSTMENT': return 'Ajuste Físico'
+    case 'TRANSFER': return 'Transferencia'
+    case 'REVERSAL': return 'Reversión'
+    default: return reason || 'Movimiento'
+  }
 }
 
 // KPIs
@@ -1321,8 +1661,34 @@ const filteredSubcontracts = computed(() => {
 })
 
 const activeCategories = computed(() => categoriesList.value.filter(c => c.status))
+const productCategories = computed(() =>
+  activeCategories.value.filter(c => c.category_type === 'PRODUCT' || c.category_type === 'ALL' || !c.category_type)
+)
+const serviceCategories = computed(() =>
+  activeCategories.value.filter(c => c.category_type === 'SERVICE' || c.category_type === 'ALL' || !c.category_type)
+)
+const laborCategories = computed(() =>
+  activeCategories.value.filter(c => c.category_type === 'LABOR' || c.category_type === 'ALL' || !c.category_type)
+)
 const activeWarehouses = computed(() => warehousesList.value.filter(w => w.status))
 const defaultWarehouseName = computed(() => warehousesList.value.find(w => w.isDefault)?.name || 'Sin predeterminada')
+
+const filteredKardexMovements = computed(() => {
+  const q = searchQuery.value.trim().toLowerCase()
+  return kardexMovements.value.filter(m => {
+    if (kardexProductFilter.value && m.productId !== kardexProductFilter.value) return false
+    if (kardexWarehouseFilter.value && m.warehouseId !== kardexWarehouseFilter.value) return false
+    if (!q) return true
+    return (
+      m.productCode?.toLowerCase().includes(q) ||
+      m.productName?.toLowerCase().includes(q) ||
+      m.warehouseName?.toLowerCase().includes(q) ||
+      m.originDocument?.toLowerCase().includes(q) ||
+      m.originName?.toLowerCase().includes(q) ||
+      m.reason?.toLowerCase().includes(q)
+    )
+  })
+})
 
 const countItemsByCategory = (cat: InventoryCategory) => {
   return itemsList.value.filter(item => {
@@ -1387,6 +1753,7 @@ const loadAllInventory = async () => {
     subcontractsList.value = Array.isArray(subcontracts) ? subcontracts : []
     categoriesList.value = Array.isArray(categories) ? categories : []
     warehousesList.value = Array.isArray(warehouses) ? warehouses : []
+    loadKardex().catch(() => {})
   } catch (err: any) {
     showFeedback(err?.response?.data?.message || 'Error al cargar los catálogos de inventario', 'error')
   } finally {
@@ -1433,7 +1800,7 @@ const onWarehouseSelect = () => {
 
 const openCreateItem = () => {
   editingItemId.value = null
-  const firstCat = activeCategories.value[0] || null
+  const firstCat = productCategories.value[0] || null
   const defWh = warehousesList.value.find(w => w.isDefault && w.status) || activeWarehouses.value[0] || null
   itemForm.value = {
     code: '',
@@ -1541,7 +1908,8 @@ const editingServiceId = ref<number | null>(null)
 const serviceForm = ref({
   code: '',
   name: '',
-  category: 'Servicios Profesionales',
+  categoryId: null as number | null,
+  category: '',
   unit: 'SERV',
   costPrice: 0,
   salePrice: 0,
@@ -1551,12 +1919,21 @@ const serviceForm = ref({
   status: true
 })
 
+const onServiceCategorySelect = () => {
+  const found = categoriesList.value.find(c => c.id === serviceForm.value.categoryId)
+  if (found) {
+    serviceForm.value.category = found.name
+  }
+}
+
 const openCreateService = () => {
   editingServiceId.value = null
+  const firstCat = serviceCategories.value[0] || null
   serviceForm.value = {
     code: '',
     name: '',
-    category: 'Servicios Profesionales',
+    categoryId: firstCat ? firstCat.id : null,
+    category: firstCat ? firstCat.name : '',
     unit: 'SERV',
     costPrice: 0,
     salePrice: 0,
@@ -1570,10 +1947,14 @@ const openCreateService = () => {
 
 const openEditService = (srv: InventoryServiceItem) => {
   editingServiceId.value = srv.id
+  const catMatch = categoriesList.value.find(c =>
+    (c.id === (srv as any).categoryId) || (srv.category && c.name.toLowerCase() === srv.category.toLowerCase())
+  )
   serviceForm.value = {
     code: srv.code || '',
     name: srv.name || '',
-    category: srv.category || 'Servicios',
+    categoryId: catMatch ? catMatch.id : ((srv as any).categoryId || null),
+    category: srv.category || catMatch?.name || '',
     unit: srv.unit || 'SERV',
     costPrice: Number(srv.costPrice || 0),
     salePrice: Number(srv.salePrice || 0),
@@ -1586,14 +1967,28 @@ const openEditService = (srv: InventoryServiceItem) => {
 }
 
 const saveServiceForm = async () => {
+  if (!serviceForm.value.categoryId) {
+    showFeedback('Debe seleccionar obligatoriamente una categoría para el servicio', 'error')
+    return
+  }
+  const matched = categoriesList.value.find(c => c.id === serviceForm.value.categoryId)
+  if (matched) serviceForm.value.category = matched.name
+
   saving.value = true
   const companyId = getActiveCompanyId()
   try {
+    const payload = {
+      ...serviceForm.value,
+      companyId,
+      categoryId: serviceForm.value.categoryId,
+      category_id: serviceForm.value.categoryId,
+      category: serviceForm.value.category
+    }
     if (editingServiceId.value) {
-      await updateInventoryService(editingServiceId.value, { ...serviceForm.value, companyId })
+      await updateInventoryService(editingServiceId.value, payload)
       showFeedback('Servicio actualizado correctamente')
     } else {
-      await createInventoryService({ ...serviceForm.value, companyId })
+      await createInventoryService(payload)
       showFeedback('Servicio registrado con éxito')
     }
     showServiceModal.value = false
@@ -1624,7 +2019,9 @@ const isFormOpen = computed(() =>
   showServiceModal.value ||
   showSubcontractModal.value ||
   showCategoryModal.value ||
-  showWarehouseModal.value
+  showWarehouseModal.value ||
+  showTransferModal.value ||
+  showAdjustmentModal.value
 )
 watch(isFormOpen, async (open) => {
   if (open) {
@@ -1636,6 +2033,7 @@ const editingSubcontractId = ref<number | null>(null)
 const subcontractForm = ref({
   code: '',
   name: '',
+  categoryId: null as number | null,
   specialty: 'Ingeniería / Técnico',
   contractorName: '',
   contractorTaxId: '',
@@ -1648,12 +2046,21 @@ const subcontractForm = ref({
   status: true
 })
 
+const onSubcontractCategorySelect = () => {
+  const found = categoriesList.value.find(c => c.id === subcontractForm.value.categoryId)
+  if (found) {
+    subcontractForm.value.specialty = found.name
+  }
+}
+
 const openCreateSubcontract = () => {
   editingSubcontractId.value = null
+  const firstCat = laborCategories.value[0] || null
   subcontractForm.value = {
     code: '',
     name: '',
-    specialty: 'Ingeniería / Técnico',
+    categoryId: firstCat ? firstCat.id : null,
+    specialty: firstCat ? firstCat.name : 'Ingeniería / Técnico',
     contractorName: '',
     contractorTaxId: '',
     unit: 'HORA_HOMBRE',
@@ -1672,6 +2079,7 @@ const openEditSubcontract = (sub: InventorySubcontractItem) => {
   subcontractForm.value = {
     code: sub.code || '',
     name: sub.name || '',
+    categoryId: (sub as any).categoryId || null,
     specialty: sub.specialty || 'General',
     contractorName: sub.contractorName || '',
     contractorTaxId: sub.contractorTaxId || '',
@@ -1724,15 +2132,22 @@ const categoryForm = ref({
   code: '',
   name: '',
   description: '',
+  category_type: 'PRODUCT' as 'PRODUCT' | 'SERVICE' | 'LABOR' | 'ALL',
   status: true
 })
 
-const openCreateCategory = () => {
+const openCreateCategory = (initialType?: 'PRODUCT' | 'SERVICE' | 'LABOR' | 'ALL') => {
   editingCategoryId.value = null
+  let defaultType: 'PRODUCT' | 'SERVICE' | 'LABOR' | 'ALL' = initialType || 'PRODUCT'
+  if (!initialType) {
+    if (activeTab.value === 'servicios') defaultType = 'SERVICE'
+    else if (activeTab.value === 'subcontratacion') defaultType = 'LABOR'
+  }
   categoryForm.value = {
     code: '',
     name: '',
     description: '',
+    category_type: defaultType,
     status: true
   }
   showCategoryModal.value = true
@@ -1744,6 +2159,7 @@ const openEditCategory = (cat: InventoryCategory) => {
     code: cat.code || '',
     name: cat.name || '',
     description: cat.description || '',
+    category_type: (cat.category_type as any) || 'PRODUCT',
     status: Boolean(cat.status)
   }
   showCategoryModal.value = true
@@ -1861,6 +2277,159 @@ const toggleWarehouseStatus = async (wh: InventoryWarehouse) => {
 }
 
 // ==========================================
+// 6. KARDEX, TRANSFERENCIAS Y AJUSTES
+// ==========================================
+const loadKardex = async () => {
+  loadingKardex.value = true
+  try {
+    const companyId = getActiveCompanyId()
+    const pId = kardexProductFilter.value || undefined
+    const wId = kardexWarehouseFilter.value || undefined
+    kardexMovements.value = await getInventoryKardex(pId, companyId, wId)
+  } catch (err: any) {
+    showFeedback(err?.response?.data?.message || 'Error al consultar movimientos del Kardex', 'error')
+  } finally {
+    loadingKardex.value = false
+  }
+}
+
+const viewItemKardex = (item: InventoryArticle) => {
+  kardexProductFilter.value = item.id
+  kardexWarehouseFilter.value = 0
+  switchTab('kardex')
+  loadKardex()
+}
+
+// Transferencias
+const showTransferModal = ref(false)
+const transferForm = ref({
+  product_id: null as number | null,
+  from_warehouse_id: null as number | null,
+  to_warehouse_id: null as number | null,
+  quantity: 1,
+  notes: ''
+})
+
+const openCreateTransfer = () => {
+  const p = itemsList.value[0] || null
+  const wh1 = activeWarehouses.value[0] || null
+  const wh2 = activeWarehouses.value[1] || activeWarehouses.value[0] || null
+  transferForm.value = {
+    product_id: p ? p.id : null,
+    from_warehouse_id: wh1 ? wh1.id : null,
+    to_warehouse_id: wh2 ? wh2.id : null,
+    quantity: 1,
+    notes: ''
+  }
+  showTransferModal.value = true
+}
+
+const saveTransferForm = async () => {
+  if (!transferForm.value.product_id) {
+    showFeedback('Debe seleccionar un producto para transferir', 'error')
+    return
+  }
+  if (!transferForm.value.from_warehouse_id || !transferForm.value.to_warehouse_id) {
+    showFeedback('Debe seleccionar bodega de origen y de destino', 'error')
+    return
+  }
+  if (transferForm.value.from_warehouse_id === transferForm.value.to_warehouse_id) {
+    showFeedback('La bodega de origen y destino no pueden ser la misma', 'error')
+    return
+  }
+  if (Number(transferForm.value.quantity) <= 0) {
+    showFeedback('La cantidad a transferir debe ser mayor a cero', 'error')
+    return
+  }
+
+  saving.value = true
+  try {
+    await createInventoryTransfer({
+      companyId: getActiveCompanyId(),
+      product_id: transferForm.value.product_id,
+      from_warehouse_id: transferForm.value.from_warehouse_id,
+      to_warehouse_id: transferForm.value.to_warehouse_id,
+      quantity: Number(transferForm.value.quantity),
+      notes: transferForm.value.notes
+    })
+    showFeedback('Transferencia registrada exitosamente')
+    showTransferModal.value = false
+    await loadAllInventory()
+    await loadKardex()
+  } catch (err: any) {
+    showFeedback(err?.response?.data?.message || 'Error al procesar la transferencia', 'error')
+  } finally {
+    saving.value = false
+  }
+}
+
+// Ajustes físicos de stock
+const showAdjustmentModal = ref(false)
+const adjustmentForm = ref({
+  product_id: null as number | null,
+  warehouse_id: null as number | null,
+  new_stock: 0,
+  unit_cost: 0,
+  reason: 'COUNT_CORRECTION'
+})
+
+const openCreateAdjustment = () => {
+  const p = itemsList.value[0] || null
+  const wh = activeWarehouses.value.find(w => w.isDefault) || activeWarehouses.value[0] || null
+  adjustmentForm.value = {
+    product_id: p ? p.id : null,
+    warehouse_id: wh ? wh.id : null,
+    new_stock: p ? Number(p.stockCurrent || 0) : 0,
+    unit_cost: p ? Number(p.costPrice || 0) : 0,
+    reason: 'COUNT_CORRECTION'
+  }
+  showAdjustmentModal.value = true
+}
+
+const onAdjustmentProductChange = () => {
+  const p = itemsList.value.find(i => i.id === adjustmentForm.value.product_id)
+  if (p) {
+    adjustmentForm.value.unit_cost = Number(p.costPrice || 0)
+    adjustmentForm.value.new_stock = Number(p.stockCurrent || 0)
+  }
+}
+
+const saveAdjustmentForm = async () => {
+  if (!adjustmentForm.value.product_id) {
+    showFeedback('Debe seleccionar un producto para el ajuste', 'error')
+    return
+  }
+  if (!adjustmentForm.value.warehouse_id) {
+    showFeedback('Debe seleccionar una bodega para el ajuste', 'error')
+    return
+  }
+  if (Number(adjustmentForm.value.new_stock) < 0) {
+    showFeedback('El nuevo stock físico no puede ser negativo', 'error')
+    return
+  }
+
+  saving.value = true
+  try {
+    await createInventoryAdjustment({
+      companyId: getActiveCompanyId(),
+      product_id: adjustmentForm.value.product_id,
+      warehouse_id: adjustmentForm.value.warehouse_id,
+      new_stock: Number(adjustmentForm.value.new_stock),
+      unit_cost: Number(adjustmentForm.value.unit_cost || 0),
+      reason: adjustmentForm.value.reason
+    })
+    showFeedback('Ajuste de inventario registrado con éxito')
+    showAdjustmentModal.value = false
+    await loadAllInventory()
+    await loadKardex()
+  } catch (err: any) {
+    showFeedback(err?.response?.data?.message || 'Error al registrar el ajuste de stock', 'error')
+  } finally {
+    saving.value = false
+  }
+}
+
+// ==========================================
 // DISPATCHER BOTÓN CREAR Y ELIMINAR
 // ==========================================
 const openCreateModal = () => {
@@ -1872,6 +2441,8 @@ const openCreateModal = () => {
     openCreateCategory()
   } else if (activeTab.value === 'bodegas') {
     openCreateWarehouse()
+  } else if (activeTab.value === 'kardex') {
+    openCreateAdjustment()
   } else {
     openCreateItem()
   }
@@ -1897,6 +2468,7 @@ const confirmDelete = async (tab: InventoryTab, record: any) => {
     }
     showFeedback(`Registro ${record.code} eliminado correctamente`)
     await loadAllInventory()
+    if (activeTab.value === 'kardex') await loadKardex()
   } catch (err: any) {
     showFeedback(err?.response?.data?.message || 'No se pudo eliminar el registro', 'error')
   } finally {
