@@ -3,7 +3,7 @@ import { api } from '@/services/axios'
 export interface CustomerItem {
   id: number
   company_id: number
-  tipo_documento: '04' | '05' | '06' | '07' // 04=RUC, 05=Cédula, 06=Pasaporte, 07=Consumidor Final
+  tipo_documento: string // e.g. '04'=RUC, '05'=Cédula, '06'=Pasaporte, '07'=Consumidor Final, '08'=Exterior
   num_document: string
   razon_social: string
   nombre_comercial?: string
@@ -18,7 +18,7 @@ export interface CustomerItem {
 export interface ProviderItem {
   id: number
   company_id: number
-  tipo_documento: '04' | '05' | '06' // 04=RUC, 05=Cédula, 06=Pasaporte
+  tipo_documento: string // e.g. '04'=RUC, '05'=Cédula, '06'=Pasaporte, '08'=Exterior
   num_document: string
   razon_social: string
   nombre_comercial?: string
@@ -35,7 +35,7 @@ export interface ProviderItem {
 export interface SellerItem {
   id: number
   company_id: number
-  tipo_documento: '05' | '04' | '06' // 05=Cédula, 04=RUC, 06=Pasaporte
+  tipo_documento: string // e.g. '05'=Cédula, '04'=RUC, '06'=Pasaporte
   num_document: string
   nombres: string
   apellidos: string

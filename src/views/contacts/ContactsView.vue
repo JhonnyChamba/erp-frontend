@@ -19,6 +19,7 @@ import {
   type ProviderItem,
   type SellerItem,
 } from '@/services/contacts.service'
+import { getDocumentTypes, type DocumentTypeItem } from '@/services/document-types.service'
 
 const route = useRoute()
 const router = useRouter()
@@ -83,8 +84,65 @@ const viewingProvider = ref<ProviderItem | null>(null)
 const viewingSeller = ref<SellerItem | null>(null)
 
 // Formularios
+const docTypes = ref<DocumentTypeItem[]>([])
+
+const loadDocTypes = async () => {
+  try {
+    const res = await getDocumentTypes({ active: true })
+    docTypes.value = Array.isArray(res) ? res : []
+  } catch (err) {
+    console.warn('No se pudieron cargar tipos de documento dinámicos:', err)
+  }
+}
+
+const customerDocTypeOptions = computed(() => {
+  const filtered = docTypes.value.filter((dt) => dt.type === 'TODOS' || dt.type === 'CLIENTE')
+  if (filtered.length === 0) {
+    return [
+      { value: '05', label: 'Cédula (05)' },
+      { value: '04', label: 'RUC (04)' },
+      { value: '06', label: 'Pasaporte (06)' },
+      { value: '07', label: 'Consumidor Final (07)' },
+    ]
+  }
+  return filtered.map((dt) => ({
+    value: dt.code,
+    label: `${dt.name} (${dt.code})`,
+  }))
+})
+
+const providerDocTypeOptions = computed(() => {
+  const filtered = docTypes.value.filter((dt) => dt.type === 'TODOS' || dt.type === 'PROVEEDOR')
+  if (filtered.length === 0) {
+    return [
+      { value: '04', label: 'RUC (04)' },
+      { value: '05', label: 'Cédula (05)' },
+      { value: '06', label: 'Pasaporte (06)' },
+    ]
+  }
+  return filtered.map((dt) => ({
+    value: dt.code,
+    label: `${dt.name} (${dt.code})`,
+  }))
+})
+
+const sellerDocTypeOptions = computed(() => {
+  const filtered = docTypes.value.filter((dt) => dt.type === 'TODOS' || dt.type === 'VENDEDOR')
+  if (filtered.length === 0) {
+    return [
+      { value: '05', label: 'Cédula (05)' },
+      { value: '04', label: 'RUC (04)' },
+      { value: '06', label: 'Pasaporte (06)' },
+    ]
+  }
+  return filtered.map((dt) => ({
+    value: dt.code,
+    label: `${dt.name} (${dt.code})`,
+  }))
+})
+
 const formCustomer = ref({
-  tipo_documento: '05' as '04' | '05' | '06' | '07',
+  tipo_documento: '05' as string,
   num_document: '',
   razon_social: '',
   nombre_comercial: '',
@@ -96,7 +154,7 @@ const formCustomer = ref({
 })
 
 const formProvider = ref({
-  tipo_documento: '04' as '04' | '05' | '06',
+  tipo_documento: '04' as string,
   num_document: '',
   razon_social: '',
   nombre_comercial: '',
@@ -110,7 +168,7 @@ const formProvider = ref({
 })
 
 const formSeller = ref({
-  tipo_documento: '05' as '05' | '04' | '06',
+  tipo_documento: '05' as string,
   num_document: '',
   nombres: '',
   apellidos: '',
@@ -165,6 +223,7 @@ onMounted(async () => {
     } catch (e) {}
   }
   loadData()
+  loadDocTypes()
 })
 
 // ==========================================
@@ -481,6 +540,8 @@ const handleToggleSellerStatus = async (s: SellerItem) => {
 
 // Helpers visuales
 const docTypeLabel = (type: string) => {
+  const found = docTypes.value.find((dt) => dt.code === type)
+  if (found) return found.name
   switch (type) {
     case '04':
       return 'RUC'
@@ -1175,13 +1236,14 @@ const paymentLabel = (p: string) => {
         <form @submit.prevent="saveCustomer">
           <div class="row g-3">
             <div class="col-md-5">
-              <label class="form-label text-secondary fs-2 fw-semibold">Tipo Documento</label>
-              <select v-model="formCustomer.tipo_documento" class="form-select bg-dark-subtle border-secondary-subtle text-white" required>
-                <option value="05">Cédula (05)</option>
-                <option value="04">RUC (04)</option>
-                <option value="06">Pasaporte (06)</option>
-                <option value="07">Consumidor Final (07)</option>
-              </select>
+              <label class="form-label text-secondary fs-2 fw-semibold">Tipo Documento *</label>
+              <AppSelect2
+                v-model="formCustomer.tipo_documento"
+                :options="customerDocTypeOptions"
+                placeholder="Seleccionar Tipo de Documento"
+                search-placeholder="Buscar tipo de documento..."
+                required
+              />
             </div>
 
             <div class="col-md-7">
@@ -1301,12 +1363,14 @@ const paymentLabel = (p: string) => {
         <form @submit.prevent="saveProvider">
           <div class="row g-3">
             <div class="col-md-5">
-              <label class="form-label text-secondary fs-2 fw-semibold">Tipo Documento</label>
-              <select v-model="formProvider.tipo_documento" class="form-select bg-dark-subtle border-secondary-subtle text-white" required>
-                <option value="04">RUC (04)</option>
-                <option value="05">Cédula (05)</option>
-                <option value="06">Pasaporte (06)</option>
-              </select>
+              <label class="form-label text-secondary fs-2 fw-semibold">Tipo Documento *</label>
+              <AppSelect2
+                v-model="formProvider.tipo_documento"
+                :options="providerDocTypeOptions"
+                placeholder="Seleccionar Tipo de Documento"
+                search-placeholder="Buscar tipo de documento..."
+                required
+              />
             </div>
 
             <div class="col-md-7">
@@ -1447,12 +1511,14 @@ const paymentLabel = (p: string) => {
         <form @submit.prevent="saveSeller">
           <div class="row g-3">
             <div class="col-md-5">
-              <label class="form-label text-secondary fs-2 fw-semibold">Tipo Documento</label>
-              <select v-model="formSeller.tipo_documento" class="form-select bg-dark-subtle border-secondary-subtle text-white" required>
-                <option value="05">Cédula (05)</option>
-                <option value="04">RUC (04)</option>
-                <option value="06">Pasaporte (06)</option>
-              </select>
+              <label class="form-label text-secondary fs-2 fw-semibold">Tipo Documento *</label>
+              <AppSelect2
+                v-model="formSeller.tipo_documento"
+                :options="sellerDocTypeOptions"
+                placeholder="Seleccionar Tipo de Documento"
+                search-placeholder="Buscar tipo de documento..."
+                required
+              />
             </div>
 
             <div class="col-md-7">

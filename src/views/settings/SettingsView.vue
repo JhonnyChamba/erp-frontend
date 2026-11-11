@@ -38,6 +38,22 @@ import {
   type ModuleItem,
   type SubModuleItem,
 } from '@/services/config.service'
+import {
+  getTaxes,
+  createTax,
+  updateTax,
+  toggleTaxStatus,
+  deleteTax,
+  type TaxItem,
+} from '@/services/taxes.service'
+import {
+  getDocumentTypes,
+  createDocumentType,
+  updateDocumentType,
+  toggleDocumentTypeStatus,
+  deleteDocumentType,
+  type DocumentTypeItem,
+} from '@/services/document-types.service'
 import { useAuthStore } from '@/stores/auth.store'
 import { useThemeStore } from '@/stores/theme.store'
 
@@ -88,8 +104,8 @@ const closeUserModal = () => {
   document.documentElement.setAttribute('data-color-theme', currentTheme)
 }
 
-// Pestaña activa ('companies' | 'users' | 'roles' | 'modules' | 'subscriptions')
-const activeTab = ref<'companies' | 'branches' | 'users' | 'roles' | 'modules' | 'subscriptions'>('companies')
+// Pestaña activa ('companies' | 'users' | 'roles' | 'modules' | 'subscriptions' | 'taxes' | 'document_types')
+const activeTab = ref<'companies' | 'branches' | 'users' | 'roles' | 'modules' | 'subscriptions' | 'taxes' | 'document_types'>('companies')
 
 // Estado de carga y mensajes
 const loading = ref(false)
@@ -119,6 +135,8 @@ const subModulesList = ref<SubModuleItem[]>([])
 const filterModuleId = ref<number | undefined>(undefined)
 const plans = ref<PlanItem[]>([])
 const subscriptions = ref<SubscriptionItem[]>([])
+const taxes = ref<TaxItem[]>([])
+const docTypes = ref<DocumentTypeItem[]>([])
 
 // Modales
 const showCompanyModal = ref(false)
@@ -129,9 +147,22 @@ const showSubModuleModal = ref(false)
 const showPlanModal = ref(false)
 const showSubscriptionModal = ref(false)
 const showBranchModal = ref(false)
+const showTaxModal = ref(false)
+const showDocTypeModal = ref(false)
+
 // Mientras un formulario de registro/edición está abierto se muestra como página y se oculta el listado
 const isFormOpen = computed(
-  () => showCompanyModal.value || showUserModal.value || showRoleModal.value || showModuleModal.value || showSubModuleModal.value || showPlanModal.value || showSubscriptionModal.value || showBranchModal.value,
+  () =>
+    showCompanyModal.value ||
+    showUserModal.value ||
+    showRoleModal.value ||
+    showModuleModal.value ||
+    showSubModuleModal.value ||
+    showPlanModal.value ||
+    showSubscriptionModal.value ||
+    showBranchModal.value ||
+    showTaxModal.value ||
+    showDocTypeModal.value,
 )
 watch(isFormOpen, async (open) => {
   if (open) {
@@ -139,6 +170,249 @@ watch(isFormOpen, async (open) => {
     document.getElementById('form-page')?.scrollIntoView({ block: 'start' })
   }
 })
+
+// ==========================================
+// ESTADO Y MÉTODOS DE IMPUESTOS (CRUD)
+// ==========================================
+const isEditingTax = ref(false)
+const editingTaxId = ref<number | null>(null)
+const taxSearch = ref('')
+const savingTax = ref(false)
+const formTax = ref({
+  code: '',
+  percentage: 15,
+  description: '',
+  status: 'ACTIVO',
+  is_default: false,
+})
+
+const taxStatusOptions = [
+  { value: 'ACTIVO', label: 'Activo' },
+  { value: 'INACTIVO', label: 'Inactivo' },
+]
+
+const filteredTaxes = computed(() => {
+  const q = taxSearch.value.toLowerCase().trim()
+  if (!q) return taxes.value
+  return taxes.value.filter(
+    (t) =>
+      t.code.toLowerCase().includes(q) ||
+      t.description.toLowerCase().includes(q) ||
+      String(t.percentage).includes(q)
+  )
+})
+
+const openCreateTaxModal = () => {
+  isEditingTax.value = false
+  editingTaxId.value = null
+  formTax.value = {
+    code: '',
+    percentage: 15,
+    description: '',
+    status: 'ACTIVO',
+    is_default: false,
+  }
+  showTaxModal.value = true
+}
+
+const openEditTaxModal = (t: TaxItem) => {
+  isEditingTax.value = true
+  editingTaxId.value = t.id
+  formTax.value = {
+    code: t.code,
+    percentage: Number(t.percentage),
+    description: t.description,
+    status: t.status,
+    is_default: Boolean(t.is_default),
+  }
+  showTaxModal.value = true
+}
+
+const submitTax = async () => {
+  if (!formTax.value.code.trim()) {
+    toast.warning('El código del impuesto es obligatorio', 'Validación')
+    return
+  }
+  if (!formTax.value.description.trim()) {
+    toast.warning('La descripción del impuesto es obligatoria', 'Validación')
+    return
+  }
+  savingTax.value = true
+  try {
+    if (isEditingTax.value && editingTaxId.value) {
+      await updateTax(editingTaxId.value, {
+        code: formTax.value.code,
+        percentage: Number(formTax.value.percentage),
+        description: formTax.value.description,
+        status: formTax.value.status,
+        is_default: formTax.value.is_default,
+      })
+      toast.success('Impuesto actualizado con éxito', 'Configuración')
+    } else {
+      await createTax({
+        code: formTax.value.code,
+        percentage: Number(formTax.value.percentage),
+        description: formTax.value.description,
+        status: formTax.value.status,
+        is_default: formTax.value.is_default,
+      })
+      toast.success('Impuesto creado con éxito', 'Configuración')
+    }
+    showTaxModal.value = false
+    const res = await getTaxes({ companyId: currentCompanyId.value })
+    taxes.value = Array.isArray(res) ? res : []
+  } catch (err: any) {
+    toast.error(err?.response?.data?.message || err?.message || 'Error al guardar el impuesto', 'Error')
+  } finally {
+    savingTax.value = false
+  }
+}
+
+const onToggleTaxStatus = async (t: TaxItem) => {
+  try {
+    await toggleTaxStatus(t.id)
+    t.status = t.status === 'ACTIVO' ? 'INACTIVO' : 'ACTIVO'
+    toast.success(`Estado del impuesto "${t.description}" cambiado a ${t.status}`, 'Configuración')
+  } catch (err: any) {
+    toast.error(err?.response?.data?.message || 'Error al cambiar estado', 'Error')
+  }
+}
+
+const onDeleteTax = async (t: TaxItem) => {
+  if (!confirm(`¿Está seguro de eliminar el impuesto "${t.description}"?`)) return
+  try {
+    await deleteTax(t.id)
+    toast.success('Impuesto eliminado correctamente', 'Configuración')
+    taxes.value = taxes.value.filter((item) => item.id !== t.id)
+  } catch (err: any) {
+    toast.error(err?.response?.data?.message || 'Error al eliminar impuesto', 'Error')
+  }
+}
+
+// ==========================================
+// ESTADO Y MÉTODOS DE TIPOS DE DOCUMENTOS (CRUD)
+// ==========================================
+const isEditingDocType = ref(false)
+const editingDocTypeId = ref<number | null>(null)
+const docTypeSearch = ref('')
+const docTypeFilterType = ref('TODOS')
+const savingDocType = ref(false)
+const formDocType = ref({
+  name: '',
+  type: 'TODOS',
+  code: '',
+  status: 'ACTIVO',
+})
+
+const docTypeTargetOptions = [
+  { value: 'TODOS', label: 'Todos (General)' },
+  { value: 'CLIENTE', label: 'Clientes' },
+  { value: 'PROVEEDOR', label: 'Proveedores' },
+  { value: 'VENDEDOR', label: 'Vendedores' },
+]
+
+const docTypeStatusOptions = [
+  { value: 'ACTIVO', label: 'Activo' },
+  { value: 'INACTIVO', label: 'Inactivo' },
+]
+
+const filteredDocTypes = computed(() => {
+  let list = docTypes.value
+  if (docTypeFilterType.value !== 'TODOS') {
+    list = list.filter((dt) => dt.type === docTypeFilterType.value || dt.type === 'TODOS')
+  }
+  const q = docTypeSearch.value.toLowerCase().trim()
+  if (!q) return list
+  return list.filter(
+    (dt) =>
+      dt.name.toLowerCase().includes(q) ||
+      dt.code.toLowerCase().includes(q) ||
+      dt.type.toLowerCase().includes(q)
+  )
+})
+
+const openCreateDocTypeModal = () => {
+  isEditingDocType.value = false
+  editingDocTypeId.value = null
+  formDocType.value = {
+    name: '',
+    type: 'TODOS',
+    code: '',
+    status: 'ACTIVO',
+  }
+  showDocTypeModal.value = true
+}
+
+const openEditDocTypeModal = (dt: DocumentTypeItem) => {
+  isEditingDocType.value = true
+  editingDocTypeId.value = dt.id
+  formDocType.value = {
+    name: dt.name,
+    type: dt.type,
+    code: dt.code,
+    status: dt.status,
+  }
+  showDocTypeModal.value = true
+}
+
+const submitDocType = async () => {
+  if (!formDocType.value.name.trim()) {
+    toast.warning('El nombre del tipo de documento es obligatorio', 'Validación')
+    return
+  }
+  if (!formDocType.value.code.trim()) {
+    toast.warning('El código del tipo de documento es obligatorio', 'Validación')
+    return
+  }
+  savingDocType.value = true
+  try {
+    if (isEditingDocType.value && editingDocTypeId.value) {
+      await updateDocumentType(editingDocTypeId.value, {
+        name: formDocType.value.name,
+        type: formDocType.value.type,
+        code: formDocType.value.code,
+        status: formDocType.value.status,
+      })
+      toast.success('Tipo de documento actualizado con éxito', 'Configuración')
+    } else {
+      await createDocumentType({
+        name: formDocType.value.name,
+        type: formDocType.value.type,
+        code: formDocType.value.code,
+        status: formDocType.value.status,
+      })
+      toast.success('Tipo de documento creado con éxito', 'Configuración')
+    }
+    showDocTypeModal.value = false
+    const res = await getDocumentTypes({ companyId: currentCompanyId.value })
+    docTypes.value = Array.isArray(res) ? res : []
+  } catch (err: any) {
+    toast.error(err?.response?.data?.message || err?.message || 'Error al guardar el tipo de documento', 'Error')
+  } finally {
+    savingDocType.value = false
+  }
+}
+
+const onToggleDocTypeStatus = async (dt: DocumentTypeItem) => {
+  try {
+    await toggleDocumentTypeStatus(dt.id)
+    dt.status = dt.status === 'ACTIVO' ? 'INACTIVO' : 'ACTIVO'
+    toast.success(`Estado de "${dt.name}" cambiado a ${dt.status}`, 'Configuración')
+  } catch (err: any) {
+    toast.error(err?.response?.data?.message || 'Error al cambiar estado', 'Error')
+  }
+}
+
+const onDeleteDocType = async (dt: DocumentTypeItem) => {
+  if (!confirm(`¿Está seguro de eliminar el tipo de documento "${dt.name}"?`)) return
+  try {
+    await deleteDocumentType(dt.id)
+    toast.success('Tipo de documento eliminado correctamente', 'Configuración')
+    docTypes.value = docTypes.value.filter((item) => item.id !== dt.id)
+  } catch (err: any) {
+    toast.error(err?.response?.data?.message || 'Error al eliminar tipo de documento', 'Error')
+  }
+}
 
 // Estado de edición de usuario y rol
 const isEditingUser = ref(false)
@@ -537,6 +811,12 @@ const loadCurrentTabData = async () => {
       subscriptions.value = Array.isArray(subsRes?.data) ? subsRes.data : Array.isArray(subsRes) ? subsRes : []
       modulesList.value = Array.isArray(modsRes?.data) ? modsRes.data : Array.isArray(modsRes) ? modsRes : []
       allSubModulesList.value = Array.isArray(allSubModsRes?.data) ? allSubModsRes.data : Array.isArray(allSubModsRes) ? allSubModsRes : []
+    } else if (activeTab.value === 'taxes') {
+      const taxesRes = await getTaxes({ companyId: currentCompanyId.value })
+      taxes.value = Array.isArray(taxesRes) ? taxesRes : []
+    } else if (activeTab.value === 'document_types') {
+      const docTypesRes = await getDocumentTypes({ companyId: currentCompanyId.value })
+      docTypes.value = Array.isArray(docTypesRes) ? docTypesRes : []
     }
   } catch (err: any) {
     console.error('Error cargando datos de configuración:', err)
@@ -546,7 +826,7 @@ const loadCurrentTabData = async () => {
   }
 }
 
-const switchTab = (tab: 'companies' | 'branches' | 'users' | 'roles' | 'modules' | 'subscriptions') => {
+const switchTab = (tab: 'companies' | 'branches' | 'users' | 'roles' | 'modules' | 'subscriptions' | 'taxes' | 'document_types') => {
   activeTab.value = tab
   router.replace({ query: { ...route.query, tab } })
   loadCurrentTabData()
@@ -556,7 +836,7 @@ const switchTab = (tab: 'companies' | 'branches' | 'users' | 'roles' | 'modules'
 watch(
   () => route.query.tab,
   (newTab) => {
-    if (newTab && ['companies', 'branches', 'users', 'roles', 'modules', 'subscriptions'].includes(newTab as string)) {
+    if (newTab && ['companies', 'branches', 'users', 'roles', 'modules', 'subscriptions', 'taxes', 'document_types'].includes(newTab as string)) {
       activeTab.value = newTab as any
       loadCurrentTabData()
     }
@@ -1479,7 +1759,7 @@ const submitSubscription = async () => {
           </button>
         </li>
 
-        <li class="nav-item">
+        <li class="nav-item me-2">
           <button
             class="nav-link rounded-pill px-4 py-2 d-flex align-items-center gap-2 fs-3 text-decoration-none"
             :class="{ 'active bg-primary text-white': activeTab === 'subscriptions', 'text-white-50 hover-tab': activeTab !== 'subscriptions' }"
@@ -1487,6 +1767,28 @@ const submitSubscription = async () => {
           >
             <iconify-icon icon="solar:card-line-duotone" class="fs-5"></iconify-icon>
             <span>Planes & Suscripciones</span>
+          </button>
+        </li>
+
+        <li class="nav-item me-2">
+          <button
+            class="nav-link rounded-pill px-4 py-2 d-flex align-items-center gap-2 fs-3 text-decoration-none"
+            :class="{ 'active bg-primary text-white': activeTab === 'taxes', 'text-white-50 hover-tab': activeTab !== 'taxes' }"
+            @click="switchTab('taxes')"
+          >
+            <iconify-icon icon="solar:calculator-minimalistic-line-duotone" class="fs-5"></iconify-icon>
+            <span>Impuestos</span>
+          </button>
+        </li>
+
+        <li class="nav-item">
+          <button
+            class="nav-link rounded-pill px-4 py-2 d-flex align-items-center gap-2 fs-3 text-decoration-none"
+            :class="{ 'active bg-primary text-white': activeTab === 'document_types', 'text-white-50 hover-tab': activeTab !== 'document_types' }"
+            @click="switchTab('document_types')"
+          >
+            <iconify-icon icon="solar:document-text-line-duotone" class="fs-5"></iconify-icon>
+            <span>Tipos de Documentos</span>
           </button>
         </li>
 
@@ -2129,6 +2431,218 @@ const submitSubscription = async () => {
         </div>
       </div>
 
+    </div>
+
+    <!-- ======================================================== -->
+    <!-- TAB 5: IMPUESTOS (CRUD)                                  -->
+    <!-- ======================================================== -->
+    <div v-if="activeTab === 'taxes'" class="card rounded-4 border-0 shadow-sm p-4 bg-navy-card">
+      <div class="d-flex flex-column flex-md-row justify-content-between align-items-start align-items-md-center gap-3 mb-4">
+        <div>
+          <h5 class="fw-bold text-white mb-1">Catálogo de Impuestos y Tarifas</h5>
+          <small class="text-secondary">Gestión de tarifas tributarias (IVA, ICE) aplicables a artículos y servicios</small>
+        </div>
+        <div class="d-flex flex-wrap align-items-center gap-2">
+          <div class="input-group input-group-sm" style="max-width: 280px;">
+            <span class="input-group-text bg-dark-subtle border-secondary-subtle text-secondary">
+              <iconify-icon icon="solar:magnifer-line-duotone"></iconify-icon>
+            </span>
+            <input
+              v-model="taxSearch"
+              type="text"
+              class="form-control bg-dark-subtle border-secondary-subtle text-white"
+              placeholder="Buscar impuesto..."
+            />
+          </div>
+          <button class="btn btn-primary rounded-pill px-3 py-2 d-flex align-items-center gap-2 fs-3" @click="openCreateTaxModal">
+            <iconify-icon icon="solar:add-circle-line-duotone" class="fs-5"></iconify-icon>
+            <span>Nuevo Impuesto</span>
+          </button>
+        </div>
+      </div>
+
+      <div class="table-responsive">
+        <table class="table table-hover align-middle mb-0">
+          <thead>
+            <tr class="border-bottom border-dark-subtle text-secondary fs-2 text-uppercase">
+              <th>Código</th>
+              <th>Descripción</th>
+              <th class="text-center">Porcentaje (%)</th>
+              <th class="text-center">Predeterminada</th>
+              <th class="text-center">Estado</th>
+              <th class="text-end">Acciones</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr v-for="tax in filteredTaxes" :key="tax.id" class="border-bottom border-dark-subtle">
+              <td>
+                <span class="badge bg-dark-subtle text-primary border border-primary-subtle font-monospace px-2 py-1">
+                  {{ tax.code }}
+                </span>
+              </td>
+              <td>
+                <span class="text-white fw-bold">{{ tax.description }}</span>
+              </td>
+              <td class="text-center">
+                <span class="badge bg-info-subtle text-info border border-info-subtle px-3 py-1 fs-2 font-monospace fw-bold">
+                  {{ Number(tax.percentage) }}%
+                </span>
+              </td>
+              <td class="text-center">
+                <span v-if="tax.is_default" class="badge bg-warning-subtle text-warning border border-warning-subtle px-2 py-1 fs-1">
+                  ★ Predeterminada
+                </span>
+                <span v-else class="text-muted fs-1">-</span>
+              </td>
+              <td class="text-center">
+                <button
+                  type="button"
+                  class="badge px-3 py-1 rounded-pill border-0 cursor-pointer transition-all"
+                  :class="tax.status === 'ACTIVO' ? 'bg-success-subtle text-success border border-success-subtle' : 'bg-danger-subtle text-danger border border-danger-subtle'"
+                  @click="onToggleTaxStatus(tax)"
+                  title="Click para cambiar estado"
+                >
+                  {{ tax.status }}
+                </button>
+              </td>
+              <td class="text-end">
+                <div class="d-flex justify-content-end gap-1">
+                  <button
+                    class="btn btn-sm btn-outline-info rounded-circle p-1"
+                    title="Editar Impuesto"
+                    @click="openEditTaxModal(tax)"
+                  >
+                    <iconify-icon icon="solar:pen-2-line-duotone" class="fs-4"></iconify-icon>
+                  </button>
+                  <button
+                    class="btn btn-sm btn-outline-danger rounded-circle p-1"
+                    title="Eliminar Impuesto"
+                    @click="onDeleteTax(tax)"
+                  >
+                    <iconify-icon icon="solar:trash-bin-trash-line-duotone" class="fs-4"></iconify-icon>
+                  </button>
+                </div>
+              </td>
+            </tr>
+            <tr v-if="filteredTaxes.length === 0">
+              <td colspan="6" class="text-center text-muted py-4">
+                No se encontraron impuestos registrados o que coincidan con la búsqueda.
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- ======================================================== -->
+    <!-- TAB 6: TIPOS DE DOCUMENTO (CRUD)                         -->
+    <!-- ======================================================== -->
+    <div v-if="activeTab === 'document_types'" class="card rounded-4 border-0 shadow-sm p-4 bg-navy-card">
+      <div class="d-flex flex-column flex-md-row justify-content-between align-items-start align-items-md-center gap-3 mb-4">
+        <div>
+          <h5 class="fw-bold text-white mb-1">Catálogo de Tipos de Documentos</h5>
+          <small class="text-secondary">Documentos de identidad y tributarios para clientes, proveedores y vendedores</small>
+        </div>
+        <div class="d-flex flex-wrap align-items-center gap-2">
+          <!-- Filtro de Tipo -->
+          <div style="min-width: 170px;">
+            <AppSelect2
+              v-model="docTypeFilterType"
+              :options="docTypeTargetOptions"
+              placeholder="Filtrar por tipo..."
+            />
+          </div>
+          <!-- Búsqueda -->
+          <div class="input-group input-group-sm" style="max-width: 250px;">
+            <span class="input-group-text bg-dark-subtle border-secondary-subtle text-secondary">
+              <iconify-icon icon="solar:magnifer-line-duotone"></iconify-icon>
+            </span>
+            <input
+              v-model="docTypeSearch"
+              type="text"
+              class="form-control bg-dark-subtle border-secondary-subtle text-white"
+              placeholder="Buscar tipo de documento..."
+            />
+          </div>
+          <button class="btn btn-primary rounded-pill px-3 py-2 d-flex align-items-center gap-2 fs-3" @click="openCreateDocTypeModal">
+            <iconify-icon icon="solar:add-circle-line-duotone" class="fs-5"></iconify-icon>
+            <span>Nuevo Tipo Documento</span>
+          </button>
+        </div>
+      </div>
+
+      <div class="table-responsive">
+        <table class="table table-hover align-middle mb-0">
+          <thead>
+            <tr class="border-bottom border-dark-subtle text-secondary fs-2 text-uppercase">
+              <th>Código</th>
+              <th>Nombre del Documento</th>
+              <th class="text-center">Aplica a</th>
+              <th class="text-center">Estado</th>
+              <th class="text-end">Acciones</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr v-for="dt in filteredDocTypes" :key="dt.id" class="border-bottom border-dark-subtle">
+              <td>
+                <span class="badge bg-dark-subtle text-info border border-info-subtle font-monospace px-2 py-1">
+                  {{ dt.code }}
+                </span>
+              </td>
+              <td>
+                <span class="text-white fw-bold">{{ dt.name }}</span>
+              </td>
+              <td class="text-center">
+                <span
+                  class="badge px-3 py-1 rounded-pill fs-1 fw-bold"
+                  :class="{
+                    'bg-primary-subtle text-primary border border-primary-subtle': dt.type === 'TODOS',
+                    'bg-info-subtle text-info border border-info-subtle': dt.type === 'CLIENTE',
+                    'bg-warning-subtle text-warning border border-warning-subtle': dt.type === 'PROVEEDOR',
+                    'bg-success-subtle text-success border border-success-subtle': dt.type === 'VENDEDOR'
+                  }"
+                >
+                  {{ dt.type }}
+                </span>
+              </td>
+              <td class="text-center">
+                <button
+                  type="button"
+                  class="badge px-3 py-1 rounded-pill border-0 cursor-pointer transition-all"
+                  :class="dt.status === 'ACTIVO' ? 'bg-success-subtle text-success border border-success-subtle' : 'bg-danger-subtle text-danger border border-danger-subtle'"
+                  @click="onToggleDocTypeStatus(dt)"
+                  title="Click para cambiar estado"
+                >
+                  {{ dt.status }}
+                </button>
+              </td>
+              <td class="text-end">
+                <div class="d-flex justify-content-end gap-1">
+                  <button
+                    class="btn btn-sm btn-outline-info rounded-circle p-1"
+                    title="Editar Tipo de Documento"
+                    @click="openEditDocTypeModal(dt)"
+                  >
+                    <iconify-icon icon="solar:pen-2-line-duotone" class="fs-4"></iconify-icon>
+                  </button>
+                  <button
+                    class="btn btn-sm btn-outline-danger rounded-circle p-1"
+                    title="Eliminar Tipo de Documento"
+                    @click="onDeleteDocType(dt)"
+                  >
+                    <iconify-icon icon="solar:trash-bin-trash-line-duotone" class="fs-4"></iconify-icon>
+                  </button>
+                </div>
+              </td>
+            </tr>
+            <tr v-if="filteredDocTypes.length === 0">
+              <td colspan="5" class="text-center text-muted py-4">
+                No se encontraron tipos de documento registrados o que coincidan con la búsqueda.
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
     </div>
 
     <!-- ======================================================== -->
@@ -3447,6 +3961,189 @@ const submitSubscription = async () => {
           </div>
         </div>
       </div>
+
+    <!-- 8. FORMULARIO EN PÁGINA: NUEVO / EDITAR IMPUESTO -->
+    <div v-if="showTaxModal" id="form-page" class="form-page">
+      <div class="form-page-card">
+        <div class="card bg-navy-card border border-secondary-subtle rounded-4 shadow-sm">
+          <div class="modal-header d-flex justify-content-between align-items-center px-4 py-3 border-bottom border-dark-subtle">
+            <div class="d-flex align-items-center gap-2">
+              <span class="p-2 bg-primary-subtle text-primary rounded-3 d-inline-flex">
+                <iconify-icon icon="solar:calculator-minimalistic-line-duotone" class="fs-5"></iconify-icon>
+              </span>
+              <h5 class="fw-bold text-white mb-0">{{ isEditingTax ? 'Editar Impuesto' : 'Registrar Nuevo Impuesto' }}</h5>
+            </div>
+            <button type="button" class="btn btn-outline-secondary btn-sm rounded-3 d-flex align-items-center gap-1" @click="showTaxModal = false">
+              <iconify-icon icon="solar:alt-arrow-left-line-duotone" class="fs-5"></iconify-icon>
+              <span>Volver</span>
+            </button>
+          </div>
+          <form @submit.prevent="submitTax">
+            <div class="modal-body p-4">
+              <div class="row g-3">
+                <div class="col-md-4">
+                  <label class="form-label text-secondary fs-2 fw-semibold">Código del Impuesto *</label>
+                  <input
+                    v-model="formTax.code"
+                    type="text"
+                    class="form-control bg-dark-subtle border-secondary-subtle text-white font-monospace"
+                    placeholder="Ej. 4, 0, 2, IVA15"
+                    required
+                  />
+                  <small class="text-muted fs-1 d-block mt-1">Código tributario SRI o identificador interno</small>
+                </div>
+
+                <div class="col-md-4">
+                  <label class="form-label text-secondary fs-2 fw-semibold">Porcentaje (%) *</label>
+                  <div class="input-group">
+                    <input
+                      v-model.number="formTax.percentage"
+                      type="number"
+                      step="0.01"
+                      min="0"
+                      max="100"
+                      class="form-control bg-dark-subtle border-secondary-subtle text-white font-monospace"
+                      placeholder="Ej. 15.00"
+                      required
+                    />
+                    <span class="input-group-text bg-dark-subtle border-secondary-subtle text-secondary">%</span>
+                  </div>
+                </div>
+
+                <div class="col-md-4">
+                  <label class="form-label text-secondary fs-2 fw-semibold">Estado *</label>
+                  <AppSelect2
+                    v-model="formTax.status"
+                    :options="taxStatusOptions"
+                    placeholder="Seleccionar Estado"
+                    required
+                  />
+                </div>
+
+                <div class="col-12">
+                  <label class="form-label text-secondary fs-2 fw-semibold">Descripción del Impuesto *</label>
+                  <input
+                    v-model="formTax.description"
+                    type="text"
+                    class="form-control bg-dark-subtle border-secondary-subtle text-white"
+                    placeholder="Ej. IVA 15% (Tarifa General)"
+                    required
+                  />
+                </div>
+
+                <div class="col-12 mt-3">
+                  <div class="form-check form-switch">
+                    <input
+                      v-model="formTax.is_default"
+                      class="form-check-input"
+                      type="checkbox"
+                      role="switch"
+                      id="taxDefaultSwitch"
+                    />
+                    <label class="form-check-label text-white fw-semibold" for="taxDefaultSwitch">
+                      Establecer como tarifa de impuesto predeterminada
+                    </label>
+                    <small class="text-muted d-block fs-1">
+                      Si se activa, los nuevos artículos y servicios se crearán seleccionando esta tarifa por defecto.
+                    </small>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div class="modal-footer px-4 py-3 border-top border-dark-subtle d-flex justify-content-between">
+              <button type="button" class="btn btn-outline-secondary rounded-pill px-4" @click="showTaxModal = false">
+                Cancelar
+              </button>
+              <button type="submit" class="btn btn-primary rounded-pill px-4 fw-semibold d-flex align-items-center gap-2" :disabled="savingTax">
+                <span v-if="savingTax" class="spinner-grow spinner-grow-sm text-white" role="status"></span>
+                <iconify-icon v-else icon="solar:check-circle-line-duotone" class="fs-4"></iconify-icon>
+                <span>{{ isEditingTax ? 'Guardar Cambios' : 'Registrar Impuesto' }}</span>
+              </button>
+            </div>
+          </form>
+        </div>
+      </div>
+    </div>
+
+    <!-- 9. FORMULARIO EN PÁGINA: NUEVO / EDITAR TIPO DE DOCUMENTO -->
+    <div v-if="showDocTypeModal" id="form-page" class="form-page">
+      <div class="form-page-card">
+        <div class="card bg-navy-card border border-secondary-subtle rounded-4 shadow-sm">
+          <div class="modal-header d-flex justify-content-between align-items-center px-4 py-3 border-bottom border-dark-subtle">
+            <div class="d-flex align-items-center gap-2">
+              <span class="p-2 bg-primary-subtle text-primary rounded-3 d-inline-flex">
+                <iconify-icon icon="solar:document-text-line-duotone" class="fs-5"></iconify-icon>
+              </span>
+              <h5 class="fw-bold text-white mb-0">{{ isEditingDocType ? 'Editar Tipo de Documento' : 'Registrar Nuevo Tipo de Documento' }}</h5>
+            </div>
+            <button type="button" class="btn btn-outline-secondary btn-sm rounded-3 d-flex align-items-center gap-1" @click="showDocTypeModal = false">
+              <iconify-icon icon="solar:alt-arrow-left-line-duotone" class="fs-5"></iconify-icon>
+              <span>Volver</span>
+            </button>
+          </div>
+          <form @submit.prevent="submitDocType">
+            <div class="modal-body p-4">
+              <div class="row g-3">
+                <div class="col-md-6">
+                  <label class="form-label text-secondary fs-2 fw-semibold">Nombre del Documento *</label>
+                  <input
+                    v-model="formDocType.name"
+                    type="text"
+                    class="form-control bg-dark-subtle border-secondary-subtle text-white"
+                    placeholder="Ej. Cédula de Identidad, RUC, Pasaporte"
+                    required
+                  />
+                </div>
+
+                <div class="col-md-6">
+                  <label class="form-label text-secondary fs-2 fw-semibold">Código SRI / Identificador *</label>
+                  <input
+                    v-model="formDocType.code"
+                    type="text"
+                    class="form-control bg-dark-subtle border-secondary-subtle text-white font-monospace"
+                    placeholder="Ej. 05, 04, 06, 07, 08"
+                    required
+                  />
+                  <small class="text-muted fs-1 d-block mt-1">04 = RUC, 05 = Cédula, 06 = Pasaporte, 07 = Consumidor Final, 08 = Exterior</small>
+                </div>
+
+                <div class="col-md-6">
+                  <label class="form-label text-secondary fs-2 fw-semibold">Aplica a *</label>
+                  <AppSelect2
+                    v-model="formDocType.type"
+                    :options="docTypeTargetOptions"
+                    placeholder="Seleccionar Destinatario"
+                    required
+                  />
+                </div>
+
+                <div class="col-md-6">
+                  <label class="form-label text-secondary fs-2 fw-semibold">Estado *</label>
+                  <AppSelect2
+                    v-model="formDocType.status"
+                    :options="docTypeStatusOptions"
+                    placeholder="Seleccionar Estado"
+                    required
+                  />
+                </div>
+              </div>
+            </div>
+
+            <div class="modal-footer px-4 py-3 border-top border-dark-subtle d-flex justify-content-between">
+              <button type="button" class="btn btn-outline-secondary rounded-pill px-4" @click="showDocTypeModal = false">
+                Cancelar
+              </button>
+              <button type="submit" class="btn btn-primary rounded-pill px-4 fw-semibold d-flex align-items-center gap-2" :disabled="savingDocType">
+                <span v-if="savingDocType" class="spinner-grow spinner-grow-sm text-white" role="status"></span>
+                <iconify-icon v-else icon="solar:check-circle-line-duotone" class="fs-4"></iconify-icon>
+                <span>{{ isEditingDocType ? 'Guardar Cambios' : 'Registrar Tipo Documento' }}</span>
+              </button>
+            </div>
+          </form>
+        </div>
+      </div>
+    </div>
 
   </div>
 </template>

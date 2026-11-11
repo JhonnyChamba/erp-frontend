@@ -872,12 +872,14 @@
             </div>
 
             <div class="form-group">
-              <label>Tarifa IVA (%)</label>
-              <select v-model.number="itemForm.taxRate">
-                <option :value="15">15% (Gravado)</option>
-                <option :value="0">0% (Tarifa Cero / Exento)</option>
-                <option :value="5">5% (Materiales Construcción)</option>
-              </select>
+              <label>Tarifa IVA / Impuesto *</label>
+              <AppSelect2
+                v-model="itemForm.taxRate"
+                :options="taxSelectOptions"
+                placeholder="-- Seleccionar Impuesto --"
+                search-placeholder="Buscar impuesto..."
+                required
+              />
             </div>
 
             <div class="form-group">
@@ -977,11 +979,14 @@
             </div>
 
             <div class="form-group">
-              <label>Tarifa IVA (%)</label>
-              <select v-model.number="serviceForm.taxRate">
-                <option :value="15">15% (Gravado)</option>
-                <option :value="0">0% (Exento)</option>
-              </select>
+              <label>Tarifa IVA / Impuesto *</label>
+              <AppSelect2
+                v-model="serviceForm.taxRate"
+                :options="taxSelectOptions"
+                placeholder="-- Seleccionar Impuesto --"
+                search-placeholder="Buscar impuesto..."
+                required
+              />
             </div>
 
             <div class="form-group span-2">
@@ -1070,12 +1075,14 @@
             </div>
 
             <div class="form-group">
-              <label>Tarifa IVA (%)</label>
-              <select v-model.number="subcontractForm.taxRate">
-                <option :value="15">15% (Gravado)</option>
-                <option :value="0">0% (Rimen Rimpe / Exento)</option>
-                <option :value="5">5%</option>
-              </select>
+              <label>Tarifa IVA / Impuesto *</label>
+              <AppSelect2
+                v-model="subcontractForm.taxRate"
+                :options="taxSelectOptions"
+                placeholder="-- Seleccionar Impuesto --"
+                search-placeholder="Buscar impuesto..."
+                required
+              />
             </div>
 
             <div class="form-group">
@@ -1431,6 +1438,7 @@ import {
   type InventoryTransferPayload,
   type InventoryAdjustmentPayload
 } from '@/services/inventory.service'
+import { getTaxes, type TaxItem } from '@/services/taxes.service'
 
 type InventoryTab = 'articulos' | 'servicios' | 'subcontratacion' | 'categorias' | 'bodegas' | 'kardex'
 
@@ -1448,6 +1456,22 @@ const servicesList = ref<InventoryServiceItem[]>([])
 const subcontractsList = ref<InventorySubcontractItem[]>([])
 const categoriesList = ref<InventoryCategory[]>([])
 const warehousesList = ref<InventoryWarehouse[]>([])
+const taxesList = ref<TaxItem[]>([])
+
+const taxSelectOptions = computed(() => {
+  if (taxesList.value.length === 0) {
+    return [
+      { value: 15, label: 'IVA 15% (Gravado)', sublabel: 'Código SRI: 4' },
+      { value: 0, label: 'IVA 0% (Tarifa Cero / Exento)', sublabel: 'Código SRI: 0' },
+      { value: 5, label: 'IVA 5% (Materiales Construcción)', sublabel: 'Código SRI: 2' },
+    ]
+  }
+  return taxesList.value.map((t) => ({
+    value: Number(t.percentage),
+    label: `${t.description} (${Number(t.percentage)}%)`,
+    sublabel: `Código: ${t.code}`,
+  }))
+})
 const kardexMovements = ref<InventoryKardexMovement[]>([])
 const kardexProductFilter = ref<number>(0)
 const kardexWarehouseFilter = ref<number>(0)
@@ -1732,18 +1756,20 @@ const loadAllInventory = async () => {
   loading.value = true
   const companyId = getActiveCompanyId()
   try {
-    const [items, services, subcontracts, categories, warehouses] = await Promise.all([
+    const [items, services, subcontracts, categories, warehouses, taxes] = await Promise.all([
       getInventoryItems(companyId),
       getInventoryServices(companyId),
       getInventorySubcontracts(companyId),
       getInventoryCategories(companyId),
-      getInventoryWarehouses(companyId)
+      getInventoryWarehouses(companyId),
+      getTaxes({ companyId, active: true }).catch(() => [])
     ])
     itemsList.value = Array.isArray(items) ? items : []
     servicesList.value = Array.isArray(services) ? services : []
     subcontractsList.value = Array.isArray(subcontracts) ? subcontracts : []
     categoriesList.value = Array.isArray(categories) ? categories : []
     warehousesList.value = Array.isArray(warehouses) ? warehouses : []
+    taxesList.value = Array.isArray(taxes) ? taxes : []
     loadKardex().catch(() => {})
   } catch (err: any) {
     showFeedback(err?.response?.data?.message || 'Error al cargar los catálogos de inventario', 'error')
