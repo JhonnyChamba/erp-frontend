@@ -457,6 +457,7 @@ const initialFormCompany = () => ({
   special_taxpayer: '',
   tax_regime: 'GENERAL',
   sri_environment: '1',
+  auto_send_sri: false,
   default_establishment: '001',
   default_emission_point: '001',
   // Firma electrónica
@@ -506,6 +507,7 @@ const openEditCompany = (comp: CompanyItem) => {
     special_taxpayer: f.special_taxpayer || '',
     tax_regime: f.tax_regime || 'GENERAL',
     sri_environment: f.sri_environment || '1',
+    auto_send_sri: Boolean(f.auto_send_sri ?? (comp as any).auto_send_sri ?? false),
     default_establishment: f.default_establishment || '001',
     default_emission_point: f.default_emission_point || '001',
     cert_file_name: f.cert_file_name || '',
@@ -2879,6 +2881,51 @@ const submitSubscription = async () => {
                       </div>
                     </div>
                   </div>
+
+                  <!-- Modalidad de Envío SRI (Manual / Automático) -->
+                  <div class="col-12">
+                    <label class="form-label text-secondary fs-2 fw-semibold fw-bold d-flex align-items-center gap-2 mb-2">
+                      <iconify-icon icon="solar:plain-2-bold-duotone" class="text-primary fs-5"></iconify-icon>
+                      Modalidad de Envío al SRI *
+                    </label>
+                    <div class="row g-2">
+                      <div class="col-md-6">
+                        <div
+                          class="p-3 rounded-3 border transition-all d-flex align-items-center gap-3"
+                          :class="!formCompany.auto_send_sri ? 'border-primary bg-primary-subtle text-primary' : 'border-secondary-subtle bg-dark-subtle text-secondary'"
+                          @click="formCompany.auto_send_sri = false"
+                          style="cursor: pointer;"
+                        >
+                          <div class="rounded-circle p-2 bg-primary-subtle text-primary border border-primary-subtle d-flex align-items-center justify-content-center" style="width: 38px; height: 38px;">
+                            <iconify-icon icon="solar:hand-shake-bold-duotone" class="fs-5"></iconify-icon>
+                          </div>
+                          <div>
+                            <div class="fw-bold fs-3 text-white">Manual</div>
+                            <small class="text-white-50 d-block fs-1">El usuario envía los comprobantes desde el listado.</small>
+                          </div>
+                          <iconify-icon v-if="!formCompany.auto_send_sri" icon="solar:check-circle-bold" class="fs-5 text-primary ms-auto flex-shrink-0"></iconify-icon>
+                        </div>
+                      </div>
+                      <div class="col-md-6">
+                        <div
+                          class="p-3 rounded-3 border transition-all d-flex align-items-center gap-3"
+                          :class="formCompany.auto_send_sri ? 'border-info bg-info-subtle text-info' : 'border-secondary-subtle bg-dark-subtle text-secondary'"
+                          @click="formCompany.auto_send_sri = true"
+                          style="cursor: pointer;"
+                        >
+                          <div class="rounded-circle p-2 bg-info-subtle text-info border border-info-subtle d-flex align-items-center justify-content-center" style="width: 38px; height: 38px;">
+                            <iconify-icon icon="solar:bolt-circle-bold-duotone" class="fs-5"></iconify-icon>
+                          </div>
+                          <div>
+                            <div class="fw-bold fs-3 text-white">Automático al registrar</div>
+                            <small class="text-white-50 d-block fs-1">Facturas y notas de crédito se envían y autorizan al instante.</small>
+                          </div>
+                          <iconify-icon v-if="formCompany.auto_send_sri" icon="solar:check-circle-bold" class="fs-5 text-info ms-auto flex-shrink-0"></iconify-icon>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
                   <div class="col-md-6">
                     <label class="form-label text-secondary fs-2 fw-semibold">Régimen tributario</label>
                     <select v-model="formCompany.tax_regime" class="form-select bg-dark-subtle border-secondary-subtle text-white">

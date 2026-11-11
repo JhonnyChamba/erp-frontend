@@ -208,6 +208,9 @@
                       'bg-danger-subtle text-danger border border-danger-subtle': cn.sri_status === 'RETURNED' || cn.sri_status === 'NOT_AUTHORIZED',
                       'bg-secondary-subtle text-muted border border-secondary-subtle': cn.sri_status === 'NOT_SENT'
                     }"
+                    style="cursor: pointer;"
+                    title="Ver resultado de respuesta del SRI"
+                    @click="openSriModalForCreditNote(cn)"
                   >
                     <iconify-icon
                       :icon="
@@ -807,6 +810,14 @@
       </div>
     </div>
 
+    <!-- MODAL DE RESPUESTA DEL SRI -->
+    <SriResponseModal
+      v-model="showSriModal"
+      :document-type="sriModalData.documentType"
+      :document-number="sriModalData.documentNumber"
+      :access-key="sriModalData.accessKey"
+      :result="sriModalData.result"
+    />
   </div>
 </template>
 
@@ -826,6 +837,7 @@ import {
 } from '@/services/credit-notes.service'
 import { getEmissionPoints, type EmissionPointItem } from '@/services/emission-points.service'
 import { getBranches, type BranchItem } from '@/services/config.service'
+import SriResponseModal from '@/components/common/SriResponseModal.vue'
 
 const authStore = useAuthStore()
 
@@ -847,6 +859,39 @@ const loading = ref(false)
 const saving = ref(false)
 const actionLoadingId = ref<number | null>(null)
 const autoSendSri = ref(true)
+
+// Modal de Respuesta SRI
+const showSriModal = ref(false)
+const sriModalData = ref<{
+  documentType: string
+  documentNumber: string
+  accessKey: string
+  result: any
+}>({
+  documentType: 'Nota de Crédito',
+  documentNumber: '',
+  accessKey: '',
+  result: null,
+})
+
+const openSriModalForCreditNote = (cn: CreditNoteItem, customResult?: any) => {
+  sriModalData.value = {
+    documentType: 'Nota de Crédito',
+    documentNumber: cn.credit_note_number,
+    accessKey: cn.access_key || '',
+    result: customResult || {
+      status: cn.sri_status,
+      sri_status: cn.sri_status,
+      authorizationNumber: cn.sri_authorization_number,
+      sri_authorization_number: cn.sri_authorization_number,
+      authorizationDate: cn.sri_authorization_date,
+      sri_authorization_date: cn.sri_authorization_date,
+      sri_messages: cn.sri_messages,
+      sriMessages: cn.sri_messages,
+    },
+  }
+  showSriModal.value = true
+}
 
 // Listados
 const creditNotesList = ref<CreditNoteItem[]>([])
@@ -1181,26 +1226,14 @@ const submitCreditNote = async () => {
     }
 
     const created = await createCreditNote(payload)
-    toast.success(`Nota de Crédito ${created.credit_note_number} generada con éxito.`, 'Emisión SRI')
-
-    if (autoSendSri.value && created.id) {
-      toast.info('Firmando y enviando nota de crédito al SRI...', 'WebService SRI')
-      try {
-        const sriRes = await sendCreditNoteSri(created.id)
-        if (sriRes.status === 'AUTHORIZED') {
-          toast.success('¡Nota de Crédito AUTORIZADA por el SRI!', 'SRI Ecuador')
-        } else if (sriRes.status === 'IN_PROCESS') {
-          toast.warning('Nota de crédito recibida por el SRI, en procesamiento.', 'SRI Ecuador')
-        } else {
-          toast.error(sriRes.message || 'El SRI devolvió la nota de crédito.', 'SRI Ecuador')
-        }
-      } catch (sriErr: any) {
-        toast.error(sriErr?.response?.data?.message || 'Error enviando al SRI.')
-      }
-    }
-
     await loadData()
     backToList()
+
+    if ((created as any)?.sri_result) {
+      openSriModalForCreditNote(created, (created as any).sri_result)
+    } else {
+      toast.success(`Nota de Crédito ${created.credit_note_number} generada con éxito.`, 'Emisión SRI')
+    }
   } catch (err: any) {
     toast.error(err?.response?.data?.message || 'Error al emitir la nota de crédito.')
   } finally {
@@ -1208,7 +1241,7 @@ const submitCreditNote = async () => {
   }
 }
 
-// Acciones en la tabla
+// Acciones en la tabla y detalle
 const handleSendSri = async (cn: CreditNoteItem) => {
   actionLoadingId.value = cn.id
   toast.info(`Enviando NC ${cn.credit_note_number} al SRI...`, 'SRI Ecuador')
@@ -1222,6 +1255,7 @@ const handleSendSri = async (cn: CreditNoteItem) => {
       toast.error(res.message || 'Inconsistencias devueltas por el SRI.', 'SRI Ecuador')
     }
     await loadData()
+    openSriModalForCreditNote(cn, res)
   } catch (err: any) {
     toast.error(err?.response?.data?.message || 'Error al comunicarse con el SRI.')
   } finally {

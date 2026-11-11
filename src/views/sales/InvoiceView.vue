@@ -32,6 +32,7 @@ import {
   getNextSequential,
   type EmissionPointItem,
 } from '@/services/emission-points.service'
+import SriResponseModal from '@/components/common/SriResponseModal.vue'
 
 const route = useRoute()
 const authStore = useAuthStore()
@@ -687,14 +688,53 @@ const submitInvoice = async () => {
     }
 
     const created = await createInvoice(payload)
-    successMsg.value = `Factura ${created.invoice_number} emitida exitosamente con clave SRI.`
     showCreateModal.value = false
     await loadData()
+
+    if ((created as any)?.sri_result) {
+      openSriModalForInvoice(created, (created as any).sri_result)
+    } else {
+      successMsg.value = `Factura ${created.invoice_number} emitida exitosamente con clave SRI.`
+      toast.success(`Factura ${created.invoice_number} emitida exitosamente.`, 'Emisión Exitosa')
+    }
   } catch (err: any) {
     errorMsg.value = err?.response?.data?.message || 'Error al emitir la factura'
   } finally {
     saving.value = false
   }
+}
+
+// Modal de Respuesta SRI
+const showSriModal = ref(false)
+const sriModalData = ref<{
+  documentType: string
+  documentNumber: string
+  accessKey: string
+  result: any
+}>({
+  documentType: 'Factura Electrónica',
+  documentNumber: '',
+  accessKey: '',
+  result: null,
+})
+
+const openSriModalForInvoice = (inv: InvoiceItem, customResult?: any) => {
+  sriModalData.value = {
+    documentType: 'Factura Electrónica',
+    documentNumber: inv.invoice_number,
+    accessKey: inv.access_key || '',
+    result: customResult || {
+      status: inv.sri_status,
+      sri_status: inv.sri_status,
+      authorizationNumber: inv.sri_authorization_number,
+      sri_authorization_number: inv.sri_authorization_number,
+      authorizationDate: inv.sri_authorization_date,
+      sri_authorization_date: inv.sri_authorization_date,
+      sri_messages: inv.sri_messages,
+      sriMessages: inv.sri_messages,
+    },
+  }
+  showSriModal.value = true
 }
 
 // Firmar con el .p12 de la empresa y descargar el XML firmado
@@ -793,6 +833,7 @@ const onSendToSri = async (inv: InvoiceItem) => {
     const result = await sendInvoiceToSri(inv.id, getActiveCompanyId())
     describeSriResult(inv, result)
     await refreshAfterSri(inv)
+    openSriModalForInvoice(inv, result)
   } catch (err: any) {
     const m = err?.response?.data?.message
     const failMsg = (Array.isArray(m) ? m.join(', ') : m) || 'No se pudo enviar la factura al SRI'
@@ -814,6 +855,7 @@ const onCheckSri = async (inv: InvoiceItem) => {
     const result = await checkInvoiceSri(inv.id, getActiveCompanyId())
     describeSriResult(inv, result)
     await refreshAfterSri(inv)
+    openSriModalForInvoice(inv, result)
   } catch (err: any) {
     const m = err?.response?.data?.message
     const failMsg = (Array.isArray(m) ? m.join(', ') : m) || 'No se pudo consultar la autorización en el SRI'
@@ -1086,7 +1128,10 @@ watch(() => route.path, () => {
                     class="badge d-block mt-1"
                     :class="sriStatusClass(inv.sri_status)"
                     :title="(inv.sri_messages || []).map((m) => m.mensaje).join(' | ')"
+                    style="cursor: pointer;"
+                    @click="openSriModalForInvoice(inv)"
                   >
+                    <iconify-icon icon="solar:info-circle-line-duotone" class="me-1"></iconify-icon>
                     {{ sriStatusLabel(inv.sri_status) }}
                   </span>
                 </td>
@@ -1723,6 +1768,15 @@ watch(() => route.path, () => {
         </div>
       </div>
     </div>
+
+    <!-- MODAL 3: RESPUESTA DETALLADA DEL SRI -->
+    <SriResponseModal
+      v-model="showSriModal"
+      :document-type="sriModalData.documentType"
+      :document-number="sriModalData.documentNumber"
+      :access-key="sriModalData.accessKey"
+      :result="sriModalData.result"
+    />
   </div>
 </template>
 

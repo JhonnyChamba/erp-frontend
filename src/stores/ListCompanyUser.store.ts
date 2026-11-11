@@ -7,6 +7,7 @@ export interface CompanySummary {
 	ruc: string
 	nombre_comercial: string
 	sri_environment?: string
+	auto_send_sri?: boolean
 }
 
 export const useListCompanyUserStore = defineStore('listCompanyUser', {
@@ -41,6 +42,7 @@ export const useListCompanyUserStore = defineStore('listCompanyUser', {
 						ruc: comp.ruc || '',
 						nombre_comercial: comp.trade_name || comp.nombre_comercial || '',
 						sri_environment: String(comp.sri_environment ?? comp.fiscal?.sri_environment ?? '1'),
+						auto_send_sri: Boolean(comp.auto_send_sri ?? comp.fiscal?.auto_send_sri ?? false),
 					}
 				})
 
