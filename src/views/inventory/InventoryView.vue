@@ -313,18 +313,17 @@
               <th>Artículo / Ítem</th>
               <th>Categoría</th>
               <th>Unidad</th>
-              <th class="text-right">Costo</th>
+              <th class="text-right">Costo Ref.</th>
               <th class="text-right">Precio Venta</th>
               <th class="text-center">IVA</th>
-              <th class="text-center">Stock</th>
-              <th>Ubicación</th>
+              <th class="text-center">Stock Actual</th>
               <th class="text-center">Estado</th>
               <th class="text-right">Acciones</th>
             </tr>
           </thead>
           <tbody>
             <tr v-if="loading">
-              <td colspan="11" class="text-center py-5">
+              <td colspan="10" class="text-center py-5">
                 <div class="d-flex align-items-center justify-content-center gap-2 mb-2">
                   <div class="spinner-grow text-primary" role="status"><span class="visually-hidden">Cargando...</span></div>
                   <div class="spinner-grow text-info" role="status"><span class="visually-hidden">Cargando...</span></div>
@@ -334,7 +333,7 @@
               </td>
             </tr>
             <tr v-else-if="filteredItems.length === 0">
-              <td colspan="11" class="empty-cell">
+              <td colspan="10" class="empty-cell">
                 No se encontraron artículos registrados. Haz clic en <strong>+ Nuevo Artículo</strong> para crear el primero.
               </td>
             </tr>
@@ -366,10 +365,9 @@
                   :class="Number(item.stockCurrent) <= Number(item.stockMin) ? 'low' : 'ok'"
                 >
                   {{ formatNumber(item.stockCurrent) }}
-                  <small>/ mín {{ formatNumber(item.stockMin) }}</small>
+                  <small v-if="Number(item.stockMin) > 0">/ mín {{ formatNumber(item.stockMin) }}</small>
                 </span>
               </td>
-              <td>{{ item.location || 'Bodega Principal' }}</td>
               <td class="text-center">
                 <button
                   class="status-pill"
@@ -873,7 +871,7 @@
             </div>
 
             <div class="form-group">
-              <label>Costo Unitario ($) *</label>
+              <label>Costo Referencial ($) *</label>
               <input v-model.number="itemForm.costPrice" type="number" step="0.01" min="0" required />
             </div>
 
@@ -892,33 +890,22 @@
             </div>
 
             <div class="form-group">
-              <label>Bodega de Almacenamiento</label>
-              <select v-model="itemForm.warehouseId" @change="onWarehouseSelect">
-                <option :value="null">-- Ninguna / Sin asignar --</option>
-                <option v-for="wh in activeWarehouses" :key="wh.id" :value="wh.id">
-                  {{ wh.name }}{{ wh.isDefault ? ' ★ (Principal)' : '' }}
-                </option>
-              </select>
-            </div>
-
-            <div class="form-group">
-              <label>Ubicación / Percha</label>
-              <input v-model="itemForm.location" type="text" placeholder="Ej: Bodega Central - Percha A2" />
-            </div>
-
-            <div class="form-group">
-              <label>Stock Actual</label>
-              <input v-model.number="itemForm.stockCurrent" type="number" step="0.01" min="0" />
-            </div>
-
-            <div class="form-group">
-              <label>Stock Mínimo (Alerta)</label>
-              <input v-model.number="itemForm.stockMin" type="number" step="0.01" min="0" />
+              <label>Stock Mínimo (Alerta de Reorden)</label>
+              <input v-model.number="itemForm.stockMin" type="number" step="0.01" min="0" placeholder="Ej: 5" />
             </div>
 
             <div class="form-group span-2">
               <label>Descripción / Especificaciones Técnicas</label>
               <textarea v-model="itemForm.description" rows="2" placeholder="Detalles adicionales del ítem..."></textarea>
+            </div>
+
+            <div class="form-group span-2">
+              <div class="info-alert-box">
+                <iconify-icon icon="solar:info-circle-bold-duotone" width="22" class="text-info"></iconify-icon>
+                <span>
+                  <strong>Control de Inventario y Existencias:</strong> Al registrar un artículo en el catálogo no se asigna bodega fija. Para realizar el ingreso de existencias y costos a una bodega específica, registre una <strong>Compra</strong>, <strong>Transferencia</strong> o un <strong>Ajuste de Inventario</strong>.
+                </span>
+              </div>
             </div>
           </div>
 
@@ -1843,21 +1830,20 @@ const onWarehouseSelect = () => {
 const openCreateItem = () => {
   editingItemId.value = null
   const firstCat = productCategories.value[0] || null
-  const defWh = warehousesList.value.find(w => w.isDefault && w.status) || activeWarehouses.value[0] || null
   itemForm.value = {
     code: '',
     sku: '',
     name: '',
     categoryId: firstCat ? firstCat.id : null,
     category: firstCat ? firstCat.name : '',
-    warehouseId: defWh ? defWh.id : null,
+    warehouseId: null,
     unit: 'UND',
     costPrice: 0,
     salePrice: 0,
     taxRate: 15,
-    stockCurrent: 1,
-    stockMin: 2,
-    location: defWh ? defWh.name : '',
+    stockCurrent: 0,
+    stockMin: 0,
+    location: '',
     description: '',
     status: true
   }
@@ -1870,10 +1856,6 @@ const openEditItem = (item: InventoryArticle) => {
     (item.categoryId && c.id === item.categoryId) ||
     (item.category && c.name.toLowerCase() === item.category.toLowerCase())
   )
-  const whMatch = warehousesList.value.find(w =>
-    (item.warehouseId && w.id === item.warehouseId) ||
-    (item.location && item.location.toLowerCase().includes(w.name.toLowerCase()))
-  )
 
   itemForm.value = {
     code: item.code || '',
@@ -1881,14 +1863,14 @@ const openEditItem = (item: InventoryArticle) => {
     name: item.name || '',
     categoryId: catMatch ? catMatch.id : (item.categoryId || null),
     category: item.category || catMatch?.name || '',
-    warehouseId: whMatch ? whMatch.id : (item.warehouseId || null),
+    warehouseId: null,
     unit: item.unit || 'UND',
     costPrice: Number(item.costPrice || 0),
     salePrice: Number(item.salePrice || 0),
     taxRate: Number(item.taxRate ?? 15),
     stockCurrent: Number(item.stockCurrent || 0),
     stockMin: Number(item.stockMin || 0),
-    location: item.location || (whMatch ? whMatch.name : ''),
+    location: '',
     description: item.description || '',
     status: Boolean(item.status)
   }
@@ -1908,26 +1890,42 @@ const saveItemForm = async () => {
   saving.value = true
   const companyId = getActiveCompanyId()
   try {
-    const payload = {
-      ...itemForm.value,
+    const payload: any = {
+      name: itemForm.value.name.trim(),
+      code: itemForm.value.code?.trim() || undefined,
+      sku: itemForm.value.sku?.trim() || '',
       companyId,
       categoryId: itemForm.value.categoryId,
       category_id: itemForm.value.categoryId,
       category: itemForm.value.category,
-      warehouseId: itemForm.value.warehouseId,
-      warehouse_id: itemForm.value.warehouseId
+      unit: itemForm.value.unit || 'UND',
+      unit_measure: itemForm.value.unit || 'UND',
+      costPrice: Number(itemForm.value.costPrice || 0),
+      cost_price: Number(itemForm.value.costPrice || 0),
+      salePrice: Number(itemForm.value.salePrice || 0),
+      sale_price: Number(itemForm.value.salePrice || 0),
+      taxRate: Number(itemForm.value.taxRate ?? 15),
+      tax_rate: Number(itemForm.value.taxRate ?? 15),
+      stockMin: Number(itemForm.value.stockMin || 0),
+      stock_min: Number(itemForm.value.stockMin || 0),
+      description: itemForm.value.description?.trim() || '',
+      status: Boolean(itemForm.value.status),
+      enabled: Boolean(itemForm.value.status)
     }
     if (editingItemId.value) {
       await updateInventoryItem(editingItemId.value, payload)
       showFeedback('Artículo actualizado correctamente')
     } else {
       await createInventoryItem(payload)
-      showFeedback('Artículo registrado con éxito')
+      showFeedback('Artículo registrado con éxito. Recuerde ingresar existencias mediante Compra, Transferencia o Ajuste')
     }
     showItemModal.value = false
     await loadAllInventory()
   } catch (err: any) {
-    showFeedback(err?.response?.data?.message || 'Error al guardar el artículo', 'error')
+    const msg = Array.isArray(err?.response?.data?.message)
+      ? err.response.data.message.join(', ')
+      : err?.response?.data?.message || 'Error al guardar el artículo'
+    showFeedback(msg, 'error')
   } finally {
     saving.value = false
   }
@@ -2817,6 +2815,23 @@ onMounted(() => {
   border: 1px solid rgba(239, 68, 68, 0.3);
 }
 
+.info-alert-box {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 16px;
+  border-radius: 10px;
+  background: rgba(0, 133, 219, 0.1);
+  border: 1px solid rgba(0, 133, 219, 0.25);
+  color: #cbd5e1;
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.info-alert-box strong {
+  color: #38bdf8;
+}
+
 .table-card {
   background: #111c2d;
   border: 1px solid rgba(255, 255, 255, 0.06);
@@ -3342,5 +3357,15 @@ onMounted(() => {
 
 [data-bs-theme='light'] .close-btn {
   color: #7c8fac;
+}
+
+[data-bs-theme='light'] .info-alert-box {
+  background: rgba(0, 133, 219, 0.07);
+  border-color: rgba(0, 133, 219, 0.22);
+  color: #5a6a85;
+}
+
+[data-bs-theme='light'] .info-alert-box strong {
+  color: #0085db;
 }
 </style>
