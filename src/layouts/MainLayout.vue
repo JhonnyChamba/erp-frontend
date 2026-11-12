@@ -137,29 +137,6 @@
         </div>
       </div>
 
-      <!-- WIDGET DE USUARIO EN EL PIE DEL SIDEBAR -->
-      <div class="sidebar-profile-widget flex-shrink-0 p-3 border-top border-translucent m-2 rounded-3 d-flex align-items-center justify-content-between">
-        <div class="d-flex align-items-center gap-2">
-          <img
-            :src="userPhoto"
-            alt="profile"
-            width="38"
-            height="38"
-            class="rounded-circle border border-primary border-2"
-            style="object-fit: cover;"
-          />
-          <div class="overflow-hidden user-info-text">
-            <h6 class="mb-0 user-name-text fs-2 text-truncate" style="max-width: 115px;">{{ userName }}</h6>
-            <small class="text-info fs-1 d-block text-truncate" style="max-width: 115px;">
-              {{ activeRoleLabel }}
-            </small>
-          </div>
-        </div>
-        <button class="btn btn-link text-danger p-1" @click="logout" title="Cerrar sesión">
-          <iconify-icon icon="solar:logout-2-line-duotone" class="fs-5"></iconify-icon>
-        </button>
-      </div>
-
     </aside>
 
     <!-- ÁREA PRINCIPAL: HEADER + CONTENIDO -->
