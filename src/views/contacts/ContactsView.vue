@@ -575,36 +575,35 @@ const paymentLabel = (p: string) => {
 </script>
 
 <template>
-  <div class="contacts-page" :class="{ 'form-open': isFormOpen }">
+  <div class="crud-page contacts-page" :class="{ 'form-open': isFormOpen }">
     <!-- ENCABEZADO DE MÓDULO GENERAL -->
-    <div class="card rounded-4 border-0 shadow-sm p-4 mb-4 bg-navy-card keep-in-form">
-      <div class="d-flex flex-wrap justify-content-between align-items-center gap-3">
-        <div>
-          <div class="d-flex align-items-center gap-2 mb-1">
-            <span class="p-2 bg-primary-subtle text-primary rounded-3 d-inline-flex">
-              <iconify-icon icon="solar:users-group-two-rounded-line-duotone" class="fs-6"></iconify-icon>
-            </span>
-            <h4 class="fw-bold text-white mb-0">Gestión de Contactos & Terceros</h4>
-          </div>
-          <p class="text-secondary fs-3 mb-0">
-            Módulo general para administrar Clientes, Proveedores y Vendedores del sistema.
-          </p>
+    <div class="crud-page-header keep-in-form">
+      <div>
+        <div class="d-flex align-items-center gap-2 mb-1">
+          <span class="badge bg-primary-subtle text-primary border border-primary-subtle">MOD-004 · CONTACTOS</span>
+          <span class="text-muted small">Terceros & Relaciones Comerciales</span>
         </div>
-
-        <!-- Indicador de contexto de empresa -->
-        <div class="d-flex align-items-center gap-2 bg-dark-subtle px-3 py-2 rounded-3 border border-secondary-subtle">
-          <iconify-icon icon="solar:buildings-3-line-duotone" class="text-primary fs-5"></iconify-icon>
-          <div>
-            <small class="text-secondary d-block fs-1">Empresa Activa:</small>
-            <span class="text-white fw-bold fs-2">
-              {{ selectedCompany?.razon_social || selectedCompany?.nombre_comercial || 'Deskounta' }}
-            </span>
-          </div>
-        </div>
+        <h2 class="crud-title">Gestión de Contactos & Terceros</h2>
+        <p class="crud-subtitle">
+          Administración centralizada de Clientes, Proveedores y Vendedores del sistema.
+        </p>
       </div>
 
-      <!-- PESTAÑAS TIPO PILLS (SUB-MÓDULOS) -->
-      <ul v-show="!isFormOpen" class="nav nav-pills user-profile-tab mt-4 border-top border-dark-subtle pt-3" role="tablist">
+      <!-- Indicador de contexto de empresa -->
+      <div class="d-flex align-items-center gap-2 bg-dark-subtle px-3 py-2 rounded-3 border border-secondary-subtle">
+        <iconify-icon icon="solar:buildings-3-line-duotone" class="text-primary fs-5"></iconify-icon>
+        <div>
+          <small class="text-secondary d-block fs-1">Empresa Activa:</small>
+          <span class="text-white fw-bold fs-2">
+            {{ selectedCompany?.razon_social || selectedCompany?.nombre_comercial || 'Deskounta' }}
+          </span>
+        </div>
+      </div>
+    </div>
+
+    <!-- PESTAÑAS TIPO PILLS (SUB-MÓDULOS) -->
+    <div v-show="!isFormOpen" class="mb-4">
+      <ul class="nav nav-pills user-profile-tab border-top border-dark-subtle pt-3" role="tablist">
         <!-- SUB-MODULO CLIENTES -->
         <li class="nav-item me-2">
           <button
@@ -646,184 +645,211 @@ const paymentLabel = (p: string) => {
       </ul>
     </div>
 
+    <!-- Indicadores KPIs de Contactos -->
+    <div v-show="!isFormOpen" class="crud-kpi-grid">
+      <div class="crud-kpi-card">
+        <div class="crud-kpi-icon primary">
+          <iconify-icon icon="solar:users-group-two-rounded-line-duotone" class="fs-5"></iconify-icon>
+        </div>
+        <div>
+          <span class="crud-kpi-label">Clientes Registrados</span>
+          <h4 class="crud-kpi-val">{{ customers.length }}</h4>
+        </div>
+      </div>
+      <div class="crud-kpi-card">
+        <div class="crud-kpi-icon warning">
+          <iconify-icon icon="solar:box-minimalistic-line-duotone" class="fs-5"></iconify-icon>
+        </div>
+        <div>
+          <span class="crud-kpi-label">Proveedores</span>
+          <h4 class="crud-kpi-val">{{ providers.length }}</h4>
+        </div>
+      </div>
+      <div class="crud-kpi-card">
+        <div class="crud-kpi-icon success">
+          <iconify-icon icon="solar:user-id-line-duotone" class="fs-5"></iconify-icon>
+        </div>
+        <div>
+          <span class="crud-kpi-label">Vendedores</span>
+          <h4 class="crud-kpi-val">{{ sellers.length }}</h4>
+        </div>
+      </div>
+    </div>
+
     <!-- ============================================================= -->
     <!-- SUB-MÓDULO: CLIENTES -->
     <!-- ============================================================= -->
     <div v-if="activeTab === 'clientes'">
-      <div class="card rounded-4 border-0 shadow-sm bg-navy-card">
-        <!-- Barra de herramientas (Búsqueda, filtro y botón Nuevo) -->
-        <div class="card-header bg-transparent border-bottom border-dark-subtle p-4">
-          <div class="d-flex flex-wrap justify-content-between align-items-center gap-3">
-            <div class="d-flex flex-wrap align-items-center gap-2 flex-grow-1">
-              <!-- Buscador -->
-              <div class="input-group search-input-box" style="max-width: 320px;">
-                <span class="input-group-text bg-dark-subtle border-secondary-subtle text-secondary">
-                  <iconify-icon icon="solar:magnifer-line-duotone"></iconify-icon>
-                </span>
-                <input
-                  v-model="searchCustomer"
-                  type="text"
-                  class="form-control bg-dark-subtle border-secondary-subtle text-white"
-                  placeholder="Buscar por documento o nombre..."
-                />
-              </div>
-
-              <!-- Filtro de Estado -->
-              <select
-                v-model="statusFilterCustomer"
-                class="form-select bg-dark-subtle border-secondary-subtle text-white"
-                style="max-width: 160px;"
-              >
-                <option value="todos">Todos (Estado)</option>
-                <option value="activo">Solo Activos</option>
-                <option value="inactivo">Solo Inactivos</option>
-              </select>
+      <!-- Barra de herramientas (Búsqueda, filtro y botón Nuevo) -->
+      <div class="crud-filters-card mb-3">
+        <div class="d-flex flex-wrap justify-content-between align-items-center gap-3">
+          <div class="d-flex flex-wrap align-items-center gap-2 flex-grow-1">
+            <!-- Buscador -->
+            <div class="input-group" style="max-width: 320px;">
+              <span class="input-group-text">
+                <iconify-icon icon="solar:magnifer-line-duotone"></iconify-icon>
+              </span>
+              <input
+                v-model="searchCustomer"
+                type="text"
+                class="form-control"
+                placeholder="Buscar por documento o nombre..."
+              />
             </div>
 
-            <!-- Botón Crear Nuevo Cliente -->
-            <button class="btn btn-primary d-flex align-items-center gap-2 px-3 py-2 rounded-3" @click="openCreateCustomer">
-              <iconify-icon icon="solar:user-plus-line-duotone" class="fs-5"></iconify-icon>
-              <span class="fw-semibold">Nuevo Cliente</span>
-            </button>
+            <!-- Filtro de Estado -->
+            <select
+              v-model="statusFilterCustomer"
+              class="form-select"
+              style="max-width: 160px;"
+            >
+              <option value="todos">Todos (Estado)</option>
+              <option value="activo">Solo Activos</option>
+              <option value="inactivo">Solo Inactivos</option>
+            </select>
           </div>
+
+          <!-- Botón Crear Nuevo Cliente -->
+          <button class="btn btn-primary d-flex align-items-center gap-2 px-3 py-2" @click="openCreateCustomer">
+            <iconify-icon icon="solar:user-plus-line-duotone" class="fs-5"></iconify-icon>
+            <span class="fw-semibold">Nuevo Cliente</span>
+          </button>
         </div>
+      </div>
 
-        <!-- Tabla de Clientes -->
-        <div class="card-body p-0">
-          <div class="table-responsive">
-            <table class="table align-middle text-nowrap mb-0 table-hover">
-              <thead class="table-primary fs-2">
-                <tr>
-                  <th class="ps-4">DOCUMENTO</th>
-                  <th>RAZÓN SOCIAL / CLIENTE</th>
-                  <th>CONTACTO</th>
-                  <th>DIRECCIÓN</th>
-                  <th class="text-center">ESTADO</th>
-                  <th class="text-end pe-4">ACCIONES</th>
-                </tr>
-              </thead>
-              <tbody>
-                <tr v-if="loading">
-                  <td colspan="6" class="text-center py-5">
-                    <div class="d-flex align-items-center justify-content-center gap-2 mb-2">
-                      <div class="spinner-grow text-primary" role="status"><span class="visually-hidden">Cargando...</span></div>
-                      <div class="spinner-grow text-info" role="status"><span class="visually-hidden">Cargando...</span></div>
-                      <div class="spinner-grow text-secondary" role="status"><span class="visually-hidden">Cargando...</span></div>
-                    </div>
-                    <span class="text-secondary small">Cargando clientes...</span>
-                  </td>
-                </tr>
+      <!-- Tabla de Clientes -->
+      <div class="crud-table-card">
+        <div class="table-responsive">
+          <table class="crud-table">
+            <thead>
+              <tr>
+                <th class="ps-4">DOCUMENTO</th>
+                <th>RAZÓN SOCIAL / CLIENTE</th>
+                <th>CONTACTO</th>
+                <th>DIRECCIÓN</th>
+                <th class="text-center">ESTADO</th>
+                <th class="text-end pe-4">ACCIONES</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr v-if="loading">
+                <td colspan="6" class="text-center py-5">
+                  <div class="d-flex align-items-center justify-content-center gap-2 mb-2">
+                    <div class="spinner-grow text-primary" role="status"><span class="visually-hidden">Cargando...</span></div>
+                    <div class="spinner-grow text-info" role="status"><span class="visually-hidden">Cargando...</span></div>
+                    <div class="spinner-grow text-secondary" role="status"><span class="visually-hidden">Cargando...</span></div>
+                  </div>
+                  <span class="text-secondary small">Cargando clientes...</span>
+                </td>
+              </tr>
 
-                <tr v-else-if="filteredCustomers.length === 0">
-                  <td colspan="6" class="text-center py-5 text-secondary">
-                    <iconify-icon icon="solar:ghost-line-duotone" class="fs-8 mb-2 d-block"></iconify-icon>
-                    No se encontraron clientes con los filtros seleccionados.
-                  </td>
-                </tr>
+              <tr v-else-if="filteredCustomers.length === 0">
+                <td colspan="6" class="text-center py-5 text-secondary">
+                  <iconify-icon icon="solar:ghost-line-duotone" class="fs-8 mb-2 d-block"></iconify-icon>
+                  No se encontraron clientes con los filtros seleccionados.
+                </td>
+              </tr>
 
-                <tr
-                  v-for="c in filteredCustomers"
-                  :key="c.id"
-                  class="border-bottom border-dark-subtle"
-                  :class="{ 'opacity-75': c.estado === 'inactivo' }"
-                >
-                  <!-- Documento -->
-                  <td class="ps-4">
-                    <div class="d-flex align-items-center gap-2">
-                      <span class="badge bg-primary-subtle text-primary border border-primary-subtle fs-1">
-                        {{ docTypeLabel(c.tipo_documento) }}
-                      </span>
-                      <span class="text-white fw-bold font-monospace">{{ c.num_document }}</span>
-                    </div>
-                  </td>
-
-                  <!-- Razón Social -->
-                  <td>
-                    <div class="d-flex flex-column">
-                      <span class="text-white fw-semibold">{{ c.razon_social }}</span>
-                      <small v-if="c.nombre_comercial" class="text-secondary fs-1">
-                        {{ c.nombre_comercial }}
-                      </small>
-                    </div>
-                  </td>
-
-                  <!-- Contacto -->
-                  <td>
-                    <div class="d-flex flex-column gap-1">
-                      <span class="text-white-50 fs-2 d-flex align-items-center gap-1">
-                        <iconify-icon icon="solar:phone-line-duotone" class="text-info"></iconify-icon>
-                        {{ c.telefono || 'Sin teléfono' }}
-                      </span>
-                      <span class="text-white-50 fs-2 d-flex align-items-center gap-1">
-                        <iconify-icon icon="solar:letter-line-duotone" class="text-warning"></iconify-icon>
-                        {{ c.email || 'Sin correo' }}
-                      </span>
-                    </div>
-                  </td>
-
-                  <!-- Dirección -->
-                  <td>
-                    <span class="text-secondary fs-2 text-wrap" style="max-width: 220px; display: inline-block;">
-                      {{ c.direccion || 'S/N' }} {{ c.ciudad ? `(${c.ciudad})` : '' }}
+              <tr
+                v-for="c in filteredCustomers"
+                :key="c.id"
+                :class="{ 'opacity-75': c.estado === 'inactivo' }"
+              >
+                <!-- Documento -->
+                <td class="ps-4">
+                  <div class="d-flex align-items-center gap-2">
+                    <span class="badge bg-primary-subtle text-primary border border-primary-subtle fs-1">
+                      {{ docTypeLabel(c.tipo_documento) }}
                     </span>
-                  </td>
+                    <span class="crud-chip">{{ c.num_document }}</span>
+                  </div>
+                </td>
 
-                  <!-- Estado -->
-                  <td class="text-center">
-                    <span
-                      class="badge px-3 py-1 rounded-pill fs-1 fw-bold"
-                      :class="c.estado === 'activo' ? 'bg-success-subtle text-success border border-success-subtle' : 'bg-danger-subtle text-danger border border-danger-subtle'"
+                <!-- Razón Social -->
+                <td>
+                  <div class="d-flex flex-column">
+                    <span class="text-body-emphasis fw-semibold">{{ c.razon_social }}</span>
+                    <small v-if="c.nombre_comercial" class="text-muted fs-1">
+                      {{ c.nombre_comercial }}
+                    </small>
+                  </div>
+                </td>
+
+                <!-- Contacto -->
+                <td>
+                  <div class="d-flex flex-column gap-1">
+                    <span class="text-muted fs-2 d-flex align-items-center gap-1">
+                      <iconify-icon icon="solar:phone-line-duotone" class="text-info"></iconify-icon>
+                      {{ c.telefono || 'Sin teléfono' }}
+                    </span>
+                    <span class="text-muted fs-2 d-flex align-items-center gap-1">
+                      <iconify-icon icon="solar:letter-line-duotone" class="text-warning"></iconify-icon>
+                      {{ c.email || 'Sin correo' }}
+                    </span>
+                  </div>
+                </td>
+
+                <!-- Dirección -->
+                <td>
+                  <span class="text-secondary fs-2 text-wrap" style="max-width: 220px; display: inline-block;">
+                    {{ c.direccion || 'S/N' }} {{ c.ciudad ? `(${c.ciudad})` : '' }}
+                  </span>
+                </td>
+
+                <!-- Estado -->
+                <td class="text-center">
+                  <span
+                    class="badge px-3 py-1 rounded-pill fs-1 fw-bold"
+                    :class="c.estado === 'activo' ? 'bg-success-subtle text-success border border-success-subtle' : 'bg-danger-subtle text-danger border border-danger-subtle'"
+                  >
+                    <iconify-icon
+                      :icon="c.estado === 'activo' ? 'solar:check-circle-line-duotone' : 'solar:close-circle-line-duotone'"
+                      class="me-1 align-middle"
+                    ></iconify-icon>
+                    {{ c.estado === 'activo' ? 'Activo' : 'Inactivo' }}
+                  </span>
+                </td>
+
+                <!-- Acciones -->
+                <td class="text-end pe-4">
+                  <div class="btn-group gap-1" role="group">
+                    <!-- Ver Detalle -->
+                    <button
+                      class="btn-action-icon view"
+                      title="Ver detalle completo"
+                      @click="openViewCustomer(c)"
                     >
+                      <iconify-icon icon="solar:eye-line-duotone"></iconify-icon>
+                    </button>
+
+                    <!-- Editar -->
+                    <button
+                      class="btn-action-icon edit"
+                      title="Editar información"
+                      @click="openEditCustomer(c)"
+                    >
+                      <iconify-icon icon="solar:pen-new-square-line-duotone"></iconify-icon>
+                    </button>
+
+                    <!-- Habilitar / Deshabilitar -->
+                    <button
+                      class="btn-action-icon toggle"
+                      :class="c.estado === 'activo' ? 'danger' : 'success'"
+                      :disabled="actionProcessingId === c.id"
+                      :title="c.estado === 'activo' ? 'Deshabilitar cliente' : 'Habilitar cliente'"
+                      @click="handleToggleCustomerStatus(c)"
+                    >
+                      <span v-if="actionProcessingId === c.id" class="spinner-grow spinner-grow-sm text-warning" role="status" aria-hidden="true"></span>
                       <iconify-icon
-                        :icon="c.estado === 'activo' ? 'solar:check-circle-line-duotone' : 'solar:close-circle-line-duotone'"
-                        class="me-1 align-middle"
+                        v-else
+                        :icon="c.estado === 'activo' ? 'solar:pause-circle-line-duotone' : 'solar:play-circle-line-duotone'"
                       ></iconify-icon>
-                      {{ c.estado === 'activo' ? 'Activo' : 'Inactivo' }}
-                    </span>
-                  </td>
-
-                  <!-- Acciones -->
-                  <td class="text-end pe-4">
-                    <div class="btn-group gap-1" role="group">
-                      <!-- Ver Detalle -->
-                      <button
-                        class="btn btn-sm btn-dark-subtle text-info border-0 p-2 rounded-2"
-                        title="Ver detalle completo"
-                        @click="openViewCustomer(c)"
-                      >
-                        <iconify-icon icon="solar:eye-line-duotone" class="fs-4"></iconify-icon>
-                      </button>
-
-                      <!-- Editar -->
-                      <button
-                        class="btn btn-sm btn-dark-subtle text-primary border-0 p-2 rounded-2"
-                        title="Editar información"
-                        @click="openEditCustomer(c)"
-                      >
-                        <iconify-icon icon="solar:pen-new-square-line-duotone" class="fs-4"></iconify-icon>
-                      </button>
-
-                      <!-- Habilitar / Deshabilitar -->
-                      <button
-                        class="btn btn-sm btn-dark-subtle border-0 p-2 rounded-2"
-                        :class="c.estado === 'activo' ? 'text-warning' : 'text-success'"
-                        :disabled="actionProcessingId === c.id"
-                        :title="c.estado === 'activo' ? 'Deshabilitar cliente' : 'Habilitar cliente'"
-                        @click="handleToggleCustomerStatus(c)"
-                      >
-                        <span v-if="actionProcessingId === c.id" class="spinner-grow spinner-grow-sm text-warning" role="status" aria-hidden="true"></span>
-                        <iconify-icon
-                          v-else
-                          :icon="c.estado === 'activo' ? 'solar:pause-circle-line-duotone' : 'solar:play-circle-line-duotone'"
-                          class="fs-4"
-                        ></iconify-icon>
-                      </button>
-                    </div>
-                  </td>
-                </tr>
-              </tbody>
-            </table>
-          </div>
+                    </button>
+                  </div>
+                </td>
+              </tr>
+            </tbody>
+          </table>
         </div>
       </div>
     </div>
@@ -832,190 +858,186 @@ const paymentLabel = (p: string) => {
     <!-- SUB-MÓDULO: PROVEEDORES -->
     <!-- ============================================================= -->
     <div v-else-if="activeTab === 'proveedores'">
-      <div class="card rounded-4 border-0 shadow-sm bg-navy-card">
-        <!-- Barra de herramientas -->
-        <div class="card-header bg-transparent border-bottom border-dark-subtle p-4">
-          <div class="d-flex flex-wrap justify-content-between align-items-center gap-3">
-            <div class="d-flex flex-wrap align-items-center gap-2 flex-grow-1">
-              <!-- Buscador -->
-              <div class="input-group search-input-box" style="max-width: 320px;">
-                <span class="input-group-text bg-dark-subtle border-secondary-subtle text-secondary">
-                  <iconify-icon icon="solar:magnifer-line-duotone"></iconify-icon>
-                </span>
-                <input
-                  v-model="searchProvider"
-                  type="text"
-                  class="form-control bg-dark-subtle border-secondary-subtle text-white"
-                  placeholder="Buscar por RUC o empresa..."
-                />
-              </div>
-
-              <!-- Filtro de Estado -->
-              <select
-                v-model="statusFilterProvider"
-                class="form-select bg-dark-subtle border-secondary-subtle text-white"
-                style="max-width: 160px;"
-              >
-                <option value="todos">Todos (Estado)</option>
-                <option value="activo">Solo Activos</option>
-                <option value="inactivo">Solo Inactivos</option>
-              </select>
+      <!-- Barra de herramientas -->
+      <div class="crud-filters-card mb-3">
+        <div class="d-flex flex-wrap justify-content-between align-items-center gap-3">
+          <div class="d-flex flex-wrap align-items-center gap-2 flex-grow-1">
+            <!-- Buscador -->
+            <div class="input-group" style="max-width: 320px;">
+              <span class="input-group-text">
+                <iconify-icon icon="solar:magnifer-line-duotone"></iconify-icon>
+              </span>
+              <input
+                v-model="searchProvider"
+                type="text"
+                class="form-control"
+                placeholder="Buscar por RUC o empresa..."
+              />
             </div>
 
-            <!-- Botón Crear Nuevo Proveedor -->
-            <button class="btn btn-warning text-dark d-flex align-items-center gap-2 px-3 py-2 rounded-3 fw-bold" @click="openCreateProvider">
-              <iconify-icon icon="solar:box-minimalistic-line-duotone" class="fs-5"></iconify-icon>
-              <span>Nuevo Proveedor</span>
-            </button>
+            <!-- Filtro de Estado -->
+            <select
+              v-model="statusFilterProvider"
+              class="form-select"
+              style="max-width: 160px;"
+            >
+              <option value="todos">Todos (Estado)</option>
+              <option value="activo">Solo Activos</option>
+              <option value="inactivo">Solo Inactivos</option>
+            </select>
           </div>
+
+          <!-- Botón Crear Nuevo Proveedor -->
+          <button class="btn btn-warning text-dark d-flex align-items-center gap-2 px-3 py-2 fw-bold" @click="openCreateProvider">
+            <iconify-icon icon="solar:box-minimalistic-line-duotone" class="fs-5"></iconify-icon>
+            <span>Nuevo Proveedor</span>
+          </button>
         </div>
+      </div>
 
-        <!-- Tabla de Proveedores -->
-        <div class="card-body p-0">
-          <div class="table-responsive">
-            <table class="table align-middle text-nowrap mb-0 table-hover">
-              <thead class="table-primary fs-2">
-                <tr>
-                  <th class="ps-4">RUC / DOCUMENTO</th>
-                  <th>RAZÓN SOCIAL / EMPRESA</th>
-                  <th>CONTACTO</th>
-                  <th>CONDICIÓN PAGO</th>
-                  <th>BANCO / CUENTA</th>
-                  <th class="text-center">ESTADO</th>
-                  <th class="text-end pe-4">ACCIONES</th>
-                </tr>
-              </thead>
-              <tbody>
-                <tr v-if="loading">
-                  <td colspan="7" class="text-center py-5">
-                    <div class="d-flex align-items-center justify-content-center gap-2 mb-2">
-                      <div class="spinner-grow text-primary" role="status"><span class="visually-hidden">Cargando...</span></div>
-                      <div class="spinner-grow text-info" role="status"><span class="visually-hidden">Cargando...</span></div>
-                      <div class="spinner-grow text-secondary" role="status"><span class="visually-hidden">Cargando...</span></div>
-                    </div>
-                    <span class="text-secondary small">Cargando proveedores...</span>
-                  </td>
-                </tr>
+      <!-- Tabla de Proveedores -->
+      <div class="crud-table-card">
+        <div class="table-responsive">
+          <table class="crud-table">
+            <thead>
+              <tr>
+                <th class="ps-4">RUC / DOCUMENTO</th>
+                <th>RAZÓN SOCIAL / EMPRESA</th>
+                <th>CONTACTO</th>
+                <th>CONDICIÓN PAGO</th>
+                <th>BANCO / CUENTA</th>
+                <th class="text-center">ESTADO</th>
+                <th class="text-end pe-4">ACCIONES</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr v-if="loading">
+                <td colspan="7" class="text-center py-5">
+                  <div class="d-flex align-items-center justify-content-center gap-2 mb-2">
+                    <div class="spinner-grow text-primary" role="status"><span class="visually-hidden">Cargando...</span></div>
+                    <div class="spinner-grow text-info" role="status"><span class="visually-hidden">Cargando...</span></div>
+                    <div class="spinner-grow text-secondary" role="status"><span class="visually-hidden">Cargando...</span></div>
+                  </div>
+                  <span class="text-secondary small">Cargando proveedores...</span>
+                </td>
+              </tr>
 
-                <tr v-else-if="filteredProviders.length === 0">
-                  <td colspan="7" class="text-center py-5 text-secondary">
-                    <iconify-icon icon="solar:ghost-line-duotone" class="fs-8 mb-2 d-block"></iconify-icon>
-                    No se encontraron proveedores registrados.
-                  </td>
-                </tr>
+              <tr v-else-if="filteredProviders.length === 0">
+                <td colspan="7" class="text-center py-5 text-secondary">
+                  <iconify-icon icon="solar:ghost-line-duotone" class="fs-8 mb-2 d-block"></iconify-icon>
+                  No se encontraron proveedores registrados.
+                </td>
+              </tr>
 
-                <tr
-                  v-for="p in filteredProviders"
-                  :key="p.id"
-                  class="border-bottom border-dark-subtle"
-                  :class="{ 'opacity-75': p.estado === 'inactivo' }"
-                >
-                  <!-- Documento -->
-                  <td class="ps-4">
-                    <div class="d-flex align-items-center gap-2">
-                      <span class="badge bg-warning-subtle text-warning border border-warning-subtle fs-1">
-                        {{ docTypeLabel(p.tipo_documento) }}
-                      </span>
-                      <span class="text-white fw-bold font-monospace">{{ p.num_document }}</span>
-                    </div>
-                  </td>
-
-                  <!-- Razón Social -->
-                  <td>
-                    <div class="d-flex flex-column">
-                      <span class="text-white fw-semibold">{{ p.razon_social }}</span>
-                      <small v-if="p.nombre_comercial" class="text-secondary fs-1">
-                        {{ p.nombre_comercial }}
-                      </small>
-                    </div>
-                  </td>
-
-                  <!-- Contacto -->
-                  <td>
-                    <div class="d-flex flex-column gap-1">
-                      <span class="text-white-50 fs-2 d-flex align-items-center gap-1">
-                        <iconify-icon icon="solar:phone-line-duotone" class="text-info"></iconify-icon>
-                        {{ p.telefono || 'Sin teléfono' }}
-                      </span>
-                      <span class="text-white-50 fs-2 d-flex align-items-center gap-1">
-                        <iconify-icon icon="solar:letter-line-duotone" class="text-warning"></iconify-icon>
-                        {{ p.email || 'Sin correo' }}
-                      </span>
-                    </div>
-                  </td>
-
-                  <!-- Forma de Pago -->
-                  <td>
-                    <span class="badge bg-dark-subtle text-white-50 border border-secondary-subtle px-2 py-1 fs-1">
-                      {{ paymentLabel(p.forma_pago) }}
+              <tr
+                v-for="p in filteredProviders"
+                :key="p.id"
+                :class="{ 'opacity-75': p.estado === 'inactivo' }"
+              >
+                <!-- Documento -->
+                <td class="ps-4">
+                  <div class="d-flex align-items-center gap-2">
+                    <span class="badge bg-warning-subtle text-warning border border-warning-subtle fs-1">
+                      {{ docTypeLabel(p.tipo_documento) }}
                     </span>
-                  </td>
+                    <span class="crud-chip">{{ p.num_document }}</span>
+                  </div>
+                </td>
 
-                  <!-- Banco y Cuenta -->
-                  <td>
-                    <div v-if="p.banco" class="d-flex flex-column">
-                      <span class="text-white fs-2">{{ p.banco }}</span>
-                      <small class="text-secondary fs-1 font-monospace">{{ p.num_cuenta || 'N/A' }}</small>
-                    </div>
-                    <span v-else class="text-secondary fs-2">No especificado</span>
-                  </td>
+                <!-- Razón Social -->
+                <td>
+                  <div class="d-flex flex-column">
+                    <span class="text-body-emphasis fw-semibold">{{ p.razon_social }}</span>
+                    <small v-if="p.nombre_comercial" class="text-muted fs-1">
+                      {{ p.nombre_comercial }}
+                    </small>
+                  </div>
+                </td>
 
-                  <!-- Estado -->
-                  <td class="text-center">
-                    <span
-                      class="badge px-3 py-1 rounded-pill fs-1 fw-bold"
-                      :class="p.estado === 'activo' ? 'bg-success-subtle text-success border border-success-subtle' : 'bg-danger-subtle text-danger border border-danger-subtle'"
+                <!-- Contacto -->
+                <td>
+                  <div class="d-flex flex-column gap-1">
+                    <span class="text-muted fs-2 d-flex align-items-center gap-1">
+                      <iconify-icon icon="solar:phone-line-duotone" class="text-info"></iconify-icon>
+                      {{ p.telefono || 'Sin teléfono' }}
+                    </span>
+                    <span class="text-muted fs-2 d-flex align-items-center gap-1">
+                      <iconify-icon icon="solar:letter-line-duotone" class="text-warning"></iconify-icon>
+                      {{ p.email || 'Sin correo' }}
+                    </span>
+                  </div>
+                </td>
+
+                <!-- Forma de Pago -->
+                <td>
+                  <span class="badge bg-dark-subtle text-body-secondary border border-secondary-subtle px-2 py-1 fs-1">
+                    {{ paymentLabel(p.forma_pago) }}
+                  </span>
+                </td>
+
+                <!-- Banco y Cuenta -->
+                <td>
+                  <div v-if="p.banco" class="d-flex flex-column">
+                    <span class="text-body-emphasis fs-2">{{ p.banco }}</span>
+                    <small class="text-muted fs-1 font-monospace">{{ p.num_cuenta || 'N/A' }}</small>
+                  </div>
+                  <span v-else class="text-muted fs-2">No especificado</span>
+                </td>
+
+                <!-- Estado -->
+                <td class="text-center">
+                  <span
+                    class="badge px-3 py-1 rounded-pill fs-1 fw-bold"
+                    :class="p.estado === 'activo' ? 'bg-success-subtle text-success border border-success-subtle' : 'bg-danger-subtle text-danger border border-danger-subtle'"
+                  >
+                    <iconify-icon
+                      :icon="p.estado === 'activo' ? 'solar:check-circle-line-duotone' : 'solar:close-circle-line-duotone'"
+                      class="me-1 align-middle"
+                    ></iconify-icon>
+                    {{ p.estado === 'activo' ? 'Activo' : 'Inactivo' }}
+                  </span>
+                </td>
+
+                <!-- Acciones -->
+                <td class="text-end pe-4">
+                  <div class="btn-group gap-1" role="group">
+                    <!-- Ver Detalle -->
+                    <button
+                      class="btn-action-icon view"
+                      title="Ver detalle completo"
+                      @click="openViewProvider(p)"
                     >
+                      <iconify-icon icon="solar:eye-line-duotone"></iconify-icon>
+                    </button>
+
+                    <!-- Editar -->
+                    <button
+                      class="btn-action-icon edit"
+                      title="Editar información"
+                      @click="openEditProvider(p)"
+                    >
+                      <iconify-icon icon="solar:pen-new-square-line-duotone"></iconify-icon>
+                    </button>
+
+                    <!-- Habilitar / Deshabilitar -->
+                    <button
+                      class="btn-action-icon toggle"
+                      :class="p.estado === 'activo' ? 'danger' : 'success'"
+                      :disabled="actionProcessingId === p.id"
+                      :title="p.estado === 'activo' ? 'Deshabilitar proveedor' : 'Habilitar proveedor'"
+                      @click="handleToggleProviderStatus(p)"
+                    >
+                      <span v-if="actionProcessingId === p.id" class="spinner-grow spinner-grow-sm text-warning" role="status" aria-hidden="true"></span>
                       <iconify-icon
-                        :icon="p.estado === 'activo' ? 'solar:check-circle-line-duotone' : 'solar:close-circle-line-duotone'"
-                        class="me-1 align-middle"
+                        v-else
+                        :icon="p.estado === 'activo' ? 'solar:pause-circle-line-duotone' : 'solar:play-circle-line-duotone'"
                       ></iconify-icon>
-                      {{ p.estado === 'activo' ? 'Activo' : 'Inactivo' }}
-                    </span>
-                  </td>
-
-                  <!-- Acciones -->
-                  <td class="text-end pe-4">
-                    <div class="btn-group gap-1" role="group">
-                      <!-- Ver Detalle -->
-                      <button
-                        class="btn btn-sm btn-dark-subtle text-info border-0 p-2 rounded-2"
-                        title="Ver detalle completo"
-                        @click="openViewProvider(p)"
-                      >
-                        <iconify-icon icon="solar:eye-line-duotone" class="fs-4"></iconify-icon>
-                      </button>
-
-                      <!-- Editar -->
-                      <button
-                        class="btn btn-sm btn-dark-subtle text-primary border-0 p-2 rounded-2"
-                        title="Editar información"
-                        @click="openEditProvider(p)"
-                      >
-                        <iconify-icon icon="solar:pen-new-square-line-duotone" class="fs-4"></iconify-icon>
-                      </button>
-
-                      <!-- Habilitar / Deshabilitar -->
-                      <button
-                        class="btn btn-sm btn-dark-subtle border-0 p-2 rounded-2"
-                        :class="p.estado === 'activo' ? 'text-warning' : 'text-success'"
-                        :disabled="actionProcessingId === p.id"
-                        :title="p.estado === 'activo' ? 'Deshabilitar proveedor' : 'Habilitar proveedor'"
-                        @click="handleToggleProviderStatus(p)"
-                      >
-                        <span v-if="actionProcessingId === p.id" class="spinner-grow spinner-grow-sm text-warning" role="status" aria-hidden="true"></span>
-                        <iconify-icon
-                          v-else
-                          :icon="p.estado === 'activo' ? 'solar:pause-circle-line-duotone' : 'solar:play-circle-line-duotone'"
-                          class="fs-4"
-                        ></iconify-icon>
-                      </button>
-                    </div>
-                  </td>
-                </tr>
-              </tbody>
-            </table>
-          </div>
+                    </button>
+                  </div>
+                </td>
+              </tr>
+            </tbody>
+          </table>
         </div>
       </div>
     </div>
@@ -1024,191 +1046,187 @@ const paymentLabel = (p: string) => {
     <!-- SUB-MÓDULO: VENDEDORES -->
     <!-- ============================================================= -->
     <div v-else-if="activeTab === 'vendedores'">
-      <div class="card rounded-4 border-0 shadow-sm bg-navy-card">
-        <!-- Barra de herramientas -->
-        <div class="card-header bg-transparent border-bottom border-dark-subtle p-4">
-          <div class="d-flex flex-wrap justify-content-between align-items-center gap-3">
-            <div class="d-flex flex-wrap align-items-center gap-2 flex-grow-1">
-              <!-- Buscador -->
-              <div class="input-group search-input-box" style="max-width: 320px;">
-                <span class="input-group-text bg-dark-subtle border-secondary-subtle text-secondary">
-                  <iconify-icon icon="solar:magnifer-line-duotone"></iconify-icon>
-                </span>
-                <input
-                  v-model="searchSeller"
-                  type="text"
-                  class="form-control bg-dark-subtle border-secondary-subtle text-white"
-                  placeholder="Buscar vendedor por cédula o nombre..."
-                />
-              </div>
-
-              <!-- Filtro de Estado -->
-              <select
-                v-model="statusFilterSeller"
-                class="form-select bg-dark-subtle border-secondary-subtle text-white"
-                style="max-width: 160px;"
-              >
-                <option value="todos">Todos (Estado)</option>
-                <option value="activo">Solo Activos</option>
-                <option value="inactivo">Solo Inactivos</option>
-              </select>
+      <!-- Barra de herramientas -->
+      <div class="crud-filters-card mb-3">
+        <div class="d-flex flex-wrap justify-content-between align-items-center gap-3">
+          <div class="d-flex flex-wrap align-items-center gap-2 flex-grow-1">
+            <!-- Buscador -->
+            <div class="input-group" style="max-width: 320px;">
+              <span class="input-group-text">
+                <iconify-icon icon="solar:magnifer-line-duotone"></iconify-icon>
+              </span>
+              <input
+                v-model="searchSeller"
+                type="text"
+                class="form-control"
+                placeholder="Buscar vendedor por cédula o nombre..."
+              />
             </div>
 
-            <!-- Botón Crear Nuevo Vendedor -->
-            <button class="btn btn-success d-flex align-items-center gap-2 px-3 py-2 rounded-3 fw-bold" @click="openCreateSeller">
-              <iconify-icon icon="solar:user-plus-line-duotone" class="fs-5"></iconify-icon>
-              <span>Nuevo Vendedor</span>
-            </button>
+            <!-- Filtro de Estado -->
+            <select
+              v-model="statusFilterSeller"
+              class="form-select"
+              style="max-width: 160px;"
+            >
+              <option value="todos">Todos (Estado)</option>
+              <option value="activo">Solo Activos</option>
+              <option value="inactivo">Solo Inactivos</option>
+            </select>
           </div>
+
+          <!-- Botón Crear Nuevo Vendedor -->
+          <button class="btn btn-success d-flex align-items-center gap-2 px-3 py-2 fw-bold" @click="openCreateSeller">
+            <iconify-icon icon="solar:user-plus-line-duotone" class="fs-5"></iconify-icon>
+            <span>Nuevo Vendedor</span>
+          </button>
         </div>
+      </div>
 
-        <!-- Tabla de Vendedores -->
-        <div class="card-body p-0">
-          <div class="table-responsive">
-            <table class="table align-middle text-nowrap mb-0 table-hover">
-              <thead class="table-primary fs-2">
-                <tr>
-                  <th class="ps-4">CÉDULA / DOC</th>
-                  <th>VENDEDOR</th>
-                  <th>CONTACTO</th>
-                  <th>DIRECCIÓN</th>
-                  <th class="text-center">COMISIÓN</th>
-                  <th class="text-center">ESTADO</th>
-                  <th class="text-end pe-4">ACCIONES</th>
-                </tr>
-              </thead>
-              <tbody>
-                <tr v-if="loading">
-                  <td colspan="7" class="text-center py-5">
-                    <div class="d-flex align-items-center justify-content-center gap-2 mb-2">
-                      <div class="spinner-grow text-primary" role="status"><span class="visually-hidden">Cargando...</span></div>
-                      <div class="spinner-grow text-info" role="status"><span class="visually-hidden">Cargando...</span></div>
-                      <div class="spinner-grow text-secondary" role="status"><span class="visually-hidden">Cargando...</span></div>
-                    </div>
-                    <span class="text-secondary small">Cargando vendedores...</span>
-                  </td>
-                </tr>
+      <!-- Tabla de Vendedores -->
+      <div class="crud-table-card">
+        <div class="table-responsive">
+          <table class="crud-table">
+            <thead>
+              <tr>
+                <th class="ps-4">CÉDULA / DOC</th>
+                <th>VENDEDOR</th>
+                <th>CONTACTO</th>
+                <th>DIRECCIÓN</th>
+                <th class="text-center">COMISIÓN</th>
+                <th class="text-center">ESTADO</th>
+                <th class="text-end pe-4">ACCIONES</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr v-if="loading">
+                <td colspan="7" class="text-center py-5">
+                  <div class="d-flex align-items-center justify-content-center gap-2 mb-2">
+                    <div class="spinner-grow text-primary" role="status"><span class="visually-hidden">Cargando...</span></div>
+                    <div class="spinner-grow text-info" role="status"><span class="visually-hidden">Cargando...</span></div>
+                    <div class="spinner-grow text-secondary" role="status"><span class="visually-hidden">Cargando...</span></div>
+                  </div>
+                  <span class="text-secondary small">Cargando vendedores...</span>
+                </td>
+              </tr>
 
-                <tr v-else-if="filteredSellers.length === 0">
-                  <td colspan="7" class="text-center py-5 text-secondary">
-                    <iconify-icon icon="solar:ghost-line-duotone" class="fs-8 mb-2 d-block"></iconify-icon>
-                    No se encontraron vendedores registrados.
-                  </td>
-                </tr>
+              <tr v-else-if="filteredSellers.length === 0">
+                <td colspan="7" class="text-center py-5 text-secondary">
+                  <iconify-icon icon="solar:ghost-line-duotone" class="fs-8 mb-2 d-block"></iconify-icon>
+                  No se encontraron vendedores registrados.
+                </td>
+              </tr>
 
-                <tr
-                  v-for="s in filteredSellers"
-                  :key="s.id"
-                  class="border-bottom border-dark-subtle"
-                  :class="{ 'opacity-75': s.estado === 'inactivo' }"
-                >
-                  <!-- Documento -->
-                  <td class="ps-4">
-                    <div class="d-flex align-items-center gap-2">
-                      <span class="badge bg-success-subtle text-success border border-success-subtle fs-1">
-                        {{ docTypeLabel(s.tipo_documento) }}
-                      </span>
-                      <span class="text-white fw-bold font-monospace">{{ s.num_document }}</span>
-                    </div>
-                  </td>
-
-                  <!-- Vendedor -->
-                  <td>
-                    <div class="d-flex align-items-center gap-2">
-                      <div class="bg-primary-subtle text-primary rounded-circle d-flex align-items-center justify-content-center fw-bold" style="width: 34px; height: 34px;">
-                        {{ s.nombres.charAt(0) }}{{ s.apellidos.charAt(0) }}
-                      </div>
-                      <div class="d-flex flex-column">
-                        <span class="text-white fw-semibold">{{ s.nombres }} {{ s.apellidos }}</span>
-                        <small class="text-secondary fs-1">Asesor Comercial</small>
-                      </div>
-                    </div>
-                  </td>
-
-                  <!-- Contacto -->
-                  <td>
-                    <div class="d-flex flex-column gap-1">
-                      <span class="text-white-50 fs-2 d-flex align-items-center gap-1">
-                        <iconify-icon icon="solar:phone-line-duotone" class="text-info"></iconify-icon>
-                        {{ s.telefono || 'Sin teléfono' }}
-                      </span>
-                      <span class="text-white-50 fs-2 d-flex align-items-center gap-1">
-                        <iconify-icon icon="solar:letter-line-duotone" class="text-warning"></iconify-icon>
-                        {{ s.email || 'Sin correo' }}
-                      </span>
-                    </div>
-                  </td>
-
-                  <!-- Dirección -->
-                  <td>
-                    <span class="text-secondary fs-2 text-wrap" style="max-width: 200px; display: inline-block;">
-                      {{ s.direccion || 'No especificada' }}
+              <tr
+                v-for="s in filteredSellers"
+                :key="s.id"
+                :class="{ 'opacity-75': s.estado === 'inactivo' }"
+              >
+                <!-- Documento -->
+                <td class="ps-4">
+                  <div class="d-flex align-items-center gap-2">
+                    <span class="badge bg-success-subtle text-success border border-success-subtle fs-1">
+                      {{ docTypeLabel(s.tipo_documento) }}
                     </span>
-                  </td>
+                    <span class="crud-chip">{{ s.num_document }}</span>
+                  </div>
+                </td>
 
-                  <!-- Comisión % -->
-                  <td class="text-center">
-                    <span class="badge bg-info-subtle text-info border border-info-subtle px-3 py-1 fs-2 fw-bold">
-                      {{ s.comision_pct }}%
+                <!-- Vendedor -->
+                <td>
+                  <div class="d-flex align-items-center gap-2">
+                    <div class="bg-primary-subtle text-primary rounded-circle d-flex align-items-center justify-content-center fw-bold" style="width: 34px; height: 34px;">
+                      {{ s.nombres.charAt(0) }}{{ s.apellidos.charAt(0) }}
+                    </div>
+                    <div class="d-flex flex-column">
+                      <span class="text-body-emphasis fw-semibold">{{ s.nombres }} {{ s.apellidos }}</span>
+                      <small class="text-muted fs-1">Asesor Comercial</small>
+                    </div>
+                  </div>
+                </td>
+
+                <!-- Contacto -->
+                <td>
+                  <div class="d-flex flex-column gap-1">
+                    <span class="text-muted fs-2 d-flex align-items-center gap-1">
+                      <iconify-icon icon="solar:phone-line-duotone" class="text-info"></iconify-icon>
+                      {{ s.telefono || 'Sin teléfono' }}
                     </span>
-                  </td>
+                    <span class="text-muted fs-2 d-flex align-items-center gap-1">
+                      <iconify-icon icon="solar:letter-line-duotone" class="text-warning"></iconify-icon>
+                      {{ s.email || 'Sin correo' }}
+                    </span>
+                  </div>
+                </td>
 
-                  <!-- Estado -->
-                  <td class="text-center">
-                    <span
-                      class="badge px-3 py-1 rounded-pill fs-1 fw-bold"
-                      :class="s.estado === 'activo' ? 'bg-success-subtle text-success border border-success-subtle' : 'bg-danger-subtle text-danger border border-danger-subtle'"
+                <!-- Dirección -->
+                <td>
+                  <span class="text-secondary fs-2 text-wrap" style="max-width: 200px; display: inline-block;">
+                    {{ s.direccion || 'No especificada' }}
+                  </span>
+                </td>
+
+                <!-- Comisión % -->
+                <td class="text-center">
+                  <span class="badge bg-info-subtle text-info border border-info-subtle px-3 py-1 fs-2 fw-bold">
+                    {{ s.comision_pct }}%
+                  </span>
+                </td>
+
+                <!-- Estado -->
+                <td class="text-center">
+                  <span
+                    class="badge px-3 py-1 rounded-pill fs-1 fw-bold"
+                    :class="s.estado === 'activo' ? 'bg-success-subtle text-success border border-success-subtle' : 'bg-danger-subtle text-danger border border-danger-subtle'"
+                  >
+                    <iconify-icon
+                      :icon="s.estado === 'activo' ? 'solar:check-circle-line-duotone' : 'solar:close-circle-line-duotone'"
+                      class="me-1 align-middle"
+                    ></iconify-icon>
+                    {{ s.estado === 'activo' ? 'Activo' : 'Inactivo' }}
+                  </span>
+                </td>
+
+                <!-- Acciones -->
+                <td class="text-end pe-4">
+                  <div class="btn-group gap-1" role="group">
+                    <!-- Ver Detalle -->
+                    <button
+                      class="btn-action-icon view"
+                      title="Ver detalle completo"
+                      @click="openViewSeller(s)"
                     >
+                      <iconify-icon icon="solar:eye-line-duotone"></iconify-icon>
+                    </button>
+
+                    <!-- Editar -->
+                    <button
+                      class="btn-action-icon edit"
+                      title="Editar información"
+                      @click="openEditSeller(s)"
+                    >
+                      <iconify-icon icon="solar:pen-new-square-line-duotone"></iconify-icon>
+                    </button>
+
+                    <!-- Habilitar / Deshabilitar -->
+                    <button
+                      class="btn-action-icon toggle"
+                      :class="s.estado === 'activo' ? 'danger' : 'success'"
+                      :disabled="actionProcessingId === s.id"
+                      :title="s.estado === 'activo' ? 'Deshabilitar vendedor' : 'Habilitar vendedor'"
+                      @click="handleToggleSellerStatus(s)"
+                    >
+                      <span v-if="actionProcessingId === s.id" class="spinner-grow spinner-grow-sm text-warning" role="status" aria-hidden="true"></span>
                       <iconify-icon
-                        :icon="s.estado === 'activo' ? 'solar:check-circle-line-duotone' : 'solar:close-circle-line-duotone'"
-                        class="me-1 align-middle"
+                        v-else
+                        :icon="s.estado === 'activo' ? 'solar:pause-circle-line-duotone' : 'solar:play-circle-line-duotone'"
                       ></iconify-icon>
-                      {{ s.estado === 'activo' ? 'Activo' : 'Inactivo' }}
-                    </span>
-                  </td>
-
-                  <!-- Acciones -->
-                  <td class="text-end pe-4">
-                    <div class="btn-group gap-1" role="group">
-                      <!-- Ver Detalle -->
-                      <button
-                        class="btn btn-sm btn-dark-subtle text-info border-0 p-2 rounded-2"
-                        title="Ver detalle completo"
-                        @click="openViewSeller(s)"
-                      >
-                        <iconify-icon icon="solar:eye-line-duotone" class="fs-4"></iconify-icon>
-                      </button>
-
-                      <!-- Editar -->
-                      <button
-                        class="btn btn-sm btn-dark-subtle text-primary border-0 p-2 rounded-2"
-                        title="Editar información"
-                        @click="openEditSeller(s)"
-                      >
-                        <iconify-icon icon="solar:pen-new-square-line-duotone" class="fs-4"></iconify-icon>
-                      </button>
-
-                      <!-- Habilitar / Deshabilitar -->
-                      <button
-                        class="btn btn-sm btn-dark-subtle border-0 p-2 rounded-2"
-                        :class="s.estado === 'activo' ? 'text-warning' : 'text-success'"
-                        :disabled="actionProcessingId === s.id"
-                        :title="s.estado === 'activo' ? 'Deshabilitar vendedor' : 'Habilitar vendedor'"
-                        @click="handleToggleSellerStatus(s)"
-                      >
-                        <span v-if="actionProcessingId === s.id" class="spinner-grow spinner-grow-sm text-warning" role="status" aria-hidden="true"></span>
-                        <iconify-icon
-                          v-else
-                          :icon="s.estado === 'activo' ? 'solar:pause-circle-line-duotone' : 'solar:play-circle-line-duotone'"
-                          class="fs-4"
-                        ></iconify-icon>
-                      </button>
-                    </div>
-                  </td>
-                </tr>
-              </tbody>
-            </table>
-          </div>
+                    </button>
+                  </div>
+                </td>
+              </tr>
+            </tbody>
+          </table>
         </div>
       </div>
     </div>

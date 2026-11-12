@@ -217,6 +217,23 @@ const activeCompanyEnvironment = computed(() => {
   return '1'
 })
 
+const formatCurrency = (val: number) => {
+  return '$' + Number(val || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+}
+
+const totalInvoicesCount = computed(() => invoices.value.length)
+const totalInvoicedAmount = computed(() =>
+  invoices.value
+    .filter((inv) => inv.status === 'ISSUED')
+    .reduce((sum, inv) => sum + Number(inv.total || 0), 0)
+)
+const issuedInvoicesCount = computed(() =>
+  invoices.value.filter((inv) => inv.status === 'ISSUED').length
+)
+const canceledInvoicesCount = computed(() =>
+  invoices.value.filter((inv) => inv.status === 'CANCELED').length
+)
+
 let branchFilterInitialized = false
 const getActiveBranchId = (): number => {
   try {
@@ -986,34 +1003,32 @@ watch(() => route.path, () => {
 </script>
 
 <template>
-  <div class="invoices-page" :class="{ 'form-open': isFormOpen }">
+  <div class="crud-page invoices-page" :class="{ 'form-open': isFormOpen }">
     <!-- Encabezado del Submódulo -->
-    <div class="page-header d-flex flex-wrap justify-content-between align-items-center gap-3">
-      <div class="d-flex align-items-center gap-3">
-        <span class="p-3 bg-primary-subtle text-primary rounded-3 d-inline-flex">
-          <iconify-icon :icon="currentSubModule.icon" class="fs-6"></iconify-icon>
-        </span>
-        <div>
-          <div class="d-flex align-items-center gap-2 mb-1">
-            <span class="badge bg-primary-subtle text-primary border border-primary-subtle font-monospace">
-              {{ currentSubModule.moduleCode }} · {{ currentSubModule.moduleName }}
-            </span>
-            <span class="badge bg-info-subtle text-info border border-info-subtle font-monospace">
-              {{ currentSubModule.code }}
-            </span>
-            <span
-              class="badge font-monospace d-inline-flex align-items-center gap-1"
-              :class="activeCompanyEnvironment === '2' ? 'bg-success-subtle text-success border border-success-subtle' : 'bg-warning-subtle text-warning border border-warning-subtle'"
-            >
-              <iconify-icon :icon="activeCompanyEnvironment === '2' ? 'solar:shield-check-bold' : 'solar:test-tube-minimalistic-bold-duotone'"></iconify-icon>
-              SRI: {{ activeCompanyEnvironment === '2' ? 'Producción' : 'Pruebas' }}
-            </span>
-          </div>
-          <h3 class="fw-bold text-white mb-0">{{ currentSubModule.description }}</h3>
+    <div class="crud-page-header keep-in-form">
+      <div>
+        <div class="d-flex align-items-center gap-2 mb-1">
+          <span class="badge bg-primary-subtle text-primary border border-primary-subtle font-monospace">
+            {{ currentSubModule.moduleCode }} · {{ currentSubModule.moduleName }}
+          </span>
+          <span class="badge bg-info-subtle text-info border border-info-subtle font-monospace">
+            {{ currentSubModule.code }}
+          </span>
+          <span
+            class="badge font-monospace d-inline-flex align-items-center gap-1"
+            :class="activeCompanyEnvironment === '2' ? 'bg-success-subtle text-success border border-success-subtle' : 'bg-warning-subtle text-warning border border-warning-subtle'"
+          >
+            <iconify-icon :icon="activeCompanyEnvironment === '2' ? 'solar:shield-check-bold' : 'solar:test-tube-minimalistic-bold-duotone'"></iconify-icon>
+            SRI: {{ activeCompanyEnvironment === '2' ? 'Producción' : 'Pruebas' }}
+          </span>
         </div>
+        <h2 class="crud-title">{{ currentSubModule.description }}</h2>
+        <p class="crud-subtitle">
+          Emisión, firma electrónica XAdES-BES y autorización de facturas electrónicas SRI Ecuador.
+        </p>
       </div>
 
-      <div class="d-flex align-items-center gap-2">
+      <div class="crud-header-actions">
         <button class="btn btn-secondary d-flex align-items-center gap-2" @click="loadData" :disabled="loading">
           <iconify-icon icon="solar:refresh-line-duotone" :class="{ 'spin-anim': loading }"></iconify-icon>
           <span>Actualizar</span>
@@ -1055,6 +1070,46 @@ watch(() => route.path, () => {
       </router-link>
     </div>
 
+    <!-- Indicadores KPIs de Facturación -->
+    <div v-if="isInvoiceSubmodule && !isFormOpen" class="crud-kpi-grid mt-3">
+      <div class="crud-kpi-card">
+        <div class="crud-kpi-icon primary">
+          <iconify-icon icon="solar:document-text-line-duotone" class="fs-5"></iconify-icon>
+        </div>
+        <div>
+          <span class="crud-kpi-label">Total Facturas</span>
+          <h4 class="crud-kpi-val">{{ totalInvoicesCount }}</h4>
+        </div>
+      </div>
+      <div class="crud-kpi-card">
+        <div class="crud-kpi-icon success">
+          <iconify-icon icon="solar:wallet-money-line-duotone" class="fs-5"></iconify-icon>
+        </div>
+        <div>
+          <span class="crud-kpi-label">Monto Facturado</span>
+          <h4 class="crud-kpi-val">{{ formatCurrency(totalInvoicedAmount) }}</h4>
+        </div>
+      </div>
+      <div class="crud-kpi-card">
+        <div class="crud-kpi-icon info">
+          <iconify-icon icon="solar:check-circle-line-duotone" class="fs-5"></iconify-icon>
+        </div>
+        <div>
+          <span class="crud-kpi-label">Emitidas / Válidas</span>
+          <h4 class="crud-kpi-val">{{ issuedInvoicesCount }}</h4>
+        </div>
+      </div>
+      <div class="crud-kpi-card">
+        <div class="crud-kpi-icon warning">
+          <iconify-icon icon="solar:close-circle-line-duotone" class="fs-5"></iconify-icon>
+        </div>
+        <div>
+          <span class="crud-kpi-label">Anuladas</span>
+          <h4 class="crud-kpi-val">{{ canceledInvoicesCount }}</h4>
+        </div>
+      </div>
+    </div>
+
     <!-- Si no es el submódulo de facturas, mostrar aviso normal -->
     <div v-if="!isInvoiceSubmodule" class="card rounded-4 border-0 shadow-sm p-4 bg-dark text-white mt-4">
       <p class="text-secondary mb-0">
@@ -1064,33 +1119,30 @@ watch(() => route.path, () => {
 
     <!-- VISTA PRINCIPAL DE FACTURACIÓN ECUADOR -->
     <template v-else>
-      <!-- Las alertas se muestran en un aviso flotante (ver AlertBox al final), visible incluso sobre los modales -->
-
       <!-- Barra de Filtros y Búsqueda -->
-      <div class="card rounded-4 border-0 shadow-sm p-3 bg-dark text-white mt-3">
+      <div v-show="!isFormOpen" class="crud-filters-card mt-3">
         <div class="d-flex flex-wrap align-items-center justify-content-between gap-3">
           <div class="d-flex align-items-center gap-2 flex-grow-1" style="max-width: 400px;">
             <div class="input-group">
-              <span class="input-group-text bg-dark-subtle border-secondary text-secondary">
+              <span class="input-group-text">
                 <iconify-icon icon="solar:magnifer-line-duotone"></iconify-icon>
               </span>
               <input
                 v-model="searchInvoice"
                 type="text"
-                class="form-control bg-dark-subtle border-secondary text-white"
+                class="form-control"
                 placeholder="Buscar por # factura, cliente o RUC..."
               />
             </div>
           </div>
 
           <div class="d-flex align-items-center gap-2">
-            <label class="text-secondary small fw-semibold">Sucursal:</label>
-            <!-- El listado y la emisión quedan fijos a la empresa y sucursal seleccionadas al ingresar (se cambian con "Cambiar") -->
+            <label class="small fw-semibold text-muted">Sucursal:</label>
             <span class="badge bg-primary-subtle text-primary border border-primary-subtle px-3 py-2" title="Sucursal seleccionada">
-              {{ branchFilter === 'TODAS' ? 'Todas las sucursales de la empresa' : branchName(Number(branchFilter)) }}
+              {{ branchFilter === 'TODAS' ? 'Todas las sucursales' : branchName(Number(branchFilter)) }}
             </span>
-            <label class="text-secondary small fw-semibold ms-2">Estado:</label>
-            <select v-model="statusFilter" class="form-select bg-dark-subtle border-secondary text-white w-auto">
+            <label class="small fw-semibold ms-2 text-muted">Estado:</label>
+            <select v-model="statusFilter" class="form-select w-auto">
               <option value="TODOS">Todos</option>
               <option value="ISSUED">Emitidas</option>
               <option value="CANCELED">Anuladas</option>
@@ -1100,10 +1152,10 @@ watch(() => route.path, () => {
       </div>
 
       <!-- Tabla de Facturas Emitidas -->
-      <div class="card rounded-4 overflow-hidden mt-3">
+      <div v-show="!isFormOpen" class="crud-table-card mt-3">
         <div class="table-responsive">
-          <table class="table table-hover align-middle mb-0">
-            <thead class="table-primary text-uppercase fs-1">
+          <table class="crud-table">
+            <thead>
               <tr>
                 <th>No. Factura (SRI)</th>
                 <th>Fecha Emisión</th>
@@ -1948,17 +2000,18 @@ watch(() => route.path, () => {
 
 /* Contenedor responsivo del detalle de ítems de la factura */
 .invoice-details-table-wrapper {
-  min-height: 450px;
-  overflow-x: auto;
+  min-height: 220px;
+  overflow: visible;
   position: relative;
   background-color: var(--bs-card-bg, #111c2d);
   border-color: var(--bs-border-color, rgba(189, 200, 240, 0.15)) !important;
-  padding-bottom: 30px;
+  padding-bottom: 20px;
 }
 
-@media (min-width: 992px) {
+@media (max-width: 991px) {
   .invoice-details-table-wrapper {
-    overflow: visible;
+    overflow-x: auto;
+    min-height: 300px;
   }
 }
 

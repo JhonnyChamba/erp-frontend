@@ -1733,7 +1733,7 @@ const submitSubscription = async () => {
 </script>
 
 <template>
-  <div class="settings-page" :class="{ 'form-open': isFormOpen }">
+  <div class="crud-page settings-page" :class="{ 'form-open': isFormOpen }">
     
     <!-- ENCABEZADO DE MÓDULO -->
     <div class="card rounded-4 border-0 shadow-sm p-4 mb-4 bg-navy-card keep-in-form">
