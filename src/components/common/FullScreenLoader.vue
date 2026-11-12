@@ -127,3 +127,4 @@ html[data-bs-theme='light'] .loader-subtitle {
   opacity: 0;
 }
 </style>
+
