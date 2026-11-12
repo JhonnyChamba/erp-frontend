@@ -119,29 +119,33 @@ export const createInvoice = async (payload: CreateInvoicePayload): Promise<Invo
 
 export const cancelInvoice = async (id: number, companyId?: number): Promise<InvoiceItem> => {
   const { data } = await api.patch(`/sales/invoices/${id}/cancel`, null, {
-    params: companyId ? { companyId } : {}
-  })
+    params: companyId ? { companyId } : {},
+    loadingMessage: 'Anulando factura...',
+  } as any)
   return data
 }
 
 export const signInvoice = async (id: number, companyId?: number) => {
   const { data } = await api.post(`/sales/invoices/${id}/sign`, null, {
-    params: companyId ? { companyId } : {}
-  })
+    params: companyId ? { companyId } : {},
+    loadingMessage: 'Firmando comprobante electrónicamente...',
+  } as any)
   return data as { id: number; sign_status: string; file_name: string }
 }
 
 export const sendInvoiceToSri = async (id: number, companyId?: number) => {
   const { data } = await api.post(`/sales/invoices/${id}/send-sri`, null, {
-    params: companyId ? { companyId } : {}
-  })
+    params: companyId ? { companyId } : {},
+    loadingMessage: 'Enviando y autorizando comprobante en el SRI...',
+  } as any)
   return data as SriSendResult
 }
 
 export const checkInvoiceSri = async (id: number, companyId?: number) => {
   const { data } = await api.post(`/sales/invoices/${id}/check-sri`, null, {
-    params: companyId ? { companyId } : {}
-  })
+    params: companyId ? { companyId } : {},
+    loadingMessage: 'Consultando estado en el SRI...',
+  } as any)
   return data as SriSendResult
 }
 

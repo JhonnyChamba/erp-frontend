@@ -105,7 +105,9 @@ export const createCreditNote = async (payload: CreateCreditNotePayload): Promis
 }
 
 export const sendCreditNoteSri = async (id: number): Promise<{ success: boolean; status: string; message: string; authorizationNumber?: string; authorizationDate?: string; sriMessages?: any[] }> => {
-  const res = await api.post(`/sales/credit-notes/${id}/send-sri`)
+  const res = await api.post(`/sales/credit-notes/${id}/send-sri`, null, {
+    loadingMessage: 'Enviando y autorizando nota de crédito en el SRI...',
+  } as any)
   return res.data
 }
 

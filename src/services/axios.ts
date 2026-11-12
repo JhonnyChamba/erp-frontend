@@ -23,27 +23,60 @@ api.interceptors.request.use(
       } catch (_) {}
     }
 
-    if (!(config as any).silent) {
+    const method = (config.method || 'get').toUpperCase()
+    const customConfig = config as any
+
+    // Determinar si debe mostrar el spinner a pantalla completa:
+    // - Si customConfig.silent === true o customConfig.fullscreen === false: NO mostrar
+    // - Si customConfig.fullscreen === true: SÍ mostrar
+    // - Por defecto:
+    //   * GET (listados, búsquedas, filtros): NO mostrar a pantalla completa (se muestra el spinner local de la tabla)
+    //   * POST (crear / registrar): SÍ mostrar -> "Registrando información..."
+    //   * PUT / PATCH (actualizar / editar): SÍ mostrar -> "Actualizando información..."
+    //   * DELETE (eliminar): SÍ mostrar -> "Eliminando información..."
+    const isMutating = ['POST', 'PUT', 'PATCH', 'DELETE'].includes(method)
+    const shouldShowFullscreen =
+      !customConfig.silent &&
+      (customConfig.fullscreen === true || (customConfig.fullscreen !== false && isMutating))
+
+    if (shouldShowFullscreen) {
+      customConfig._trackedByFullscreenLoader = true
+      let message = customConfig.loadingMessage
+
+      if (!message) {
+        if (method === 'POST') {
+          message = 'Registrando información...'
+        } else if (method === 'PUT' || method === 'PATCH') {
+          message = 'Actualizando información...'
+        } else if (method === 'DELETE') {
+          message = 'Eliminando información...'
+        } else {
+          message = 'Procesando información...'
+        }
+      }
+
       try {
         const loadingStore = useLoadingStore()
-        loadingStore.startRequest()
+        loadingStore.startRequest(message)
       } catch (_) {}
     }
 
     return config
   },
   (error) => {
-    try {
-      const loadingStore = useLoadingStore()
-      loadingStore.finishRequest()
-    } catch (_) {}
+    if ((error?.config as any)?._trackedByFullscreenLoader) {
+      try {
+        const loadingStore = useLoadingStore()
+        loadingStore.finishRequest()
+      } catch (_) {}
+    }
     return Promise.reject(error)
   }
 )
 
 api.interceptors.response.use(
   (response) => {
-    if (!(response.config as any)?.silent) {
+    if ((response?.config as any)?._trackedByFullscreenLoader) {
       try {
         const loadingStore = useLoadingStore()
         loadingStore.finishRequest()
@@ -52,7 +85,7 @@ api.interceptors.response.use(
     return response
   },
   (error) => {
-    if (!(error.config as any)?.silent) {
+    if ((error?.config as any)?._trackedByFullscreenLoader) {
       try {
         const loadingStore = useLoadingStore()
         loadingStore.finishRequest()
