@@ -399,7 +399,7 @@ export interface BranchPayload {
   code: string
   name: string
   address: string
-  emission_point: string
+  emission_point?: string
   phone?: string
   email?: string
   is_matrix?: boolean
@@ -417,7 +417,7 @@ export const getBranches = async (companyId: number, params: { onlyEnabled?: boo
 }
 
 export const createBranch = async (companyId: number, payload: BranchPayload) => {
-  const { data } = await api.post('/branchCompany', { companyId, ...payload }, companyHeader(companyId))
+  const { data } = await api.post('/branchCompany', { companyId, emission_point: '001', ...payload }, companyHeader(companyId))
   return data
 }
 
@@ -436,3 +436,22 @@ export const deleteBranch = async (companyId: number, id: number) => {
   const { data } = await api.delete(`/branchCompany/${id}`, companyHeader(companyId))
   return data
 }
+
+export interface CertInspectionResult {
+  valid: boolean
+  expires_at: string
+  issued_at: string
+  subject_name: string
+  issuer_name: string
+  is_expired: boolean
+}
+
+export const inspectCompanyCert = async (
+  companyId?: number | null,
+  payload?: { cert_p12_base64?: string; cert_password?: string }
+): Promise<CertInspectionResult> => {
+  const url = companyId ? `/company/${companyId}/inspect-cert` : '/company/inspect-cert'
+  const { data } = await api.post(url, payload || {})
+  return data
+}
+

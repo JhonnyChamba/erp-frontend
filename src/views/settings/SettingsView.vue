@@ -28,6 +28,7 @@ import {
   updateBranch,
   deleteBranch,
   setMainBranch,
+  inspectCompanyCert,
   type BranchItem,
   type CompanyItem,
   type UserItem,
@@ -552,6 +553,37 @@ const removeP12 = () => {
   formCompany.value.remove_certificate = true
 }
 
+const inspectingCert = ref(false)
+const handleInspectCert = async () => {
+  if (!formCompany.value.cert_password && !formCompany.value.has_certificate) {
+    toast.warning('Ingresa la contraseña de la firma para leer el certificado.', 'Contraseña Requerida')
+    return
+  }
+  inspectingCert.value = true
+  try {
+    const payload: any = {}
+    if (formCompany.value.cert_p12_base64) {
+      payload.cert_p12_base64 = formCompany.value.cert_p12_base64
+    }
+    if (formCompany.value.cert_password) {
+      payload.cert_password = formCompany.value.cert_password
+    }
+    const res = await inspectCompanyCert(isEditingCompany.value ? editingCompanyId.value : null, payload)
+    if (res?.expires_at) {
+      formCompany.value.cert_expires_at = res.expires_at
+      if (res.is_expired) {
+        toast.warning(`Atención: el certificado caducó el ${res.expires_at} (${res.subject_name || ''})`, 'Firma Expirada')
+      } else {
+        toast.success(`Fecha de caducidad obtenida del certificado: ${res.expires_at} (${res.subject_name || ''})`, 'Certificado Leído')
+      }
+    }
+  } catch (err: any) {
+    toast.error(err?.response?.data?.message || 'No se pudo leer la fecha del certificado. Verifica la contraseña.')
+  } finally {
+    inspectingCert.value = false
+  }
+}
+
 const formUser = ref({
   companyId: 1,
   num_document: '',
@@ -901,8 +933,8 @@ const branches = ref<BranchItem[]>([])
 const isEditingBranch = ref(false)
 const editingBranchId = ref<number | null>(null)
 const emptyBranchForm = () => ({
+  companyId: currentCompanyId.value || companies.value[0]?.id || 1,
   code: '',
-  emission_point: '001',
   name: '',
   address: '',
   phone: '',
@@ -911,6 +943,15 @@ const emptyBranchForm = () => ({
   enabled: true,
 })
 const formBranch = ref(emptyBranchForm())
+
+const branchCompanyOptions = computed(() => {
+  return companies.value.map((c) => ({
+    id: c.id,
+    label: `${c.ruc} - ${c.business_name || c.trade_name || c.description}`,
+    sublabel: c.trade_name || c.business_name,
+  }))
+})
+
 // Ya existe una matriz en la empresa: no se puede marcar otra desde el formulario (se usa "Marcar como matriz")
 const hasMatrix = computed(() => branches.value.some((b) => b.isMatrix))
 const matrixSwitchLocked = computed(() => isEditingBranch.value || hasMatrix.value || branches.value.length === 0)
@@ -930,7 +971,12 @@ const openCreateBranch = () => {
   editingBranchId.value = null
   errorMsg.value = ''
   // La primera sucursal es la matriz; si ya hay una, las nuevas son sucursales normales
-  formBranch.value = { ...emptyBranchForm(), code: nextBranchCode(), is_matrix: branches.value.length === 0 }
+  formBranch.value = {
+    ...emptyBranchForm(),
+    companyId: currentCompanyId.value || companies.value[0]?.id || 1,
+    code: nextBranchCode(),
+    is_matrix: branches.value.length === 0,
+  }
   showBranchModal.value = true
 }
 
@@ -939,8 +985,8 @@ const openEditBranch = (b: BranchItem) => {
   editingBranchId.value = b.id
   errorMsg.value = ''
   formBranch.value = {
+    companyId: currentCompanyId.value || companies.value[0]?.id || 1,
     code: b.code,
-    emission_point: b.emissionPoint || '001',
     name: b.name,
     address: b.address,
     phone: b.phone || '',
@@ -961,20 +1007,20 @@ const submitBranch = async () => {
   errorMsg.value = ''
   try {
     const f = formBranch.value
+    const targetCompanyId = Number(f.companyId || currentCompanyId.value)
     const payload = {
       code: f.code,
-      emission_point: f.emission_point,
       name: f.name.trim(),
       address: f.address.trim(),
-      phone: f.phone.trim(),
-      email: f.email.trim(),
+      phone: f.phone ? f.phone.trim() : undefined,
+      email: f.email ? f.email.trim() : undefined,
     }
     if (isEditingBranch.value && editingBranchId.value) {
       // La matriz no se cambia desde aquí: se usa la acción "Marcar como matriz"
-      await updateBranch(currentCompanyId.value, editingBranchId.value, { ...payload, enabled: f.enabled })
+      await updateBranch(targetCompanyId, editingBranchId.value, { ...payload, enabled: f.enabled })
       successMsg.value = 'Sucursal actualizada exitosamente.'
     } else {
-      await createBranch(currentCompanyId.value, { ...payload, is_matrix: f.is_matrix && !hasMatrix.value })
+      await createBranch(targetCompanyId, { ...payload, is_matrix: f.is_matrix && !hasMatrix.value })
       successMsg.value = 'Sucursal registrada exitosamente.'
     }
     showBranchModal.value = false
@@ -2670,22 +2716,30 @@ const submitSubscription = async () => {
                 <div class="alert alert-info d-flex align-items-start gap-2 py-2 mb-4">
                   <iconify-icon icon="solar:info-circle-line-duotone" class="fs-5 mt-1"></iconify-icon>
                   <span class="fs-2">
-                    El número de factura se forma con el <b>establecimiento</b>, el <b>punto de emisión</b> y un secuencial:
-                    <span class="font-monospace">{{ formBranch.code || '001' }}-{{ formBranch.emission_point || '001' }}-000000001</span>.
-                    Cada combinación lleva su propia numeración. La dirección se envía al SRI como dirección del establecimiento.
+                    El número de establecimiento (3 dígitos) identifica la sucursal ante el SRI (ej: <b>001, 002</b>).
+                    Los puntos de emisión y secuenciales se configuran de forma independiente en el módulo de <b>Puntos de Emisión</b>.
                   </span>
                 </div>
 
                 <div class="row">
+                  <div class="col-md-5 mb-3">
+                    <label class="form-label text-secondary fs-2 fw-semibold">Empresa a la que pertenece *</label>
+                    <select
+                      v-model="formBranch.companyId"
+                      class="form-select bg-dark-subtle border-secondary-subtle text-white"
+                      required
+                      :disabled="isEditingBranch"
+                    >
+                      <option v-for="c in companies" :key="c.id" :value="c.id">
+                        {{ c.ruc }} - {{ c.business_name || c.trade_name || c.description }}
+                      </option>
+                    </select>
+                  </div>
                   <div class="col-md-3 mb-3">
                     <label class="form-label text-secondary fs-2 fw-semibold">Establecimiento (3 dígitos) *</label>
-                    <input v-model="formBranch.code" @input="formBranch.code = onlyDigits3(formBranch.code)" type="text" inputmode="numeric" maxlength="3" minlength="3" pattern="[0-9]{3}" class="form-control bg-dark-subtle border-secondary-subtle text-white font-monospace" placeholder="001" required />
+                    <input v-model="formBranch.code" @input="formBranch.code = onlyDigits3(formBranch.code)" type="text" inputmode="numeric" maxlength="3" minlength="3" pattern="[0-9]{3}" class="form-control bg-dark-subtle border-secondary-subtle text-white font-monospace text-center" placeholder="001" required />
                   </div>
-                  <div class="col-md-3 mb-3">
-                    <label class="form-label text-secondary fs-2 fw-semibold">Punto de emisión (3 dígitos) *</label>
-                    <input v-model="formBranch.emission_point" @input="formBranch.emission_point = onlyDigits3(formBranch.emission_point)" type="text" inputmode="numeric" maxlength="3" minlength="3" pattern="[0-9]{3}" class="form-control bg-dark-subtle border-secondary-subtle text-white font-monospace" placeholder="001" required />
-                  </div>
-                  <div class="col-md-6 mb-3">
+                  <div class="col-md-4 mb-3">
                     <label class="form-label text-secondary fs-2 fw-semibold">Nombre de la sucursal *</label>
                     <input v-model="formBranch.name" type="text" maxlength="150" class="form-control bg-dark-subtle border-secondary-subtle text-white" placeholder="Ej. Sucursal Norte" required />
                   </div>
@@ -2969,10 +3023,23 @@ const submitSubscription = async () => {
                   </div>
                   <div class="col-md-6">
                     <label class="form-label text-secondary fs-2 fw-semibold">Contraseña de la firma</label>
-                    <input v-model="formCompany.cert_password" type="password" autocomplete="new-password" class="form-control bg-dark-subtle border-secondary-subtle text-white" placeholder="Solo al cargar un archivo nuevo" />
+                    <input v-model="formCompany.cert_password" type="password" autocomplete="new-password" class="form-control bg-dark-subtle border-secondary-subtle text-white" placeholder="Contraseña del archivo .p12" />
                   </div>
                   <div class="col-md-6">
-                    <label class="form-label text-secondary fs-2 fw-semibold">Fecha de caducidad</label>
+                    <div class="d-flex justify-content-between align-items-center mb-1">
+                      <label class="form-label text-secondary fs-2 fw-semibold mb-0">Fecha de caducidad</label>
+                      <button
+                        type="button"
+                        class="btn btn-outline-info btn-sm py-0 px-2 rounded-pill d-inline-flex align-items-center gap-1"
+                        :disabled="inspectingCert || (!formCompany.cert_password && !formCompany.has_certificate)"
+                        title="Obtener fecha de caducidad directamente del certificado"
+                        @click="handleInspectCert"
+                      >
+                        <span v-if="inspectingCert" class="spinner-grow spinner-grow-sm text-info" role="status" aria-hidden="true"></span>
+                        <iconify-icon v-else icon="solar:calendar-search-line-duotone" class="fs-4"></iconify-icon>
+                        <span class="fs-1">Obtener fecha de caducidad</span>
+                      </button>
+                    </div>
                     <input v-model="formCompany.cert_expires_at" type="date" class="form-control bg-dark-subtle border-secondary-subtle text-white" />
                   </div>
                   <small class="text-secondary">El archivo y su contraseña se guardan cifrados (AES-256) y nunca se devuelven al navegador.</small>
