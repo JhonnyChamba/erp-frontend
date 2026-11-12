@@ -30,3 +30,4 @@ export async function uploadUserPhoto(userId: number, file: File): Promise<Uploa
   })
   return res.data
 }
+
