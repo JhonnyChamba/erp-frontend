@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import { toast } from '@/utils/toastr'
+import { resolveSriErrorInfo, type SriErrorInfo } from '@/utils/sri-errors'
 
 export interface SriDetailMessage {
   identificador?: string
@@ -85,6 +86,10 @@ const copyToClipboard = (text: string, label: string) => {
   }).catch(() => {
     toast.info(text, label)
   })
+}
+
+const getResolution = (msg: SriDetailMessage): SriErrorInfo | null => {
+  return resolveSriErrorInfo(msg.identificador, `${msg.mensaje || ''} ${msg.informacionAdicional || ''}`)
 }
 </script>
 
@@ -242,10 +247,25 @@ const copyToClipboard = (text: string, label: string) => {
                 </span>
               </div>
               <div class="fw-semibold fs-2 text-white">
-                {{ msg.mensaje }}
+                {{ msg.mensaje || getResolution(msg)?.title || 'Error devuelto por el WebService SRI' }}
               </div>
               <div v-if="msg.informacionAdicional" class="text-white-50 fs-1 mt-1 font-monospace">
                 Detalle adicional: {{ msg.informacionAdicional }}
+              </div>
+
+              <!-- GUÍA / SOLUCIÓN AMIGABLE DEL ERROR SRI -->
+              <div v-if="getResolution(msg)" class="mt-2 p-2 rounded-2 bg-dark border border-warning-subtle text-light">
+                <div class="d-flex align-items-center gap-2 mb-1">
+                  <iconify-icon icon="solar:lightbulb-bolt-bold-duotone" class="text-warning fs-4"></iconify-icon>
+                  <strong class="text-warning fs-2">{{ getResolution(msg)?.title }}</strong>
+                </div>
+                <p class="fs-1 text-white-50 mb-1">
+                  <strong>Causa:</strong> {{ getResolution(msg)?.cause }}
+                </p>
+                <div class="fs-1 text-info d-flex align-items-start gap-1">
+                  <iconify-icon icon="solar:wrench-bold-duotone" class="fs-4 flex-shrink-0 mt-1"></iconify-icon>
+                  <span style="white-space: pre-line;"><strong>Solución recomendada:</strong> {{ getResolution(msg)?.solution }}</span>
+                </div>
               </div>
             </div>
           </div>
