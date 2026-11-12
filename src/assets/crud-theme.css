@@ -247,7 +247,7 @@
    debe ser una vista de formulario normal en página (con botón "Volver al Listado"),
    NO un modal emergente flotante con backdrop oscuro.
    -------------------------------------------------------------------------- */
-.form-open> :not(.form-page) {
+.form-open > :not(.form-page):not(.keep-in-form):not(.crud-modal-backdrop):not(.modal-backdrop-custom) {
   display: none !important;
 }
 
@@ -299,7 +299,7 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  z-index: 1055;
+  z-index: 10050 !important;
   padding: 1rem;
   animation: crudFadeIn 0.2s ease-out;
 }

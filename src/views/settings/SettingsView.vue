@@ -3039,21 +3039,22 @@ const submitSubscription = async () => {
                     <input v-model="formCompany.cert_password" type="password" autocomplete="new-password" class="form-control bg-dark-subtle border-secondary-subtle text-white" placeholder="Contraseña del archivo .p12" />
                   </div>
                   <div class="col-md-6">
-                    <div class="d-flex justify-content-between align-items-center mb-1">
-                      <label class="form-label text-secondary fs-2 fw-semibold mb-0">Fecha de caducidad</label>
+                    <label class="form-label text-secondary fs-2 fw-semibold mb-1">Fecha de caducidad</label>
+                    <div class="input-group">
+                      <input v-model="formCompany.cert_expires_at" type="date" class="form-control bg-dark-subtle border-secondary-subtle text-white" />
                       <button
                         type="button"
-                        class="btn btn-outline-info btn-sm py-0 px-2 rounded-pill d-inline-flex align-items-center gap-1"
-                        :disabled="inspectingCert || (!formCompany.cert_password && !formCompany.has_certificate)"
-                        title="Obtener fecha de caducidad directamente del certificado"
+                        class="btn btn-primary d-inline-flex align-items-center gap-1"
+                        :disabled="inspectingCert || (!formCompany.cert_password && !formCompany.has_certificate && !formCompany.cert_p12_base64)"
+                        title="Obtener fecha de caducidad directamente del archivo de firma"
                         @click="handleInspectCert"
                       >
-                        <span v-if="inspectingCert" class="spinner-grow spinner-grow-sm text-info" role="status" aria-hidden="true"></span>
-                        <iconify-icon v-else icon="solar:calendar-search-line-duotone" class="fs-4"></iconify-icon>
-                        <span class="fs-1">Obtener fecha de caducidad</span>
+                        <span v-if="inspectingCert" class="spinner-grow spinner-grow-sm" role="status" aria-hidden="true"></span>
+                        <iconify-icon v-else icon="solar:calendar-search-line-duotone" class="fs-5"></iconify-icon>
+                        <span class="fs-2">Obtener del Certificado</span>
                       </button>
                     </div>
-                    <input v-model="formCompany.cert_expires_at" type="date" class="form-control bg-dark-subtle border-secondary-subtle text-white" />
+                    <small class="text-secondary d-block mt-1">Lee automáticamente la fecha de caducidad desde el archivo .p12</small>
                   </div>
                   <small class="text-secondary">El archivo y su contraseña se guardan cifrados (AES-256) y nunca se devuelven al navegador.</small>
                 </div>

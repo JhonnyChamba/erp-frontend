@@ -94,8 +94,9 @@ const getResolution = (msg: SriDetailMessage): SriErrorInfo | null => {
 </script>
 
 <template>
-  <div v-if="modelValue" class="modal-backdrop-custom" @click.self="close">
-    <div class="modal-card-custom modal-lg-custom sri-modal-card">
+  <Teleport to="body">
+    <div v-if="modelValue" class="modal-backdrop-custom keep-in-form" @click.self="close">
+      <div class="modal-card-custom modal-lg-custom sri-modal-card">
       <!-- HEADER -->
       <div class="modal-header-custom d-flex justify-content-between align-items-center">
         <div class="d-flex align-items-center gap-2">
@@ -288,6 +289,7 @@ const getResolution = (msg: SriDetailMessage): SriErrorInfo | null => {
       </div>
     </div>
   </div>
+</Teleport>
 </template>
 
 <style scoped>

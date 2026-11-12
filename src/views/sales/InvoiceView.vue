@@ -1901,7 +1901,8 @@ watch(() => route.path, () => {
     </div>
 
     <!-- MODAL 2: VER DETALLE / RIDE DE FACTURA -->
-    <div v-if="showDetailModal && viewingInvoice" class="modal-backdrop-custom" @click.self="showDetailModal = false">
+    <Teleport to="body">
+      <div v-if="showDetailModal && viewingInvoice" class="modal-backdrop-custom keep-in-form" @click.self="showDetailModal = false">
       <div class="modal-card-custom modal-lg-custom">
         <div class="modal-header-custom d-flex justify-content-between align-items-center">
           <div>
@@ -2061,9 +2062,11 @@ watch(() => route.path, () => {
         </div>
       </div>
     </div>
+  </Teleport>
 
-    <!-- MODAL: + NUEVO CLIENTE RÁPIDO (VENTA MOSTRADOR POS) -->
-    <div v-if="showQuickCustomerModal" class="modal-backdrop-custom" @click.self="showQuickCustomerModal = false">
+  <!-- MODAL: + NUEVO CLIENTE RÁPIDO (VENTA MOSTRADOR POS) -->
+  <Teleport to="body">
+    <div v-if="showQuickCustomerModal" class="modal-backdrop-custom keep-in-form" @click.self="showQuickCustomerModal = false">
       <div class="modal-card-custom" style="max-width: 520px;">
         <div class="modal-header-custom d-flex justify-content-between align-items-center">
           <div class="d-flex align-items-center gap-2">
@@ -2150,9 +2153,11 @@ watch(() => route.path, () => {
         </form>
       </div>
     </div>
+  </Teleport>
 
-    <!-- MODAL: CUADRE DE CAJA DIARIO (POS) -->
-    <div v-if="showDailyCashModal" class="modal-backdrop-custom" @click.self="showDailyCashModal = false">
+  <!-- MODAL: CUADRE DE CAJA DIARIO (POS) -->
+  <Teleport to="body">
+    <div v-if="showDailyCashModal" class="modal-backdrop-custom keep-in-form" @click.self="showDailyCashModal = false">
       <div class="modal-card-custom" style="max-width: 580px;">
         <div class="modal-header-custom d-flex justify-content-between align-items-center">
           <div class="d-flex align-items-center gap-2">
@@ -2222,6 +2227,7 @@ watch(() => route.path, () => {
         </div>
       </div>
     </div>
+  </Teleport>
 
     <!-- MODAL 3: RESPUESTA DETALLADA DEL SRI -->
     <SriResponseModal
@@ -2270,7 +2276,7 @@ watch(() => route.path, () => {
   display: flex;
   align-items: center;
   justify-content: center;
-  z-index: 1050;
+  z-index: 10050 !important;
   padding: 16px;
 }
 
@@ -2320,7 +2326,7 @@ watch(() => route.path, () => {
 }
 
 /* Formularios de registro/edición como página (no modal): al abrirse reemplazan al listado */
-.form-open > :not(.form-page):not(.keep-in-form) {
+.form-open > :not(.form-page):not(.keep-in-form):not(.modal-backdrop-custom):not(.crud-modal-backdrop) {
   display: none !important;
 }
 .form-page {

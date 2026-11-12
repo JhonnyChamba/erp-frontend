@@ -1113,10 +1113,16 @@ const openCreateForm = () => {
   selectedInvoice.value = null
   quickReasonSelect.value = ''
   const defaultBranch = branchesList.value.find((b) => b.enabled !== false) || branchesList.value[0]
+  const defaultBranchId = defaultBranch?.id || null
+  const branchPoints = emissionPointsList.value.filter(
+    (p: any) => !defaultBranchId || p.branch_id === defaultBranchId || p.branch?.id === defaultBranchId
+  )
+  const defaultSerie = branchPoints[0]?.serie || '001'
+
   form.value = {
     invoiceId: undefined,
-    branchId: defaultBranch?.id || null,
-    emission_point: '001',
+    branchId: defaultBranchId,
+    emission_point: defaultSerie,
     issue_date: new Date().toISOString().slice(0, 10),
     modified_document_type: '01',
     modified_document_number: '',
@@ -1151,6 +1157,9 @@ const onInvoiceSelected = (invId: any) => {
   form.value.modified_document_number = inv.invoice_number
   form.value.modified_document_date = inv.issue_date ? String(inv.issue_date).slice(0, 10) : ''
   form.value.branchId = inv.branch_id || form.value.branchId
+  if (inv.emission_point) {
+    form.value.emission_point = inv.emission_point
+  }
   form.value.customer_id_type = inv.customer_id_type || '05'
   form.value.customer_id_number = inv.customer_id_number || ''
   form.value.customer_name = inv.customer_name || ''
@@ -1201,6 +1210,8 @@ const fetchNextSequential = async () => {
     const res = await getNextCreditNoteSequential(form.value.branchId, form.value.emission_point)
     if (res?.sequential) {
       previewSequential.value = res.sequential
+    } else if (typeof res === 'string') {
+      previewSequential.value = res
     }
   } catch (e) {
     // Silencioso
