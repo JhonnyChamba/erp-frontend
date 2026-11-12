@@ -330,36 +330,6 @@ export function generateRideA4Html(inv: any, company: any): string {
       </table>
     </div>
   </div>
-
-  <script>
-    (function() {
-      function doPrint() {
-        setTimeout(function() {
-          try {
-            window.focus();
-            window.print();
-          } catch (e) {}
-        }, 350);
-      }
-      var img = document.getElementById('ride-logo-img');
-      if (img) {
-        if (img.complete && img.naturalWidth > 0) {
-          doPrint();
-        } else {
-          img.onload = doPrint;
-          img.onerror = doPrint;
-          setTimeout(doPrint, 1500);
-        }
-      } else {
-        if (document.readyState === 'complete') {
-          doPrint();
-        } else {
-          window.addEventListener('load', doPrint);
-          setTimeout(doPrint, 600);
-        }
-      }
-    })();
-  <\/script>
 </body>
 </html>`
 }
@@ -499,42 +469,13 @@ export function generateRideTicketHtml(inv: any, company: any, cashInfo?: { rece
     Consulte su comprobante en<br>
     <b>www.sri.gob.ec</b>
   </div>
-
-  <script>
-    (function() {
-      function doPrint() {
-        setTimeout(function() {
-          try {
-            window.focus();
-            window.print();
-          } catch (e) {}
-        }, 350);
-      }
-      var img = document.getElementById('ride-ticket-logo-img');
-      if (img) {
-        if (img.complete && img.naturalWidth > 0) {
-          doPrint();
-        } else {
-          img.onload = doPrint;
-          img.onerror = doPrint;
-          setTimeout(doPrint, 1500);
-        }
-      } else {
-        if (document.readyState === 'complete') {
-          doPrint();
-        } else {
-          window.addEventListener('load', doPrint);
-          setTimeout(doPrint, 600);
-        }
-      }
-    })();
-  <\/script>
 </body>
 </html>`
 }
 
 /**
- * Abre la ventana emergente y dispara la impresión del RIDE oficial (A4 o Ticket 80mm)
+ * Dispara la impresión del RIDE oficial (A4 o Ticket 80mm) en la misma pestaña
+ * mediante un iframe invisible, sin abrir ventanas emergentes ni URLs 'about:blank'.
  */
 export function printRideDoc(
   inv: any,
@@ -543,11 +484,67 @@ export function printRideDoc(
   cashInfo?: { received?: number; change?: number }
 ) {
   const html = format === 'ticket' ? generateRideTicketHtml(inv, company, cashInfo) : generateRideA4Html(inv, company)
-  const printWindow = window.open('', '_blank', 'width=850,height=900')
-  if (!printWindow) {
-    alert('El navegador bloqueó la ventana de impresión. Por favor habilita los pop-ups.')
-    return
+
+  // Remover iframe previo si existe para asegurar estado limpio
+  const oldIframe = document.getElementById('print-ride-iframe')
+  if (oldIframe) {
+    oldIframe.remove()
   }
-  printWindow.document.write(html)
-  printWindow.document.close()
+
+  // Crear iframe invisible en la misma pestaña
+  const iframe = document.createElement('iframe')
+  iframe.id = 'print-ride-iframe'
+  iframe.style.position = 'fixed'
+  iframe.style.top = '0'
+  iframe.style.left = '0'
+  iframe.style.width = '1px'
+  iframe.style.height = '1px'
+  iframe.style.opacity = '0.01'
+  iframe.style.border = '0'
+  iframe.style.pointerEvents = 'none'
+  iframe.style.zIndex = '-9999'
+  document.body.appendChild(iframe)
+
+  const doc = iframe.contentWindow?.document || iframe.contentDocument
+  if (!doc) return
+
+  doc.open()
+  doc.write(html)
+  doc.close()
+
+  const win = iframe.contentWindow
+  if (!win) return
+
+  let printed = false
+  const doPrint = () => {
+    if (printed) return
+    printed = true
+    setTimeout(() => {
+      try {
+        win.focus()
+        win.print()
+      } catch (err) {
+        console.error('Error al imprimir desde iframe:', err)
+      }
+    }, 250)
+  }
+
+  // Esperar a que la imagen del logo cargue dentro del iframe antes de disparar la impresión
+  const img = (doc.getElementById('ride-logo-img') || doc.getElementById('ride-ticket-logo-img')) as HTMLImageElement | null
+  if (img) {
+    if (img.complete && img.naturalWidth > 0) {
+      doPrint()
+    } else {
+      img.onload = () => doPrint()
+      img.onerror = () => doPrint()
+      setTimeout(doPrint, 1500)
+    }
+  } else {
+    if (doc.readyState === 'complete') {
+      doPrint()
+    } else {
+      win.addEventListener('load', doPrint)
+      setTimeout(doPrint, 600)
+    }
+  }
 }
