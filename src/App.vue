@@ -1,7 +1,8 @@
 <template>
   <router-view />
+  <FullScreenLoader />
 </template>
 
-<!-- <template>
-  <h1>Login funciona 🚀</h1>
-</template> -->
+<script setup lang="ts">
+import FullScreenLoader from '@/components/common/FullScreenLoader.vue'
+</script>
