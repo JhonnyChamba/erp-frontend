@@ -92,13 +92,32 @@ Toda vista de gestión (ej. Facturas, Notas de Crédito, Puntos de Emisión, Cli
                 </span>
               </td>
               <td class="text-end">
-                <div class="btn-group gap-1">
-                  <button class="btn-action-icon edit" @click="openEditForm(item)" title="Editar">
-                    <iconify-icon icon="solar:pen-new-square-line-duotone"></iconify-icon>
+                <div class="dropdown">
+                  <button
+                    class="btn bg-secondary-subtle text-secondary btn-sm dropdown-toggle d-inline-flex align-items-center gap-1 fw-semibold"
+                    type="button"
+                    data-bs-toggle="dropdown"
+                    data-bs-popper-config='{"strategy":"fixed"}'
+                    aria-expanded="false"
+                  >
+                    <iconify-icon icon="solar:menu-dots-bold" class="fs-4"></iconify-icon>
+                    <span>Acciones</span>
                   </button>
-                  <button class="btn-action-icon delete" @click="confirmDelete(item)" title="Eliminar">
-                    <iconify-icon icon="solar:trash-bin-trash-line-duotone"></iconify-icon>
-                  </button>
+                  <ul class="dropdown-menu dropdown-menu-end shadow-lg py-1">
+                    <li>
+                      <a class="dropdown-item py-2" href="javascript:void(0)" @click="openEditForm(item)">
+                        <iconify-icon icon="solar:pen-2-line-duotone" class="fs-5 text-warning"></iconify-icon>
+                        <span>Editar</span>
+                      </a>
+                    </li>
+                    <li>
+                      <hr class="dropdown-divider">
+                      <a class="dropdown-item py-2 text-danger" href="javascript:void(0)" @click="confirmDelete(item)">
+                        <iconify-icon icon="solar:trash-bin-trash-line-duotone" class="fs-5 text-danger"></iconify-icon>
+                        <span>Eliminar</span>
+                      </a>
+                    </li>
+                  </ul>
                 </div>
               </td>
             </tr>
@@ -181,6 +200,57 @@ Toda vista de gestión (ej. Facturas, Notas de Crédito, Puntos de Emisión, Cli
   - Detección automática del catálogo de errores SRI (`src/utils/sri-errors.ts`) con causas comunes y soluciones recomendadas.
   - Botón de copiado de clave de acceso y número de autorización.
 
+### 3.6. Tablas CRUD, Cabeceras Estáticas (Sticky Header) y Menú Desplegable de Acciones (Spike UI)
+- **Cabecera Estática (Sticky Header) Obligatoria**:
+  - Toda tabla CRUD debe mantener fijas las cabeceras de columnas al hacer scroll vertical:
+    ```css
+    .crud-table thead, .crud-table thead th {
+      position: sticky;
+      top: 0;
+      z-index: 15;
+      background-color: #111c2d !important; /* En modo oscuro */
+    }
+    ```
+  - En modo claro (`[data-bs-theme="light"]`), el fondo de la cabecera es `#e8f2fc !important` con borde sutil inferior.
+  - El fondo de `thead th` debe ser **completamente sólido y opaco**, idéntico al fondo del card, para evitar que el texto de las filas que pasan por debajo se transparente o difumine.
+- **Contenedor con Altura Determinada y Scroll Vertical Limpio**:
+  - La tarjeta contenedora `.crud-table-card` debe tener `overflow: visible;`.
+  - El contenedor scrolleable (`.table-responsive` o `.table-scroll`) debe tener altura definida y holgura inferior:
+    ```css
+    min-height: 400px;
+    max-height: calc(100vh - 290px);
+    overflow-y: auto !important;
+    overflow-x: auto !important;
+    padding-bottom: 6rem; /* Margen inferior para apertura libre de dropdowns */
+    ```
+  - Esto previene que al haber 1 o 2 filas en la tabla, al abrir el menú de acciones se genere una molesta barra de scroll vertical interna en la tarjeta o se corte el menú.
+- **Botón Desplegable de Acciones (Small Button Dropdown)**:
+  - Basado en el estándar de Spike UI Dropdowns (`https://bootstrapdemos.wrappixel.com/spike/dist/dark/ui-dropdowns.html`).
+  - En todas las listas del sistema, en lugar de botones individuales de icono, se utiliza un único botón desplegable:
+    ```html
+    <div class="dropdown">
+      <button
+        class="btn bg-secondary-subtle text-secondary btn-sm dropdown-toggle d-inline-flex align-items-center gap-1 fw-semibold"
+        type="button"
+        data-bs-toggle="dropdown"
+        data-bs-popper-config='{"strategy":"fixed"}'
+        aria-expanded="false"
+      >
+        <iconify-icon icon="solar:menu-dots-bold" class="fs-4"></iconify-icon>
+        <span>Acciones</span>
+      </button>
+      <ul class="dropdown-menu dropdown-menu-end shadow-lg py-1">
+        <li>
+          <a class="dropdown-item py-2" href="javascript:void(0)" @click="openEdit(item)">
+            <iconify-icon icon="solar:pen-2-line-duotone" class="fs-5 text-warning"></iconify-icon>
+            <span>Editar</span>
+          </a>
+        </li>
+      </ul>
+    </div>
+    ```
+  - **REGLA CRÍTICA**: Siempre incluir `data-bs-popper-config='{"strategy":"fixed"}'`. Esto acopla la posición del menú al viewport mediante Popper con `position: fixed`, evitando cualquier recorte por contenedores con `overflow: hidden` o `overflow: auto`. NUNCA usar `data-bs-boundary="viewport"` (que no resuelve desbordamientos en contenedores relativos).
+
 ---
 
 ## 4. Checklist para Nuevas Vistas o Refactorizaciones
@@ -188,8 +258,8 @@ Toda vista de gestión (ej. Facturas, Notas de Crédito, Puntos de Emisión, Cli
 Antes de dar por completado un módulo:
 1. [ ] ¿Usa las clases de contenedor `.crud-page`, `.crud-page-header`, `.crud-title`?
 2. [ ] ¿Las tarjetas superiores usan `.crud-kpi-grid` y `.crud-kpi-card`?
-3. [ ] ¿La tabla principal usa `.crud-table-card` y `<table class="crud-table">`?
-4. [ ] ¿Los botones de acciones en filas usan `.btn-action-icon` (`edit`, `delete`, `sri`, `view`)?
+3. [ ] ¿La tabla principal usa `.crud-table-card` y `<table class="crud-table">` con cabecera estática (`sticky top: 0`) y contenedor con `min-height: 400px; padding-bottom: 6rem;`?
+4. [ ] ¿La columna de acciones usa el **Small Button Dropdown** Spike UI (`... Acciones ▾`) con `data-bs-popper-config='{"strategy":"fixed"}'`?
 5. [ ] ¿El formulario se abre en página (`.form-page`) con botón "Volver al Listado"?
 6. [ ] ¿Los selectores de entidades usan `<AppSelect2>`?
 7. [ ] ¿Las notificaciones usan `toast` de `@/utils/toastr` sin alertas fijas en el DOM?

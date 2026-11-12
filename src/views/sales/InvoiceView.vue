@@ -1350,7 +1350,7 @@ watch(() => route.path, () => {
                       class="btn bg-secondary-subtle text-secondary btn-sm dropdown-toggle d-inline-flex align-items-center gap-1 fw-semibold"
                       type="button"
                       data-bs-toggle="dropdown"
-                      data-bs-boundary="viewport"
+                      data-bs-popper-config='{"strategy":"fixed"}'
                       aria-expanded="false"
                     >
                       <iconify-icon icon="solar:menu-dots-bold" class="fs-4"></iconify-icon>

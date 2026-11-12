@@ -613,7 +613,7 @@ onMounted(() => {
                     class="btn bg-secondary-subtle text-secondary btn-sm dropdown-toggle d-inline-flex align-items-center gap-1 fw-semibold"
                     type="button"
                     data-bs-toggle="dropdown"
-                    data-bs-boundary="viewport"
+                    data-bs-popper-config='{"strategy":"fixed"}'
                     aria-expanded="false"
                   >
                     <iconify-icon icon="solar:menu-dots-bold" class="fs-4"></iconify-icon>
@@ -1210,27 +1210,47 @@ onMounted(() => {
   background: #111c2d;
   border: 1px solid rgba(255, 255, 255, 0.06);
   border-radius: 14px;
-  overflow: hidden;
+  position: relative;
+  overflow: visible;
 }
 
 .table-scroll {
-  overflow-x: auto;
+  min-height: 400px;
+  max-height: calc(100vh - 290px);
+  overflow-y: auto !important;
+  overflow-x: auto !important;
+  position: relative;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(189, 200, 240, 0.25) transparent;
+  padding-bottom: 6rem;
 }
 
 .erp-table {
   width: 100%;
-  border-collapse: collapse;
+  border-collapse: separate;
+  border-spacing: 0;
   font-size: 13.5px;
 }
 
+.erp-table thead {
+  position: sticky;
+  top: 0;
+  z-index: 15;
+}
+
 .erp-table th {
+  position: sticky;
+  top: 0;
+  z-index: 15;
   text-align: left;
   padding: 13px 16px;
-  background: #162238;
+  background: #111c2d !important;
   color: #94a3b8;
   font-weight: 600;
   font-size: 12.5px;
   letter-spacing: 0.3px;
+  box-shadow: inset 0 -1px 0 rgba(255, 255, 255, 0.1);
+  white-space: nowrap;
 }
 
 .erp-table td {
@@ -1602,9 +1622,10 @@ onMounted(() => {
 }
 
 [data-bs-theme='light'] .erp-table th {
-  background: #f6f9fc;
-  color: #5a6a85;
-  border-color: #ebf1f6;
+  background: #e8f2fc !important;
+  color: #0b4e8c !important;
+  border-color: #bcd7ef !important;
+  box-shadow: inset 0 -1px 0 #bcd7ef !important;
 }
 
 [data-bs-theme='light'] .erp-table td {

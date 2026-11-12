@@ -1916,9 +1916,26 @@ const submitSubscription = async () => {
                 </span>
               </td>
               <td class="text-end">
-                <button class="btn btn-sm btn-outline-info rounded-circle p-1" title="Editar" @click="openEditCompany(comp)">
-                  <iconify-icon icon="solar:pen-2-line-duotone" class="fs-4"></iconify-icon>
-                </button>
+                <div class="dropdown">
+                  <button
+                    class="btn bg-secondary-subtle text-secondary btn-sm dropdown-toggle d-inline-flex align-items-center gap-1 fw-semibold"
+                    type="button"
+                    data-bs-toggle="dropdown"
+                    data-bs-popper-config='{"strategy":"fixed"}'
+                    aria-expanded="false"
+                  >
+                    <iconify-icon icon="solar:menu-dots-bold" class="fs-4"></iconify-icon>
+                    <span>Acciones</span>
+                  </button>
+                  <ul class="dropdown-menu dropdown-menu-end shadow-lg py-1">
+                    <li>
+                      <a class="dropdown-item py-2" href="javascript:void(0)" @click="openEditCompany(comp)">
+                        <iconify-icon icon="solar:pen-2-line-duotone" class="fs-5 text-warning"></iconify-icon>
+                        <span>Editar Empresa</span>
+                      </a>
+                    </li>
+                  </ul>
+                </div>
               </td>
             </tr>
             <tr v-if="companies.length === 0">
@@ -1994,7 +2011,7 @@ const submitSubscription = async () => {
                     class="btn bg-secondary-subtle text-secondary btn-sm dropdown-toggle d-inline-flex align-items-center gap-1 fw-semibold"
                     type="button"
                     data-bs-toggle="dropdown"
-                    data-bs-boundary="viewport"
+                    data-bs-popper-config='{"strategy":"fixed"}'
                     aria-expanded="false"
                   >
                     <iconify-icon icon="solar:menu-dots-bold" class="fs-4"></iconify-icon>
@@ -2121,13 +2138,26 @@ const submitSubscription = async () => {
                 </span>
               </td>
               <td class="text-end">
-                <button
-                  class="btn btn-sm btn-outline-info rounded-circle p-1"
-                  title="Editar Usuario y Color de Tema"
-                  @click="openEditUser(user)"
-                >
-                  <iconify-icon icon="solar:pen-2-line-duotone" class="fs-4"></iconify-icon>
-                </button>
+                <div class="dropdown">
+                  <button
+                    class="btn bg-secondary-subtle text-secondary btn-sm dropdown-toggle d-inline-flex align-items-center gap-1 fw-semibold"
+                    type="button"
+                    data-bs-toggle="dropdown"
+                    data-bs-popper-config='{"strategy":"fixed"}'
+                    aria-expanded="false"
+                  >
+                    <iconify-icon icon="solar:menu-dots-bold" class="fs-4"></iconify-icon>
+                    <span>Acciones</span>
+                  </button>
+                  <ul class="dropdown-menu dropdown-menu-end shadow-lg py-1">
+                    <li>
+                      <a class="dropdown-item py-2" href="javascript:void(0)" @click="openEditUser(user)">
+                        <iconify-icon icon="solar:pen-2-line-duotone" class="fs-5 text-warning"></iconify-icon>
+                        <span>Editar Usuario</span>
+                      </a>
+                    </li>
+                  </ul>
+                </div>
               </td>
             </tr>
             <tr v-if="users.length === 0">
@@ -2204,13 +2234,26 @@ const submitSubscription = async () => {
                 </span>
               </td>
               <td class="text-end">
-                <button
-                  class="btn btn-sm btn-outline-info rounded-circle p-1"
-                  title="Editar Cabecera y Detalle de Permisos del Rol"
-                  @click="openEditRole(role)"
-                >
-                  <iconify-icon icon="solar:pen-2-line-duotone" class="fs-4"></iconify-icon>
-                </button>
+                <div class="dropdown">
+                  <button
+                    class="btn bg-secondary-subtle text-secondary btn-sm dropdown-toggle d-inline-flex align-items-center gap-1 fw-semibold"
+                    type="button"
+                    data-bs-toggle="dropdown"
+                    data-bs-popper-config='{"strategy":"fixed"}'
+                    aria-expanded="false"
+                  >
+                    <iconify-icon icon="solar:menu-dots-bold" class="fs-4"></iconify-icon>
+                    <span>Acciones</span>
+                  </button>
+                  <ul class="dropdown-menu dropdown-menu-end shadow-lg py-1">
+                    <li>
+                      <a class="dropdown-item py-2" href="javascript:void(0)" @click="openEditRole(role)">
+                        <iconify-icon icon="solar:pen-2-line-duotone" class="fs-5 text-warning"></iconify-icon>
+                        <span>Editar Permisos del Rol</span>
+                      </a>
+                    </li>
+                  </ul>
+                </div>
               </td>
             </tr>
             <tr v-if="roles.length === 0">
@@ -2280,22 +2323,31 @@ const submitSubscription = async () => {
                   </span>
                 </td>
                 <td class="text-end">
-                  <div class="d-inline-flex gap-1">
+                  <div class="dropdown">
                     <button
-                      class="btn btn-sm btn-outline-primary rounded-pill px-2 py-1 d-inline-flex align-items-center gap-1"
-                      title="Agregar Submódulo a este Módulo"
-                      @click="openCreateSubModule(mod.id)"
+                      class="btn bg-secondary-subtle text-secondary btn-sm dropdown-toggle d-inline-flex align-items-center gap-1 fw-semibold"
+                      type="button"
+                      data-bs-toggle="dropdown"
+                      data-bs-popper-config='{"strategy":"fixed"}'
+                      aria-expanded="false"
                     >
-                      <iconify-icon icon="solar:add-circle-line-duotone" class="fs-4"></iconify-icon>
-                      <span class="d-none d-md-inline fs-1">Submódulo</span>
+                      <iconify-icon icon="solar:menu-dots-bold" class="fs-4"></iconify-icon>
+                      <span>Acciones</span>
                     </button>
-                    <button
-                      class="btn btn-sm btn-outline-info rounded-circle p-1"
-                      title="Editar Módulo"
-                      @click="openEditModule(mod)"
-                    >
-                      <iconify-icon icon="solar:pen-2-line-duotone" class="fs-4"></iconify-icon>
-                    </button>
+                    <ul class="dropdown-menu dropdown-menu-end shadow-lg py-1">
+                      <li>
+                        <a class="dropdown-item py-2 text-primary" href="javascript:void(0)" @click="openCreateSubModule(mod.id)">
+                          <iconify-icon icon="solar:add-circle-line-duotone" class="fs-5 text-primary"></iconify-icon>
+                          <span>Agregar Submódulo</span>
+                        </a>
+                      </li>
+                      <li>
+                        <a class="dropdown-item py-2" href="javascript:void(0)" @click="openEditModule(mod)">
+                          <iconify-icon icon="solar:pen-2-line-duotone" class="fs-5 text-warning"></iconify-icon>
+                          <span>Editar Módulo</span>
+                        </a>
+                      </li>
+                    </ul>
                   </div>
                 </td>
               </tr>
@@ -2384,13 +2436,26 @@ const submitSubscription = async () => {
                   </span>
                 </td>
                 <td class="text-end">
-                  <button
-                    class="btn btn-sm btn-outline-info rounded-circle p-1"
-                    title="Editar Submódulo"
-                    @click="openEditSubModule(subMod)"
-                  >
-                    <iconify-icon icon="solar:pen-2-line-duotone" class="fs-4"></iconify-icon>
-                  </button>
+                  <div class="dropdown">
+                    <button
+                      class="btn bg-secondary-subtle text-secondary btn-sm dropdown-toggle d-inline-flex align-items-center gap-1 fw-semibold"
+                      type="button"
+                      data-bs-toggle="dropdown"
+                      data-bs-popper-config='{"strategy":"fixed"}'
+                      aria-expanded="false"
+                    >
+                      <iconify-icon icon="solar:menu-dots-bold" class="fs-4"></iconify-icon>
+                      <span>Acciones</span>
+                    </button>
+                    <ul class="dropdown-menu dropdown-menu-end shadow-lg py-1">
+                      <li>
+                        <a class="dropdown-item py-2" href="javascript:void(0)" @click="openEditSubModule(subMod)">
+                          <iconify-icon icon="solar:pen-2-line-duotone" class="fs-5 text-warning"></iconify-icon>
+                          <span>Editar Submódulo</span>
+                        </a>
+                      </li>
+                    </ul>
+                  </div>
                 </td>
               </tr>
               <tr v-if="subModulesList.length === 0">
@@ -2502,13 +2567,26 @@ const submitSubscription = async () => {
                   </span>
                 </td>
                 <td class="text-end">
-                  <button
-                    class="btn btn-sm btn-outline-info rounded-circle p-1"
-                    title="Editar Suscripción y Módulos Habilitados"
-                    @click="openEditSubscription(sub)"
-                  >
-                    <iconify-icon icon="solar:pen-2-line-duotone" class="fs-4"></iconify-icon>
-                  </button>
+                  <div class="dropdown">
+                    <button
+                      class="btn bg-secondary-subtle text-secondary btn-sm dropdown-toggle d-inline-flex align-items-center gap-1 fw-semibold"
+                      type="button"
+                      data-bs-toggle="dropdown"
+                      data-bs-popper-config='{"strategy":"fixed"}'
+                      aria-expanded="false"
+                    >
+                      <iconify-icon icon="solar:menu-dots-bold" class="fs-4"></iconify-icon>
+                      <span>Acciones</span>
+                    </button>
+                    <ul class="dropdown-menu dropdown-menu-end shadow-lg py-1">
+                      <li>
+                        <a class="dropdown-item py-2" href="javascript:void(0)" @click="openEditSubscription(sub)">
+                          <iconify-icon icon="solar:pen-2-line-duotone" class="fs-5 text-warning"></iconify-icon>
+                          <span>Editar Suscripción</span>
+                        </a>
+                      </li>
+                    </ul>
+                  </div>
                 </td>
               </tr>
               <tr v-if="subscriptions.length === 0">
@@ -2599,7 +2677,7 @@ const submitSubscription = async () => {
                     class="btn bg-secondary-subtle text-secondary btn-sm dropdown-toggle d-inline-flex align-items-center gap-1 fw-semibold"
                     type="button"
                     data-bs-toggle="dropdown"
-                    data-bs-boundary="viewport"
+                    data-bs-popper-config='{"strategy":"fixed"}'
                     aria-expanded="false"
                   >
                     <iconify-icon icon="solar:menu-dots-bold" class="fs-4"></iconify-icon>
@@ -2727,7 +2805,7 @@ const submitSubscription = async () => {
                     class="btn bg-secondary-subtle text-secondary btn-sm dropdown-toggle d-inline-flex align-items-center gap-1 fw-semibold"
                     type="button"
                     data-bs-toggle="dropdown"
-                    data-bs-boundary="viewport"
+                    data-bs-popper-config='{"strategy":"fixed"}'
                     aria-expanded="false"
                   >
                     <iconify-icon icon="solar:menu-dots-bold" class="fs-4"></iconify-icon>
