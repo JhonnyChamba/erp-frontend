@@ -247,7 +247,7 @@
    debe ser una vista de formulario normal en página (con botón "Volver al Listado"),
    NO un modal emergente flotante con backdrop oscuro.
    -------------------------------------------------------------------------- */
-.form-open > :not(.form-page) {
+.form-open> :not(.form-page) {
   display: none !important;
 }
 
@@ -305,8 +305,13 @@
 }
 
 @keyframes crudFadeIn {
-  from { opacity: 0; }
-  to { opacity: 1; }
+  from {
+    opacity: 0;
+  }
+
+  to {
+    opacity: 1;
+  }
 }
 
 .crud-modal-card,
@@ -326,6 +331,7 @@
     transform: translateY(20px) scale(0.98);
     opacity: 0;
   }
+
   to {
     transform: translateY(0) scale(1);
     opacity: 1;
@@ -490,4 +496,3 @@
 [data-bs-theme="light"] :is(.crud-page, .emission-points-page, .purchases-page, .credit-notes-page, .invoices-page, .contacts-page, .inventory-page, .settings-page, .modal-card-custom, .form-page-card) .text-white:not(.btn):not(.badge) {
   color: #111c2d !important;
 }
-

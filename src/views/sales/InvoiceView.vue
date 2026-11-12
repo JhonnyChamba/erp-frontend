@@ -25,7 +25,7 @@ import {
   type InventorySubcontractItem,
   type InventoryWarehouse,
 } from '@/services/inventory.service'
-import { getCustomers, type CustomerItem } from '@/services/contacts.service'
+import { getCustomers, createCustomer, type CustomerItem } from '@/services/contacts.service'
 import { getBranches, type BranchItem } from '@/services/config.service'
 import {
   getEmissionPoints,
@@ -33,6 +33,7 @@ import {
   type EmissionPointItem,
 } from '@/services/emission-points.service'
 import SriResponseModal from '@/components/common/SriResponseModal.vue'
+import { printRideDoc } from '@/utils/sri-ride'
 
 const route = useRoute()
 const router = useRouter()
@@ -648,6 +649,7 @@ const openCreateModal = async () => {
     return
   }
   form.value = initialInvoiceForm()
+  cashReceived.value = null
   preselectWarehouse()
   await preselectBranch()
   successMsg.value = ''
@@ -925,67 +927,180 @@ const onCancelInvoice = async (inv: InvoiceItem) => {
   }
 }
 
-// RIDE (Representación Impresa del Documento Electrónico): imprime o guarda como PDF desde el navegador
-const printRide = (inv: InvoiceItem) => {
-  let company: any = {}
+// RIDE (Representación Impresa del Documento Electrónico): formato oficial A4 y ticket térmico 80mm
+const getActiveCompany = (): any => {
   try {
-    company = JSON.parse(localStorage.getItem('selectedCompany') || '{}')
+    const raw = localStorage.getItem('selectedCompany')
+    if (raw) return JSON.parse(raw)
   } catch {}
-  const esc = (s: any) =>
-    String(s ?? '').replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c] as string))
-  const payNames: Record<string, string> = {
-    '01': 'SIN UTILIZACION DEL SISTEMA FINANCIERO',
-    '16': 'TARJETA DE DEBITO',
-    '19': 'TARJETA DE CREDITO',
-    '20': 'OTROS CON UTILIZACION DEL SISTEMA FINANCIERO',
+  return {}
+}
+
+const printRide = (inv: InvoiceItem, format: 'a4' | 'ticket' = 'a4') => {
+  printRideDoc(inv, getActiveCompany(), format, {
+    received: cashReceived.value || undefined,
+    change: cashChange.value || undefined,
+  })
+}
+
+const onPrintA4 = (inv: InvoiceItem) => {
+  printRide(inv, 'a4')
+}
+
+const onPrintTicket = (inv: InvoiceItem) => {
+  printRide(inv, 'ticket')
+}
+
+// Modal de Cliente Rápido para POS / Mostrador
+const showQuickCustomerModal = ref(false)
+const quickCustomerLoading = ref(false)
+const quickCustomerForm = ref({
+  tipo_documento: '05',
+  num_document: '',
+  razon_social: '',
+  email: '',
+  telefono: '',
+  direccion: '',
+})
+
+const openQuickCustomerModal = () => {
+  quickCustomerForm.value = {
+    tipo_documento: '05',
+    num_document: '',
+    razon_social: '',
+    email: '',
+    telefono: '',
+    direccion: '',
   }
-  const rows = (inv.details || [])
-    .map(
-      (d) => `<tr><td>${esc(d.code)}</td><td>${esc(d.description)}</td>
-      <td class="r">${esc(d.quantity)}</td><td class="r">${formatNumber(d.unit_price)}</td>
-      <td class="r">${formatNumber(d.discount)}</td><td class="r">${formatNumber(d.total)}</td></tr>`
-    )
-    .join('')
+  showQuickCustomerModal.value = true
+}
 
-  const html = `<!doctype html><html><head><meta charset="utf-8"><title>Factura ${esc(inv.invoice_number)}</title>
-  <style>
-    body{font-family:Arial,sans-serif;font-size:12px;color:#000;margin:20px}
-    .box{border:1px solid #000;border-radius:6px;padding:8px;margin-bottom:8px}
-    .head{display:flex;gap:10px}.head>div{flex:1}
-    table{width:100%;border-collapse:collapse}th,td{border:1px solid #000;padding:4px}
-    .r{text-align:right}.k{word-break:break-all;font-family:monospace;font-size:11px}
-    .tot{width:280px;margin-left:auto;margin-top:8px}
-  </style></head><body>
-  <div class="head">
-    <div class="box"><h2>${esc(company.razon_social || company.nombre_comercial || 'EMPRESA')}</h2>
-      <div>${esc(company.nombre_comercial || '')}</div></div>
-    <div class="box"><b>R.U.C.:</b> ${esc(company.ruc || '')}<br><b>FACTURA</b><br>
-      <b>No.</b> ${esc(inv.invoice_number)}<br><b>CLAVE DE ACCESO</b><div class="k">${esc(inv.access_key || '')}</div></div>
-  </div>
-  <div class="box"><b>Razón Social / Nombres:</b> ${esc(inv.customer_name)}<br>
-    <b>Identificación:</b> ${esc(inv.customer_id_number)}<br>
-    <b>Fecha de Emisión:</b> ${esc(inv.issue_date)}<br>
-    <b>Dirección:</b> ${esc(inv.customer_address || '')}</div>
-  <table><thead><tr><th>Cód.</th><th>Descripción</th><th>Cant.</th><th>P. Unit.</th><th>Desc.</th><th>Total</th></tr></thead>
-    <tbody>${rows}</tbody></table>
-  <table class="tot">
-    <tr><td>SUBTOTAL IVA</td><td class="r">${formatNumber(inv.subtotal_taxable)}</td></tr>
-    <tr><td>SUBTOTAL 0%</td><td class="r">${formatNumber(inv.subtotal_zero_tax)}</td></tr>
-    <tr><td>DESCUENTO</td><td class="r">${formatNumber(inv.discount_total)}</td></tr>
-    <tr><td>IVA</td><td class="r">${formatNumber(inv.tax_total)}</td></tr>
-    <tr><td><b>VALOR TOTAL</b></td><td class="r"><b>${formatNumber(inv.total)}</b></td></tr>
-  </table>
-  <div class="box" style="margin-top:8px"><b>Forma de pago:</b> ${esc(payNames[inv.payment_method] || inv.payment_method)}
-    <br><b>Observaciones:</b> ${esc(inv.notes || '')}</div>
-  <script>window.onload=function(){window.print()}<\/script></body></html>`
-
-  const w = window.open('', '_blank')
-  if (!w) {
-    errorMsg.value = 'El navegador bloqueó la ventana de impresión. Permite las ventanas emergentes.'
+const saveQuickCustomer = async () => {
+  if (!quickCustomerForm.value.num_document || !quickCustomerForm.value.razon_social) {
+    toast.warning('Ingresa el número de documento y el nombre o razón social.', 'Datos Incompletos')
     return
   }
-  w.document.write(html)
-  w.document.close()
+  quickCustomerLoading.value = true
+  try {
+    const companyId = getActiveCompanyId()
+    const newCust = await createCustomer(quickCustomerForm.value, companyId)
+    customersList.value.unshift(newCust)
+    form.value.customer_id_type = newCust.tipo_documento
+    form.value.customer_id_number = newCust.num_document
+    form.value.customer_name = newCust.razon_social
+    form.value.customer_address = newCust.direccion || ''
+    form.value.customer_email = newCust.email || ''
+    form.value.customer_phone = newCust.telefono || ''
+    toast.success(`Cliente ${newCust.razon_social} registrado y seleccionado para facturar.`, 'Cliente Creado')
+    showQuickCustomerModal.value = false
+  } catch (err: any) {
+    toast.error(err?.response?.data?.message || err?.message || 'Error al registrar el cliente rápido.')
+  } finally {
+    quickCustomerLoading.value = false
+  }
+}
+
+// Control de Efectivo y Vuelto en Vivo (POS)
+const cashReceived = ref<number | null>(null)
+const cashChange = computed(() => {
+  const rec = Number(cashReceived.value || 0)
+  const total = Number(calculatedTotals.value.grandTotal || 0)
+  return rec >= total ? Number((rec - total).toFixed(2)) : 0
+})
+const cashMissing = computed(() => {
+  const rec = Number(cashReceived.value || 0)
+  const total = Number(calculatedTotals.value.grandTotal || 0)
+  return rec > 0 && rec < total ? Number((total - rec).toFixed(2)) : 0
+})
+const setExactCash = () => {
+  cashReceived.value = Number(calculatedTotals.value.grandTotal.toFixed(2))
+}
+const setQuickCash = (amount: number) => {
+  cashReceived.value = amount
+}
+
+// Cuadre de Caja Diario
+const showDailyCashModal = ref(false)
+const dailyCashSummary = computed(() => {
+  const todayStr = new Date().toISOString().slice(0, 10)
+  const todayInvoices = invoices.value.filter(
+    (inv) =>
+      (inv.issue_date && inv.issue_date.slice(0, 10) === todayStr) ||
+      (inv.created_at && inv.created_at.slice(0, 10) === todayStr)
+  )
+  const issued = todayInvoices.filter((i) => i.status === 'ISSUED')
+  const canceled = todayInvoices.filter((i) => i.status === 'CANCELED')
+
+  let totalCash = 0
+  let totalCards = 0
+  let totalTransfer = 0
+  let totalOther = 0
+  let grandTotal = 0
+
+  for (const inv of issued) {
+    const val = Number(inv.total || 0)
+    grandTotal += val
+    if (inv.payment_method === '01') totalCash += val
+    else if (inv.payment_method === '16' || inv.payment_method === '19') totalCards += val
+    else if (inv.payment_method === '20') totalTransfer += val
+    else totalOther += val
+  }
+
+  return {
+    date: todayStr,
+    countTotal: todayInvoices.length,
+    countIssued: issued.length,
+    countCanceled: canceled.length,
+    totalCash,
+    totalCards,
+    totalTransfer,
+    totalOther,
+    grandTotal,
+  }
+})
+
+const printDailyClosure = () => {
+  const sum = dailyCashSummary.value
+  const comp = getActiveCompany()
+  const esc = (s: any) =>
+    String(s ?? '').replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c] as string))
+  const fmt = (v: number) => v.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+
+  const html = `<!DOCTYPE html><html><head><meta charset="utf-8"><title>Cierre de Caja ${sum.date}</title>
+  <style>
+    @page { size: 80mm auto; margin: 3mm; }
+    body { font-family: monospace; font-size: 11px; width: 72mm; margin: 0 auto; padding: 4px; }
+    .c { text-align: center; } .r { text-align: right; } .b { font-weight: bold; }
+    .hr { border-top: 1px dashed #000; margin: 5px 0; }
+    .row { display: flex; justify-content: space-between; margin: 2px 0; }
+  </style></head><body>
+  <div class="c b" style="font-size:13px">${esc(comp.trade_name || comp.business_name || 'DESKOUNTA')}</div>
+  <div class="c">CIERRE DE CAJA DIARIO</div>
+  <div class="c">Fecha: ${sum.date}</div>
+  <div class="hr"></div>
+  <div class="row"><span>Facturas Emitidas:</span><span class="b">${sum.countIssued}</span></div>
+  <div class="row"><span>Facturas Anuladas:</span><span class="b">${sum.countCanceled}</span></div>
+  <div class="row"><span>Total Documentos:</span><span class="b">${sum.countTotal}</span></div>
+  <div class="hr"></div>
+  <div class="b" style="margin:4px 0">VENTAS POR FORMA DE PAGO:</div>
+  <div class="row"><span>Efectivo (01):</span><span class="b">$${fmt(sum.totalCash)}</span></div>
+  <div class="row"><span>Tarjetas (16/19):</span><span class="b">$${fmt(sum.totalCards)}</span></div>
+  <div class="row"><span>Transferencias (20):</span><span class="b">$${fmt(sum.totalTransfer)}</span></div>
+  ${sum.totalOther > 0 ? `<div class="row"><span>Otros:</span><span class="b">$${fmt(sum.totalOther)}</span></div>` : ''}
+  <div class="hr"></div>
+  <div class="row" style="font-size:13px; font-weight:bold">
+    <span>TOTAL RECAUDADO:</span><span>$${fmt(sum.grandTotal)}</span>
+  </div>
+  <div class="hr"></div>
+  <div class="c" style="margin-top:10px">Usuario: ${esc(authStore.tokenPayload?.user_name || 'Caja')}</div>
+  <div class="c" style="font-size:9px">${new Date().toLocaleString('es-EC')}</div>
+  <script>window.onload=function(){window.print()}<\/script></body></html>`
+
+  const w = window.open('', '_blank', 'width=400,height=600')
+  if (w) {
+    w.document.write(html)
+    w.document.close()
+  }
 }
 
 const formatNumber = (val: any) => {
@@ -1029,6 +1144,10 @@ watch(() => route.path, () => {
       </div>
 
       <div class="crud-header-actions">
+        <button class="btn btn-outline-info d-flex align-items-center gap-2" @click="showDailyCashModal = true" title="Cuadre y Cierre de Caja del Día">
+          <iconify-icon icon="solar:calculator-minimalistic-bold-duotone" class="fs-5"></iconify-icon>
+          <span>Cuadre de Caja</span>
+        </button>
         <button class="btn btn-secondary d-flex align-items-center gap-2" @click="loadData" :disabled="loading">
           <iconify-icon icon="solar:refresh-line-duotone" :class="{ 'spin-anim': loading }"></iconify-icon>
           <span>Actualizar</span>
@@ -1267,8 +1386,16 @@ watch(() => route.path, () => {
                       <span v-if="sendingSriInvoiceId === inv.id" class="spinner-grow spinner-grow-sm text-warning" role="status" aria-hidden="true"></span>
                       <iconify-icon v-else icon="solar:refresh-circle-bold-duotone"></iconify-icon>
                     </button>
-                    <button class="btn btn-sm btn-outline-info rounded-pill px-2" @click="openDetailModal(inv)" title="Ver Detalle y RIDE">
+                    <button class="btn btn-sm btn-outline-info rounded-pill px-2" @click="openDetailModal(inv)" title="Ver Detalle de Factura">
                       <iconify-icon icon="solar:eye-line-duotone"></iconify-icon>
+                    </button>
+                    <button class="btn btn-sm btn-outline-info rounded-pill px-2 d-inline-flex align-items-center gap-1" @click="onPrintA4(inv)" title="Imprimir RIDE Oficial A4">
+                      <iconify-icon icon="solar:printer-bold-duotone"></iconify-icon>
+                      <span class="fs-1 d-none d-xxl-inline">RIDE</span>
+                    </button>
+                    <button class="btn btn-sm btn-outline-light rounded-pill px-2 d-inline-flex align-items-center gap-1" @click="onPrintTicket(inv)" title="Imprimir Ticket Térmico (80mm)">
+                      <iconify-icon icon="solar:ticket-bold-duotone"></iconify-icon>
+                      <span class="fs-1 d-none d-xxl-inline">Ticket</span>
                     </button>
                     <button
                       v-if="inv.sign_status === 'SIGNED' && inv.status !== 'CANCELED'"
@@ -1383,11 +1510,27 @@ watch(() => route.path, () => {
 
           <!-- Datos del Cliente / Comprador -->
           <div class="card rounded-3 border-secondary p-3 bg-dark-subtle mt-3">
-            <div class="d-flex justify-content-between align-items-center mb-2">
+            <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-2">
               <span class="text-info small fw-bold text-uppercase">Datos del Cliente (Comprador)</span>
-              <div class="d-flex align-items-center gap-2">
-                <button type="button" class="btn btn-xs btn-outline-info rounded-pill" @click="setFinalConsumer">
-                  Consumidor Final
+              <div class="d-flex flex-wrap align-items-center gap-2">
+                <button
+                  type="button"
+                  class="btn btn-xs rounded-pill d-inline-flex align-items-center gap-1"
+                  :class="form.customer_id_type === '07' ? 'btn-info text-dark fw-bold' : 'btn-outline-info'"
+                  @click="setFinalConsumer"
+                  title="Facturar a Consumidor Final (9999999999999)"
+                >
+                  <iconify-icon icon="solar:user-bold"></iconify-icon>
+                  <span>Consumidor Final</span>
+                </button>
+                <button
+                  type="button"
+                  class="btn btn-xs btn-outline-success rounded-pill d-inline-flex align-items-center gap-1"
+                  @click="openQuickCustomerModal"
+                  title="Registrar nuevo cliente al instante"
+                >
+                  <iconify-icon icon="solar:user-plus-bold"></iconify-icon>
+                  <span>+ Nuevo Cliente</span>
                 </button>
                 <div style="min-width: 260px;">
                   <AppSelect2
@@ -1702,6 +1845,44 @@ watch(() => route.path, () => {
                   <span class="fw-bold text-white fs-4">VALOR TOTAL:</span>
                   <span class="font-monospace fw-bold text-success fs-5">${{ formatNumber(calculatedTotals.grandTotal) }}</span>
                 </div>
+
+                <!-- Pago en Efectivo y Cálculo de Vuelto (POS) -->
+                <div v-if="form.payment_method === '01'" class="mt-3 pt-2 border-top border-secondary">
+                  <div class="d-flex justify-content-between align-items-center mb-1">
+                    <label class="form-label text-warning small fw-bold mb-0">Efectivo Recibido ($)</label>
+                    <div class="d-flex gap-1">
+                      <button type="button" class="btn btn-xs btn-outline-success py-0 px-1" @click="setExactCash" title="Cobro exacto">Exacto</button>
+                      <button type="button" class="btn btn-xs btn-outline-secondary py-0 px-1" @click="setQuickCash(10)">$10</button>
+                      <button type="button" class="btn btn-xs btn-outline-secondary py-0 px-1" @click="setQuickCash(20)">$20</button>
+                      <button type="button" class="btn btn-xs btn-outline-secondary py-0 px-1" @click="setQuickCash(50)">$50</button>
+                      <button type="button" class="btn btn-xs btn-outline-secondary py-0 px-1" @click="setQuickCash(100)">$100</button>
+                    </div>
+                  </div>
+                  <input
+                    v-model.number="cashReceived"
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    class="form-control form-control-sm bg-dark border-secondary text-white font-monospace text-end fs-4"
+                    placeholder="0.00"
+                  />
+                  <div class="d-flex justify-content-between align-items-center mt-2">
+                    <span class="small fw-semibold text-secondary">Cambio / Vuelto:</span>
+                    <span
+                      v-if="cashMissing > 0"
+                      class="badge bg-danger-subtle text-danger border border-danger-subtle fs-2 font-monospace"
+                    >
+                      Faltan ${{ formatNumber(cashMissing) }}
+                    </span>
+                    <span
+                      v-else-if="cashReceived != null && cashReceived >= calculatedTotals.grandTotal"
+                      class="badge bg-success-subtle text-success border border-success-subtle fs-4 font-monospace fw-bold px-2 py-1"
+                    >
+                      ${{ formatNumber(cashChange) }}
+                    </span>
+                    <span v-else class="text-secondary font-monospace">$0.00</span>
+                  </div>
+                </div>
               </div>
             </div>
           </div>
@@ -1859,9 +2040,13 @@ watch(() => route.path, () => {
             <iconify-icon v-else icon="solar:download-minimalistic-bold"></iconify-icon>
             <span>Descargar XML firmado</span>
           </button>
-          <button class="btn btn-outline-info d-flex align-items-center gap-2" @click="printRide(viewingInvoice)">
+          <button class="btn btn-outline-info d-flex align-items-center gap-2" @click="onPrintA4(viewingInvoice)">
             <iconify-icon icon="solar:printer-bold-duotone"></iconify-icon>
-            <span>Imprimir / PDF (RIDE)</span>
+            <span>Imprimir RIDE (A4)</span>
+          </button>
+          <button class="btn btn-outline-light d-flex align-items-center gap-2" @click="onPrintTicket(viewingInvoice)">
+            <iconify-icon icon="solar:ticket-bold-duotone"></iconify-icon>
+            <span>Ticket (80mm)</span>
           </button>
           <button
             v-if="viewingInvoice.sign_status === 'SIGNED' && viewingInvoice.status !== 'CANCELED'"
@@ -1873,6 +2058,167 @@ watch(() => route.path, () => {
             <span>Emitir Nota de Crédito</span>
           </button>
           <button class="btn btn-secondary" @click="showDetailModal = false">Cerrar</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- MODAL: + NUEVO CLIENTE RÁPIDO (VENTA MOSTRADOR POS) -->
+    <div v-if="showQuickCustomerModal" class="modal-backdrop-custom" @click.self="showQuickCustomerModal = false">
+      <div class="modal-card-custom" style="max-width: 520px;">
+        <div class="modal-header-custom d-flex justify-content-between align-items-center">
+          <div class="d-flex align-items-center gap-2">
+            <div class="crud-kpi-icon primary" style="width: 34px; height: 34px;">
+              <iconify-icon icon="solar:user-plus-bold" class="fs-5"></iconify-icon>
+            </div>
+            <div>
+              <h5 class="fw-bold mb-0 text-white">Nuevo Cliente Rápido</h5>
+              <small class="text-secondary">Registro ágil para venta en mostrador</small>
+            </div>
+          </div>
+          <button type="button" class="btn btn-link text-secondary p-0 fs-5" @click="showQuickCustomerModal = false">
+            <iconify-icon icon="solar:close-circle-bold"></iconify-icon>
+          </button>
+        </div>
+
+        <form @submit.prevent="saveQuickCustomer" class="p-4 modal-body-custom">
+          <div class="row g-3">
+            <div class="col-md-5">
+              <label class="form-label text-secondary fs-2 fw-semibold">Tipo Identificación *</label>
+              <select v-model="quickCustomerForm.tipo_documento" class="form-select bg-dark border-secondary text-white" required>
+                <option value="05">Cédula (05)</option>
+                <option value="04">RUC (04)</option>
+                <option value="06">Pasaporte (06)</option>
+              </select>
+            </div>
+            <div class="col-md-7">
+              <label class="form-label text-secondary fs-2 fw-semibold">Cédula / RUC *</label>
+              <input
+                v-model="quickCustomerForm.num_document"
+                type="text"
+                class="form-control bg-dark border-secondary text-white font-monospace"
+                placeholder="Ej: 1723064117"
+                required
+              />
+            </div>
+            <div class="col-12">
+              <label class="form-label text-secondary fs-2 fw-semibold">Razón Social / Nombre Completo *</label>
+              <input
+                v-model="quickCustomerForm.razon_social"
+                type="text"
+                class="form-control bg-dark border-secondary text-white"
+                placeholder="Ej: Juan Carlos Pérez"
+                required
+              />
+            </div>
+            <div class="col-md-6">
+              <label class="form-label text-secondary fs-2 fw-semibold">Correo Electrónico</label>
+              <input
+                v-model="quickCustomerForm.email"
+                type="email"
+                class="form-control bg-dark border-secondary text-white"
+                placeholder="cliente@correo.com"
+              />
+            </div>
+            <div class="col-md-6">
+              <label class="form-label text-secondary fs-2 fw-semibold">Teléfono</label>
+              <input
+                v-model="quickCustomerForm.telefono"
+                type="text"
+                class="form-control bg-dark border-secondary text-white"
+                placeholder="0991234567"
+              />
+            </div>
+            <div class="col-12">
+              <label class="form-label text-secondary fs-2 fw-semibold">Dirección</label>
+              <input
+                v-model="quickCustomerForm.direccion"
+                type="text"
+                class="form-control bg-dark border-secondary text-white"
+                placeholder="Calle principal y número"
+              />
+            </div>
+          </div>
+
+          <div class="d-flex justify-content-end gap-2 mt-4 pt-3 border-top border-secondary">
+            <button type="button" class="btn btn-secondary" @click="showQuickCustomerModal = false">Cancelar</button>
+            <button type="submit" class="btn btn-primary d-flex align-items-center gap-2" :disabled="quickCustomerLoading">
+              <span v-if="quickCustomerLoading" class="spinner-grow spinner-grow-sm" role="status" aria-hidden="true"></span>
+              <iconify-icon v-else icon="solar:check-circle-bold"></iconify-icon>
+              <span>{{ quickCustomerLoading ? 'Guardando...' : 'Crear y Usar Cliente' }}</span>
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <!-- MODAL: CUADRE DE CAJA DIARIO (POS) -->
+    <div v-if="showDailyCashModal" class="modal-backdrop-custom" @click.self="showDailyCashModal = false">
+      <div class="modal-card-custom" style="max-width: 580px;">
+        <div class="modal-header-custom d-flex justify-content-between align-items-center">
+          <div class="d-flex align-items-center gap-2">
+            <div class="crud-kpi-icon success" style="width: 34px; height: 34px;">
+              <iconify-icon icon="solar:calculator-minimalistic-bold-duotone" class="fs-5"></iconify-icon>
+            </div>
+            <div>
+              <h5 class="fw-bold mb-0 text-white">Cuadre de Caja Diario</h5>
+              <small class="text-secondary">Fecha: {{ dailyCashSummary.date }}</small>
+            </div>
+          </div>
+          <button type="button" class="btn btn-link text-secondary p-0 fs-5" @click="showDailyCashModal = false">
+            <iconify-icon icon="solar:close-circle-bold"></iconify-icon>
+          </button>
+        </div>
+
+        <div class="p-4 modal-body-custom">
+          <!-- Totales por Forma de Pago -->
+          <div class="row g-2 mb-3">
+            <div class="col-6">
+              <div class="p-3 rounded-3 bg-dark-subtle border border-secondary text-center">
+                <span class="text-secondary fs-1 d-block mb-1">💵 Efectivo (01)</span>
+                <span class="font-monospace fs-4 fw-bold text-success">${{ formatNumber(dailyCashSummary.totalCash) }}</span>
+              </div>
+            </div>
+            <div class="col-6">
+              <div class="p-3 rounded-3 bg-dark-subtle border border-secondary text-center">
+                <span class="text-secondary fs-1 d-block mb-1">💳 Tarjetas (16 / 19)</span>
+                <span class="font-monospace fs-4 fw-bold text-info">${{ formatNumber(dailyCashSummary.totalCards) }}</span>
+              </div>
+            </div>
+            <div class="col-6">
+              <div class="p-3 rounded-3 bg-dark-subtle border border-secondary text-center">
+                <span class="text-secondary fs-1 d-block mb-1">🏦 Transferencias (20)</span>
+                <span class="font-monospace fs-4 fw-bold text-warning">${{ formatNumber(dailyCashSummary.totalTransfer) }}</span>
+              </div>
+            </div>
+            <div class="col-6">
+              <div class="p-3 rounded-3 bg-dark-subtle border border-secondary text-center">
+                <span class="text-secondary fs-1 d-block mb-1">🧾 Total Facturado</span>
+                <span class="font-monospace fs-4 fw-bold text-white">${{ formatNumber(dailyCashSummary.grandTotal) }}</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Resumen de Comprobantes -->
+          <div class="d-flex justify-content-between p-2 rounded-2 bg-dark mb-2 text-secondary fs-2">
+            <span>Facturas Emitidas Hoy:</span>
+            <span class="font-monospace text-white fw-bold">{{ dailyCashSummary.countIssued }}</span>
+          </div>
+          <div class="d-flex justify-content-between p-2 rounded-2 bg-dark mb-2 text-secondary fs-2">
+            <span>Facturas Anuladas Hoy:</span>
+            <span class="font-monospace text-danger fw-bold">{{ dailyCashSummary.countCanceled }}</span>
+          </div>
+          <div class="d-flex justify-content-between p-2 rounded-2 bg-dark text-secondary fs-2">
+            <span>Total Comprobantes Procesados:</span>
+            <span class="font-monospace text-info fw-bold">{{ dailyCashSummary.countTotal }}</span>
+          </div>
+
+          <div class="d-flex justify-content-end gap-2 mt-4 pt-3 border-top border-secondary">
+            <button type="button" class="btn btn-secondary" @click="showDailyCashModal = false">Cerrar</button>
+            <button type="button" class="btn btn-info d-flex align-items-center gap-1" @click="printDailyClosure">
+              <iconify-icon icon="solar:printer-bold-duotone"></iconify-icon>
+              <span>Imprimir Cierre de Caja</span>
+            </button>
+          </div>
         </div>
       </div>
     </div>

@@ -195,3 +195,4 @@ Antes de dar por completado un módulo:
 7. [ ] ¿Las notificaciones usan `toast` de `@/utils/toastr` sin alertas fijas en el DOM?
 8. [ ] ¿Se verificó que los colores y contrastes se ven nítidos tanto en **Modo Oscuro** como en **Modo Claro**?
 9. [ ] ¿El chequeo de tipos (`npm run type-check`) compila con 0 errores?
+
