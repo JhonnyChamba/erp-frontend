@@ -220,18 +220,6 @@ const changeCompany = () => {
             </div>
           </li>
 
-          <!-- BOTÓN SALIR RÁPIDO -->
-          <li class="nav-item ms-2">
-            <button
-              class="btn btn-sm btn-outline-danger d-flex align-items-center gap-1 rounded-pill px-3 py-1"
-              @click="logout"
-              title="Cerrar Sesión"
-            >
-              <iconify-icon icon="solar:logout-2-line-duotone" class="fs-4"></iconify-icon>
-              <span class="d-none d-md-inline fw-semibold">Salir</span>
-            </button>
-          </li>
-
         </ul>
       </nav>
     </div>
