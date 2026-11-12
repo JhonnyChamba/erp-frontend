@@ -22,6 +22,7 @@ export interface CreditNoteItem {
   invoice_id?: number | null
   branch_id?: number | null
   branch_address?: string | null
+  logo_url?: string | null
   establishment: string
   emission_point: string
   sequential: string

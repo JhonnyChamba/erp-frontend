@@ -63,6 +63,7 @@ export interface InvoiceItem {
   tax_total: number
   total: number
   notes?: string
+  logo_url?: string | null
   created_at: string
   details?: InvoiceDetailItem[]
 }
