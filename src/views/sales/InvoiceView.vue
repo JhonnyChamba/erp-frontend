@@ -937,7 +937,21 @@ const getActiveCompany = (): any => {
 }
 
 const printRide = (inv: InvoiceItem, format: 'a4' | 'ticket' = 'a4') => {
-  printRideDoc(inv, getActiveCompany(), format, {
+  const comp: any = { ...getActiveCompany() }
+  // Obtener la sucursal emisora para tomar su logo_url prioritario
+  let branch: any = branchesList.value.find(
+    (b: any) => b.id === (inv as any).branch_id || b.code === (inv as any).branch_code
+  )
+  if (!branch) {
+    try {
+      const rawBranch = localStorage.getItem('selectedBranch')
+      if (rawBranch) branch = JSON.parse(rawBranch)
+    } catch {}
+  }
+  if (branch?.logo_url) {
+    comp.branch_logo_url = branch.logo_url
+  }
+  printRideDoc(inv, comp, format, {
     received: cashReceived.value || undefined,
     change: cashChange.value || undefined,
   })

@@ -11,6 +11,7 @@ export interface TokenPayload {
   multi_company: boolean
   company_id?: number
   theme_color?: string
+  photo_url?: string | null
 }
 
 export interface SidebarSubModuleItem {

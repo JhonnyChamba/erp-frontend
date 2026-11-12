@@ -55,6 +55,11 @@ import {
   deleteDocumentType,
   type DocumentTypeItem,
 } from '@/services/document-types.service'
+import {
+  uploadCompanyLogo,
+  uploadBranchLogo,
+  uploadUserPhoto,
+} from '@/services/storage.service'
 import { useAuthStore } from '@/stores/auth.store'
 import { useThemeStore } from '@/stores/theme.store'
 
@@ -62,6 +67,59 @@ const route = useRoute()
 const router = useRouter()
 const authStore = useAuthStore()
 const themeStore = useThemeStore()
+
+// Subida de imágenes (Empresa, Sucursal, Usuario) a Supabase Storage
+const companyLogoFile = ref<File | null>(null)
+const companyLogoPreview = ref<string>('')
+const branchLogoFile = ref<File | null>(null)
+const branchLogoPreview = ref<string>('')
+const userPhotoFile = ref<File | null>(null)
+const userPhotoPreview = ref<string>('')
+
+const onCompanyLogoChange = (e: Event) => {
+  const file = (e.target as HTMLInputElement).files?.[0]
+  if (!file) return
+  if (!/^image\/(png|jpe?g|webp|svg\+xml)$/i.test(file.type)) {
+    toast.error('Formato no permitido. Solo se aceptan imágenes (PNG, JPG, WEBP, SVG).')
+    return
+  }
+  if (file.size > 5 * 1024 * 1024) {
+    toast.error('El tamaño de la imagen no puede superar 5MB.')
+    return
+  }
+  companyLogoFile.value = file
+  companyLogoPreview.value = URL.createObjectURL(file)
+}
+
+const onBranchLogoChange = (e: Event) => {
+  const file = (e.target as HTMLInputElement).files?.[0]
+  if (!file) return
+  if (!/^image\/(png|jpe?g|webp|svg\+xml)$/i.test(file.type)) {
+    toast.error('Formato no permitido. Solo se aceptan imágenes (PNG, JPG, WEBP, SVG).')
+    return
+  }
+  if (file.size > 5 * 1024 * 1024) {
+    toast.error('El tamaño de la imagen no puede superar 5MB.')
+    return
+  }
+  branchLogoFile.value = file
+  branchLogoPreview.value = URL.createObjectURL(file)
+}
+
+const onUserPhotoChange = (e: Event) => {
+  const file = (e.target as HTMLInputElement).files?.[0]
+  if (!file) return
+  if (!/^image\/(png|jpe?g|webp|svg\+xml)$/i.test(file.type)) {
+    toast.error('Formato no permitido. Solo se aceptan imágenes (PNG, JPG, WEBP, SVG).')
+    return
+  }
+  if (file.size > 5 * 1024 * 1024) {
+    toast.error('El tamaño de la imagen no puede superar 5MB.')
+    return
+  }
+  userPhotoFile.value = file
+  userPhotoPreview.value = URL.createObjectURL(file)
+}
 
 // Paleta de colores de temas (Spike Admin)
 const themeColorsList = [
@@ -486,6 +544,8 @@ const companyFormTab = ref<'general' | 'fiscal' | 'firma' | 'correo'>('general')
 const openCreateCompany = () => {
   isEditingCompany.value = false
   editingCompanyId.value = null
+  companyLogoFile.value = null
+  companyLogoPreview.value = ''
   formCompany.value = initialFormCompany()
   companyFormTab.value = 'general'
   showCompanyModal.value = true
@@ -495,6 +555,8 @@ const openEditCompany = (comp: CompanyItem) => {
   const f = comp.fiscal || {}
   isEditingCompany.value = true
   editingCompanyId.value = comp.id
+  companyLogoFile.value = null
+  companyLogoPreview.value = comp.logo_url || f.logo_url || ''
   formCompany.value = {
     ...initialFormCompany(),
     ruc: comp.ruc,
@@ -664,6 +726,8 @@ const onToggleUserCompany = async (compId: number) => {
 const openCreateUser = async () => {
   isEditingUser.value = false
   editingUserId.value = null
+  userPhotoFile.value = null
+  userPhotoPreview.value = ''
   await Promise.all([
     companies.value.length === 0
       ? getCompanies({ page: 1, limit: 100 }).then((res) => {
@@ -694,6 +758,8 @@ const openCreateUser = async () => {
 const openEditUser = async (user: UserItem) => {
   isEditingUser.value = true
   editingUserId.value = user.id
+  userPhotoFile.value = null
+  userPhotoPreview.value = (user as any).photo_url || ''
   if (companies.value.length === 0) {
     try {
       const res = await getCompanies({ page: 1, limit: 100 })
@@ -923,13 +989,36 @@ const submitCompany = async () => {
     if (!payload.cert_file_name) delete payload.cert_file_name
     if (!payload.remove_certificate) delete payload.remove_certificate
 
+    let savedCompanyId = editingCompanyId.value
     if (isEditingCompany.value && editingCompanyId.value) {
       await updateCompany(editingCompanyId.value, payload)
       successMsg.value = 'Empresa actualizada exitosamente.'
     } else {
-      await createCompany(payload)
+      const created: any = await createCompany(payload)
+      savedCompanyId = created?.id || created?.data?.id
       successMsg.value = 'Empresa y rol Administrador creados exitosamente.'
     }
+
+    if (companyLogoFile.value && savedCompanyId) {
+      try {
+        const upRes = await uploadCompanyLogo(savedCompanyId, companyLogoFile.value)
+        companyLogoPreview.value = upRes.url
+        companyLogoFile.value = null
+        const activeCompRaw = localStorage.getItem('selectedCompany')
+        if (activeCompRaw) {
+          try {
+            const activeComp = JSON.parse(activeCompRaw)
+            if (Number(activeComp.id) === Number(savedCompanyId)) {
+              activeComp.logo_url = upRes.url
+              localStorage.setItem('selectedCompany', JSON.stringify(activeComp))
+            }
+          } catch {}
+        }
+      } catch (uploadErr) {
+        toast.warning('La empresa se guardó, pero hubo un inconveniente al subir el logo.')
+      }
+    }
+
     showCompanyModal.value = false
     formCompany.value = initialFormCompany()
     await loadCurrentTabData()
@@ -983,6 +1072,8 @@ const openCreateBranch = () => {
   isEditingBranch.value = false
   editingBranchId.value = null
   errorMsg.value = ''
+  branchLogoFile.value = null
+  branchLogoPreview.value = ''
   // La primera sucursal es la matriz; si ya hay una, las nuevas son sucursales normales
   formBranch.value = {
     ...emptyBranchForm(),
@@ -997,6 +1088,8 @@ const openEditBranch = (b: BranchItem) => {
   isEditingBranch.value = true
   editingBranchId.value = b.id
   errorMsg.value = ''
+  branchLogoFile.value = null
+  branchLogoPreview.value = (b as any).logo_url || ''
   formBranch.value = {
     companyId: currentCompanyId.value || companies.value[0]?.id || 1,
     code: b.code,
@@ -1028,14 +1121,37 @@ const submitBranch = async () => {
       phone: f.phone ? f.phone.trim() : undefined,
       email: f.email ? f.email.trim() : undefined,
     }
+    let savedBranchId = editingBranchId.value
     if (isEditingBranch.value && editingBranchId.value) {
       // La matriz no se cambia desde aquí: se usa la acción "Marcar como matriz"
       await updateBranch(targetCompanyId, editingBranchId.value, { ...payload, enabled: f.enabled })
       successMsg.value = 'Sucursal actualizada exitosamente.'
     } else {
-      await createBranch(targetCompanyId, { ...payload, is_matrix: f.is_matrix && !hasMatrix.value })
+      const created: any = await createBranch(targetCompanyId, { ...payload, is_matrix: f.is_matrix && !hasMatrix.value })
+      savedBranchId = created?.id || created?.data?.id
       successMsg.value = 'Sucursal registrada exitosamente.'
     }
+
+    if (branchLogoFile.value && savedBranchId) {
+      try {
+        const upRes = await uploadBranchLogo(savedBranchId, targetCompanyId, branchLogoFile.value)
+        branchLogoPreview.value = upRes.url
+        branchLogoFile.value = null
+        const activeBranchRaw = localStorage.getItem('selectedBranch')
+        if (activeBranchRaw) {
+          try {
+            const activeB = JSON.parse(activeBranchRaw)
+            if (Number(activeB.id) === Number(savedBranchId)) {
+              activeB.logo_url = upRes.url
+              localStorage.setItem('selectedBranch', JSON.stringify(activeB))
+            }
+          } catch {}
+        }
+      } catch (uploadErr) {
+        toast.warning('La sucursal se guardó, pero hubo un inconveniente al subir el logo.')
+      }
+    }
+
     showBranchModal.value = false
     await loadCurrentTabData()
     if (!errorMsg.value) successMsg.value = isEditingBranch.value ? 'Sucursal actualizada exitosamente.' : 'Sucursal registrada exitosamente.'
@@ -1116,6 +1232,7 @@ const submitUser = async () => {
       ? formUser.value.companyRolesMap[currentCompanyId.value] ?? null
       : formUser.value.roleId ?? null
 
+    let savedUserId = editingUserId.value
     if (isEditingUser.value && editingUserId.value) {
       const payload: any = {
         companyId: currentCompanyId.value,
@@ -1143,7 +1260,7 @@ const submitUser = async () => {
         authStore.applyTheme(formUser.value.theme_color)
       }
     } else {
-      await createUser({
+      const createdUser: any = await createUser({
         companyId: currentCompanyId.value,
         num_document: formUser.value.num_document,
         birth_date: formUser.value.birth_date || null,
@@ -1159,8 +1276,23 @@ const submitUser = async () => {
         companyRoles: companyRolesPayload,
         theme_color: formUser.value.theme_color || 'Blue_Theme',
       })
+      savedUserId = createdUser?.id || createdUser?.data?.id
       successMsg.value = 'Usuario registrado exitosamente.'
     }
+
+    if (userPhotoFile.value && savedUserId) {
+      try {
+        const upRes = await uploadUserPhoto(savedUserId, userPhotoFile.value)
+        userPhotoPreview.value = upRes.url
+        userPhotoFile.value = null
+        if (authStore.tokenPayload?.user_id === savedUserId) {
+          localStorage.setItem('userPhoto', upRes.url)
+        }
+      } catch (uploadErr) {
+        toast.warning('El usuario se guardó, pero hubo un inconveniente al subir la fotografía.')
+      }
+    }
+
     showUserModal.value = false
     await Promise.all([loadCurrentTabData(), authStore.fetchCompanyAccess(currentCompanyId.value)])
   } catch (err: any) {
@@ -1899,7 +2031,18 @@ const submitSubscription = async () => {
             <tr v-for="comp in companies" :key="comp.id">
               <td><span class="badge bg-dark-subtle text-white">{{ comp.id }}</span></td>
               <td class="fw-semibold text-white">{{ comp.ruc }}</td>
-              <td class="text-white">{{ comp.business_name }}</td>
+              <td class="text-white">
+                <div class="d-flex align-items-center gap-2">
+                  <img
+                    v-if="comp.logo_url || comp.fiscal?.logo_url"
+                    :src="(comp.logo_url || comp.fiscal?.logo_url) || ''"
+                    alt="Logo"
+                    class="rounded border border-secondary-subtle"
+                    style="width: 28px; height: 28px; object-fit: contain; background: #000;"
+                  />
+                  <span>{{ comp.business_name }}</span>
+                </div>
+              </td>
               <td class="text-secondary">{{ comp.trade_name }}</td>
               <td>
                 <span
@@ -1988,7 +2131,18 @@ const submitSubscription = async () => {
             <tr v-for="b in branches" :key="b.id">
               <td><span class="badge bg-primary text-white fw-bold font-monospace">{{ b.code }}</span></td>
               <td><span class="badge bg-dark-subtle text-white font-monospace">{{ b.emissionPoint }}</span></td>
-              <td class="text-white fw-semibold">{{ b.name }}</td>
+              <td class="text-white fw-semibold">
+                <div class="d-flex align-items-center gap-2">
+                  <img
+                    v-if="b.logo_url"
+                    :src="b.logo_url || ''"
+                    alt="Logo"
+                    class="rounded border border-secondary-subtle"
+                    style="width: 28px; height: 28px; object-fit: contain; background: #000;"
+                  />
+                  <span>{{ b.name }}</span>
+                </div>
+              </td>
               <td class="text-white">{{ b.address }}</td>
               <td class="text-white">
                 <div v-if="b.phone">{{ b.phone }}</div>
@@ -2099,7 +2253,18 @@ const submitSubscription = async () => {
             <tr v-for="user in users" :key="user.id">
               <td><span class="badge bg-dark-subtle text-white">{{ user.id }}</span></td>
               <td class="fw-semibold text-white">{{ user.num_document || 'S/D' }}</td>
-              <td class="text-white">{{ user.name_user }} {{ user.last_name_user }}</td>
+              <td class="text-white">
+                <div class="d-flex align-items-center gap-2">
+                  <img
+                    v-if="user.photo_url"
+                    :src="user.photo_url || ''"
+                    alt="Foto"
+                    class="rounded-circle border border-primary border-2"
+                    style="width: 28px; height: 28px; object-fit: cover;"
+                  />
+                  <span>{{ user.name_user }} {{ user.last_name_user }}</span>
+                </div>
+              </td>
               <td class="text-info">{{ user.email }}</td>
               <td>
                 <span v-if="user.super_admin || user.developer" class="badge bg-danger-subtle text-danger border border-danger-subtle me-1">
@@ -2865,6 +3030,29 @@ const submitSubscription = async () => {
             </div>
             <form @submit.prevent="submitBranch">
               <div class="modal-body p-4">
+                <!-- LOGOTIPO DE LA SUCURSAL (SUPABASE STORAGE) -->
+                <div class="mb-4">
+                  <div class="p-3 rounded-3 border border-secondary-subtle bg-dark-subtle d-flex flex-wrap align-items-center justify-content-between gap-3">
+                    <div class="d-flex align-items-center gap-3">
+                      <div class="rounded-3 border border-secondary-subtle bg-black d-flex align-items-center justify-content-center overflow-hidden" style="width: 80px; height: 80px;">
+                        <img v-if="branchLogoPreview" :src="branchLogoPreview" alt="Logo Sucursal" style="max-width: 100%; max-height: 100%; object-fit: contain;" />
+                        <iconify-icon v-else icon="solar:shop-2-bold-duotone" class="fs-9 text-secondary"></iconify-icon>
+                      </div>
+                      <div>
+                        <h6 class="text-white fw-bold mb-1">Logotipo Propio de la Sucursal</h6>
+                        <p class="text-secondary fs-2 mb-0">Prioridad #1 en la impresión RIDE. Si no se sube, se usará automáticamente el de la empresa.</p>
+                        <small class="text-white-50 fs-1">Formatos: PNG, JPG, WEBP, SVG (Máx. 5MB). Guardado en Supabase Storage.</small>
+                      </div>
+                    </div>
+                    <div>
+                      <label class="btn btn-outline-primary btn-sm rounded-pill px-3 cursor-pointer d-inline-flex align-items-center gap-2 mb-0">
+                        <iconify-icon icon="solar:upload-track-2-line-duotone" class="fs-4"></iconify-icon>
+                        <span>{{ branchLogoPreview ? 'Cambiar Logotipo' : 'Subir Logotipo' }}</span>
+                        <input type="file" accept="image/png,image/jpeg,image/webp,image/svg+xml" class="d-none" @change="onBranchLogoChange" />
+                      </label>
+                    </div>
+                  </div>
+                </div>
                 <div class="alert alert-info d-flex align-items-start gap-2 py-2 mb-4">
                   <iconify-icon icon="solar:info-circle-line-duotone" class="fs-5 mt-1"></iconify-icon>
                   <span class="fs-2">
@@ -2969,6 +3157,29 @@ const submitSubscription = async () => {
               <div class="modal-body p-4">
                 <!-- GENERAL -->
                 <div v-show="companyFormTab === 'general'" class="row g-3">
+                  <!-- LOGOTIPO DE LA EMPRESA (SUPABASE STORAGE) -->
+                  <div class="col-12">
+                    <div class="p-3 rounded-3 border border-secondary-subtle bg-dark-subtle d-flex flex-wrap align-items-center justify-content-between gap-3">
+                      <div class="d-flex align-items-center gap-3">
+                        <div class="rounded-3 border border-secondary-subtle bg-black d-flex align-items-center justify-content-center overflow-hidden" style="width: 80px; height: 80px;">
+                          <img v-if="companyLogoPreview" :src="companyLogoPreview" alt="Logo Empresa" style="max-width: 100%; max-height: 100%; object-fit: contain;" />
+                          <iconify-icon v-else icon="solar:buildings-bold-duotone" class="fs-9 text-secondary"></iconify-icon>
+                        </div>
+                        <div>
+                          <h6 class="text-white fw-bold mb-1">Logotipo de la Empresa</h6>
+                          <p class="text-secondary fs-2 mb-0">Se mostrará en la impresión de facturas y notas de crédito (RIDE A4 y Ticket) de las sucursales sin logo propio.</p>
+                          <small class="text-white-50 fs-1">Formatos: PNG, JPG, WEBP, SVG (Máx. 5MB). Guardado en Supabase Storage.</small>
+                        </div>
+                      </div>
+                      <div>
+                        <label class="btn btn-outline-primary btn-sm rounded-pill px-3 cursor-pointer d-inline-flex align-items-center gap-2 mb-0">
+                          <iconify-icon icon="solar:upload-track-2-line-duotone" class="fs-4"></iconify-icon>
+                          <span>{{ companyLogoPreview ? 'Cambiar Logotipo' : 'Subir Logotipo' }}</span>
+                          <input type="file" accept="image/png,image/jpeg,image/webp,image/svg+xml" class="d-none" @change="onCompanyLogoChange" />
+                        </label>
+                      </div>
+                    </div>
+                  </div>
                   <div class="col-md-6">
                     <label class="form-label text-secondary fs-2 fw-semibold">RUC *</label>
                     <input v-model="formCompany.ruc" type="text" maxlength="13" class="form-control bg-dark-subtle border-secondary-subtle text-white" placeholder="1725620247001" required />
@@ -3260,6 +3471,29 @@ const submitSubscription = async () => {
             </div>
             <form @submit.prevent="submitUser">
               <div class="modal-body p-4">
+                <!-- FOTOGRAFÍA / AVATAR DEL USUARIO (SUPABASE STORAGE) -->
+                <div class="mb-4">
+                  <div class="p-3 rounded-3 border border-secondary-subtle bg-dark-subtle d-flex flex-wrap align-items-center justify-content-between gap-3">
+                    <div class="d-flex align-items-center gap-3">
+                      <div class="rounded-circle border border-primary border-2 bg-black d-flex align-items-center justify-content-center overflow-hidden" style="width: 72px; height: 72px;">
+                        <img v-if="userPhotoPreview" :src="userPhotoPreview" alt="Foto Usuario" style="width: 100%; height: 100%; object-fit: cover;" />
+                        <iconify-icon v-else icon="solar:user-bold-duotone" class="fs-9 text-secondary"></iconify-icon>
+                      </div>
+                      <div>
+                        <h6 class="text-white fw-bold mb-1">Fotografía / Avatar del Usuario</h6>
+                        <p class="text-secondary fs-2 mb-0">Foto de perfil visible en la barra superior y pie lateral del sistema.</p>
+                        <small class="text-white-50 fs-1">Formatos: PNG, JPG, WEBP (Máx. 5MB). Guardado en Supabase Storage.</small>
+                      </div>
+                    </div>
+                    <div>
+                      <label class="btn btn-outline-primary btn-sm rounded-pill px-3 cursor-pointer d-inline-flex align-items-center gap-2 mb-0">
+                        <iconify-icon icon="solar:camera-line-duotone" class="fs-4"></iconify-icon>
+                        <span>{{ userPhotoPreview ? 'Cambiar Foto' : 'Subir Foto' }}</span>
+                        <input type="file" accept="image/png,image/jpeg,image/webp" class="d-none" @change="onUserPhotoChange" />
+                      </label>
+                    </div>
+                  </div>
+                </div>
                 <div class="row">
                   <div class="col-md-6 mb-3">
                     <label class="form-label text-secondary fs-2 fw-semibold">Número de Cédula / Documento</label>

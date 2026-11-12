@@ -840,9 +840,8 @@ const paymentLabel = (p: string) => {
                         <hr class="dropdown-divider">
                         <a
                           class="dropdown-item py-2"
-                          :class="c.estado === 'activo' ? 'text-danger' : 'text-success'"
+                          :class="[c.estado === 'activo' ? 'text-danger' : 'text-success', { disabled: actionProcessingId === c.id }]"
                           href="javascript:void(0)"
-                          :class="{ disabled: actionProcessingId === c.id }"
                           @click="handleToggleCustomerStatus(c)"
                         >
                           <span v-if="actionProcessingId === c.id" class="spinner-grow spinner-grow-sm text-warning" role="status"></span>
@@ -1038,9 +1037,8 @@ const paymentLabel = (p: string) => {
                         <hr class="dropdown-divider">
                         <a
                           class="dropdown-item py-2"
-                          :class="p.estado === 'activo' ? 'text-danger' : 'text-success'"
+                          :class="[p.estado === 'activo' ? 'text-danger' : 'text-success', { disabled: actionProcessingId === p.id }]"
                           href="javascript:void(0)"
-                          :class="{ disabled: actionProcessingId === p.id }"
                           @click="handleToggleProviderStatus(p)"
                         >
                           <span v-if="actionProcessingId === p.id" class="spinner-grow spinner-grow-sm text-warning" role="status"></span>
@@ -1237,9 +1235,8 @@ const paymentLabel = (p: string) => {
                         <hr class="dropdown-divider">
                         <a
                           class="dropdown-item py-2"
-                          :class="s.estado === 'activo' ? 'text-danger' : 'text-success'"
+                          :class="[s.estado === 'activo' ? 'text-danger' : 'text-success', { disabled: actionProcessingId === s.id }]"
                           href="javascript:void(0)"
-                          :class="{ disabled: actionProcessingId === s.id }"
                           @click="handleToggleSellerStatus(s)"
                         >
                           <span v-if="actionProcessingId === s.id" class="spinner-grow spinner-grow-sm text-warning" role="status"></span>

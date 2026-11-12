@@ -125,6 +125,7 @@ export function generateRideA4Html(inv: any, company: any): string {
   const barcodeSvg = inv?.access_key ? generateBarcode128Svg(inv.access_key, { height: 40, showText: false }) : ''
   const isInvoice = (inv?.document_type || '01') === '01'
   const docTitle = isInvoice ? 'FACTURA' : 'NOTA DE CRÉDITO'
+  const printLogoUrl = inv?.branch_logo_url || company?.branch_logo_url || company?.logo_url || null
 
   const detailsRows = (inv.details || [])
     .map(
@@ -177,10 +178,20 @@ export function generateRideA4Html(inv: any, company: any): string {
 <body>
   <div class="header-grid">
     <!-- Emisor / Empresa -->
-    <div class="box d-flex flex-column justify-content-between">
+    <div class="box" style="display: flex; flex-direction: column; justify-content: space-between;">
       <div>
+        ${printLogoUrl ? `
+        <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 8px;">
+          <img src="${esc(printLogoUrl)}" alt="Logo" style="max-height: 52px; max-width: 120px; object-fit: contain; border-radius: 4px;" />
+          <div style="flex: 1; min-width: 0;">
+            <div class="company-title">${esc(company.business_name || company.razon_social || 'EMPRESA')}</div>
+            <div class="company-trade">${esc(company.trade_name || company.nombre_comercial || '')}</div>
+          </div>
+        </div>
+        ` : `
         <div class="company-title">${esc(company.business_name || company.razon_social || 'EMPRESA')}</div>
         <div class="company-trade">${esc(company.trade_name || company.nombre_comercial || '')}</div>
+        `}
         <div style="margin-top: 6px; line-height: 1.4;">
           <b>Dirección Matriz:</b> ${esc(company.address_matriz || 'Ecuador')}<br>
           <b>Dirección Sucursal:</b> ${esc(inv.branch_address || company.address_matriz || 'Ecuador')}<br>
@@ -336,6 +347,7 @@ export function generateRideTicketHtml(inv: any, company: any, cashInfo?: { rece
   const barcodeSvg = inv?.access_key ? generateBarcode128Svg(inv.access_key, { height: 35, barWidth: 0.9, showText: false }) : ''
   const isInvoice = (inv?.document_type || '01') === '01'
   const docTitle = isInvoice ? 'FACTURA ELECTRÓNICA' : 'NOTA DE CRÉDITO ELECTRÓNICA'
+  const printLogoUrl = inv?.branch_logo_url || company?.branch_logo_url || company?.logo_url || null
 
   const items = (inv.details || [])
     .map(
@@ -383,6 +395,7 @@ export function generateRideTicketHtml(inv: any, company: any, cashInfo?: { rece
 <body>
   <!-- Encabezado Emisor -->
   <div class="text-center">
+    ${printLogoUrl ? `<div style="margin-bottom: 6px;"><img src="${esc(printLogoUrl)}" alt="Logo" style="max-height: 48px; max-width: 140px; object-fit: contain; filter: grayscale(100%);" /></div>` : ''}
     <div style="font-size: 13px; font-weight: bold;">${esc(company.trade_name || company.business_name || 'DESKOUNTA')}</div>
     <div style="font-size: 11px;">${esc(company.business_name || '')}</div>
     <div>R.U.C.: ${esc(company.ruc || '')}</div>

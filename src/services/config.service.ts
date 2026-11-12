@@ -21,6 +21,7 @@ export interface CompanyFiscal {
   has_smtp_password?: boolean
   smtp_from_name?: string
   smtp_from_email?: string
+  logo_url?: string | null
 }
 
 export interface CompanyItem {
@@ -29,6 +30,7 @@ export interface CompanyItem {
   description: string
   business_name: string
   trade_name: string
+  logo_url?: string | null
   enabled?: boolean
   createdAt?: string
   fiscal?: CompanyFiscal
@@ -87,6 +89,7 @@ export interface UserItem {
   created_at?: string
   theme_color?: string
   birth_date?: string | null
+  photo_url?: string | null
 }
 
 export interface RoleAccessDetail {
@@ -192,6 +195,7 @@ export const createUser = async (payload: {
   companyRoles?: UserCompanyRoleItem[]
   theme_color?: string
   birth_date?: string | null
+  photo_url?: string | null
 }) => {
   const { data } = await api.post('/users', payload)
   return data
@@ -391,6 +395,7 @@ export interface BranchItem {
   emissionPoint: string
   phone: string | null
   email: string | null
+  logo_url?: string | null
   isMatrix: boolean
   enabled: boolean
 }

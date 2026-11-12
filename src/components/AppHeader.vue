@@ -13,6 +13,7 @@ const emit = defineEmits(['toggle-sidebar', 'open-customizer'])
 const selectedCompany = ref<any>(null)
 const selectedBranch = ref<any>(null)
 const userName = ref('Usuario')
+const userPhoto = computed(() => authStore.tokenPayload?.photo_url || localStorage.getItem('userPhoto') || '/controller/images/profile/user-1.jpg')
 
 const activeRoleLabel = computed(() => {
   return authStore.accessInfo?.roleName || (authStore.tokenPayload?.super_admin ? 'Super Admin' : 'Admin')
@@ -184,10 +185,11 @@ const changeCompany = () => {
               <div class="d-flex align-items-center flex-shrink-0">
                 <div class="user-profile me-sm-2 me-1">
                   <img
-                    src="/controller/images/profile/user-1.jpg"
+                    :src="userPhoto"
                     width="38"
                     height="38"
                     class="rounded-circle border border-primary border-2"
+                    style="object-fit: cover;"
                     alt="user"
                   />
                 </div>
