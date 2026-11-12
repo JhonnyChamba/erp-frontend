@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, watch, nextTick } from 'vue'
-import { useRoute } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores/auth.store'
 import { toast } from '@/utils/toastr'
 import {
@@ -35,7 +35,15 @@ import {
 import SriResponseModal from '@/components/common/SriResponseModal.vue'
 
 const route = useRoute()
+const router = useRouter()
 const authStore = useAuthStore()
+
+const goToCreditNote = (inv: InvoiceItem) => {
+  router.push({
+    path: '/ventas/notas-credito',
+    query: { invoiceId: String(inv.id) }
+  })
+}
 
 // Submódulo dinámico
 const isInvoiceSubmodule = computed(() => {
@@ -1017,6 +1025,36 @@ watch(() => route.path, () => {
       </div>
     </div>
 
+    <!-- PESTAÑAS DE NAVEGACIÓN MÓDULO VENTAS (FACTURAS, NOTAS DE CRÉDITO, PUNTOS DE EMISIÓN) -->
+    <div class="d-flex align-items-center gap-2 mt-3 mb-1 flex-wrap">
+      <router-link
+        to="/ventas/facturas"
+        class="btn btn-sm rounded-pill px-3 py-1 fw-semibold d-inline-flex align-items-center gap-2"
+        :class="route.path.includes('factura') ? 'btn-primary' : 'btn-outline-secondary'"
+      >
+        <iconify-icon icon="solar:document-text-line-duotone" class="fs-4"></iconify-icon>
+        <span>Facturas</span>
+      </router-link>
+
+      <router-link
+        to="/ventas/notas-credito"
+        class="btn btn-sm rounded-pill px-3 py-1 fw-semibold d-inline-flex align-items-center gap-2"
+        :class="route.path.includes('notas-credito') ? 'btn-primary' : 'btn-outline-secondary'"
+      >
+        <iconify-icon icon="solar:bill-cross-line-duotone" class="fs-4"></iconify-icon>
+        <span>Notas de Crédito (SRI 04)</span>
+      </router-link>
+
+      <router-link
+        to="/ventas/puntos-emision"
+        class="btn btn-sm rounded-pill px-3 py-1 fw-semibold d-inline-flex align-items-center gap-2"
+        :class="route.path.includes('puntos-emision') ? 'btn-primary' : 'btn-outline-secondary'"
+      >
+        <iconify-icon icon="solar:printer-minimalistic-line-duotone" class="fs-4"></iconify-icon>
+        <span>Puntos de Emisión</span>
+      </router-link>
+    </div>
+
     <!-- Si no es el submódulo de facturas, mostrar aviso normal -->
     <div v-if="!isInvoiceSubmodule" class="card rounded-4 border-0 shadow-sm p-4 bg-dark text-white mt-4">
       <p class="text-secondary mb-0">
@@ -1179,6 +1217,15 @@ watch(() => route.path, () => {
                     </button>
                     <button class="btn btn-sm btn-outline-info rounded-pill px-2" @click="openDetailModal(inv)" title="Ver Detalle y RIDE">
                       <iconify-icon icon="solar:eye-line-duotone"></iconify-icon>
+                    </button>
+                    <button
+                      v-if="inv.sign_status === 'SIGNED' && inv.status !== 'CANCELED'"
+                      class="btn btn-sm btn-outline-danger rounded-pill px-2 d-inline-flex align-items-center gap-1"
+                      @click="goToCreditNote(inv)"
+                      title="Emitir Nota de Crédito para esta Factura"
+                    >
+                      <iconify-icon icon="solar:bill-cross-line-duotone"></iconify-icon>
+                      <span class="fs-1 d-none d-xxl-inline">Nota de Crédito</span>
                     </button>
                     <button
                       v-if="inv.status === 'ISSUED'"
@@ -1763,6 +1810,15 @@ watch(() => route.path, () => {
           <button class="btn btn-outline-info d-flex align-items-center gap-2" @click="printRide(viewingInvoice)">
             <iconify-icon icon="solar:printer-bold-duotone"></iconify-icon>
             <span>Imprimir / PDF (RIDE)</span>
+          </button>
+          <button
+            v-if="viewingInvoice.sign_status === 'SIGNED' && viewingInvoice.status !== 'CANCELED'"
+            class="btn btn-outline-danger d-flex align-items-center gap-2"
+            @click="showDetailModal = false; goToCreditNote(viewingInvoice)"
+            title="Emitir Nota de Crédito para esta factura"
+          >
+            <iconify-icon icon="solar:bill-cross-line-duotone"></iconify-icon>
+            <span>Emitir Nota de Crédito</span>
           </button>
           <button class="btn btn-secondary" @click="showDetailModal = false">Cerrar</button>
         </div>

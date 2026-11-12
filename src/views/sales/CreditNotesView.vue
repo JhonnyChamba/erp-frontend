@@ -1,5 +1,32 @@
 <template>
   <div class="crud-page credit-notes-page">
+
+    <!-- PESTAÑAS DE NAVEGACIÓN MÓDULO VENTAS (FACTURAS, NOTAS DE CRÉDITO, PUNTOS DE EMISIÓN) -->
+    <div class="d-flex align-items-center gap-2 mb-3 flex-wrap">
+      <router-link
+        to="/ventas/facturas"
+        class="btn btn-sm rounded-pill px-3 py-1 fw-semibold d-inline-flex align-items-center gap-2 btn-outline-secondary"
+      >
+        <iconify-icon icon="solar:document-text-line-duotone" class="fs-4"></iconify-icon>
+        <span>Facturas</span>
+      </router-link>
+
+      <router-link
+        to="/ventas/notas-credito"
+        class="btn btn-sm rounded-pill px-3 py-1 fw-semibold d-inline-flex align-items-center gap-2 btn-primary"
+      >
+        <iconify-icon icon="solar:bill-cross-line-duotone" class="fs-4"></iconify-icon>
+        <span>Notas de Crédito (SRI 04)</span>
+      </router-link>
+
+      <router-link
+        to="/ventas/puntos-emision"
+        class="btn btn-sm rounded-pill px-3 py-1 fw-semibold d-inline-flex align-items-center gap-2 btn-outline-secondary"
+      >
+        <iconify-icon icon="solar:printer-minimalistic-line-duotone" class="fs-4"></iconify-icon>
+        <span>Puntos de Emisión</span>
+      </router-link>
+    </div>
     
     <!-- ============================================================== -->
     <!-- VISTA 1: LISTADO PRINCIPAL (TABLA, KPIS Y FILTROS)             -->
@@ -822,7 +849,8 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, watch } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
 import { api } from '@/services/axios'
 import AppSelect2 from '@/components/common/AppSelect2.vue'
 import { toast } from '@/utils/toastr'
@@ -839,6 +867,8 @@ import { getEmissionPoints, type EmissionPointItem } from '@/services/emission-p
 import { getBranches, type BranchItem } from '@/services/config.service'
 import SriResponseModal from '@/components/common/SriResponseModal.vue'
 
+const route = useRoute()
+const router = useRouter()
 const authStore = useAuthStore()
 
 const getActiveCompanyId = (): number => {
@@ -1071,6 +1101,9 @@ const loadData = async () => {
 const backToList = () => {
   currentView.value = 'list'
   selectedDetail.value = null
+  if (route.query.invoiceId) {
+    router.replace({ path: '/ventas/notas-credito' })
+  }
 }
 
 const openCreateForm = () => {
@@ -1113,9 +1146,10 @@ const onInvoiceSelected = (invId: any) => {
   if (!inv) return
 
   selectedInvoice.value = inv
+  selectedInvoiceId.value = inv.id
   form.value.invoiceId = inv.id
   form.value.modified_document_number = inv.invoice_number
-  form.value.modified_document_date = inv.issue_date
+  form.value.modified_document_date = inv.issue_date ? String(inv.issue_date).slice(0, 10) : ''
   form.value.branchId = inv.branch_id || form.value.branchId
   form.value.customer_id_type = inv.customer_id_type || '05'
   form.value.customer_id_number = inv.customer_id_number || ''
@@ -1289,8 +1323,23 @@ const formatSriStatus = (status: string) => {
   }
 }
 
-onMounted(() => {
-  loadData()
+const handleQueryInvoice = () => {
+  const qInvId = route.query.invoiceId
+  if (qInvId) {
+    const targetId = Number(qInvId)
+    openCreateForm()
+    selectedInvoiceId.value = targetId
+    onInvoiceSelected(targetId)
+  }
+}
+
+onMounted(async () => {
+  await loadData()
+  handleQueryInvoice()
+})
+
+watch(() => route.query.invoiceId, () => {
+  handleQueryInvoice()
 })
 </script>
 

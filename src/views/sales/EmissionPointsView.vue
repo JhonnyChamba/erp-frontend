@@ -320,6 +320,33 @@ onMounted(() => {
 
 <template>
   <div class="crud-page emission-points-page">
+
+    <!-- PESTAÑAS DE NAVEGACIÓN MÓDULO VENTAS (FACTURAS, NOTAS DE CRÉDITO, PUNTOS DE EMISIÓN) -->
+    <div class="d-flex align-items-center gap-2 mb-3 flex-wrap">
+      <router-link
+        to="/ventas/facturas"
+        class="btn btn-sm rounded-pill px-3 py-1 fw-semibold d-inline-flex align-items-center gap-2 btn-outline-secondary"
+      >
+        <iconify-icon icon="solar:document-text-line-duotone" class="fs-4"></iconify-icon>
+        <span>Facturas</span>
+      </router-link>
+
+      <router-link
+        to="/ventas/notas-credito"
+        class="btn btn-sm rounded-pill px-3 py-1 fw-semibold d-inline-flex align-items-center gap-2 btn-outline-secondary"
+      >
+        <iconify-icon icon="solar:bill-cross-line-duotone" class="fs-4"></iconify-icon>
+        <span>Notas de Crédito (SRI 04)</span>
+      </router-link>
+
+      <router-link
+        to="/ventas/puntos-emision"
+        class="btn btn-sm rounded-pill px-3 py-1 fw-semibold d-inline-flex align-items-center gap-2 btn-primary"
+      >
+        <iconify-icon icon="solar:printer-minimalistic-line-duotone" class="fs-4"></iconify-icon>
+        <span>Puntos de Emisión</span>
+      </router-link>
+    </div>
     
     <!-- ============================================================== -->
     <!-- VISTA 1: LISTADO PRINCIPAL (TABLA, KPIS Y FILTROS)             -->

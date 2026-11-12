@@ -64,7 +64,7 @@
                     class="list-unstyled ps-3 pt-1 mb-2 first-level"
                   >
                     <li
-                      v-for="sub in (mod.code === 'MOD-003' ? getInventorySubItems(mod) : (mod.code === 'MOD-002' ? getPurchasesSubItems(mod) : (mod.code === 'MOD-001' ? getSalesSubItems(mod) : mod.children)))"
+                      v-for="sub in (isInventoryMod(mod) ? getInventorySubItems(mod) : (isPurchasesMod(mod) ? getPurchasesSubItems(mod) : (isSalesMod(mod) ? getSalesSubItems(mod) : mod.children)))"
                       :key="sub.code"
                       class="sidebar-item mb-1"
                     >
@@ -294,13 +294,33 @@ const getPurchasesSubItems = (mod: any) => {
   return children
 }
 
+const isInventoryMod = (mod: any) =>
+  mod.code === 'MOD-003' || mod.description?.toLowerCase().includes('inventario')
+
+const isPurchasesMod = (mod: any) =>
+  mod.code === 'MOD-002' || mod.description?.toLowerCase().includes('compra')
+
+const isSalesMod = (mod: any) =>
+  mod.code === 'MOD-001' ||
+  mod.description?.toLowerCase().includes('venta') ||
+  mod.children?.some((s: any) => s.url?.toLowerCase().includes('venta'))
+
 const getSalesSubItems = (mod: any) => {
   const children = [...(mod.children || [])]
+  const hasFacturas = children.some((s: any) => s.url?.toLowerCase().includes('factura'))
+  if (!hasFacturas) {
+    children.unshift({
+      id: 1,
+      code: 'SUB-001',
+      description: 'Facturas',
+      url: '/ventas/facturas'
+    })
+  }
   const hasCreditNotes = children.some((s: any) => s.url?.toLowerCase().includes('notas-credito'))
   if (!hasCreditNotes) {
     children.push({
-      id: 26,
-      code: 'SUB-026',
+      id: 2,
+      code: 'SUB-002',
       description: 'Notas de Crédito',
       url: '/ventas/notas-credito'
     })
@@ -314,6 +334,17 @@ const getSalesSubItems = (mod: any) => {
       url: '/ventas/puntos-emision'
     })
   }
+
+  // Ordenar: Facturas primero, Notas de Crédito segundo, Puntos de Emisión tercero, luego el resto
+  const order = ['factura', 'notas-credito', 'puntos-emision', 'notas-venta', 'cotizaciones']
+  children.sort((a: any, b: any) => {
+    const aUrl = (a.url || '').toLowerCase()
+    const bUrl = (b.url || '').toLowerCase()
+    const aIdx = order.findIndex((k) => aUrl.includes(k))
+    const bIdx = order.findIndex((k) => bUrl.includes(k))
+    return (aIdx === -1 ? 99 : aIdx) - (bIdx === -1 ? 99 : bIdx)
+  })
+
   return children
 }
 
@@ -321,13 +352,13 @@ const isOpen = (moduleCode: string) => {
   if (openModules[moduleCode] !== undefined) {
     return openModules[moduleCode]
   }
-  if (moduleCode === 'MOD-001' && route.path.toLowerCase().startsWith('/ventas')) {
+  if ((moduleCode === 'MOD-001' || moduleCode?.toLowerCase().includes('venta')) && route.path.toLowerCase().startsWith('/ventas')) {
     return true
   }
-  if (moduleCode === 'MOD-003' && route.path.toLowerCase().startsWith('/inventario')) {
+  if ((moduleCode === 'MOD-003' || moduleCode?.toLowerCase().includes('inventario')) && route.path.toLowerCase().startsWith('/inventario')) {
     return true
   }
-  if (moduleCode === 'MOD-002' && route.path.toLowerCase().startsWith('/compras')) {
+  if ((moduleCode === 'MOD-002' || moduleCode?.toLowerCase().includes('compra')) && route.path.toLowerCase().startsWith('/compras')) {
     return true
   }
   const found = (authStore.accessInfo?.menu || []).find((m) => m.code === moduleCode)
