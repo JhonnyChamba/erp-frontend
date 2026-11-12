@@ -872,6 +872,19 @@ watch(
   (newTab) => {
     if (newTab && ['companies', 'branches', 'users', 'roles', 'modules', 'subscriptions', 'taxes', 'document_types'].includes(newTab as string)) {
       activeTab.value = newTab as any
+      showCompanyModal.value = false
+      showBranchModal.value = false
+      showUserModal.value = false
+      showRoleModal.value = false
+      showModuleModal.value = false
+      showSubModuleModal.value = false
+      showPlanModal.value = false
+      showSubscriptionModal.value = false
+      showTaxModal.value = false
+      showDocTypeModal.value = false
+      loadCurrentTabData()
+    } else if (!newTab) {
+      activeTab.value = 'companies'
       loadCurrentTabData()
     }
   },

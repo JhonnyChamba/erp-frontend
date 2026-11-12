@@ -103,19 +103,19 @@
                     </span>
                     <span class="hide-menu ps-1">{{ mod.description }}</span>
                     <iconify-icon
-                      v-if="mod.children && mod.children.length > 0"
+                      v-if="getConfigSubItems(mod).length > 0"
                       :icon="isOpen(mod.code) ? 'solar:alt-arrow-up-line-duotone' : 'solar:alt-arrow-down-line-duotone'"
                       class="fs-3 ms-auto text-muted arrow-toggle-icon"
                     ></iconify-icon>
                   </a>
 
                   <ul
-                    v-if="mod.children && mod.children.length > 0"
+                    v-if="getConfigSubItems(mod).length > 0"
                     v-show="isOpen(mod.code)"
                     class="list-unstyled ps-3 pt-1 mb-2 first-level"
                   >
                     <li
-                      v-for="sub in mod.children"
+                      v-for="sub in getConfigSubItems(mod)"
                       :key="sub.code"
                       class="sidebar-item mb-1"
                     >
@@ -241,10 +241,69 @@ const systemModules = computed(() => {
 
 const isSubActive = (subUrl: string) => {
   if (!subUrl) return false
-  if (subUrl.includes('?')) {
-    return route.fullPath.toLowerCase() === subUrl.toLowerCase()
+  const parts = subUrl.split('?')
+  const subPath = (parts[0] || '').toLowerCase()
+  const subQuery = parts[1]
+  const currentPath = route.path.toLowerCase()
+
+  if (currentPath !== subPath) {
+    return false
   }
-  return route.path.toLowerCase() === subUrl.toLowerCase()
+
+  if (subQuery) {
+    const searchParams = new URLSearchParams(subQuery)
+    const expectedTab = searchParams.get('tab')
+    const currentTab = (route.query.tab as string) || (currentPath === '/configuracion' ? 'companies' : '')
+    if (expectedTab && currentTab) {
+      return expectedTab.toLowerCase() === currentTab.toLowerCase()
+    }
+    for (const [key, val] of searchParams.entries()) {
+      if (String(route.query[key] || '').toLowerCase() !== val.toLowerCase()) {
+        return false
+      }
+    }
+    return true
+  }
+
+  // Si subUrl no tiene query pero la ruta actual sí tiene tab distinta de companies en configuración
+  if (currentPath === '/configuracion' && route.query.tab && route.query.tab !== 'companies') {
+    return false
+  }
+
+  return true
+}
+
+const getConfigSubItems = (mod: any) => {
+  const children = [...(mod?.children || [])]
+
+  // Lista canónica de los 8 submódulos en el orden exacto de los tabs de Configuración
+  const canonicalItems = [
+    { id: 17, code: 'SUB-017', description: 'Empresas', url: '/configuracion?tab=companies' },
+    { id: 26, code: 'SUB-026', description: 'Sucursales', url: '/configuracion?tab=branches' },
+    { id: 18, code: 'SUB-018', description: 'Usuarios', url: '/configuracion?tab=users' },
+    { id: 19, code: 'SUB-019', description: 'Roles', url: '/configuracion?tab=roles' },
+    { id: 20, code: 'SUB-020', description: 'Módulos & Submódulos', url: '/configuracion?tab=modules' },
+    { id: 21, code: 'SUB-021', description: 'Planes & Suscripciones', url: '/configuracion?tab=subscriptions' },
+    { id: 27, code: 'SUB-027', description: 'Impuestos', url: '/configuracion?tab=taxes' },
+    { id: 28, code: 'SUB-028', description: 'Tipos de Documentos', url: '/configuracion?tab=document_types' },
+  ]
+
+  return canonicalItems.map((item) => {
+    const existing = children.find(
+      (c: any) =>
+        c.code === item.code ||
+        c.description?.toLowerCase().trim() === item.description.toLowerCase().trim() ||
+        (c.url && item.url && c.url.toLowerCase().includes(item.url.split('?')[1]?.toLowerCase()))
+    )
+    if (existing) {
+      return {
+        ...existing,
+        description: item.description,
+        url: item.url,
+      }
+    }
+    return item
+  })
 }
 
 // Submódulos independientes de Inventario: Categorías y Bodegas primero en el menú (sin sub-módulos ni anidamientos)
@@ -359,6 +418,9 @@ const isOpen = (moduleCode: string) => {
     return true
   }
   if ((moduleCode === 'MOD-002' || moduleCode?.toLowerCase().includes('compra')) && route.path.toLowerCase().startsWith('/compras')) {
+    return true
+  }
+  if ((moduleCode === 'MOD-006' || moduleCode?.toLowerCase().includes('configura')) && route.path.toLowerCase().startsWith('/configuracion')) {
     return true
   }
   const found = (authStore.accessInfo?.menu || []).find((m) => m.code === moduleCode)
