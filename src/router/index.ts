@@ -1,5 +1,6 @@
 import { createRouter, createWebHistory } from 'vue-router'
 import MainLayout from '@/layouts/MainLayout.vue'
+import { useAuthStore } from '@/stores/auth.store'
 
 const routes = [
   {
@@ -109,7 +110,7 @@ const router = createRouter({
 })
 
 // Guardia de navegación: Protección de rutas y control de retroceso
-router.beforeEach((to) => {
+router.beforeEach(async (to) => {
   const token = localStorage.getItem('token')
   const selectedCompany = localStorage.getItem('selectedCompany')
   const isPublic = to.meta.public
@@ -125,6 +126,22 @@ router.beforeEach((to) => {
   // Si ya tiene empresa seleccionada y está en el ERP, bloquear volver a /companies con el botón atrás del navegador
   if (token && selectedCompany && to.path === '/companies' && to.query.cambiar !== 'true') {
     return { path: '/dashboard' }
+  }
+
+  // Protección de permisos por URL según el rol en la empresa activa
+  if (token && !isPublic && to.path !== '/dashboard') {
+    const authStore = useAuthStore()
+    if (!authStore.accessInfo && !authStore.loadingAccess) {
+      try {
+        await authStore.fetchCompanyAccess()
+      } catch (err) {
+        console.error('Error cargando permisos en guardia de navegación:', err)
+      }
+    }
+    if (authStore.accessInfo && !authStore.canAccessUrl(to.fullPath)) {
+      console.warn(`[Guardia de Navegación] Acceso denegado a la ruta: ${to.fullPath}`)
+      return { path: '/dashboard' }
+    }
   }
 })
 

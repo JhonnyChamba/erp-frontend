@@ -223,19 +223,29 @@ const activeRoleLabel = computed(() => {
 
 const operationalModules = computed(() => {
   const menu = authStore.accessInfo?.menu || []
-  return menu.filter(
-    (m) =>
-      m.code !== 'MOD-006' &&
-      !m.description.toLowerCase().includes('configuraci')
-  )
+  return menu.filter((m) => {
+    if (m.code === 'MOD-006' || m.description?.toLowerCase().includes('configuraci')) {
+      return false
+    }
+    if (isInventoryMod(m)) {
+      return getInventorySubItems(m).length > 0
+    }
+    if (isPurchasesMod(m)) {
+      return getPurchasesSubItems(m).length > 0
+    }
+    if (isSalesMod(m)) {
+      return getSalesSubItems(m).length > 0
+    }
+    return Boolean(m.children && m.children.length > 0)
+  })
 })
 
 const systemModules = computed(() => {
   const menu = authStore.accessInfo?.menu || []
   return menu.filter(
     (m) =>
-      m.code === 'MOD-006' ||
-      m.description.toLowerCase().includes('configuraci')
+      (m.code === 'MOD-006' || m.description?.toLowerCase().includes('configuraci')) &&
+      getConfigSubItems(m).length > 0
   )
 })
 
@@ -275,6 +285,9 @@ const isSubActive = (subUrl: string) => {
 
 const getConfigSubItems = (mod: any) => {
   const children = [...(mod?.children || [])]
+  if (children.length === 0) return []
+
+  const isSuper = Boolean(authStore.tokenPayload?.super_admin || authStore.accessInfo?.isSuperAdmin)
 
   // Lista canónica de los 8 submódulos en el orden exacto de los tabs de Configuración
   const canonicalItems = [
@@ -288,42 +301,45 @@ const getConfigSubItems = (mod: any) => {
     { id: 28, code: 'SUB-028', description: 'Tipos de Documentos', url: '/configuracion?tab=document_types' },
   ]
 
-  return canonicalItems.map((item) => {
-    const existing = children.find(
+  if (isSuper) {
+    return canonicalItems
+  }
+
+  // Filtrar solo los ítems canónicos que fueron efectivamente autorizados para este rol
+  return canonicalItems.filter((item) => {
+    return children.some(
       (c: any) =>
         c.code === item.code ||
         c.description?.toLowerCase().trim() === item.description.toLowerCase().trim() ||
         (c.url && item.url && c.url.toLowerCase().includes(item.url.split('?')[1]?.toLowerCase()))
     )
-    if (existing) {
-      return {
-        ...existing,
-        description: item.description,
-        url: item.url,
-      }
-    }
-    return item
   })
 }
 
-// Submódulos independientes de Inventario: Categorías y Bodegas primero en el menú (sin sub-módulos ni anidamientos)
+// Submódulos independientes de Inventario: formatear y ordenar únicamente los autorizados para el rol
 const getInventorySubItems = (mod: any) => {
-  const children = (mod.children || []).filter(
-    (s: any) => !s.description?.toLowerCase().includes('configuraci') && !s.url?.toLowerCase().includes('configuracion')
-  )
-  const hasCat = children.some((s: any) => s.url?.toLowerCase().includes('tab=categorias'))
-  const hasBod = children.some((s: any) => s.url?.toLowerCase().includes('tab=bodegas'))
-  const hasKar = children.some((s: any) => s.url?.toLowerCase().includes('tab=kardex'))
-
-  if (!hasCat) {
-    children.push({ id: 23, code: 'SUB-023', description: 'Categorías', url: '/inventario?tab=categorias' })
-  }
-  if (!hasBod) {
-    children.push({ id: 24, code: 'SUB-024', description: 'Bodegas', url: '/inventario?tab=bodegas' })
-  }
-  if (!hasKar) {
-    children.push({ id: 22, code: 'SUB-022', description: 'Kardex / Movimientos', url: '/inventario?tab=kardex' })
-  }
+  const children = (mod.children || [])
+    .filter(
+      (s: any) => !s.description?.toLowerCase().includes('configuraci') && !s.url?.toLowerCase().includes('configuracion')
+    )
+    .map((s: any) => {
+      const item = { ...s }
+      const low = (item.url || item.description || '').toLowerCase()
+      if (low.includes('categor')) {
+        item.url = '/inventario?tab=categorias'
+      } else if (low.includes('bodega')) {
+        item.url = '/inventario?tab=bodegas'
+      } else if (low.includes('kardex')) {
+        item.url = '/inventario?tab=kardex'
+      } else if (low.includes('art')) {
+        item.url = '/inventario?tab=articulos'
+      } else if (low.includes('serv')) {
+        item.url = '/inventario?tab=servicios'
+      } else if (low.includes('subcon')) {
+        item.url = '/inventario?tab=subcontratacion'
+      }
+      return item
+    })
 
   // Categorías y Bodegas primero, seguidos de Artículos, Servicios, Subcontratación y Kardex
   const priority = ['tab=categorias', 'tab=bodegas', 'tab=articulos', 'tab=servicios', 'tab=subcontratacion', 'tab=kardex']
@@ -339,17 +355,13 @@ const getInventorySubItems = (mod: any) => {
 }
 
 const getPurchasesSubItems = (mod: any) => {
-  const children = [...(mod.children || [])]
-  if (children.length === 0) {
-    children.push({ id: 201, code: 'SUB-201', description: 'Facturas de Compra / Ingresos', url: '/compras' })
-  } else {
-    // Si los submódulos apuntan a /compras/..., asegurarse de que tengan URL válida
-    for (const sub of children) {
-      if (!sub.url || sub.url === '#' || sub.url === '/compras') {
-        sub.url = '/compras'
-      }
+  const children = (mod.children || []).map((s: any) => {
+    const item = { ...s }
+    if (!item.url || item.url === '#' || item.url === '/compras') {
+      item.url = '/compras'
     }
-  }
+    return item
+  })
   return children
 }
 
@@ -365,34 +377,18 @@ const isSalesMod = (mod: any) =>
   mod.children?.some((s: any) => s.url?.toLowerCase().includes('venta'))
 
 const getSalesSubItems = (mod: any) => {
-  const children = [...(mod.children || [])]
-  const hasFacturas = children.some((s: any) => s.url?.toLowerCase().includes('factura'))
-  if (!hasFacturas) {
-    children.unshift({
-      id: 1,
-      code: 'SUB-001',
-      description: 'Facturas',
-      url: '/ventas/facturas'
-    })
-  }
-  const hasCreditNotes = children.some((s: any) => s.url?.toLowerCase().includes('notas-credito'))
-  if (!hasCreditNotes) {
-    children.push({
-      id: 2,
-      code: 'SUB-002',
-      description: 'Notas de Crédito',
-      url: '/ventas/notas-credito'
-    })
-  }
-  const hasPoints = children.some((s: any) => s.url?.toLowerCase().includes('puntos-emision'))
-  if (!hasPoints) {
-    children.push({
-      id: 25,
-      code: 'SUB-025',
-      description: 'Puntos de Emisión',
-      url: '/ventas/puntos-emision'
-    })
-  }
+  const children = (mod.children || []).map((s: any) => {
+    const item = { ...s }
+    const low = (item.url || item.description || '').toLowerCase()
+    if (low.includes('puntos-emision') || low.includes('punto de emisi')) {
+      item.url = '/ventas/puntos-emision'
+    } else if (low.includes('notas-credito') || low.includes('nota de cr')) {
+      item.url = '/ventas/notas-credito'
+    } else if (low.includes('factura')) {
+      item.url = '/ventas/facturas'
+    }
+    return item
+  })
 
   // Ordenar: Facturas primero, Notas de Crédito segundo, Puntos de Emisión tercero, luego el resto
   const order = ['factura', 'notas-credito', 'puntos-emision', 'notas-venta', 'cotizaciones']

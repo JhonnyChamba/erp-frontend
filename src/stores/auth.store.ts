@@ -156,7 +156,16 @@ export const useAuthStore = defineStore('auth', {
       return this.accessInfo.allowedUrls.some((u) => {
         const cleanAllowed = (u || '').trim().toLowerCase()
         if (!cleanAllowed) return false
-        return cleanTarget === cleanAllowed || cleanTarget.startsWith(cleanAllowed.split('?')[0] || cleanAllowed)
+        const basePath = cleanAllowed.split('?')[0] || cleanAllowed
+        const targetBasePath = cleanTarget.split('?')[0] || cleanTarget
+
+        // Si la URL permitida tiene parámetros query específicos (ej. /configuracion?tab=roles), comparamos exacto
+        if (cleanAllowed.includes('?')) {
+          return cleanTarget === cleanAllowed || cleanTarget.startsWith(cleanAllowed + '&')
+        }
+
+        // Si no tiene query, coincidencia exacta de ruta base o sub-ruta con barra diagonal
+        return targetBasePath === basePath || targetBasePath.startsWith(basePath + '/')
       })
     },
 
