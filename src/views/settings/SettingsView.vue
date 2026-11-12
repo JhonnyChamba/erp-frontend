@@ -1989,18 +1989,45 @@ const submitSubscription = async () => {
                 </span>
               </td>
               <td class="text-end">
-                <button class="btn btn-sm btn-outline-info rounded-circle p-1 me-1" title="Editar sucursal" @click="openEditBranch(b)">
-                  <iconify-icon icon="solar:pen-2-line-duotone" class="fs-4"></iconify-icon>
-                </button>
-                <button v-if="!b.isMatrix && b.enabled" class="btn btn-sm btn-outline-success rounded-circle p-1 me-1" title="Marcar como matriz" @click="markAsMatrix(b)">
-                  <iconify-icon icon="solar:crown-line-duotone" class="fs-4"></iconify-icon>
-                </button>
-                <button v-if="!b.isMatrix" class="btn btn-sm btn-outline-warning rounded-circle p-1 me-1" :title="b.enabled ? 'Deshabilitar' : 'Habilitar'" @click="toggleBranch(b)">
-                  <iconify-icon :icon="b.enabled ? 'solar:eye-closed-line-duotone' : 'solar:eye-line-duotone'" class="fs-4"></iconify-icon>
-                </button>
-                <button v-if="!b.isMatrix" class="btn btn-sm btn-outline-danger rounded-circle p-1" title="Eliminar sucursal" @click="removeBranch(b)">
-                  <iconify-icon icon="solar:trash-bin-trash-line-duotone" class="fs-4"></iconify-icon>
-                </button>
+                <div class="dropdown">
+                  <button
+                    class="btn bg-secondary-subtle text-secondary btn-sm dropdown-toggle d-inline-flex align-items-center gap-1 fw-semibold"
+                    type="button"
+                    data-bs-toggle="dropdown"
+                    data-bs-boundary="viewport"
+                    aria-expanded="false"
+                  >
+                    <iconify-icon icon="solar:menu-dots-bold" class="fs-4"></iconify-icon>
+                    <span>Acciones</span>
+                  </button>
+                  <ul class="dropdown-menu dropdown-menu-end shadow-lg py-1">
+                    <li>
+                      <a class="dropdown-item py-2" href="javascript:void(0)" @click="openEditBranch(b)">
+                        <iconify-icon icon="solar:pen-2-line-duotone" class="fs-5 text-warning"></iconify-icon>
+                        <span>Editar Sucursal</span>
+                      </a>
+                    </li>
+                    <li v-if="!b.isMatrix && b.enabled">
+                      <a class="dropdown-item py-2 text-success" href="javascript:void(0)" @click="markAsMatrix(b)">
+                        <iconify-icon icon="solar:crown-line-duotone" class="fs-5 text-success"></iconify-icon>
+                        <span>Marcar como Matriz</span>
+                      </a>
+                    </li>
+                    <li v-if="!b.isMatrix">
+                      <a class="dropdown-item py-2" href="javascript:void(0)" @click="toggleBranch(b)">
+                        <iconify-icon :icon="b.enabled ? 'solar:eye-closed-line-duotone' : 'solar:eye-line-duotone'" class="fs-5 text-info"></iconify-icon>
+                        <span>{{ b.enabled ? 'Deshabilitar' : 'Habilitar' }}</span>
+                      </a>
+                    </li>
+                    <li v-if="!b.isMatrix">
+                      <hr class="dropdown-divider">
+                      <a class="dropdown-item py-2 text-danger" href="javascript:void(0)" @click="removeBranch(b)">
+                        <iconify-icon icon="solar:trash-bin-trash-line-duotone" class="fs-5 text-danger"></iconify-icon>
+                        <span>Eliminar Sucursal</span>
+                      </a>
+                    </li>
+                  </ul>
+                </div>
               </td>
             </tr>
             <tr v-if="branches.length === 0">
@@ -2567,21 +2594,38 @@ const submitSubscription = async () => {
                 </button>
               </td>
               <td class="text-end">
-                <div class="d-flex justify-content-end gap-1">
+                <div class="dropdown">
                   <button
-                    class="btn btn-sm btn-outline-info rounded-circle p-1"
-                    title="Editar Impuesto"
-                    @click="openEditTaxModal(tax)"
+                    class="btn bg-secondary-subtle text-secondary btn-sm dropdown-toggle d-inline-flex align-items-center gap-1 fw-semibold"
+                    type="button"
+                    data-bs-toggle="dropdown"
+                    data-bs-boundary="viewport"
+                    aria-expanded="false"
                   >
-                    <iconify-icon icon="solar:pen-2-line-duotone" class="fs-4"></iconify-icon>
+                    <iconify-icon icon="solar:menu-dots-bold" class="fs-4"></iconify-icon>
+                    <span>Acciones</span>
                   </button>
-                  <button
-                    class="btn btn-sm btn-outline-danger rounded-circle p-1"
-                    title="Eliminar Impuesto"
-                    @click="onDeleteTax(tax)"
-                  >
-                    <iconify-icon icon="solar:trash-bin-trash-line-duotone" class="fs-4"></iconify-icon>
-                  </button>
+                  <ul class="dropdown-menu dropdown-menu-end shadow-lg py-1">
+                    <li>
+                      <a class="dropdown-item py-2" href="javascript:void(0)" @click="openEditTaxModal(tax)">
+                        <iconify-icon icon="solar:pen-2-line-duotone" class="fs-5 text-warning"></iconify-icon>
+                        <span>Editar Impuesto</span>
+                      </a>
+                    </li>
+                    <li>
+                      <a class="dropdown-item py-2" href="javascript:void(0)" @click="onToggleTaxStatus(tax)">
+                        <iconify-icon :icon="tax.status === 'ACTIVO' ? 'solar:eye-closed-line-duotone' : 'solar:eye-line-duotone'" class="fs-5 text-info"></iconify-icon>
+                        <span>{{ tax.status === 'ACTIVO' ? 'Desactivar' : 'Activar' }}</span>
+                      </a>
+                    </li>
+                    <li>
+                      <hr class="dropdown-divider">
+                      <a class="dropdown-item py-2 text-danger" href="javascript:void(0)" @click="onDeleteTax(tax)">
+                        <iconify-icon icon="solar:trash-bin-trash-line-duotone" class="fs-5 text-danger"></iconify-icon>
+                        <span>Eliminar Impuesto</span>
+                      </a>
+                    </li>
+                  </ul>
                 </div>
               </td>
             </tr>
@@ -2678,21 +2722,38 @@ const submitSubscription = async () => {
                 </button>
               </td>
               <td class="text-end">
-                <div class="d-flex justify-content-end gap-1">
+                <div class="dropdown">
                   <button
-                    class="btn btn-sm btn-outline-info rounded-circle p-1"
-                    title="Editar Tipo de Documento"
-                    @click="openEditDocTypeModal(dt)"
+                    class="btn bg-secondary-subtle text-secondary btn-sm dropdown-toggle d-inline-flex align-items-center gap-1 fw-semibold"
+                    type="button"
+                    data-bs-toggle="dropdown"
+                    data-bs-boundary="viewport"
+                    aria-expanded="false"
                   >
-                    <iconify-icon icon="solar:pen-2-line-duotone" class="fs-4"></iconify-icon>
+                    <iconify-icon icon="solar:menu-dots-bold" class="fs-4"></iconify-icon>
+                    <span>Acciones</span>
                   </button>
-                  <button
-                    class="btn btn-sm btn-outline-danger rounded-circle p-1"
-                    title="Eliminar Tipo de Documento"
-                    @click="onDeleteDocType(dt)"
-                  >
-                    <iconify-icon icon="solar:trash-bin-trash-line-duotone" class="fs-4"></iconify-icon>
-                  </button>
+                  <ul class="dropdown-menu dropdown-menu-end shadow-lg py-1">
+                    <li>
+                      <a class="dropdown-item py-2" href="javascript:void(0)" @click="openEditDocTypeModal(dt)">
+                        <iconify-icon icon="solar:pen-2-line-duotone" class="fs-5 text-warning"></iconify-icon>
+                        <span>Editar Documento</span>
+                      </a>
+                    </li>
+                    <li>
+                      <a class="dropdown-item py-2" href="javascript:void(0)" @click="onToggleDocTypeStatus(dt)">
+                        <iconify-icon :icon="dt.status === 'ACTIVO' ? 'solar:eye-closed-line-duotone' : 'solar:eye-line-duotone'" class="fs-5 text-info"></iconify-icon>
+                        <span>{{ dt.status === 'ACTIVO' ? 'Desactivar' : 'Activar' }}</span>
+                      </a>
+                    </li>
+                    <li>
+                      <hr class="dropdown-divider">
+                      <a class="dropdown-item py-2 text-danger" href="javascript:void(0)" @click="onDeleteDocType(dt)">
+                        <iconify-icon icon="solar:trash-bin-trash-line-duotone" class="fs-5 text-danger"></iconify-icon>
+                        <span>Eliminar Documento</span>
+                      </a>
+                    </li>
+                  </ul>
                 </div>
               </td>
             </tr>

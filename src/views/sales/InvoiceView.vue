@@ -1345,77 +1345,123 @@ watch(() => route.path, () => {
                   </span>
                 </td>
                 <td class="text-end">
-                  <div class="d-inline-flex gap-1 align-items-center">
+                  <div class="dropdown">
                     <button
-                      v-if="inv.status === 'ISSUED' && inv.sign_status !== 'SIGNED'"
-                      class="btn btn-sm btn-outline-warning rounded-pill px-2"
-                      :disabled="signingInvoiceId === inv.id"
-                      @click="onSignInvoice(inv)"
-                      title="Firmar electrónicamente"
+                      class="btn bg-secondary-subtle text-secondary btn-sm dropdown-toggle d-inline-flex align-items-center gap-1 fw-semibold"
+                      type="button"
+                      data-bs-toggle="dropdown"
+                      data-bs-boundary="viewport"
+                      aria-expanded="false"
                     >
-                      <span v-if="signingInvoiceId === inv.id" class="spinner-grow spinner-grow-sm text-warning" role="status" aria-hidden="true"></span>
-                      <iconify-icon v-else icon="solar:pen-new-square-line-duotone"></iconify-icon>
+                      <iconify-icon icon="solar:menu-dots-bold" class="fs-4"></iconify-icon>
+                      <span>Acciones</span>
                     </button>
-                    <button
-                      v-if="inv.sign_status === 'SIGNED'"
-                      class="btn btn-sm btn-outline-success rounded-pill px-2"
-                      :disabled="downloadingXmlId === inv.id"
-                      @click="downloadXml(inv)"
-                      title="Descargar XML firmado"
-                    >
-                      <span v-if="downloadingXmlId === inv.id" class="spinner-grow spinner-grow-sm text-success" role="status" aria-hidden="true"></span>
-                      <iconify-icon v-else icon="solar:download-minimalistic-bold"></iconify-icon>
-                    </button>
-                    <button
-                      v-if="inv.sign_status === 'SIGNED' && inv.status !== 'CANCELED' && (!inv.sri_status || inv.sri_status === 'NOT_SENT' || inv.sri_status === 'RETURNED' || inv.sri_status === 'NOT_AUTHORIZED')"
-                      class="btn btn-sm btn-outline-primary rounded-pill px-2"
-                      :disabled="sendingSriInvoiceId === inv.id || sendingSri"
-                      @click="onSendToSri(inv)"
-                      title="Enviar al SRI"
-                    >
-                      <span v-if="sendingSriInvoiceId === inv.id" class="spinner-grow spinner-grow-sm text-primary" role="status" aria-hidden="true"></span>
-                      <iconify-icon v-else icon="solar:plain-2-bold-duotone"></iconify-icon>
-                    </button>
-                    <button
-                      v-if="inv.sri_status === 'IN_PROCESS'"
-                      class="btn btn-sm btn-outline-warning rounded-pill px-2"
-                      :disabled="sendingSriInvoiceId === inv.id || sendingSri"
-                      @click="onCheckSri(inv)"
-                      title="Consultar autorización SRI"
-                    >
-                      <span v-if="sendingSriInvoiceId === inv.id" class="spinner-grow spinner-grow-sm text-warning" role="status" aria-hidden="true"></span>
-                      <iconify-icon v-else icon="solar:refresh-circle-bold-duotone"></iconify-icon>
-                    </button>
-                    <button class="btn btn-sm btn-outline-info rounded-pill px-2" @click="openDetailModal(inv)" title="Ver Detalle de Factura">
-                      <iconify-icon icon="solar:eye-line-duotone"></iconify-icon>
-                    </button>
-                    <button class="btn btn-sm btn-outline-info rounded-pill px-2 d-inline-flex align-items-center gap-1" @click="onPrintA4(inv)" title="Imprimir RIDE Oficial A4">
-                      <iconify-icon icon="solar:printer-bold-duotone"></iconify-icon>
-                      <span class="fs-1 d-none d-xxl-inline">RIDE</span>
-                    </button>
-                    <button class="btn btn-sm btn-outline-light rounded-pill px-2 d-inline-flex align-items-center gap-1" @click="onPrintTicket(inv)" title="Imprimir Ticket Térmico (80mm)">
-                      <iconify-icon icon="solar:ticket-bold-duotone"></iconify-icon>
-                      <span class="fs-1 d-none d-xxl-inline">Ticket</span>
-                    </button>
-                    <button
-                      v-if="inv.sign_status === 'SIGNED' && inv.status !== 'CANCELED'"
-                      class="btn btn-sm btn-outline-danger rounded-pill px-2 d-inline-flex align-items-center gap-1"
-                      @click="goToCreditNote(inv)"
-                      title="Emitir Nota de Crédito para esta Factura"
-                    >
-                      <iconify-icon icon="solar:bill-cross-line-duotone"></iconify-icon>
-                      <span class="fs-1 d-none d-xxl-inline">Nota de Crédito</span>
-                    </button>
-                    <button
-                      v-if="inv.status === 'ISSUED'"
-                      class="btn btn-sm btn-outline-danger rounded-pill px-2"
-                      :disabled="cancelingInvoiceId === inv.id"
-                      @click="onCancelInvoice(inv)"
-                      title="Anular Factura"
-                    >
-                      <span v-if="cancelingInvoiceId === inv.id" class="spinner-grow spinner-grow-sm text-danger" role="status" aria-hidden="true"></span>
-                      <iconify-icon v-else icon="solar:trash-bin-trash-line-duotone"></iconify-icon>
-                    </button>
+                    <ul class="dropdown-menu dropdown-menu-end shadow-lg py-1">
+                      <!-- Ver Detalle -->
+                      <li>
+                        <a class="dropdown-item py-2" href="javascript:void(0)" @click="openDetailModal(inv)">
+                          <iconify-icon icon="solar:eye-line-duotone" class="fs-5 text-info"></iconify-icon>
+                          <span>Ver Detalle Factura</span>
+                        </a>
+                      </li>
+
+                      <!-- Firmar XML -->
+                      <li v-if="inv.status === 'ISSUED' && inv.sign_status !== 'SIGNED'">
+                        <a
+                          class="dropdown-item py-2 text-warning"
+                          href="javascript:void(0)"
+                          :class="{ disabled: signingInvoiceId === inv.id }"
+                          @click="onSignInvoice(inv)"
+                        >
+                          <span v-if="signingInvoiceId === inv.id" class="spinner-grow spinner-grow-sm text-warning" role="status"></span>
+                          <iconify-icon v-else icon="solar:pen-new-square-line-duotone" class="fs-5 text-warning"></iconify-icon>
+                          <span>Firmar XML</span>
+                        </a>
+                      </li>
+
+                      <!-- Enviar al SRI -->
+                      <li v-if="inv.sign_status === 'SIGNED' && inv.status !== 'CANCELED' && (!inv.sri_status || inv.sri_status === 'NOT_SENT' || inv.sri_status === 'RETURNED' || inv.sri_status === 'NOT_AUTHORIZED')">
+                        <a
+                          class="dropdown-item py-2 text-primary"
+                          href="javascript:void(0)"
+                          :class="{ disabled: sendingSriInvoiceId === inv.id || sendingSri }"
+                          @click="onSendToSri(inv)"
+                        >
+                          <span v-if="sendingSriInvoiceId === inv.id" class="spinner-grow spinner-grow-sm text-primary" role="status"></span>
+                          <iconify-icon v-else icon="solar:plain-2-bold-duotone" class="fs-5 text-primary"></iconify-icon>
+                          <span>Enviar al SRI</span>
+                        </a>
+                      </li>
+
+                      <!-- Consultar SRI -->
+                      <li v-if="inv.sri_status === 'IN_PROCESS'">
+                        <a
+                          class="dropdown-item py-2 text-warning"
+                          href="javascript:void(0)"
+                          :class="{ disabled: sendingSriInvoiceId === inv.id || sendingSri }"
+                          @click="onCheckSri(inv)"
+                        >
+                          <span v-if="sendingSriInvoiceId === inv.id" class="spinner-grow spinner-grow-sm text-warning" role="status"></span>
+                          <iconify-icon v-else icon="solar:refresh-circle-bold-duotone" class="fs-5 text-warning"></iconify-icon>
+                          <span>Consultar SRI</span>
+                        </a>
+                      </li>
+
+                      <!-- Descargar XML Firmado -->
+                      <li v-if="inv.sign_status === 'SIGNED'">
+                        <a
+                          class="dropdown-item py-2 text-success"
+                          href="javascript:void(0)"
+                          :class="{ disabled: downloadingXmlId === inv.id }"
+                          @click="downloadXml(inv)"
+                        >
+                          <span v-if="downloadingXmlId === inv.id" class="spinner-grow spinner-grow-sm text-success" role="status"></span>
+                          <iconify-icon v-else icon="solar:download-minimalistic-bold" class="fs-5 text-success"></iconify-icon>
+                          <span>Descargar XML Firmado</span>
+                        </a>
+                      </li>
+
+                      <li><hr class="dropdown-divider"></li>
+
+                      <!-- Imprimir RIDE A4 -->
+                      <li>
+                        <a class="dropdown-item py-2" href="javascript:void(0)" @click="onPrintA4(inv)">
+                          <iconify-icon icon="solar:printer-bold-duotone" class="fs-5 text-info"></iconify-icon>
+                          <span>Imprimir RIDE (A4)</span>
+                        </a>
+                      </li>
+
+                      <!-- Imprimir Ticket 80mm -->
+                      <li>
+                        <a class="dropdown-item py-2" href="javascript:void(0)" @click="onPrintTicket(inv)">
+                          <iconify-icon icon="solar:ticket-bold-duotone" class="fs-5 text-secondary"></iconify-icon>
+                          <span>Ticket Térmico (80mm)</span>
+                        </a>
+                      </li>
+
+                      <!-- Emitir Nota de Crédito -->
+                      <li v-if="inv.sign_status === 'SIGNED' && inv.status !== 'CANCELED'">
+                        <a class="dropdown-item py-2 text-warning" href="javascript:void(0)" @click="goToCreditNote(inv)">
+                          <iconify-icon icon="solar:bill-cross-line-duotone" class="fs-5 text-warning"></iconify-icon>
+                          <span>Emitir Nota de Crédito</span>
+                        </a>
+                      </li>
+
+                      <!-- Anular Factura -->
+                      <li v-if="inv.status === 'ISSUED'">
+                        <hr class="dropdown-divider">
+                        <a
+                          class="dropdown-item py-2 text-danger"
+                          href="javascript:void(0)"
+                          :class="{ disabled: cancelingInvoiceId === inv.id }"
+                          @click="onCancelInvoice(inv)"
+                        >
+                          <span v-if="cancelingInvoiceId === inv.id" class="spinner-grow spinner-grow-sm text-danger" role="status"></span>
+                          <iconify-icon v-else icon="solar:trash-bin-trash-line-duotone" class="fs-5 text-danger"></iconify-icon>
+                          <span>Anular Factura</span>
+                        </a>
+                      </li>
+                    </ul>
                   </div>
                 </td>
               </tr>

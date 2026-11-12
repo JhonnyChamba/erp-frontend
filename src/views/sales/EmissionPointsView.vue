@@ -529,36 +529,49 @@ onMounted(() => {
                   </span>
                 </td>
                 <td class="text-end">
-                  <div class="d-inline-flex gap-1 align-items-center">
-                    <!-- Botón Secuencias -->
+                  <div class="dropdown">
                     <button
-                      class="btn btn-sm btn-outline-info rounded-pill px-2 d-inline-flex align-items-center gap-1"
-                      @click="openSequencesView(point)"
-                      title="Ver y editar secuencias de comprobantes"
+                      class="btn bg-secondary-subtle text-secondary btn-sm dropdown-toggle d-inline-flex align-items-center gap-1 fw-semibold"
+                      type="button"
+                      data-bs-toggle="dropdown"
+                      data-bs-boundary="viewport"
+                      aria-expanded="false"
                     >
-                      <iconify-icon icon="solar:document-text-line-duotone" class="fs-4"></iconify-icon>
-                      <span class="d-none d-md-inline small">Secuencias</span>
+                      <iconify-icon icon="solar:menu-dots-bold" class="fs-4"></iconify-icon>
+                      <span>Acciones</span>
                     </button>
+                    <ul class="dropdown-menu dropdown-menu-end shadow-lg py-1">
+                      <!-- Configurar Secuencias -->
+                      <li>
+                        <a class="dropdown-item py-2" href="javascript:void(0)" @click="openSequencesView(point)">
+                          <iconify-icon icon="solar:document-text-line-duotone" class="fs-5 text-info"></iconify-icon>
+                          <span>Secuencias de Emisión</span>
+                        </a>
+                      </li>
 
-                    <!-- Botón Editar -->
-                    <button
-                      class="btn btn-sm btn-outline-warning rounded-pill px-2"
-                      @click="openEditForm(point)"
-                      title="Editar punto de emisión"
-                    >
-                      <iconify-icon icon="solar:pen-new-square-line-duotone" class="fs-4"></iconify-icon>
-                    </button>
+                      <!-- Editar Punto de Emisión -->
+                      <li>
+                        <a class="dropdown-item py-2 text-warning" href="javascript:void(0)" @click="openEditForm(point)">
+                          <iconify-icon icon="solar:pen-new-square-line-duotone" class="fs-5 text-warning"></iconify-icon>
+                          <span>Editar Serie</span>
+                        </a>
+                      </li>
 
-                    <!-- Botón Eliminar -->
-                    <button
-                      class="btn btn-sm btn-outline-danger rounded-pill px-2"
-                      :disabled="deletingId === point.id"
-                      @click="onDeletePoint(point)"
-                      title="Eliminar punto de emisión"
-                    >
-                      <span v-if="deletingId === point.id" class="spinner-grow spinner-grow-sm text-danger" role="status" aria-hidden="true"></span>
-                      <iconify-icon v-else icon="solar:trash-bin-trash-line-duotone" class="fs-4"></iconify-icon>
-                    </button>
+                      <!-- Eliminar Punto de Emisión -->
+                      <li>
+                        <hr class="dropdown-divider">
+                        <a
+                          class="dropdown-item py-2 text-danger"
+                          href="javascript:void(0)"
+                          :class="{ disabled: deletingId === point.id }"
+                          @click="onDeletePoint(point)"
+                        >
+                          <span v-if="deletingId === point.id" class="spinner-grow spinner-grow-sm text-danger" role="status"></span>
+                          <iconify-icon v-else icon="solar:trash-bin-trash-line-duotone" class="fs-5 text-danger"></iconify-icon>
+                          <span>Eliminar</span>
+                        </a>
+                      </li>
+                    </ul>
                   </div>
                 </td>
               </tr>

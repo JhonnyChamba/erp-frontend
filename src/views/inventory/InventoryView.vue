@@ -370,17 +370,44 @@
                 </button>
               </td>
               <td class="text-right">
-                <div class="row-actions">
-                  <button class="act-btn" @click="viewItemKardex(item)" title="Ver Kardex / Movimientos">
-                    <iconify-icon icon="solar:history-bold-duotone" width="17"></iconify-icon>
+                <div class="dropdown">
+                  <button
+                    class="btn bg-secondary-subtle text-secondary btn-sm dropdown-toggle d-inline-flex align-items-center gap-1 fw-semibold"
+                    type="button"
+                    data-bs-toggle="dropdown"
+                    data-bs-boundary="viewport"
+                    aria-expanded="false"
+                  >
+                    <iconify-icon icon="solar:menu-dots-bold" class="fs-4"></iconify-icon>
+                    <span>Acciones</span>
                   </button>
-                  <button class="act-btn edit" @click="openEditItem(item)" title="Editar artículo">
-                    <iconify-icon icon="solar:pen-new-square-line-duotone" width="17"></iconify-icon>
-                  </button>
-                  <button class="act-btn delete" :disabled="deletingId === item.id" @click="confirmDelete('articulos', item)" title="Eliminar artículo">
-                    <span v-if="deletingId === item.id" class="spinner-grow spinner-grow-sm text-danger" role="status" aria-hidden="true"></span>
-                    <iconify-icon v-else icon="solar:trash-bin-trash-line-duotone" width="17"></iconify-icon>
-                  </button>
+                  <ul class="dropdown-menu dropdown-menu-end shadow-lg py-1">
+                    <li>
+                      <a class="dropdown-item py-2" href="javascript:void(0)" @click="viewItemKardex(item)">
+                        <iconify-icon icon="solar:history-bold-duotone" class="fs-5 text-info"></iconify-icon>
+                        <span>Kardex / Movimientos</span>
+                      </a>
+                    </li>
+                    <li>
+                      <a class="dropdown-item py-2 text-warning" href="javascript:void(0)" @click="openEditItem(item)">
+                        <iconify-icon icon="solar:pen-new-square-line-duotone" class="fs-5 text-warning"></iconify-icon>
+                        <span>Editar Artículo</span>
+                      </a>
+                    </li>
+                    <li>
+                      <hr class="dropdown-divider">
+                      <a
+                        class="dropdown-item py-2 text-danger"
+                        href="javascript:void(0)"
+                        :class="{ disabled: deletingId === item.id }"
+                        @click="confirmDelete('articulos', item)"
+                      >
+                        <span v-if="deletingId === item.id" class="spinner-grow spinner-grow-sm text-danger" role="status"></span>
+                        <iconify-icon v-else icon="solar:trash-bin-trash-line-duotone" class="fs-5 text-danger"></iconify-icon>
+                        <span>Eliminar</span>
+                      </a>
+                    </li>
+                  </ul>
                 </div>
               </td>
             </tr>
@@ -455,14 +482,38 @@
                 </button>
               </td>
               <td class="text-right">
-                <div class="row-actions">
-                  <button class="act-btn edit" @click="openEditService(srv)" title="Editar servicio">
-                    <iconify-icon icon="solar:pen-new-square-line-duotone" width="17"></iconify-icon>
+                <div class="dropdown">
+                  <button
+                    class="btn bg-secondary-subtle text-secondary btn-sm dropdown-toggle d-inline-flex align-items-center gap-1 fw-semibold"
+                    type="button"
+                    data-bs-toggle="dropdown"
+                    data-bs-boundary="viewport"
+                    aria-expanded="false"
+                  >
+                    <iconify-icon icon="solar:menu-dots-bold" class="fs-4"></iconify-icon>
+                    <span>Acciones</span>
                   </button>
-                  <button class="act-btn delete" :disabled="deletingId === srv.id" @click="confirmDelete('servicios', srv)" title="Eliminar servicio">
-                    <span v-if="deletingId === srv.id" class="spinner-grow spinner-grow-sm text-danger" role="status" aria-hidden="true"></span>
-                    <iconify-icon v-else icon="solar:trash-bin-trash-line-duotone" width="17"></iconify-icon>
-                  </button>
+                  <ul class="dropdown-menu dropdown-menu-end shadow-lg py-1">
+                    <li>
+                      <a class="dropdown-item py-2 text-warning" href="javascript:void(0)" @click="openEditService(srv)">
+                        <iconify-icon icon="solar:pen-new-square-line-duotone" class="fs-5 text-warning"></iconify-icon>
+                        <span>Editar Servicio</span>
+                      </a>
+                    </li>
+                    <li>
+                      <hr class="dropdown-divider">
+                      <a
+                        class="dropdown-item py-2 text-danger"
+                        href="javascript:void(0)"
+                        :class="{ disabled: deletingId === srv.id }"
+                        @click="confirmDelete('servicios', srv)"
+                      >
+                        <span v-if="deletingId === srv.id" class="spinner-grow spinner-grow-sm text-danger" role="status"></span>
+                        <iconify-icon v-else icon="solar:trash-bin-trash-line-duotone" class="fs-5 text-danger"></iconify-icon>
+                        <span>Eliminar</span>
+                      </a>
+                    </li>
+                  </ul>
                 </div>
               </td>
             </tr>
@@ -548,14 +599,38 @@
                 </button>
               </td>
               <td class="text-right">
-                <div class="row-actions">
-                  <button class="act-btn edit" @click="openEditSubcontract(sub)" title="Editar rubro">
-                    <iconify-icon icon="solar:pen-new-square-line-duotone" width="17"></iconify-icon>
+                <div class="dropdown">
+                  <button
+                    class="btn bg-secondary-subtle text-secondary btn-sm dropdown-toggle d-inline-flex align-items-center gap-1 fw-semibold"
+                    type="button"
+                    data-bs-toggle="dropdown"
+                    data-bs-boundary="viewport"
+                    aria-expanded="false"
+                  >
+                    <iconify-icon icon="solar:menu-dots-bold" class="fs-4"></iconify-icon>
+                    <span>Acciones</span>
                   </button>
-                  <button class="act-btn delete" :disabled="deletingId === sub.id" @click="confirmDelete('subcontratacion', sub)" title="Eliminar rubro">
-                    <span v-if="deletingId === sub.id" class="spinner-grow spinner-grow-sm text-danger" role="status" aria-hidden="true"></span>
-                    <iconify-icon v-else icon="solar:trash-bin-trash-line-duotone" width="17"></iconify-icon>
-                  </button>
+                  <ul class="dropdown-menu dropdown-menu-end shadow-lg py-1">
+                    <li>
+                      <a class="dropdown-item py-2 text-warning" href="javascript:void(0)" @click="openEditSubcontract(sub)">
+                        <iconify-icon icon="solar:pen-new-square-line-duotone" class="fs-5 text-warning"></iconify-icon>
+                        <span>Editar Rubro</span>
+                      </a>
+                    </li>
+                    <li>
+                      <hr class="dropdown-divider">
+                      <a
+                        class="dropdown-item py-2 text-danger"
+                        href="javascript:void(0)"
+                        :class="{ disabled: deletingId === sub.id }"
+                        @click="confirmDelete('subcontratacion', sub)"
+                      >
+                        <span v-if="deletingId === sub.id" class="spinner-grow spinner-grow-sm text-danger" role="status"></span>
+                        <iconify-icon v-else icon="solar:trash-bin-trash-line-duotone" class="fs-5 text-danger"></iconify-icon>
+                        <span>Eliminar</span>
+                      </a>
+                    </li>
+                  </ul>
                 </div>
               </td>
             </tr>
@@ -635,14 +710,38 @@
                 </button>
               </td>
               <td class="text-right">
-                <div class="row-actions">
-                  <button class="act-btn edit" @click="openEditCategory(cat)" title="Editar categoría">
-                    <iconify-icon icon="solar:pen-new-square-line-duotone" width="17"></iconify-icon>
+                <div class="dropdown">
+                  <button
+                    class="btn bg-secondary-subtle text-secondary btn-sm dropdown-toggle d-inline-flex align-items-center gap-1 fw-semibold"
+                    type="button"
+                    data-bs-toggle="dropdown"
+                    data-bs-boundary="viewport"
+                    aria-expanded="false"
+                  >
+                    <iconify-icon icon="solar:menu-dots-bold" class="fs-4"></iconify-icon>
+                    <span>Acciones</span>
                   </button>
-                  <button class="act-btn delete" :disabled="deletingId === cat.id" @click="confirmDelete('categorias', cat)" title="Eliminar categoría">
-                    <span v-if="deletingId === cat.id" class="spinner-grow spinner-grow-sm text-danger" role="status" aria-hidden="true"></span>
-                    <iconify-icon v-else icon="solar:trash-bin-trash-line-duotone" width="17"></iconify-icon>
-                  </button>
+                  <ul class="dropdown-menu dropdown-menu-end shadow-lg py-1">
+                    <li>
+                      <a class="dropdown-item py-2 text-warning" href="javascript:void(0)" @click="openEditCategory(cat)">
+                        <iconify-icon icon="solar:pen-new-square-line-duotone" class="fs-5 text-warning"></iconify-icon>
+                        <span>Editar Categoría</span>
+                      </a>
+                    </li>
+                    <li>
+                      <hr class="dropdown-divider">
+                      <a
+                        class="dropdown-item py-2 text-danger"
+                        href="javascript:void(0)"
+                        :class="{ disabled: deletingId === cat.id }"
+                        @click="confirmDelete('categorias', cat)"
+                      >
+                        <span v-if="deletingId === cat.id" class="spinner-grow spinner-grow-sm text-danger" role="status"></span>
+                        <iconify-icon v-else icon="solar:trash-bin-trash-line-duotone" class="fs-5 text-danger"></iconify-icon>
+                        <span>Eliminar</span>
+                      </a>
+                    </li>
+                  </ul>
                 </div>
               </td>
             </tr>
@@ -714,14 +813,38 @@
                 </button>
               </td>
               <td class="text-right">
-                <div class="row-actions">
-                  <button class="act-btn edit" @click="openEditWarehouse(wh)" title="Editar bodega">
-                    <iconify-icon icon="solar:pen-new-square-line-duotone" width="17"></iconify-icon>
+                <div class="dropdown">
+                  <button
+                    class="btn bg-secondary-subtle text-secondary btn-sm dropdown-toggle d-inline-flex align-items-center gap-1 fw-semibold"
+                    type="button"
+                    data-bs-toggle="dropdown"
+                    data-bs-boundary="viewport"
+                    aria-expanded="false"
+                  >
+                    <iconify-icon icon="solar:menu-dots-bold" class="fs-4"></iconify-icon>
+                    <span>Acciones</span>
                   </button>
-                  <button class="act-btn delete" :disabled="deletingId === wh.id" @click="confirmDelete('bodegas', wh)" title="Eliminar bodega">
-                    <span v-if="deletingId === wh.id" class="spinner-grow spinner-grow-sm text-danger" role="status" aria-hidden="true"></span>
-                    <iconify-icon v-else icon="solar:trash-bin-trash-line-duotone" width="17"></iconify-icon>
-                  </button>
+                  <ul class="dropdown-menu dropdown-menu-end shadow-lg py-1">
+                    <li>
+                      <a class="dropdown-item py-2 text-warning" href="javascript:void(0)" @click="openEditWarehouse(wh)">
+                        <iconify-icon icon="solar:pen-new-square-line-duotone" class="fs-5 text-warning"></iconify-icon>
+                        <span>Editar Bodega</span>
+                      </a>
+                    </li>
+                    <li>
+                      <hr class="dropdown-divider">
+                      <a
+                        class="dropdown-item py-2 text-danger"
+                        href="javascript:void(0)"
+                        :class="{ disabled: deletingId === wh.id }"
+                        @click="confirmDelete('bodegas', wh)"
+                      >
+                        <span v-if="deletingId === wh.id" class="spinner-grow spinner-grow-sm text-danger" role="status"></span>
+                        <iconify-icon v-else icon="solar:trash-bin-trash-line-duotone" class="fs-5 text-danger"></iconify-icon>
+                        <span>Eliminar</span>
+                      </a>
+                    </li>
+                  </ul>
                 </div>
               </td>
             </tr>

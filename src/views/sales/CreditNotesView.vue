@@ -256,38 +256,57 @@
                 </td>
 
                 <td class="text-end">
-                  <div class="d-inline-flex gap-1 align-items-center">
-                    <!-- Enviar al SRI -->
+                  <div class="dropdown">
                     <button
-                      v-if="cn.sri_status !== 'AUTHORIZED'"
-                      class="btn btn-sm btn-outline-primary rounded-pill px-2 d-inline-flex align-items-center gap-1"
-                      :disabled="actionLoadingId === cn.id"
-                      title="Firmar y enviar al SRI"
-                      @click="handleSendSri(cn)"
+                      class="btn bg-secondary-subtle text-secondary btn-sm dropdown-toggle d-inline-flex align-items-center gap-1 fw-semibold"
+                      type="button"
+                      data-bs-toggle="dropdown"
+                      data-bs-boundary="viewport"
+                      aria-expanded="false"
                     >
-                      <span v-if="actionLoadingId === cn.id" class="spinner-grow spinner-grow-sm text-primary" role="status" aria-hidden="true"></span>
-                      <iconify-icon v-else icon="solar:send-square-line-duotone" class="fs-4"></iconify-icon>
-                      <span class="d-none d-md-inline small">SRI</span>
+                      <iconify-icon icon="solar:menu-dots-bold" class="fs-4"></iconify-icon>
+                      <span>Acciones</span>
                     </button>
+                    <ul class="dropdown-menu dropdown-menu-end shadow-lg py-1">
+                      <!-- Ver Detalle -->
+                      <li>
+                        <a class="dropdown-item py-2" href="javascript:void(0)" @click="openDetailView(cn)">
+                          <iconify-icon icon="solar:eye-line-duotone" class="fs-5 text-info"></iconify-icon>
+                          <span>Ver Detalle</span>
+                        </a>
+                      </li>
 
-                    <!-- Descargar XML -->
-                    <button
-                      v-if="cn.sign_status === 'SIGNED' || cn.sri_status === 'AUTHORIZED'"
-                      class="btn btn-sm btn-outline-info rounded-pill px-2"
-                      title="Descargar XML firmado por SRI"
-                      @click="handleDownloadXml(cn)"
-                    >
-                      <iconify-icon icon="solar:code-file-line-duotone" class="fs-4"></iconify-icon>
-                    </button>
+                      <!-- Firmar y Enviar al SRI -->
+                      <li v-if="cn.sri_status !== 'AUTHORIZED'">
+                        <a
+                          class="dropdown-item py-2 text-primary"
+                          href="javascript:void(0)"
+                          :class="{ disabled: actionLoadingId === cn.id }"
+                          @click="handleSendSri(cn)"
+                        >
+                          <span v-if="actionLoadingId === cn.id" class="spinner-grow spinner-grow-sm text-primary" role="status"></span>
+                          <iconify-icon v-else icon="solar:send-square-line-duotone" class="fs-5 text-primary"></iconify-icon>
+                          <span>Firmar y Enviar SRI</span>
+                        </a>
+                      </li>
 
-                    <!-- Ver Detalle -->
-                    <button
-                      class="btn btn-sm btn-outline-secondary rounded-pill px-2"
-                      title="Ver detalle de la nota de crédito"
-                      @click="openDetailView(cn)"
-                    >
-                      <iconify-icon icon="solar:eye-line-duotone" class="fs-4"></iconify-icon>
-                    </button>
+                      <!-- Ver Respuesta SRI -->
+                      <li v-if="cn.sri_status">
+                        <a class="dropdown-item py-2 text-warning" href="javascript:void(0)" @click="openSriModalForCreditNote(cn)">
+                          <iconify-icon icon="solar:info-circle-line-duotone" class="fs-5 text-warning"></iconify-icon>
+                          <span>Respuesta SRI</span>
+                        </a>
+                      </li>
+
+                      <!-- Descargar XML -->
+                      <li v-if="cn.sign_status === 'SIGNED' || cn.sri_status === 'AUTHORIZED'">
+                        <hr class="dropdown-divider">
+                        <a class="dropdown-item py-2 text-success" href="javascript:void(0)" @click="handleDownloadXml(cn)">
+                          <iconify-icon icon="solar:code-file-line-duotone" class="fs-5 text-success"></iconify-icon>
+                          <span>Descargar XML Firmado</span>
+                        </a>
+                      </li>
+                    </ul>
                   </div>
                 </td>
               </tr>

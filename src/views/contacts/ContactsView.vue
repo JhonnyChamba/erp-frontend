@@ -812,39 +812,49 @@ const paymentLabel = (p: string) => {
 
                 <!-- Acciones -->
                 <td class="text-end pe-4">
-                  <div class="btn-group gap-1" role="group">
-                    <!-- Ver Detalle -->
+                  <div class="dropdown">
                     <button
-                      class="btn-action-icon view"
-                      title="Ver detalle completo"
-                      @click="openViewCustomer(c)"
+                      class="btn bg-secondary-subtle text-secondary btn-sm dropdown-toggle d-inline-flex align-items-center gap-1 fw-semibold"
+                      type="button"
+                      data-bs-toggle="dropdown"
+                      data-bs-boundary="viewport"
+                      aria-expanded="false"
                     >
-                      <iconify-icon icon="solar:eye-line-duotone"></iconify-icon>
+                      <iconify-icon icon="solar:menu-dots-bold" class="fs-4"></iconify-icon>
+                      <span>Acciones</span>
                     </button>
-
-                    <!-- Editar -->
-                    <button
-                      class="btn-action-icon edit"
-                      title="Editar información"
-                      @click="openEditCustomer(c)"
-                    >
-                      <iconify-icon icon="solar:pen-new-square-line-duotone"></iconify-icon>
-                    </button>
-
-                    <!-- Habilitar / Deshabilitar -->
-                    <button
-                      class="btn-action-icon toggle"
-                      :class="c.estado === 'activo' ? 'danger' : 'success'"
-                      :disabled="actionProcessingId === c.id"
-                      :title="c.estado === 'activo' ? 'Deshabilitar cliente' : 'Habilitar cliente'"
-                      @click="handleToggleCustomerStatus(c)"
-                    >
-                      <span v-if="actionProcessingId === c.id" class="spinner-grow spinner-grow-sm text-warning" role="status" aria-hidden="true"></span>
-                      <iconify-icon
-                        v-else
-                        :icon="c.estado === 'activo' ? 'solar:pause-circle-line-duotone' : 'solar:play-circle-line-duotone'"
-                      ></iconify-icon>
-                    </button>
+                    <ul class="dropdown-menu dropdown-menu-end shadow-lg py-1">
+                      <li>
+                        <a class="dropdown-item py-2" href="javascript:void(0)" @click="openViewCustomer(c)">
+                          <iconify-icon icon="solar:eye-line-duotone" class="fs-5 text-info"></iconify-icon>
+                          <span>Ver Detalle</span>
+                        </a>
+                      </li>
+                      <li>
+                        <a class="dropdown-item py-2 text-warning" href="javascript:void(0)" @click="openEditCustomer(c)">
+                          <iconify-icon icon="solar:pen-new-square-line-duotone" class="fs-5 text-warning"></iconify-icon>
+                          <span>Editar</span>
+                        </a>
+                      </li>
+                      <li>
+                        <hr class="dropdown-divider">
+                        <a
+                          class="dropdown-item py-2"
+                          :class="c.estado === 'activo' ? 'text-danger' : 'text-success'"
+                          href="javascript:void(0)"
+                          :class="{ disabled: actionProcessingId === c.id }"
+                          @click="handleToggleCustomerStatus(c)"
+                        >
+                          <span v-if="actionProcessingId === c.id" class="spinner-grow spinner-grow-sm text-warning" role="status"></span>
+                          <iconify-icon
+                            v-else
+                            :icon="c.estado === 'activo' ? 'solar:pause-circle-line-duotone' : 'solar:play-circle-line-duotone'"
+                            class="fs-5"
+                          ></iconify-icon>
+                          <span>{{ c.estado === 'activo' ? 'Deshabilitar' : 'Habilitar' }}</span>
+                        </a>
+                      </li>
+                    </ul>
                   </div>
                 </td>
               </tr>
@@ -1000,39 +1010,49 @@ const paymentLabel = (p: string) => {
 
                 <!-- Acciones -->
                 <td class="text-end pe-4">
-                  <div class="btn-group gap-1" role="group">
-                    <!-- Ver Detalle -->
+                  <div class="dropdown">
                     <button
-                      class="btn-action-icon view"
-                      title="Ver detalle completo"
-                      @click="openViewProvider(p)"
+                      class="btn bg-secondary-subtle text-secondary btn-sm dropdown-toggle d-inline-flex align-items-center gap-1 fw-semibold"
+                      type="button"
+                      data-bs-toggle="dropdown"
+                      data-bs-boundary="viewport"
+                      aria-expanded="false"
                     >
-                      <iconify-icon icon="solar:eye-line-duotone"></iconify-icon>
+                      <iconify-icon icon="solar:menu-dots-bold" class="fs-4"></iconify-icon>
+                      <span>Acciones</span>
                     </button>
-
-                    <!-- Editar -->
-                    <button
-                      class="btn-action-icon edit"
-                      title="Editar información"
-                      @click="openEditProvider(p)"
-                    >
-                      <iconify-icon icon="solar:pen-new-square-line-duotone"></iconify-icon>
-                    </button>
-
-                    <!-- Habilitar / Deshabilitar -->
-                    <button
-                      class="btn-action-icon toggle"
-                      :class="p.estado === 'activo' ? 'danger' : 'success'"
-                      :disabled="actionProcessingId === p.id"
-                      :title="p.estado === 'activo' ? 'Deshabilitar proveedor' : 'Habilitar proveedor'"
-                      @click="handleToggleProviderStatus(p)"
-                    >
-                      <span v-if="actionProcessingId === p.id" class="spinner-grow spinner-grow-sm text-warning" role="status" aria-hidden="true"></span>
-                      <iconify-icon
-                        v-else
-                        :icon="p.estado === 'activo' ? 'solar:pause-circle-line-duotone' : 'solar:play-circle-line-duotone'"
-                      ></iconify-icon>
-                    </button>
+                    <ul class="dropdown-menu dropdown-menu-end shadow-lg py-1">
+                      <li>
+                        <a class="dropdown-item py-2" href="javascript:void(0)" @click="openViewProvider(p)">
+                          <iconify-icon icon="solar:eye-line-duotone" class="fs-5 text-info"></iconify-icon>
+                          <span>Ver Detalle</span>
+                        </a>
+                      </li>
+                      <li>
+                        <a class="dropdown-item py-2 text-warning" href="javascript:void(0)" @click="openEditProvider(p)">
+                          <iconify-icon icon="solar:pen-new-square-line-duotone" class="fs-5 text-warning"></iconify-icon>
+                          <span>Editar</span>
+                        </a>
+                      </li>
+                      <li>
+                        <hr class="dropdown-divider">
+                        <a
+                          class="dropdown-item py-2"
+                          :class="p.estado === 'activo' ? 'text-danger' : 'text-success'"
+                          href="javascript:void(0)"
+                          :class="{ disabled: actionProcessingId === p.id }"
+                          @click="handleToggleProviderStatus(p)"
+                        >
+                          <span v-if="actionProcessingId === p.id" class="spinner-grow spinner-grow-sm text-warning" role="status"></span>
+                          <iconify-icon
+                            v-else
+                            :icon="p.estado === 'activo' ? 'solar:pause-circle-line-duotone' : 'solar:play-circle-line-duotone'"
+                            class="fs-5"
+                          ></iconify-icon>
+                          <span>{{ p.estado === 'activo' ? 'Deshabilitar' : 'Habilitar' }}</span>
+                        </a>
+                      </li>
+                    </ul>
                   </div>
                 </td>
               </tr>
@@ -1189,39 +1209,49 @@ const paymentLabel = (p: string) => {
 
                 <!-- Acciones -->
                 <td class="text-end pe-4">
-                  <div class="btn-group gap-1" role="group">
-                    <!-- Ver Detalle -->
+                  <div class="dropdown">
                     <button
-                      class="btn-action-icon view"
-                      title="Ver detalle completo"
-                      @click="openViewSeller(s)"
+                      class="btn bg-secondary-subtle text-secondary btn-sm dropdown-toggle d-inline-flex align-items-center gap-1 fw-semibold"
+                      type="button"
+                      data-bs-toggle="dropdown"
+                      data-bs-boundary="viewport"
+                      aria-expanded="false"
                     >
-                      <iconify-icon icon="solar:eye-line-duotone"></iconify-icon>
+                      <iconify-icon icon="solar:menu-dots-bold" class="fs-4"></iconify-icon>
+                      <span>Acciones</span>
                     </button>
-
-                    <!-- Editar -->
-                    <button
-                      class="btn-action-icon edit"
-                      title="Editar información"
-                      @click="openEditSeller(s)"
-                    >
-                      <iconify-icon icon="solar:pen-new-square-line-duotone"></iconify-icon>
-                    </button>
-
-                    <!-- Habilitar / Deshabilitar -->
-                    <button
-                      class="btn-action-icon toggle"
-                      :class="s.estado === 'activo' ? 'danger' : 'success'"
-                      :disabled="actionProcessingId === s.id"
-                      :title="s.estado === 'activo' ? 'Deshabilitar vendedor' : 'Habilitar vendedor'"
-                      @click="handleToggleSellerStatus(s)"
-                    >
-                      <span v-if="actionProcessingId === s.id" class="spinner-grow spinner-grow-sm text-warning" role="status" aria-hidden="true"></span>
-                      <iconify-icon
-                        v-else
-                        :icon="s.estado === 'activo' ? 'solar:pause-circle-line-duotone' : 'solar:play-circle-line-duotone'"
-                      ></iconify-icon>
-                    </button>
+                    <ul class="dropdown-menu dropdown-menu-end shadow-lg py-1">
+                      <li>
+                        <a class="dropdown-item py-2" href="javascript:void(0)" @click="openViewSeller(s)">
+                          <iconify-icon icon="solar:eye-line-duotone" class="fs-5 text-info"></iconify-icon>
+                          <span>Ver Detalle</span>
+                        </a>
+                      </li>
+                      <li>
+                        <a class="dropdown-item py-2 text-warning" href="javascript:void(0)" @click="openEditSeller(s)">
+                          <iconify-icon icon="solar:pen-new-square-line-duotone" class="fs-5 text-warning"></iconify-icon>
+                          <span>Editar</span>
+                        </a>
+                      </li>
+                      <li>
+                        <hr class="dropdown-divider">
+                        <a
+                          class="dropdown-item py-2"
+                          :class="s.estado === 'activo' ? 'text-danger' : 'text-success'"
+                          href="javascript:void(0)"
+                          :class="{ disabled: actionProcessingId === s.id }"
+                          @click="handleToggleSellerStatus(s)"
+                        >
+                          <span v-if="actionProcessingId === s.id" class="spinner-grow spinner-grow-sm text-warning" role="status"></span>
+                          <iconify-icon
+                            v-else
+                            :icon="s.estado === 'activo' ? 'solar:pause-circle-line-duotone' : 'solar:play-circle-line-duotone'"
+                            class="fs-5"
+                          ></iconify-icon>
+                          <span>{{ s.estado === 'activo' ? 'Deshabilitar' : 'Habilitar' }}</span>
+                        </a>
+                      </li>
+                    </ul>
                   </div>
                 </td>
               </tr>

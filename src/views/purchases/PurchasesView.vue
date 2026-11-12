@@ -608,20 +608,38 @@ onMounted(() => {
                 </span>
               </td>
               <td class="text-right">
-                <div class="row-actions">
-                  <button class="act-btn" @click="openViewDetail(pur)" title="Ver detalle de compra">
-                    <iconify-icon icon="solar:eye-line-duotone" width="17"></iconify-icon>
-                  </button>
+                <div class="dropdown">
                   <button
-                    v-if="pur.status === 'COMPLETED'"
-                    class="act-btn delete"
-                    :disabled="cancelingId === pur.id"
-                    @click="handleCancelPurchase(pur)"
-                    title="Anular compra y revertir existencias"
+                    class="btn bg-secondary-subtle text-secondary btn-sm dropdown-toggle d-inline-flex align-items-center gap-1 fw-semibold"
+                    type="button"
+                    data-bs-toggle="dropdown"
+                    data-bs-boundary="viewport"
+                    aria-expanded="false"
                   >
-                    <span v-if="cancelingId === pur.id" class="spinner-grow spinner-grow-sm text-danger" role="status" aria-hidden="true"></span>
-                    <iconify-icon v-else icon="solar:close-circle-line-duotone" width="17"></iconify-icon>
+                    <iconify-icon icon="solar:menu-dots-bold" class="fs-4"></iconify-icon>
+                    <span>Acciones</span>
                   </button>
+                  <ul class="dropdown-menu dropdown-menu-end shadow-lg py-1">
+                    <li>
+                      <a class="dropdown-item py-2" href="javascript:void(0)" @click="openViewDetail(pur)">
+                        <iconify-icon icon="solar:eye-line-duotone" class="fs-5 text-info"></iconify-icon>
+                        <span>Ver Detalle de Compra</span>
+                      </a>
+                    </li>
+                    <li v-if="pur.status === 'COMPLETED'">
+                      <hr class="dropdown-divider">
+                      <a
+                        class="dropdown-item py-2 text-danger"
+                        href="javascript:void(0)"
+                        :class="{ disabled: cancelingId === pur.id }"
+                        @click="handleCancelPurchase(pur)"
+                      >
+                        <span v-if="cancelingId === pur.id" class="spinner-grow spinner-grow-sm text-danger" role="status"></span>
+                        <iconify-icon v-else icon="solar:close-circle-line-duotone" class="fs-5 text-danger"></iconify-icon>
+                        <span>Anular Compra</span>
+                      </a>
+                    </li>
+                  </ul>
                 </div>
               </td>
             </tr>
