@@ -234,7 +234,7 @@ const getResolution = (msg: SriDetailMessage): SriErrorInfo | null => {
             <iconify-icon icon="solar:chat-round-line-line-duotone" class="text-primary fs-5"></iconify-icon>
             Mensajes devueltos por el SRI ({{ messagesList.length }})
           </h6>
-          <div class="d-flex flex-column gap-2" style="max-height: 240px; overflow-y: auto;">
+          <div class="d-flex flex-column gap-2">
             <div
               v-for="(msg, idx) in messagesList"
               :key="idx"
@@ -294,10 +294,45 @@ const getResolution = (msg: SriDetailMessage): SriErrorInfo | null => {
 .sri-modal-card {
   max-width: 680px;
   width: 95%;
+  max-height: 88vh;
   margin: auto;
-  border-radius: 12px;
+  display: flex;
+  flex-direction: column;
+  border-radius: 14px;
   overflow: hidden;
   box-shadow: 0 10px 40px rgba(0, 0, 0, 0.6);
+  background-color: var(--bs-card-bg, #111c2d);
+  border: 1px solid var(--bs-border-color, rgba(189, 200, 240, 0.15));
+}
+
+.modal-header-custom {
+  flex-shrink: 0;
+  padding: 1rem 1.25rem;
+  border-bottom: 1px solid var(--bs-border-color, rgba(189, 200, 240, 0.15));
+}
+
+.modal-body-custom {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 1.25rem;
+}
+
+.modal-footer-custom {
+  flex-shrink: 0;
+  padding: 0.85rem 1.25rem;
+  border-top: 1px solid var(--bs-border-color, rgba(189, 200, 240, 0.15));
+  background-color: var(--bs-card-bg, #111c2d);
+}
+
+@media (max-width: 576px) {
+  .sri-modal-card {
+    width: 98%;
+    max-height: 94vh;
+  }
+  .modal-body-custom {
+    padding: 0.85rem;
+  }
 }
 </style>
 
