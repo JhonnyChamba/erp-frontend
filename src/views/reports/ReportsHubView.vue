@@ -100,6 +100,13 @@
                   <span class="report-title fs-2 text-truncate" :class="{ 'fw-semibold': rep.route }">
                     {{ rep.title }}
                   </span>
+                  <!-- ETIQUETA PENDIENTE SOLO VISIBLE PARA SUPER ADMIN -->
+                  <span
+                    v-if="!rep.route && isSuperAdmin"
+                    class="badge bg-warning-subtle text-warning border border-warning-subtle rounded-pill px-2 py-0 fs-1 flex-shrink-0"
+                  >
+                    Pendiente
+                  </span>
                 </div>
 
                 <div class="d-flex align-items-center gap-1 flex-shrink-0">
@@ -110,9 +117,9 @@
                     Abrir
                   </span>
                   <iconify-icon
-                    :icon="rep.route ? 'solar:arrow-right-line-duotone' : 'solar:clock-circle-line-duotone'"
-                    class="fs-4"
-                    :class="rep.route ? 'text-primary' : 'text-muted opacity-50'"
+                    v-if="rep.route"
+                    icon="solar:arrow-right-line-duotone"
+                    class="fs-4 text-primary"
                   ></iconify-icon>
                 </div>
               </a>
@@ -127,10 +134,67 @@
 <script setup lang="ts">
 import { ref, computed } from 'vue'
 import { useRouter } from 'vue-router'
+import { useAuthStore } from '@/stores/auth.store'
 import { toast } from '@/utils/toastr'
 
 const router = useRouter()
+const authStore = useAuthStore()
 const searchQuery = ref('')
+
+const isSuperAdmin = computed(() => {
+  return Boolean(
+    authStore.tokenPayload?.super_admin ||
+    authStore.tokenPayload?.developer ||
+    authStore.accessInfo?.isSuperAdmin
+  )
+})
+
+// Módulos y URLs autorizados para el rol del usuario
+const allowedModules = computed(() => (authStore.accessInfo?.moduleCodes || []).map((c: string) => c.toUpperCase()))
+const allowedUrls = computed(() => (authStore.accessInfo?.allowedUrls || []).map((u: string) => u.toLowerCase()))
+
+// Comprobar si un reporte es accesible según el rol
+const canUserAccessReport = (catId: string, rep: ReportItem) => {
+  // Los Super Administradores ven todos los reportes (disponibles y pendientes)
+  if (isSuperAdmin.value) return true
+
+  // Los usuarios regulares NO pueden ver reportes que aún no estén disponibles
+  if (!rep.route) return false
+
+  // Validar permisos por rol en cada módulo
+  if (catId === 'ventas') {
+    return (
+      allowedModules.value.includes('MOD-001') ||
+      allowedUrls.value.some((u: string) => u.includes('venta') || u.includes('factura'))
+    )
+  }
+  if (catId === 'compras') {
+    return (
+      allowedModules.value.includes('MOD-002') ||
+      allowedUrls.value.some((u: string) => u.includes('compra'))
+    )
+  }
+  if (catId === 'inventario') {
+    return (
+      allowedModules.value.includes('MOD-003') ||
+      allowedUrls.value.some((u: string) => u.includes('inventario') || u.includes('kardex') || u.includes('articulo') || u.includes('bodega'))
+    )
+  }
+  if (catId === 'contables') {
+    return (
+      allowedModules.value.includes('MOD-004') ||
+      allowedUrls.value.some((u: string) => u.includes('contab') || u.includes('asiento') || u.includes('cuenta'))
+    )
+  }
+  if (catId === 'administrativos') {
+    return (
+      allowedModules.value.includes('MOD-005') ||
+      allowedUrls.value.some((u: string) => u.includes('admin') || u.includes('gerenc'))
+    )
+  }
+
+  return true
+}
 
 interface ReportItem {
   title: string
@@ -409,15 +473,18 @@ const categories: ReportCategory[] = [
   },
 ]
 
-// Filtrado reactivo por buscador
+// Filtrado reactivo por rol y por buscador
 const filteredCategories = computed(() => {
   const query = searchQuery.value.toLowerCase().trim()
-  if (!query) return categories
 
   return categories
     .map((cat) => {
+      // 1. Filtrar primero los reportes según rol / disponibilidad
+      const roleAllowedReports = cat.reports.filter((rep) => canUserAccessReport(cat.id, rep))
+
+      // 2. Filtrar por buscador
       const matchCat = cat.title.toLowerCase().includes(query) || cat.subtitle.toLowerCase().includes(query)
-      const matchingReports = cat.reports.filter(
+      const matchingReports = roleAllowedReports.filter(
         (r) =>
           matchCat ||
           r.title.toLowerCase().includes(query) ||
@@ -536,3 +603,4 @@ const handleReportClick = (rep: ReportItem) => {
   color: var(--bs-heading-color);
 }
 </style>
+

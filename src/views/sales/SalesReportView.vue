@@ -25,19 +25,9 @@
           <!-- BOTONES DE EXPORTACIÓN Y ACCIÓN -->
           <div class="d-flex flex-wrap align-items-center gap-2">
             <button
-              class="btn btn-outline-primary rounded-pill px-3 py-2 d-flex align-items-center gap-2 fw-semibold"
-              @click="reloadAllData"
-              :disabled="loading"
-              title="Refrescar datos del reporte"
-            >
-              <iconify-icon icon="solar:refresh-line-duotone" class="fs-5" :class="{ 'spin-anim': loading }"></iconify-icon>
-              <span>Actualizar</span>
-            </button>
-
-            <button
               class="btn btn-outline-success rounded-pill px-3 py-2 d-flex align-items-center gap-2 fw-semibold"
               @click="exportToExcelCSV"
-              :disabled="loading || filteredRows.length === 0"
+              :disabled="loading || !hasSearched || filteredRows.length === 0"
               title="Descargar reporte en formato Excel / CSV"
             >
               <iconify-icon icon="solar:file-spreadsheet-line-duotone" class="fs-5"></iconify-icon>
@@ -47,7 +37,7 @@
             <button
               class="btn btn-primary rounded-pill px-3 py-2 d-flex align-items-center gap-2 fw-semibold"
               @click="printReport"
-              :disabled="loading || filteredRows.length === 0"
+              :disabled="loading || !hasSearched || filteredRows.length === 0"
               title="Imprimir informe oficial membretado"
             >
               <iconify-icon icon="solar:printer-line-duotone" class="fs-5"></iconify-icon>
@@ -58,76 +48,16 @@
       </div>
     </div>
 
-    <!-- PANEL DE FILTROS AVANZADOS -->
+    <!-- PANEL DE FILTROS -->
     <div class="card shadow-sm border-0 rounded-4 mb-4">
       <div class="card-body p-4">
-        <!-- PRESETS RÁPIDOS DE FECHA -->
-        <div class="d-flex flex-wrap align-items-center justify-content-between gap-2 pb-3 mb-3 border-bottom">
-          <div class="d-flex align-items-center gap-2">
-            <iconify-icon icon="solar:calendar-date-line-duotone" class="text-primary fs-5"></iconify-icon>
-            <span class="fw-bold fs-3" style="color: var(--bs-text-title);">Período de Consulta:</span>
-          </div>
-          <div class="btn-group btn-group-sm flex-wrap" role="group">
-            <button
-              type="button"
-              class="btn"
-              :class="activeDatePreset === 'today' ? 'btn-primary' : 'btn-outline-secondary'"
-              @click="applyPreset('today')"
-            >
-              Hoy
-            </button>
-            <button
-              type="button"
-              class="btn"
-              :class="activeDatePreset === 'week' ? 'btn-primary' : 'btn-outline-secondary'"
-              @click="applyPreset('week')"
-            >
-              Esta Semana
-            </button>
-            <button
-              type="button"
-              class="btn"
-              :class="activeDatePreset === 'month' ? 'btn-primary' : 'btn-outline-secondary'"
-              @click="applyPreset('month')"
-            >
-              Este Mes
-            </button>
-            <button
-              type="button"
-              class="btn"
-              :class="activeDatePreset === 'last-month' ? 'btn-primary' : 'btn-outline-secondary'"
-              @click="applyPreset('last-month')"
-            >
-              Mes Anterior
-            </button>
-            <button
-              type="button"
-              class="btn"
-              :class="activeDatePreset === 'year' ? 'btn-primary' : 'btn-outline-secondary'"
-              @click="applyPreset('year')"
-            >
-              Año Actual
-            </button>
-            <button
-              type="button"
-              class="btn"
-              :class="activeDatePreset === 'all' ? 'btn-primary' : 'btn-outline-secondary'"
-              @click="applyPreset('all')"
-            >
-              Todo
-            </button>
-          </div>
-        </div>
-
-        <!-- SELECTORES DE FILTROS -->
-        <div class="row g-3">
+        <div class="row g-3 align-items-end">
           <div class="col-12 col-sm-6 col-lg-3">
             <label class="form-label fs-2 fw-semibold text-muted mb-1">Fecha Desde</label>
             <input
               type="date"
               v-model="filters.dateFrom"
               class="form-control rounded-3"
-              @change="activeDatePreset = 'custom'"
             />
           </div>
 
@@ -137,7 +67,6 @@
               type="date"
               v-model="filters.dateTo"
               class="form-control rounded-3"
-              @change="activeDatePreset = 'custom'"
             />
           </div>
 
@@ -185,7 +114,7 @@
             </select>
           </div>
 
-          <div class="col-12 col-lg-6">
+          <div class="col-12 col-lg-4">
             <label class="form-label fs-2 fw-semibold text-muted mb-1">Búsqueda Rápida</label>
             <div class="input-group">
               <span class="input-group-text bg-transparent border-end-0">
@@ -195,7 +124,7 @@
                 type="text"
                 v-model="filters.search"
                 class="form-control border-start-0 rounded-end-3"
-                placeholder="Buscar por cliente, RUC/cédula, N° secuencial (001-001-...) o clave de acceso..."
+                placeholder="Buscar por cliente, RUC/cédula, N° secuencial..."
               />
               <button
                 v-if="filters.search"
@@ -207,111 +136,44 @@
               </button>
             </div>
           </div>
+
+          <!-- BOTÓN BUSCAR / PROCESAR -->
+          <div class="col-12 col-lg-2">
+            <button
+              type="button"
+              class="btn btn-primary w-100 rounded-3 py-2 fw-bold d-flex align-items-center justify-content-center gap-2"
+              @click="consultReport"
+              :disabled="loading"
+            >
+              <iconify-icon icon="solar:magnifer-bold-duotone" class="fs-5" :class="{ 'spin-anim': loading }"></iconify-icon>
+              <span>{{ loading ? 'Procesando...' : 'Buscar / Procesar' }}</span>
+            </button>
+          </div>
         </div>
       </div>
     </div>
 
-    <!-- TARJETAS DE TOTALES Y RESUMEN TRIBUTARIO (KPIS) -->
-    <div class="row g-3 mb-4">
-      <!-- 1. TOTAL FACTURADO BRUTO -->
-      <div class="col-12 col-sm-6 col-xl-2">
-        <div class="card h-100 border-0 shadow-sm rounded-4 p-3 kpi-card border-top border-primary border-3">
-          <div class="d-flex align-items-center justify-content-between mb-2">
-            <span class="fs-2 text-muted fw-semibold">Ventas Brutas</span>
-            <div class="kpi-icon-pill bg-primary-subtle text-primary">
-              <iconify-icon icon="solar:tag-price-bold-duotone" class="fs-5"></iconify-icon>
-            </div>
-          </div>
-          <h4 class="fw-bold mb-1 font-mono" style="color: var(--bs-text-title);">
-            {{ formatMoney(kpiTotals.grossSales) }}
-          </h4>
-          <span class="fs-1 text-muted">Facturas emitidas ({{ kpiTotals.invoiceCount }})</span>
+    <!-- ESTADO INICIAL: ANTES DE DAR CLIC EN BUSCAR -->
+    <div v-if="!hasSearched" class="card shadow-sm border-0 rounded-4 p-5 text-center my-4">
+      <div class="d-flex justify-content-center mb-3">
+        <div class="p-3 bg-primary-subtle text-primary rounded-circle d-flex align-items-center justify-content-center" style="width: 72px; height: 72px;">
+          <iconify-icon icon="solar:magnifer-bold-duotone" class="fs-9"></iconify-icon>
         </div>
       </div>
-
-      <!-- 2. BASE IMPONIBLE IVA 15% -->
-      <div class="col-12 col-sm-6 col-xl-2">
-        <div class="card h-100 border-0 shadow-sm rounded-4 p-3 kpi-card border-top border-info border-3">
-          <div class="d-flex align-items-center justify-content-between mb-2">
-            <span class="fs-2 text-muted fw-semibold">Base IVA 15%</span>
-            <div class="kpi-icon-pill bg-info-subtle text-info">
-              <iconify-icon icon="solar:calculator-bold-duotone" class="fs-5"></iconify-icon>
-            </div>
-          </div>
-          <h4 class="fw-bold mb-1 font-mono text-info">
-            {{ formatMoney(kpiTotals.taxableBase15) }}
-          </h4>
-          <span class="fs-1 text-muted">Ventas con tarifa 15%</span>
-        </div>
-      </div>
-
-      <!-- 3. BASE IMPONIBLE IVA 0% -->
-      <div class="col-12 col-sm-6 col-xl-2">
-        <div class="card h-100 border-0 shadow-sm rounded-4 p-3 kpi-card border-top border-secondary border-3">
-          <div class="d-flex align-items-center justify-content-between mb-2">
-            <span class="fs-2 text-muted fw-semibold">Base IVA 0%</span>
-            <div class="kpi-icon-pill bg-secondary-subtle text-secondary">
-              <iconify-icon icon="solar:shield-warning-bold-duotone" class="fs-5"></iconify-icon>
-            </div>
-          </div>
-          <h4 class="fw-bold mb-1 font-mono" style="color: var(--bs-text-title);">
-            {{ formatMoney(kpiTotals.zeroBase) }}
-          </h4>
-          <span class="fs-1 text-muted">Ventas tarifa 0% / No objeto</span>
-        </div>
-      </div>
-
-      <!-- 4. TOTAL IVA COBRADO -->
-      <div class="col-12 col-sm-6 col-xl-2">
-        <div class="card h-100 border-0 shadow-sm rounded-4 p-3 kpi-card border-top border-warning border-3">
-          <div class="d-flex align-items-center justify-content-between mb-2">
-            <span class="fs-2 text-muted fw-semibold">IVA 15% Cobrado</span>
-            <div class="kpi-icon-pill bg-warning-subtle text-warning">
-              <iconify-icon icon="solar:hand-money-bold-duotone" class="fs-5"></iconify-icon>
-            </div>
-          </div>
-          <h4 class="fw-bold mb-1 font-mono text-warning">
-            {{ formatMoney(kpiTotals.totalTax) }}
-          </h4>
-          <span class="fs-1 text-muted">Impuesto generado al SRI</span>
-        </div>
-      </div>
-
-      <!-- 5. NOTAS DE CRÉDITO (DEDUCCIONES) -->
-      <div class="col-12 col-sm-6 col-xl-2">
-        <div class="card h-100 border-0 shadow-sm rounded-4 p-3 kpi-card border-top border-danger border-3">
-          <div class="d-flex align-items-center justify-content-between mb-2">
-            <span class="fs-2 text-muted fw-semibold">Notas de Crédito</span>
-            <div class="kpi-icon-pill bg-danger-subtle text-danger">
-              <iconify-icon icon="solar:card-recive-bold-duotone" class="fs-5"></iconify-icon>
-            </div>
-          </div>
-          <h4 class="fw-bold mb-1 font-mono text-danger">
-            -{{ formatMoney(kpiTotals.creditNotesTotal) }}
-          </h4>
-          <span class="fs-1 text-muted">{{ kpiTotals.creditNoteCount }} comprobantes NC</span>
-        </div>
-      </div>
-
-      <!-- 6. TOTAL FACTURACIÓN NETA -->
-      <div class="col-12 col-sm-6 col-xl-2">
-        <div class="card h-100 border-0 shadow-sm rounded-4 p-3 kpi-card border-top border-success border-3">
-          <div class="d-flex align-items-center justify-content-between mb-2">
-            <span class="fs-2 text-muted fw-semibold">Venta Neta Total</span>
-            <div class="kpi-icon-pill bg-success-subtle text-success">
-              <iconify-icon icon="solar:wallet-money-bold-duotone" class="fs-5"></iconify-icon>
-            </div>
-          </div>
-          <h4 class="fw-bold mb-1 font-mono text-success">
-            {{ formatMoney(kpiTotals.netSales) }}
-          </h4>
-          <span class="fs-1 text-muted">Ventas Brutas - Notas Crédito</span>
-        </div>
+      <h4 class="fw-bold mb-2" style="color: var(--bs-text-title);">Consulta de Ventas e Impuestos SRI</h4>
+      <p class="text-muted fs-3 mb-4 mx-auto" style="max-width: 520px;">
+        Selecciona el rango de fechas, sucursal o estado SRI en el panel superior y presiona <strong>Buscar / Procesar</strong> para generar el reporte.
+      </p>
+      <div>
+        <button class="btn btn-primary rounded-pill px-4 py-2 fw-bold d-inline-flex align-items-center gap-2" @click="consultReport" :disabled="loading">
+          <iconify-icon icon="solar:magnifer-bold-duotone" class="fs-5"></iconify-icon>
+          <span>Buscar / Procesar Ahora</span>
+        </button>
       </div>
     </div>
 
-    <!-- PESTAÑAS DE VISTA DEL REPORTE -->
-    <div class="card shadow-sm border-0 rounded-4">
+    <!-- PESTAÑAS Y RESULTADOS (SOLO VISIBLE DESPUÉS DE BUSCAR / PROCESAR) -->
+    <div v-else class="card shadow-sm border-0 rounded-4">
       <div class="card-header bg-transparent border-bottom p-3">
         <ul class="nav nav-pills gap-2" role="tablist">
           <li class="nav-item">
@@ -386,14 +248,14 @@
                       <div class="spinner-grow text-primary spinner-grow-sm" role="status"></div>
                       <div class="spinner-grow text-info spinner-grow-sm" role="status"></div>
                     </div>
-                    <span class="text-muted">Cargando comprobantes y consolidando cálculo fiscal...</span>
+                    <span class="text-muted">Consultando comprobantes y consolidando cálculo fiscal...</span>
                   </td>
                 </tr>
 
                 <tr v-else-if="paginatedRows.length === 0">
                   <td colspan="11" class="text-center py-5 text-muted">
                     <iconify-icon icon="solar:box-minimalistic-line-duotone" class="fs-9 d-block mb-2 text-secondary"></iconify-icon>
-                    <span>No se encontraron comprobantes emitidos en el rango o con los filtros seleccionados.</span>
+                    <span>No se encontraron comprobantes emitidos con los filtros seleccionados.</span>
                   </td>
                 </tr>
 
@@ -665,11 +527,11 @@ interface UnifiedReportRow {
 
 // Estados reactivos
 const loading = ref(false)
+const hasSearched = ref(false)
 const invoices = ref<InvoiceItem[]>([])
 const creditNotes = ref<CreditNoteItem[]>([])
 const branchesList = ref<BranchItem[]>([])
 const currentTab = ref<'details' | 'monthly' | 'payments' | 'customers'>('details')
-const activeDatePreset = ref<string>('month')
 
 // Paginación
 const currentPage = ref(1)
@@ -698,69 +560,41 @@ const getActiveCompany = () => {
   return { id: 1, razon_social: 'Deskounta', ruc: '1725620247001' }
 }
 
-// Aplicar presets de fecha
-const applyPreset = (preset: string) => {
-  activeDatePreset.value = preset
-  const now = new Date()
-  const y = now.getFullYear()
-  const m = now.getMonth()
+// Cargar sucursales en el montaje
+onMounted(async () => {
+  const comp = getActiveCompany()
+  try {
+    const brsRes: any = await getBranches(comp.id, { onlyEnabled: true }).catch(() => ({ data: [] }))
+    branchesList.value = Array.isArray(brsRes?.data) ? brsRes.data : Array.isArray(brsRes) ? brsRes : []
+  } catch {}
+})
 
-  if (preset === 'today') {
-    filters.value.dateFrom = now.toISOString().slice(0, 10)
-    filters.value.dateTo = now.toISOString().slice(0, 10)
-  } else if (preset === 'week') {
-    const d = new Date()
-    const day = d.getDay()
-    const diff = d.getDate() - day + (day === 0 ? -6 : 1) // Lunes
-    const monday = new Date(d.setDate(diff))
-    filters.value.dateFrom = monday.toISOString().slice(0, 10)
-    filters.value.dateTo = new Date().toISOString().slice(0, 10)
-  } else if (preset === 'month') {
-    filters.value.dateFrom = new Date(y, m, 1).toISOString().slice(0, 10)
-    filters.value.dateTo = new Date().toISOString().slice(0, 10)
-  } else if (preset === 'last-month') {
-    const firstLast = new Date(y, m - 1, 1).toISOString().slice(0, 10)
-    const lastDayLast = new Date(y, m, 0).toISOString().slice(0, 10)
-    filters.value.dateFrom = firstLast
-    filters.value.dateTo = lastDayLast
-  } else if (preset === 'year') {
-    filters.value.dateFrom = new Date(y, 0, 1).toISOString().slice(0, 10)
-    filters.value.dateTo = new Date().toISOString().slice(0, 10)
-  } else if (preset === 'all') {
-    filters.value.dateFrom = '2020-01-01'
-    filters.value.dateTo = '2030-12-31'
-  }
-}
-
-// Cargar datos
-const reloadAllData = async () => {
+// Consultar / Procesar búsqueda al hacer clic en el botón
+const consultReport = async () => {
   loading.value = true
   const comp = getActiveCompany()
   try {
-    const [invs, cns, brsRes]: [any, any, any] = await Promise.all([
+    const [invs, cns]: [any, any] = await Promise.all([
       getInvoices(comp.id),
       listCreditNotes(),
-      getBranches(comp.id, { onlyEnabled: true }).catch(() => ({ data: [] })),
     ])
 
     invoices.value = Array.isArray(invs) ? invs : []
     creditNotes.value = Array.isArray(cns) ? cns : []
-    const branchesData = Array.isArray(brsRes?.data) ? brsRes.data : Array.isArray(brsRes) ? brsRes : []
-    branchesList.value = branchesData
+    hasSearched.value = true
+    currentPage.value = 1
   } catch (err: any) {
-    console.error('Error al cargar reporte de ventas:', err)
+    console.error('Error al consultar reporte de ventas:', err)
     toast.error('No se pudieron obtener todos los datos del reporte.', 'Reportes')
   } finally {
     loading.value = false
   }
 }
 
-onMounted(() => {
-  reloadAllData()
-})
-
 // Mapeo unificado de comprobantes
 const unifiedRows = computed<UnifiedReportRow[]>(() => {
+  if (!hasSearched.value) return []
+
   const list: UnifiedReportRow[] = []
   const branchMap = new Map<number, string>()
   for (const b of branchesList.value) {
@@ -835,6 +669,8 @@ const unifiedRows = computed<UnifiedReportRow[]>(() => {
 
 // Filas filtradas
 const filteredRows = computed(() => {
+  if (!hasSearched.value) return []
+
   const f = filters.value
   const searchLower = f.search.toLowerCase().trim()
 
@@ -870,45 +706,6 @@ const filteredRows = computed(() => {
 
     return true
   })
-})
-
-// Totales KPI
-const kpiTotals = computed(() => {
-  let grossSales = 0
-  let taxableBase15 = 0
-  let zeroBase = 0
-  let totalTax = 0
-  let creditNotesTotal = 0
-  let invoiceCount = 0
-  let creditNoteCount = 0
-
-  for (const row of filteredRows.value) {
-    if (row.type === 'INVOICE') {
-      if (row.status !== 'CANCELED') {
-        invoiceCount++
-        grossSales += row.total
-        taxableBase15 += row.base15
-        zeroBase += row.base0
-        totalTax += row.tax15
-      }
-    } else if (row.type === 'CREDIT_NOTE') {
-      creditNoteCount++
-      creditNotesTotal += row.total
-    }
-  }
-
-  const netSales = grossSales - creditNotesTotal
-
-  return {
-    grossSales,
-    taxableBase15,
-    zeroBase,
-    totalTax,
-    creditNotesTotal,
-    netSales,
-    invoiceCount,
-    creditNoteCount,
-  }
 })
 
 // Paginación
@@ -1185,9 +982,6 @@ const printReport = () => {
           .header { text-align: center; margin-bottom: 20px; border-bottom: 2px solid #0085db; padding-bottom: 10px; }
           .title { font-size: 18px; font-weight: bold; margin: 0; }
           .subtitle { font-size: 12px; color: #64748b; margin-top: 4px; }
-          .kpis { display: flex; justify-content: space-between; margin-bottom: 20px; gap: 10px; }
-          .kpi-box { flex: 1; border: 1px solid #cbd5e1; border-radius: 6px; padding: 8px; text-align: center; }
-          .kpi-val { font-size: 14px; font-weight: bold; margin-top: 4px; }
           table { width: 100%; border-collapse: collapse; margin-top: 10px; }
           th { background: #f1f5f9; border: 1px solid #cbd5e1; padding: 6px 8px; text-align: left; font-size: 10px; }
           td { border: 1px solid #e2e8f0; padding: 5px 8px; }
@@ -1203,33 +997,6 @@ const printReport = () => {
           <h1 class="title">${comp.razon_social || comp.nombre_comercial || 'Deskounta ERP'}</h1>
           <div class="subtitle">RUC: ${comp.ruc || ''} | Reporte Oficial de Ventas e Impuestos SRI</div>
           <div class="subtitle">Período: ${formatDate(filters.value.dateFrom)} al ${formatDate(filters.value.dateTo)}</div>
-        </div>
-
-        <div class="kpis">
-          <div class="kpi-box">
-            <div>Ventas Brutas</div>
-            <div class="kpi-val">${formatMoney(kpiTotals.value.grossSales)}</div>
-          </div>
-          <div class="kpi-box">
-            <div>Base IVA 15%</div>
-            <div class="kpi-val" style="color: #0284c7;">${formatMoney(kpiTotals.value.taxableBase15)}</div>
-          </div>
-          <div class="kpi-box">
-            <div>Base IVA 0%</div>
-            <div class="kpi-val">${formatMoney(kpiTotals.value.zeroBase)}</div>
-          </div>
-          <div class="kpi-box">
-            <div>IVA 15% Total</div>
-            <div class="kpi-val" style="color: #d97706;">${formatMoney(kpiTotals.value.totalTax)}</div>
-          </div>
-          <div class="kpi-box">
-            <div>Notas de Crédito</div>
-            <div class="kpi-val" style="color: #dc2626;">-${formatMoney(kpiTotals.value.creditNotesTotal)}</div>
-          </div>
-          <div class="kpi-box">
-            <div>Venta Neta Total</div>
-            <div class="kpi-val" style="color: #16a34a;">${formatMoney(kpiTotals.value.netSales)}</div>
-          </div>
         </div>
 
         <table>
@@ -1269,24 +1036,6 @@ const printReport = () => {
 <style scoped>
 .font-mono {
   font-family: SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace !important;
-}
-
-.kpi-card {
-  transition: transform 0.18s ease, box-shadow 0.18s ease;
-}
-
-.kpi-card:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.08) !important;
-}
-
-.kpi-icon-pill {
-  width: 36px;
-  height: 36px;
-  border-radius: 50%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
 }
 
 .btn-icon {
