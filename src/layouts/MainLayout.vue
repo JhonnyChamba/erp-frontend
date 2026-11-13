@@ -95,6 +95,104 @@
                 </router-link>
               </li>
 
+              <!-- MÓDULO AGENDA & CITAS (SPA / SALÓN DE BELLEZA / ESTÉTICA) -->
+              <li class="sidebar-item mb-1">
+                <a
+                  href="javascript:void(0)"
+                  class="sidebar-link has-arrow primary-hover-bg"
+                  @click="toggleModule('MOD-CITAS')"
+                >
+                  <span class="aside-icon p-2 bg-primary-subtle rounded-1 text-primary">
+                    <iconify-icon icon="solar:calendar-date-bold-duotone" class="fs-6"></iconify-icon>
+                  </span>
+                  <span class="hide-menu ps-1">Agenda & Citas</span>
+                  <iconify-icon
+                    :icon="isOpen('MOD-CITAS') ? 'solar:alt-arrow-up-line-duotone' : 'solar:alt-arrow-down-line-duotone'"
+                    class="fs-3 ms-auto text-muted arrow-toggle-icon"
+                  ></iconify-icon>
+                </a>
+
+                <ul
+                  v-show="isOpen('MOD-CITAS')"
+                  class="list-unstyled ps-3 pt-1 mb-2 first-level"
+                >
+                  <li class="sidebar-item mb-1">
+                    <router-link
+                      to="/citas/calendario"
+                      class="sidebar-sublink"
+                      :class="{ active: isSubActive('/citas/calendario') }"
+                    >
+                      <span class="sidebar-icon"></span>
+                      <span class="hide-menu">Calendario de Citas</span>
+                    </router-link>
+                  </li>
+                  <li class="sidebar-item mb-1">
+                    <router-link
+                      to="/citas/ordenes"
+                      class="sidebar-sublink"
+                      :class="{ active: isSubActive('/citas/ordenes') }"
+                    >
+                      <span class="sidebar-icon"></span>
+                      <span class="hide-menu">Órdenes de Cita</span>
+                    </router-link>
+                  </li>
+                  <li class="sidebar-item mb-1">
+                    <router-link
+                      to="/citas/horarios"
+                      class="sidebar-sublink"
+                      :class="{ active: isSubActive('/citas/horarios') }"
+                    >
+                      <span class="sidebar-icon"></span>
+                      <span class="hide-menu">Horarios & Disponibilidad</span>
+                    </router-link>
+                  </li>
+                </ul>
+              </li>
+
+              <!-- MÓDULO TALENTO HUMANO / RECURSOS HUMANOS -->
+              <li class="sidebar-item mb-1">
+                <a
+                  href="javascript:void(0)"
+                  class="sidebar-link has-arrow info-hover-bg"
+                  @click="toggleModule('MOD-HR')"
+                >
+                  <span class="aside-icon p-2 bg-pink-subtle rounded-1 text-pink">
+                    <iconify-icon icon="solar:users-group-two-rounded-bold-duotone" class="fs-6"></iconify-icon>
+                  </span>
+                  <span class="hide-menu ps-1">Talento Humano</span>
+                  <iconify-icon
+                    :icon="isOpen('MOD-HR') ? 'solar:alt-arrow-up-line-duotone' : 'solar:alt-arrow-down-line-duotone'"
+                    class="fs-3 ms-auto text-muted arrow-toggle-icon"
+                  ></iconify-icon>
+                </a>
+
+                <ul
+                  v-show="isOpen('MOD-HR')"
+                  class="list-unstyled ps-3 pt-1 mb-2 first-level"
+                >
+                  <li class="sidebar-item mb-1">
+                    <router-link
+                      to="/talento-humano/empleados"
+                      class="sidebar-sublink"
+                      :class="{ active: isSubActive('/talento-humano/empleados') || isSubActive('/rrhh/empleados') }"
+                    >
+                      <span class="sidebar-icon"></span>
+                      <span class="hide-menu">Registro de Empleados</span>
+                    </router-link>
+                  </li>
+                  <li class="sidebar-item mb-1">
+                    <router-link
+                      to="/talento-humano/categorias"
+                      class="sidebar-sublink"
+                      :class="{ active: isSubActive('/talento-humano/categorias') || isSubActive('/rrhh/categorias') }"
+                    >
+                      <span class="sidebar-icon"></span>
+                      <span class="hide-menu">Configuración de Categorías</span>
+                    </router-link>
+                  </li>
+                </ul>
+              </li>
+
               <!-- MÓDULOS DE SISTEMA / CONFIGURACIÓN DINÁMICOS -->
               <template v-if="systemModules.length > 0">
                 <li class="nav-small-cap mt-3">
@@ -222,6 +320,12 @@ const operationalModules = computed(() => {
     if (m.code === 'MOD-006' || m.description?.toLowerCase().includes('configuraci')) {
       return false
     }
+    if (m.code === 'MOD-008' || m.description?.toLowerCase().includes('talento') || m.description?.toLowerCase().includes('rrhh')) {
+      return false
+    }
+    if (m.code === 'MOD-009' || m.description?.toLowerCase().includes('cita') || m.description?.toLowerCase().includes('agenda')) {
+      return false
+    }
     if (isInventoryMod(m)) {
       return getInventorySubItems(m).length > 0
     }
@@ -284,16 +388,11 @@ const getConfigSubItems = (mod: any) => {
 
   const isSuper = Boolean(authStore.tokenPayload?.super_admin || authStore.accessInfo?.isSuperAdmin)
 
-  // Lista canónica de los 8 submódulos en el orden exacto de los tabs de Configuración
+  // Lista canónica de los 3 submódulos exclusivos de Configuración de Empresa
   const canonicalItems = [
-    { id: 17, code: 'SUB-017', description: 'Empresas', url: '/configuracion?tab=companies' },
-    { id: 26, code: 'SUB-026', description: 'Sucursales', url: '/configuracion?tab=branches' },
+    { id: 17, code: 'SUB-017', description: 'Empresa', url: '/configuracion?tab=companies' },
     { id: 18, code: 'SUB-018', description: 'Usuarios', url: '/configuracion?tab=users' },
     { id: 19, code: 'SUB-019', description: 'Roles', url: '/configuracion?tab=roles' },
-    { id: 20, code: 'SUB-020', description: 'Módulos & Submódulos', url: '/configuracion?tab=modules' },
-    { id: 21, code: 'SUB-021', description: 'Planes & Suscripciones', url: '/configuracion?tab=subscriptions' },
-    { id: 27, code: 'SUB-027', description: 'Impuestos', url: '/configuracion?tab=taxes' },
-    { id: 28, code: 'SUB-028', description: 'Tipos de Documentos', url: '/configuracion?tab=document_types' },
   ]
 
   if (isSuper) {
@@ -414,6 +513,12 @@ const isOpen = (moduleCode: string) => {
     return true
   }
   if ((moduleCode === 'MOD-006' || moduleCode?.toLowerCase().includes('configura')) && route.path.toLowerCase().startsWith('/configuracion')) {
+    return true
+  }
+  if ((moduleCode === 'MOD-HR' || moduleCode?.toLowerCase().includes('talento') || moduleCode?.toLowerCase().includes('rrhh')) && (route.path.toLowerCase().startsWith('/talento-humano') || route.path.toLowerCase().startsWith('/rrhh'))) {
+    return true
+  }
+  if ((moduleCode === 'MOD-CITAS' || moduleCode === 'MOD-009' || moduleCode?.toLowerCase().includes('cita') || moduleCode?.toLowerCase().includes('agenda')) && route.path.toLowerCase().startsWith('/citas')) {
     return true
   }
   const found = (authStore.accessInfo?.menu || []).find((m) => m.code === moduleCode)

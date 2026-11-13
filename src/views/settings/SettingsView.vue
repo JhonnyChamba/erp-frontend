@@ -164,8 +164,8 @@ const closeUserModal = () => {
   document.documentElement.setAttribute('data-color-theme', currentTheme)
 }
 
-// Pestaña activa ('companies' | 'users' | 'roles' | 'modules' | 'subscriptions' | 'taxes' | 'document_types')
-const activeTab = ref<'companies' | 'branches' | 'users' | 'roles' | 'modules' | 'subscriptions' | 'taxes' | 'document_types'>('companies')
+// Pestaña activa ('companies' | 'users' | 'roles')
+const activeTab = ref<'companies' | 'users' | 'roles'>('companies')
 
 // Estado de carga y mensajes
 const loading = ref(false)
@@ -180,8 +180,24 @@ watch(errorMsg, (msg) => {
 })
 
 // Contexto de empresa seleccionada
-const selectedCompany = ref<any>(null)
-const currentCompanyId = computed(() => selectedCompany.value?.id || 1)
+const getStoredCompany = (): any => {
+  try {
+    const raw = localStorage.getItem('selectedCompany')
+    if (raw) return JSON.parse(raw)
+  } catch {}
+  return null
+}
+const selectedCompany = ref<any>(getStoredCompany())
+const currentCompanyId = computed(() => {
+  const cId = Number(selectedCompany.value?.companyId || selectedCompany.value?.company?.id || selectedCompany.value?.id)
+  if (!Number.isNaN(cId) && cId > 0) return cId
+  const authCompId = Number(authStore.accessInfo?.companyId || authStore.tokenPayload?.company_id)
+  if (!Number.isNaN(authCompId) && authCompId > 0) return authCompId
+  return 4
+})
+const activeCompanyItem = computed(() => {
+  return companies.value.find((c) => Number(c.id) === Number(currentCompanyId.value)) || companies.value[0] || null
+})
 const isCurrentUserSuperAdmin = computed(() =>
   Boolean(authStore.tokenPayload?.super_admin || authStore.tokenPayload?.developer)
 )
@@ -444,7 +460,7 @@ const submitDocType = async () => {
       toast.success('Tipo de documento creado con éxito', 'Configuración')
     }
     showDocTypeModal.value = false
-    const res = await getDocumentTypes({ companyId: currentCompanyId.value })
+    const res = await getDocumentTypes()
     docTypes.value = Array.isArray(res) ? res : []
   } catch (err: any) {
     toast.error(err?.response?.data?.message || err?.message || 'Error al guardar el tipo de documento', 'Error')
@@ -878,9 +894,6 @@ const loadCurrentTabData = async () => {
     if (activeTab.value === 'companies') {
       const res = await getCompanies({ page: 1, limit: 50 })
       companies.value = Array.isArray(res?.data) ? res.data : Array.isArray(res) ? res : []
-    } else if (activeTab.value === 'branches') {
-      const res = await getBranches(currentCompanyId.value)
-      branches.value = Array.isArray(res?.data) ? res.data : Array.isArray(res) ? res : []
     } else if (activeTab.value === 'users') {
       const [usersRes, compsRes] = await Promise.all([
         getUsers(currentCompanyId.value, { page: 1, limit: 50 }),
@@ -891,7 +904,7 @@ const loadCurrentTabData = async () => {
       companies.value = Array.isArray(compsRes?.data) ? compsRes.data : Array.isArray(compsRes) ? compsRes : []
     } else if (activeTab.value === 'roles') {
       const [rolesRes, subsRes, modsRes, allSubModsRes] = await Promise.all([
-        getRoles(currentCompanyId.value, { page: 1, limit: 50 }),
+        getRoles(currentCompanyId.value, { page: 1, limit: 50 }).catch(() => ({ data: [] })),
         getSubscriptions(currentCompanyId.value, { page: 1, limit: 50 }).catch(() => ({ data: [] })),
         getModules({ page: 1, limit: 100 }).catch(() => ({ data: [] })),
         getSubModules({ page: 1, limit: 200 }).catch(() => ({ data: [] })),
@@ -904,32 +917,6 @@ const loadCurrentTabData = async () => {
       subscriptions.value = Array.isArray(subsRes?.data) ? subsRes.data : Array.isArray(subsRes) ? subsRes : []
       modulesList.value = Array.isArray(modsRes?.data) ? modsRes.data : Array.isArray(modsRes) ? modsRes : []
       allSubModulesList.value = Array.isArray(allSubModsRes?.data) ? allSubModsRes.data : Array.isArray(allSubModsRes) ? allSubModsRes : []
-    } else if (activeTab.value === 'modules') {
-      const [modsRes, subModsRes, allSubModsRes] = await Promise.all([
-        getModules({ page: 1, limit: 100 }),
-        getSubModules({ moduleId: filterModuleId.value, page: 1, limit: 100 }).catch(() => ({ data: [] })),
-        getSubModules({ page: 1, limit: 200 }).catch(() => ({ data: [] })),
-      ])
-      modulesList.value = Array.isArray(modsRes?.data) ? modsRes.data : Array.isArray(modsRes) ? modsRes : []
-      subModulesList.value = Array.isArray(subModsRes?.data) ? subModsRes.data : Array.isArray(subModsRes) ? subModsRes : []
-      allSubModulesList.value = Array.isArray(allSubModsRes?.data) ? allSubModsRes.data : Array.isArray(allSubModsRes) ? allSubModsRes : []
-    } else if (activeTab.value === 'subscriptions') {
-      const [plansRes, subsRes, modsRes, allSubModsRes] = await Promise.all([
-        getPlans({ page: 1, limit: 50 }),
-        getSubscriptions(currentCompanyId.value, { page: 1, limit: 50 }).catch(() => ({ data: [] })),
-        getModules({ page: 1, limit: 100 }).catch(() => ({ data: [] })),
-        getSubModules({ page: 1, limit: 200 }).catch(() => ({ data: [] })),
-      ])
-      plans.value = Array.isArray(plansRes?.data) ? plansRes.data : Array.isArray(plansRes) ? plansRes : []
-      subscriptions.value = Array.isArray(subsRes?.data) ? subsRes.data : Array.isArray(subsRes) ? subsRes : []
-      modulesList.value = Array.isArray(modsRes?.data) ? modsRes.data : Array.isArray(modsRes) ? modsRes : []
-      allSubModulesList.value = Array.isArray(allSubModsRes?.data) ? allSubModsRes.data : Array.isArray(allSubModsRes) ? allSubModsRes : []
-    } else if (activeTab.value === 'taxes') {
-      const taxesRes = await getTaxes({ companyId: currentCompanyId.value })
-      taxes.value = Array.isArray(taxesRes) ? taxesRes : []
-    } else if (activeTab.value === 'document_types') {
-      const docTypesRes = await getDocumentTypes({ companyId: currentCompanyId.value })
-      docTypes.value = Array.isArray(docTypesRes) ? docTypesRes : []
     }
   } catch (err: any) {
     console.error('Error cargando datos de configuración:', err)
@@ -939,7 +926,7 @@ const loadCurrentTabData = async () => {
   }
 }
 
-const switchTab = (tab: 'companies' | 'branches' | 'users' | 'roles' | 'modules' | 'subscriptions' | 'taxes' | 'document_types') => {
+const switchTab = (tab: 'companies' | 'users' | 'roles') => {
   activeTab.value = tab
   router.replace({ query: { ...route.query, tab } })
   loadCurrentTabData()
@@ -949,10 +936,9 @@ const switchTab = (tab: 'companies' | 'branches' | 'users' | 'roles' | 'modules'
 watch(
   () => route.query.tab,
   (newTab) => {
-    if (newTab && ['companies', 'branches', 'users', 'roles', 'modules', 'subscriptions', 'taxes', 'document_types'].includes(newTab as string)) {
+    if (newTab && ['companies', 'users', 'roles'].includes(newTab as string)) {
       activeTab.value = newTab as any
       showCompanyModal.value = false
-      showBranchModal.value = false
       showUserModal.value = false
       showRoleModal.value = false
       showModuleModal.value = false
@@ -1908,7 +1894,7 @@ const submitSubscription = async () => {
         </div>
       </div>
 
-      <!-- PESTAÑAS TIPO PILLS (ESTILO SPIKE / PHP ORIGINAL) -->
+      <!-- PESTAÑAS EXCLUSIVAS DE EMPRESA: EMPRESA, USUARIOS Y ROLES -->
       <ul v-show="!isFormOpen" class="nav nav-pills user-profile-tab mt-4 border-top border-dark-subtle pt-3" role="tablist">
         
         <li class="nav-item me-2">
@@ -1918,18 +1904,7 @@ const submitSubscription = async () => {
             @click="switchTab('companies')"
           >
             <iconify-icon icon="solar:buildings-3-line-duotone" class="fs-5"></iconify-icon>
-            <span>Empresas</span>
-          </button>
-        </li>
-
-        <li class="nav-item me-2">
-          <button
-            class="nav-link rounded-pill px-4 py-2 d-flex align-items-center gap-2 fs-3 text-decoration-none"
-            :class="{ 'active bg-primary text-white': activeTab === 'branches', 'text-white-50 hover-tab': activeTab !== 'branches' }"
-            @click="switchTab('branches')"
-          >
-            <iconify-icon icon="solar:shop-2-line-duotone" class="fs-5"></iconify-icon>
-            <span>Sucursales</span>
+            <span>Empresa</span>
           </button>
         </li>
 
@@ -1955,50 +1930,6 @@ const submitSubscription = async () => {
           </button>
         </li>
 
-        <li class="nav-item me-2">
-          <button
-            class="nav-link rounded-pill px-4 py-2 d-flex align-items-center gap-2 fs-3 text-decoration-none"
-            :class="{ 'active bg-primary text-white': activeTab === 'modules', 'text-white-50 hover-tab': activeTab !== 'modules' }"
-            @click="switchTab('modules')"
-          >
-            <iconify-icon icon="solar:widget-4-line-duotone" class="fs-5"></iconify-icon>
-            <span>Módulos & Submódulos</span>
-          </button>
-        </li>
-
-        <li class="nav-item me-2">
-          <button
-            class="nav-link rounded-pill px-4 py-2 d-flex align-items-center gap-2 fs-3 text-decoration-none"
-            :class="{ 'active bg-primary text-white': activeTab === 'subscriptions', 'text-white-50 hover-tab': activeTab !== 'subscriptions' }"
-            @click="switchTab('subscriptions')"
-          >
-            <iconify-icon icon="solar:card-line-duotone" class="fs-5"></iconify-icon>
-            <span>Planes & Suscripciones</span>
-          </button>
-        </li>
-
-        <li class="nav-item me-2">
-          <button
-            class="nav-link rounded-pill px-4 py-2 d-flex align-items-center gap-2 fs-3 text-decoration-none"
-            :class="{ 'active bg-primary text-white': activeTab === 'taxes', 'text-white-50 hover-tab': activeTab !== 'taxes' }"
-            @click="switchTab('taxes')"
-          >
-            <iconify-icon icon="solar:calculator-minimalistic-line-duotone" class="fs-5"></iconify-icon>
-            <span>Impuestos</span>
-          </button>
-        </li>
-
-        <li class="nav-item">
-          <button
-            class="nav-link rounded-pill px-4 py-2 d-flex align-items-center gap-2 fs-3 text-decoration-none"
-            :class="{ 'active bg-primary text-white': activeTab === 'document_types', 'text-white-50 hover-tab': activeTab !== 'document_types' }"
-            @click="switchTab('document_types')"
-          >
-            <iconify-icon icon="solar:document-text-line-duotone" class="fs-5"></iconify-icon>
-            <span>Tipos de Documentos</span>
-          </button>
-        </li>
-
       </ul>
     </div>
 
@@ -2008,14 +1939,18 @@ const submitSubscription = async () => {
     <!-- TAB 1: EMPRESAS                                          -->
     <!-- ======================================================== -->
     <div v-if="activeTab === 'companies'" class="card rounded-4 border-0 shadow-sm p-4 bg-navy-card">
-      <div class="d-flex justify-content-between align-items-center mb-4">
+      <div class="d-flex flex-wrap justify-content-between align-items-center gap-3 mb-4">
         <div>
-          <h5 class="fw-bold text-white mb-1">Listado de Empresas</h5>
-          <small class="text-secondary">Empresas registradas en la plataforma</small>
+          <h5 class="fw-bold text-white mb-1">Datos de la Empresa Activa</h5>
+          <small class="text-secondary">Configuración fiscal, firma electrónica (.p12), credenciales SMTP y logotipo institucional</small>
         </div>
-        <button class="btn btn-primary rounded-pill px-4 d-flex align-items-center gap-2" @click="openCreateCompany">
-          <iconify-icon icon="solar:add-circle-line-duotone" class="fs-5"></iconify-icon>
-          <span>Nueva Empresa</span>
+        <button
+          v-if="activeCompanyItem"
+          class="btn btn-primary rounded-pill px-4 d-flex align-items-center gap-2"
+          @click="openEditCompany(activeCompanyItem)"
+        >
+          <iconify-icon icon="solar:pen-2-line-duotone" class="fs-5"></iconify-icon>
+          <span>Editar Configuración de Empresa</span>
         </button>
       </div>
 
@@ -2025,7 +1960,7 @@ const submitSubscription = async () => {
           <div class="spinner-grow text-info" role="status"><span class="visually-hidden">Cargando...</span></div>
           <div class="spinner-grow text-secondary" role="status"><span class="visually-hidden">Cargando...</span></div>
         </div>
-        <p class="text-muted mt-2">Cargando empresas...</p>
+        <p class="text-muted mt-2">Cargando datos de la empresa...</p>
       </div>
 
       <div v-else class="table-responsive">
@@ -2042,7 +1977,7 @@ const submitSubscription = async () => {
             </tr>
           </thead>
           <tbody>
-            <tr v-for="comp in companies" :key="comp.id">
+            <tr v-for="comp in (activeCompanyItem ? [activeCompanyItem] : companies)" :key="comp.id">
               <td><span class="badge bg-dark-subtle text-white">{{ comp.id }}</span></td>
               <td class="fw-semibold text-white">{{ comp.ruc }}</td>
               <td class="text-white">
@@ -2097,128 +2032,6 @@ const submitSubscription = async () => {
             </tr>
             <tr v-if="companies.length === 0">
               <td colspan="7" class="text-center text-muted py-5">No hay empresas registradas aún.</td>
-            </tr>
-          </tbody>
-        </table>
-      </div>
-    </div>
-
-    <!-- ======================================================== -->
-    <!-- TAB: SUCURSALES (ESTABLECIMIENTOS)                       -->
-    <!-- ======================================================== -->
-    <div v-if="activeTab === 'branches'" class="card rounded-4 border-0 shadow-sm p-4 bg-navy-card">
-      <div class="d-flex justify-content-between align-items-center mb-4">
-        <div>
-          <h5 class="fw-bold text-white mb-1">Sucursales de {{ selectedCompany?.razon_social || selectedCompany?.nombre_comercial || 'la Empresa Activa' }}</h5>
-          <small class="text-secondary">Establecimientos y puntos de emisión con los que se factura (número de factura: establecimiento-punto de emisión-secuencial)</small>
-        </div>
-        <button class="btn btn-primary rounded-pill px-4 d-flex align-items-center gap-2" @click="openCreateBranch">
-          <iconify-icon icon="solar:add-circle-line-duotone" class="fs-5"></iconify-icon>
-          <span>Nueva Sucursal</span>
-        </button>
-      </div>
-
-      <div v-if="loading" class="text-center py-5">
-        <div class="d-flex align-items-center justify-content-center gap-2 mb-2">
-          <div class="spinner-grow text-primary" role="status"><span class="visually-hidden">Cargando...</span></div>
-          <div class="spinner-grow text-info" role="status"><span class="visually-hidden">Cargando...</span></div>
-          <div class="spinner-grow text-secondary" role="status"><span class="visually-hidden">Cargando...</span></div>
-        </div>
-        <p class="text-muted mt-2">Cargando sucursales...</p>
-      </div>
-
-      <div v-else class="table-responsive">
-        <table class="table table-hover align-middle mb-0">
-          <thead class="table-primary">
-            <tr>
-              <th width="9%">Estab.</th>
-              <th width="9%">Pto. Emisión</th>
-              <th width="20%">Nombre</th>
-              <th width="26%">Dirección del establecimiento</th>
-              <th width="16%">Contacto</th>
-              <th width="8%">Tipo</th>
-              <th width="8%">Estado</th>
-              <th width="14%" class="text-end">Acciones</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr v-for="b in branches" :key="b.id">
-              <td><span class="badge bg-primary text-white fw-bold font-monospace">{{ b.code }}</span></td>
-              <td><span class="badge bg-dark-subtle text-white font-monospace">{{ b.emissionPoint }}</span></td>
-              <td class="text-white fw-semibold">
-                <div class="d-flex align-items-center gap-2">
-                  <img
-                    v-if="b.logo_url"
-                    :src="b.logo_url || ''"
-                    alt="Logo"
-                    class="rounded border border-secondary-subtle"
-                    style="width: 28px; height: 28px; object-fit: contain; background: #000;"
-                  />
-                  <span>{{ b.name }}</span>
-                </div>
-              </td>
-              <td class="text-white">{{ b.address }}</td>
-              <td class="text-white">
-                <div v-if="b.phone">{{ b.phone }}</div>
-                <div v-if="b.email" class="fs-2 text-secondary">{{ b.email }}</div>
-                <span v-if="!b.phone && !b.email" class="text-secondary fst-italic fs-2">Sin datos</span>
-              </td>
-              <td>
-                <span class="badge" :class="b.isMatrix ? 'bg-info-subtle text-info border border-info-subtle' : 'bg-secondary-subtle text-secondary'">
-                  {{ b.isMatrix ? 'Matriz' : 'Sucursal' }}
-                </span>
-              </td>
-              <td>
-                <span class="badge" :class="b.enabled ? 'bg-success-subtle text-success' : 'bg-danger-subtle text-danger'">
-                  {{ b.enabled ? 'Activa' : 'Inactiva' }}
-                </span>
-              </td>
-              <td class="text-end">
-                <div class="dropdown">
-                  <button
-                    class="btn bg-secondary-subtle text-secondary btn-sm dropdown-toggle d-inline-flex align-items-center gap-1 fw-semibold"
-                    type="button"
-                    data-bs-toggle="dropdown"
-                    data-bs-popper-config='{"strategy":"fixed"}'
-                    aria-expanded="false"
-                  >
-                    <iconify-icon icon="solar:menu-dots-bold" class="fs-4"></iconify-icon>
-                    <span>Acciones</span>
-                  </button>
-                  <ul class="dropdown-menu dropdown-menu-end shadow-lg py-1">
-                    <li>
-                      <a class="dropdown-item py-2" href="javascript:void(0)" @click="openEditBranch(b)">
-                        <iconify-icon icon="solar:pen-2-line-duotone" class="fs-5 text-warning"></iconify-icon>
-                        <span>Editar Sucursal</span>
-                      </a>
-                    </li>
-                    <li v-if="!b.isMatrix && b.enabled">
-                      <a class="dropdown-item py-2 text-success" href="javascript:void(0)" @click="markAsMatrix(b)">
-                        <iconify-icon icon="solar:crown-line-duotone" class="fs-5 text-success"></iconify-icon>
-                        <span>Marcar como Matriz</span>
-                      </a>
-                    </li>
-                    <li v-if="!b.isMatrix">
-                      <a class="dropdown-item py-2" href="javascript:void(0)" @click="toggleBranch(b)">
-                        <iconify-icon :icon="b.enabled ? 'solar:eye-closed-line-duotone' : 'solar:eye-line-duotone'" class="fs-5 text-info"></iconify-icon>
-                        <span>{{ b.enabled ? 'Deshabilitar' : 'Habilitar' }}</span>
-                      </a>
-                    </li>
-                    <li v-if="!b.isMatrix">
-                      <hr class="dropdown-divider">
-                      <a class="dropdown-item py-2 text-danger" href="javascript:void(0)" @click="removeBranch(b)">
-                        <iconify-icon icon="solar:trash-bin-trash-line-duotone" class="fs-5 text-danger"></iconify-icon>
-                        <span>Eliminar Sucursal</span>
-                      </a>
-                    </li>
-                  </ul>
-                </div>
-              </td>
-            </tr>
-            <tr v-if="branches.length === 0">
-              <td colspan="8" class="text-center text-muted py-5">
-                Esta empresa aún no tiene sucursales. Registra la primera (será la matriz) para poder facturar por establecimiento.
-              </td>
             </tr>
           </tbody>
         </table>
@@ -2437,587 +2250,6 @@ const submitSubscription = async () => {
             </tr>
             <tr v-if="roles.length === 0">
               <td colspan="6" class="text-center text-muted py-5">No hay roles creados para esta empresa.</td>
-            </tr>
-          </tbody>
-        </table>
-      </div>
-    </div>
-
-    <!-- ======================================================== -->
-    <!-- TAB 3.5: MÓDULOS & SUBMÓDULOS                            -->
-    <!-- ======================================================== -->
-    <div v-if="activeTab === 'modules'" class="d-flex flex-column gap-4">
-      
-      <!-- SUBSECTION 1: MÓDULOS PRINCIPALES (tab_module) -->
-      <div class="card rounded-4 border-0 shadow-sm p-4 bg-navy-card">
-        <div class="d-flex flex-wrap justify-content-between align-items-center gap-3 mb-4">
-          <div>
-            <h5 class="fw-bold text-white mb-1 d-flex align-items-center gap-2">
-              <iconify-icon icon="solar:widget-4-line-duotone" class="text-primary fs-5"></iconify-icon>
-              <span>Módulos Principales del Sistema</span>
-            </h5>
-            <small class="text-secondary">Agrupadores principales del menú lateral (Ej. Ventas, Compras, Contabilidad, Inventario)</small>
-          </div>
-          <button class="btn btn-primary rounded-pill px-4 d-flex align-items-center gap-2" @click="openCreateModule">
-            <iconify-icon icon="solar:add-circle-line-duotone" class="fs-5"></iconify-icon>
-            <span>Nuevo Módulo</span>
-          </button>
-        </div>
-
-        <div v-if="loading" class="text-center py-4">
-          <div class="d-flex align-items-center justify-content-center gap-2 mb-2">
-            <div class="spinner-grow text-primary" role="status"><span class="visually-hidden">Cargando...</span></div>
-            <div class="spinner-grow text-info" role="status"><span class="visually-hidden">Cargando...</span></div>
-            <div class="spinner-grow text-secondary" role="status"><span class="visually-hidden">Cargando...</span></div>
-          </div>
-          <p class="text-muted mt-2">Cargando módulos...</p>
-        </div>
-
-        <div v-else class="table-responsive">
-          <table class="table table-hover align-middle mb-0">
-            <thead class="table-primary">
-              <tr>
-                <th width="8%">#</th>
-                <th width="12%">Icono</th>
-                <th width="18%">Código</th>
-                <th width="34%">Nombre / Descripción</th>
-                <th width="12%">Estado</th>
-                <th width="16%" class="text-end">Acciones</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr v-for="mod in modulesList" :key="mod.id">
-                <td><span class="badge bg-dark-subtle text-white">{{ mod.id }}</span></td>
-                <td>
-                  <div class="d-inline-flex align-items-center gap-2 bg-dark-subtle px-2 py-1 rounded border border-secondary-subtle">
-                    <iconify-icon :icon="mod.desc_icon || 'solar:widget-4-line-duotone'" class="fs-5 text-primary"></iconify-icon>
-                    <small class="text-secondary font-monospace d-none d-lg-inline">{{ mod.desc_icon }}</small>
-                  </div>
-                </td>
-                <td><span class="badge bg-primary-subtle text-primary border border-primary-subtle fw-bold">{{ mod.code }}</span></td>
-                <td class="text-white fw-semibold">{{ mod.description }}</td>
-                <td>
-                  <span class="badge" :class="mod.enabled !== false ? 'bg-success-subtle text-success' : 'bg-danger-subtle text-danger'">
-                    {{ mod.enabled !== false ? 'Activo' : 'Inactivo' }}
-                  </span>
-                </td>
-                <td class="text-end">
-                  <div class="dropdown">
-                    <button
-                      class="btn bg-secondary-subtle text-secondary btn-sm dropdown-toggle d-inline-flex align-items-center gap-1 fw-semibold"
-                      type="button"
-                      data-bs-toggle="dropdown"
-                      data-bs-popper-config='{"strategy":"fixed"}'
-                      aria-expanded="false"
-                    >
-                      <iconify-icon icon="solar:menu-dots-bold" class="fs-4"></iconify-icon>
-                      <span>Acciones</span>
-                    </button>
-                    <ul class="dropdown-menu dropdown-menu-end shadow-lg py-1">
-                      <li>
-                        <a class="dropdown-item py-2 text-primary" href="javascript:void(0)" @click="openCreateSubModule(mod.id)">
-                          <iconify-icon icon="solar:add-circle-line-duotone" class="fs-5 text-primary"></iconify-icon>
-                          <span>Agregar Submódulo</span>
-                        </a>
-                      </li>
-                      <li>
-                        <a class="dropdown-item py-2" href="javascript:void(0)" @click="openEditModule(mod)">
-                          <iconify-icon icon="solar:pen-2-line-duotone" class="fs-5 text-warning"></iconify-icon>
-                          <span>Editar Módulo</span>
-                        </a>
-                      </li>
-                    </ul>
-                  </div>
-                </td>
-              </tr>
-              <tr v-if="modulesList.length === 0">
-                <td colspan="6" class="text-center text-muted py-4">
-                  No hay módulos registrados aún. Haz clic en <strong>"Nuevo Módulo"</strong> para crear el primero.
-                </td>
-              </tr>
-            </tbody>
-          </table>
-        </div>
-      </div>
-
-      <!-- SUBSECTION 2: SUBMÓDULOS Y RUTAS (tab_sub_module) -->
-      <div class="card rounded-4 border-0 shadow-sm p-4 bg-navy-card">
-        <div class="d-flex flex-wrap justify-content-between align-items-center gap-3 mb-4">
-          <div>
-            <h5 class="fw-bold text-white mb-1 d-flex align-items-center gap-2">
-              <iconify-icon icon="solar:layers-minimalistic-line-duotone" class="text-info fs-5"></iconify-icon>
-              <span>Submódulos (Vistas y Rutas Hijas)</span>
-            </h5>
-            <small class="text-secondary">Opciones internas asociadas a cada módulo principal y su ruta URL</small>
-          </div>
-
-          <div class="d-flex flex-wrap align-items-center gap-2">
-            <!-- Filtro por Módulo Padre -->
-            <div class="d-flex align-items-center gap-2">
-              <small class="text-secondary text-nowrap">Filtrar por módulo:</small>
-              <select
-                v-model="filterModuleId"
-                class="form-select form-select-sm bg-dark-subtle border-secondary text-white rounded-pill px-3"
-                style="min-width: 200px;"
-                @change="onFilterModuleChange"
-              >
-                <option :value="undefined">Todos los módulos</option>
-                <option v-for="mod in modulesList" :key="mod.id" :value="mod.id">
-                  {{ mod.code }} - {{ mod.description }}
-                </option>
-              </select>
-            </div>
-
-            <button
-              class="btn btn-info text-dark fw-semibold rounded-pill px-4 d-flex align-items-center gap-2"
-              :disabled="modulesList.length === 0"
-              @click="openCreateSubModule()"
-            >
-              <iconify-icon icon="solar:add-circle-line-duotone" class="fs-5"></iconify-icon>
-              <span>Nuevo Submódulo</span>
-            </button>
-          </div>
-        </div>
-
-        <div class="table-responsive">
-          <table class="table table-hover align-middle mb-0">
-            <thead class="table-primary">
-              <tr>
-                <th width="6%">#</th>
-                <th width="20%">Módulo Padre</th>
-                <th width="10%">Icono</th>
-                <th width="14%">Código</th>
-                <th width="22%">Descripción</th>
-                <th width="14%">Ruta (URL)</th>
-                <th width="7%">Estado</th>
-                <th width="7%" class="text-end">Acciones</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr v-for="subMod in subModulesList" :key="subMod.id">
-                <td><span class="badge bg-dark-subtle text-white">{{ subMod.id }}</span></td>
-                <td>
-                  <span class="badge bg-primary-subtle text-primary border border-primary-subtle">
-                    {{ getModuleNameById(subMod.moduleId) }}
-                  </span>
-                </td>
-                <td>
-                  <span class="d-inline-flex align-items-center justify-content-center p-1 bg-dark-subtle rounded border border-secondary-subtle">
-                    <iconify-icon :icon="subMod.desc_icon || 'solar:round-alt-arrow-right-line-duotone'" class="fs-5 text-info"></iconify-icon>
-                  </span>
-                </td>
-                <td><span class="badge bg-info-subtle text-info border border-info-subtle fw-bold">{{ subMod.code }}</span></td>
-                <td class="text-white fw-semibold">{{ subMod.description }}</td>
-                <td><code class="text-warning bg-dark-subtle px-2 py-1 rounded">{{ subMod.url_desc }}</code></td>
-                <td>
-                  <span class="badge" :class="subMod.enabled !== false ? 'bg-success-subtle text-success' : 'bg-danger-subtle text-danger'">
-                    {{ subMod.enabled !== false ? 'Activo' : 'Inactivo' }}
-                  </span>
-                </td>
-                <td class="text-end">
-                  <div class="dropdown">
-                    <button
-                      class="btn bg-secondary-subtle text-secondary btn-sm dropdown-toggle d-inline-flex align-items-center gap-1 fw-semibold"
-                      type="button"
-                      data-bs-toggle="dropdown"
-                      data-bs-popper-config='{"strategy":"fixed"}'
-                      aria-expanded="false"
-                    >
-                      <iconify-icon icon="solar:menu-dots-bold" class="fs-4"></iconify-icon>
-                      <span>Acciones</span>
-                    </button>
-                    <ul class="dropdown-menu dropdown-menu-end shadow-lg py-1">
-                      <li>
-                        <a class="dropdown-item py-2" href="javascript:void(0)" @click="openEditSubModule(subMod)">
-                          <iconify-icon icon="solar:pen-2-line-duotone" class="fs-5 text-warning"></iconify-icon>
-                          <span>Editar Submódulo</span>
-                        </a>
-                      </li>
-                    </ul>
-                  </div>
-                </td>
-              </tr>
-              <tr v-if="subModulesList.length === 0">
-                <td colspan="8" class="text-center text-muted py-4">
-                  No hay submódulos registrados{{ filterModuleId ? ' para el módulo seleccionado' : '' }}.
-                </td>
-              </tr>
-            </tbody>
-          </table>
-        </div>
-      </div>
-
-    </div>
-
-    <!-- ======================================================== -->
-    <!-- TAB 4: PLANES & SUSCRIPCIONES                            -->
-    <!-- ======================================================== -->
-    <div v-if="activeTab === 'subscriptions'" class="d-flex flex-column gap-4">
-      
-      <!-- SUBSECTION 1: PLANES SAAS -->
-      <div class="card rounded-4 border-0 shadow-sm p-4 bg-navy-card">
-        <div class="d-flex justify-content-between align-items-center mb-4">
-          <div>
-            <h5 class="fw-bold text-white mb-1">Catálogo de Planes SaaS</h5>
-            <small class="text-secondary">Planes configurados con límites de usuarios y sucursales</small>
-          </div>
-          <button class="btn btn-primary rounded-pill px-4 d-flex align-items-center gap-2" @click="showPlanModal = true">
-            <iconify-icon icon="solar:add-circle-line-duotone" class="fs-5"></iconify-icon>
-            <span>Crear Plan</span>
-          </button>
-        </div>
-
-        <div class="row g-3">
-          <div v-for="plan in plans" :key="plan.id" class="col-md-4">
-            <div class="card border border-dark-subtle p-3 rounded-4 bg-dark-subtle h-100">
-              <div class="d-flex justify-content-between align-items-start mb-2">
-                <h5 class="text-white fw-bold mb-0">{{ plan.description }}</h5>
-                <span class="badge bg-primary-subtle text-primary text-uppercase">{{ plan.billing_cycle }}</span>
-              </div>
-              <h3 class="fw-bold text-white mb-3">${{ plan.price }} <span class="fs-2 text-secondary fw-normal">/ ciclo</span></h3>
-              <ul class="list-unstyled text-secondary fs-2 mb-3">
-                <li class="mb-1"><iconify-icon icon="solar:check-circle-line-duotone" class="text-success me-1"></iconify-icon> Hasta {{ plan.max_users }} usuarios</li>
-                <li class="mb-1"><iconify-icon icon="solar:check-circle-line-duotone" class="text-success me-1"></iconify-icon> Hasta {{ plan.max_branches }} sucursales</li>
-                <li><iconify-icon icon="solar:check-circle-line-duotone" class="text-success me-1"></iconify-icon> Facturación y compras</li>
-              </ul>
-            </div>
-          </div>
-          <div v-if="plans.length === 0" class="col-12 text-center text-muted py-4">
-            No hay planes registrados aún.
-          </div>
-        </div>
-      </div>
-
-      <!-- SUBSECTION 2: SUSCRIPCIÓN ACTIVA DE LA EMPRESA -->
-      <div class="card rounded-4 border-0 shadow-sm p-4 bg-navy-card">
-        <div class="d-flex justify-content-between align-items-center mb-4">
-          <div>
-            <h5 class="fw-bold text-white mb-1">Suscripciones Activas</h5>
-            <small class="text-secondary">Vigencia, plan contratado y acceso a módulos/submódulos de la empresa activa</small>
-          </div>
-          <button class="btn btn-outline-primary rounded-pill px-4 d-flex align-items-center gap-2" @click="openCreateSubscription">
-            <iconify-icon icon="solar:card-recive-line-duotone" class="fs-5"></iconify-icon>
-            <span>Asignar Suscripción</span>
-          </button>
-        </div>
-
-        <div class="table-responsive">
-          <table class="table table-hover align-middle mb-0">
-            <thead class="table-primary">
-              <tr>
-                <th width="5%">#</th>
-                <th width="16%">Plan Contratado</th>
-                <th width="12%">Fecha Inicio</th>
-                <th width="12%">Fecha Fin</th>
-                <th width="37%">Módulos & Submódulos con Acceso</th>
-                <th width="10%">Estado</th>
-                <th width="8%" class="text-end">Acciones</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr v-for="sub in subscriptions" :key="sub.id">
-                <td><span class="badge bg-dark-subtle text-white">{{ sub.id }}</span></td>
-                <td><span class="badge bg-info text-dark fw-bold">{{ getPlanNameById(sub.planId) }}</span></td>
-                <td class="text-white">{{ new Date(sub.begin_date).toLocaleDateString() }}</td>
-                <td class="text-white">{{ new Date(sub.end_date).toLocaleDateString() }}</td>
-                <td>
-                  <div v-if="(sub.moduleIds && sub.moduleIds.length > 0) || (sub.subModuleIds && sub.subModuleIds.length > 0)" class="d-flex flex-wrap gap-1">
-                    <span
-                      v-for="modId in sub.moduleIds"
-                      :key="'m-' + modId"
-                      class="badge bg-primary-subtle text-primary border border-primary-subtle d-inline-flex align-items-center gap-1"
-                    >
-                      <iconify-icon icon="solar:widget-4-line-duotone"></iconify-icon>
-                      {{ getModuleNameById(modId) }}
-                    </span>
-                    <span
-                      v-if="sub.subModuleIds && sub.subModuleIds.length > 0"
-                      class="badge bg-info-subtle text-info border border-info-subtle"
-                      :title="sub.subModuleIds.map(getSubModuleNameById).join(', ')"
-                    >
-                      +{{ sub.subModuleIds.length }} submódulo(s)
-                    </span>
-                  </div>
-                  <span v-else class="text-secondary fs-2 fst-italic">Sin módulos asignados</span>
-                </td>
-                <td>
-                  <span class="badge" :class="sub.enabled !== false ? 'bg-success-subtle text-success' : 'bg-danger-subtle text-danger'">
-                    {{ sub.enabled !== false ? 'Vigente' : 'Expirada' }}
-                  </span>
-                </td>
-                <td class="text-end">
-                  <div class="dropdown">
-                    <button
-                      class="btn bg-secondary-subtle text-secondary btn-sm dropdown-toggle d-inline-flex align-items-center gap-1 fw-semibold"
-                      type="button"
-                      data-bs-toggle="dropdown"
-                      data-bs-popper-config='{"strategy":"fixed"}'
-                      aria-expanded="false"
-                    >
-                      <iconify-icon icon="solar:menu-dots-bold" class="fs-4"></iconify-icon>
-                      <span>Acciones</span>
-                    </button>
-                    <ul class="dropdown-menu dropdown-menu-end shadow-lg py-1">
-                      <li>
-                        <a class="dropdown-item py-2" href="javascript:void(0)" @click="openEditSubscription(sub)">
-                          <iconify-icon icon="solar:pen-2-line-duotone" class="fs-5 text-warning"></iconify-icon>
-                          <span>Editar Suscripción</span>
-                        </a>
-                      </li>
-                    </ul>
-                  </div>
-                </td>
-              </tr>
-              <tr v-if="subscriptions.length === 0">
-                <td colspan="7" class="text-center text-muted py-4">Esta empresa no tiene suscripciones registradas.</td>
-              </tr>
-            </tbody>
-          </table>
-        </div>
-      </div>
-
-    </div>
-
-    <!-- ======================================================== -->
-    <!-- TAB 5: IMPUESTOS (CRUD)                                  -->
-    <!-- ======================================================== -->
-    <div v-if="activeTab === 'taxes'" class="card rounded-4 border-0 shadow-sm p-4 bg-navy-card">
-      <div class="d-flex flex-column flex-md-row justify-content-between align-items-start align-items-md-center gap-3 mb-4">
-        <div>
-          <h5 class="fw-bold text-white mb-1">Catálogo de Impuestos y Tarifas</h5>
-          <small class="text-secondary">Gestión de tarifas tributarias (IVA, ICE) aplicables a artículos y servicios</small>
-        </div>
-        <div class="d-flex flex-wrap align-items-center gap-2">
-          <div class="input-group input-group-sm" style="max-width: 280px;">
-            <span class="input-group-text bg-dark-subtle border-secondary-subtle text-secondary">
-              <iconify-icon icon="solar:magnifer-line-duotone"></iconify-icon>
-            </span>
-            <input
-              v-model="taxSearch"
-              type="text"
-              class="form-control bg-dark-subtle border-secondary-subtle text-white"
-              placeholder="Buscar impuesto..."
-            />
-          </div>
-          <button class="btn btn-primary rounded-pill px-3 py-2 d-flex align-items-center gap-2 fs-3" @click="openCreateTaxModal">
-            <iconify-icon icon="solar:add-circle-line-duotone" class="fs-5"></iconify-icon>
-            <span>Nuevo Impuesto</span>
-          </button>
-        </div>
-      </div>
-
-      <div class="table-responsive">
-        <table class="table table-hover align-middle mb-0">
-          <thead>
-            <tr class="border-bottom border-dark-subtle text-secondary fs-2 text-uppercase">
-              <th>Código</th>
-              <th>Descripción</th>
-              <th class="text-center">Porcentaje (%)</th>
-              <th class="text-center">Predeterminada</th>
-              <th class="text-center">Estado</th>
-              <th class="text-end">Acciones</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr v-for="tax in filteredTaxes" :key="tax.id" class="border-bottom border-dark-subtle">
-              <td>
-                <span class="badge bg-dark-subtle text-primary border border-primary-subtle font-monospace px-2 py-1">
-                  {{ tax.code }}
-                </span>
-              </td>
-              <td>
-                <span class="text-white fw-bold">{{ tax.description }}</span>
-              </td>
-              <td class="text-center">
-                <span class="badge bg-info-subtle text-info border border-info-subtle px-3 py-1 fs-2 font-monospace fw-bold">
-                  {{ Number(tax.percentage) }}%
-                </span>
-              </td>
-              <td class="text-center">
-                <span v-if="tax.is_default" class="badge bg-warning-subtle text-warning border border-warning-subtle px-2 py-1 fs-1">
-                  ★ Predeterminada
-                </span>
-                <span v-else class="text-muted fs-1">-</span>
-              </td>
-              <td class="text-center">
-                <button
-                  type="button"
-                  class="badge px-3 py-1 rounded-pill border-0 cursor-pointer transition-all"
-                  :class="tax.status === 'ACTIVO' ? 'bg-success-subtle text-success border border-success-subtle' : 'bg-danger-subtle text-danger border border-danger-subtle'"
-                  @click="onToggleTaxStatus(tax)"
-                  title="Click para cambiar estado"
-                >
-                  {{ tax.status }}
-                </button>
-              </td>
-              <td class="text-end">
-                <div class="dropdown">
-                  <button
-                    class="btn bg-secondary-subtle text-secondary btn-sm dropdown-toggle d-inline-flex align-items-center gap-1 fw-semibold"
-                    type="button"
-                    data-bs-toggle="dropdown"
-                    data-bs-popper-config='{"strategy":"fixed"}'
-                    aria-expanded="false"
-                  >
-                    <iconify-icon icon="solar:menu-dots-bold" class="fs-4"></iconify-icon>
-                    <span>Acciones</span>
-                  </button>
-                  <ul class="dropdown-menu dropdown-menu-end shadow-lg py-1">
-                    <li>
-                      <a class="dropdown-item py-2" href="javascript:void(0)" @click="openEditTaxModal(tax)">
-                        <iconify-icon icon="solar:pen-2-line-duotone" class="fs-5 text-warning"></iconify-icon>
-                        <span>Editar Impuesto</span>
-                      </a>
-                    </li>
-                    <li>
-                      <a class="dropdown-item py-2" href="javascript:void(0)" @click="onToggleTaxStatus(tax)">
-                        <iconify-icon :icon="tax.status === 'ACTIVO' ? 'solar:eye-closed-line-duotone' : 'solar:eye-line-duotone'" class="fs-5 text-info"></iconify-icon>
-                        <span>{{ tax.status === 'ACTIVO' ? 'Desactivar' : 'Activar' }}</span>
-                      </a>
-                    </li>
-                    <li>
-                      <hr class="dropdown-divider">
-                      <a class="dropdown-item py-2 text-danger" href="javascript:void(0)" @click="onDeleteTax(tax)">
-                        <iconify-icon icon="solar:trash-bin-trash-line-duotone" class="fs-5 text-danger"></iconify-icon>
-                        <span>Eliminar Impuesto</span>
-                      </a>
-                    </li>
-                  </ul>
-                </div>
-              </td>
-            </tr>
-            <tr v-if="filteredTaxes.length === 0">
-              <td colspan="6" class="text-center text-muted py-4">
-                No se encontraron impuestos registrados o que coincidan con la búsqueda.
-              </td>
-            </tr>
-          </tbody>
-        </table>
-      </div>
-    </div>
-
-    <!-- ======================================================== -->
-    <!-- TAB 6: TIPOS DE DOCUMENTO (CRUD)                         -->
-    <!-- ======================================================== -->
-    <div v-if="activeTab === 'document_types'" class="card rounded-4 border-0 shadow-sm p-4 bg-navy-card">
-      <div class="d-flex flex-column flex-md-row justify-content-between align-items-start align-items-md-center gap-3 mb-4">
-        <div>
-          <h5 class="fw-bold text-white mb-1">Catálogo de Tipos de Documentos</h5>
-          <small class="text-secondary">Documentos de identidad y tributarios para clientes, proveedores y vendedores</small>
-        </div>
-        <div class="d-flex flex-wrap align-items-center gap-2">
-          <!-- Filtro de Tipo -->
-          <div style="min-width: 170px;">
-            <AppSelect2
-              v-model="docTypeFilterType"
-              :options="docTypeTargetOptions"
-              placeholder="Filtrar por tipo..."
-            />
-          </div>
-          <!-- Búsqueda -->
-          <div class="input-group input-group-sm" style="max-width: 250px;">
-            <span class="input-group-text bg-dark-subtle border-secondary-subtle text-secondary">
-              <iconify-icon icon="solar:magnifer-line-duotone"></iconify-icon>
-            </span>
-            <input
-              v-model="docTypeSearch"
-              type="text"
-              class="form-control bg-dark-subtle border-secondary-subtle text-white"
-              placeholder="Buscar tipo de documento..."
-            />
-          </div>
-          <button class="btn btn-primary rounded-pill px-3 py-2 d-flex align-items-center gap-2 fs-3" @click="openCreateDocTypeModal">
-            <iconify-icon icon="solar:add-circle-line-duotone" class="fs-5"></iconify-icon>
-            <span>Nuevo Tipo Documento</span>
-          </button>
-        </div>
-      </div>
-
-      <div class="table-responsive">
-        <table class="table table-hover align-middle mb-0">
-          <thead>
-            <tr class="border-bottom border-dark-subtle text-secondary fs-2 text-uppercase">
-              <th>Código</th>
-              <th>Nombre del Documento</th>
-              <th class="text-center">Aplica a</th>
-              <th class="text-center">Estado</th>
-              <th class="text-end">Acciones</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr v-for="dt in filteredDocTypes" :key="dt.id" class="border-bottom border-dark-subtle">
-              <td>
-                <span class="badge bg-dark-subtle text-info border border-info-subtle font-monospace px-2 py-1">
-                  {{ dt.code }}
-                </span>
-              </td>
-              <td>
-                <span class="text-white fw-bold">{{ dt.name }}</span>
-              </td>
-              <td class="text-center">
-                <span
-                  class="badge px-3 py-1 rounded-pill fs-1 fw-bold"
-                  :class="{
-                    'bg-primary-subtle text-primary border border-primary-subtle': dt.type === 'TODOS',
-                    'bg-info-subtle text-info border border-info-subtle': dt.type === 'CLIENTE',
-                    'bg-warning-subtle text-warning border border-warning-subtle': dt.type === 'PROVEEDOR',
-                    'bg-success-subtle text-success border border-success-subtle': dt.type === 'VENDEDOR'
-                  }"
-                >
-                  {{ dt.type }}
-                </span>
-              </td>
-              <td class="text-center">
-                <button
-                  type="button"
-                  class="badge px-3 py-1 rounded-pill border-0 cursor-pointer transition-all"
-                  :class="dt.status === 'ACTIVO' ? 'bg-success-subtle text-success border border-success-subtle' : 'bg-danger-subtle text-danger border border-danger-subtle'"
-                  @click="onToggleDocTypeStatus(dt)"
-                  title="Click para cambiar estado"
-                >
-                  {{ dt.status }}
-                </button>
-              </td>
-              <td class="text-end">
-                <div class="dropdown">
-                  <button
-                    class="btn bg-secondary-subtle text-secondary btn-sm dropdown-toggle d-inline-flex align-items-center gap-1 fw-semibold"
-                    type="button"
-                    data-bs-toggle="dropdown"
-                    data-bs-popper-config='{"strategy":"fixed"}'
-                    aria-expanded="false"
-                  >
-                    <iconify-icon icon="solar:menu-dots-bold" class="fs-4"></iconify-icon>
-                    <span>Acciones</span>
-                  </button>
-                  <ul class="dropdown-menu dropdown-menu-end shadow-lg py-1">
-                    <li>
-                      <a class="dropdown-item py-2" href="javascript:void(0)" @click="openEditDocTypeModal(dt)">
-                        <iconify-icon icon="solar:pen-2-line-duotone" class="fs-5 text-warning"></iconify-icon>
-                        <span>Editar Documento</span>
-                      </a>
-                    </li>
-                    <li>
-                      <a class="dropdown-item py-2" href="javascript:void(0)" @click="onToggleDocTypeStatus(dt)">
-                        <iconify-icon :icon="dt.status === 'ACTIVO' ? 'solar:eye-closed-line-duotone' : 'solar:eye-line-duotone'" class="fs-5 text-info"></iconify-icon>
-                        <span>{{ dt.status === 'ACTIVO' ? 'Desactivar' : 'Activar' }}</span>
-                      </a>
-                    </li>
-                    <li>
-                      <hr class="dropdown-divider">
-                      <a class="dropdown-item py-2 text-danger" href="javascript:void(0)" @click="onDeleteDocType(dt)">
-                        <iconify-icon icon="solar:trash-bin-trash-line-duotone" class="fs-5 text-danger"></iconify-icon>
-                        <span>Eliminar Documento</span>
-                      </a>
-                    </li>
-                  </ul>
-                </div>
-              </td>
-            </tr>
-            <tr v-if="filteredDocTypes.length === 0">
-              <td colspan="5" class="text-center text-muted py-4">
-                No se encontraron tipos de documento registrados o que coincidan con la búsqueda.
-              </td>
             </tr>
           </tbody>
         </table>

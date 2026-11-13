@@ -1,5 +1,6 @@
 import axios from 'axios'
 import { useLoadingStore } from '@/stores/loading.store'
+import { toast } from '@/utils/toastr'
 
 const API_URL = import.meta.env.VITE_API_URL
 
@@ -93,6 +94,28 @@ api.interceptors.response.use(
         loadingStore.finishRequest()
       } catch (_) {}
     }
+
+    // Expiración de sesión (401 Unauthorized): forzar re-inicio de sesión si el token caducó
+    if (error.response?.status === 401 && !error.config?.url?.includes('/auth/login')) {
+      const token = localStorage.getItem('token')
+      if (token) {
+        localStorage.removeItem('token')
+        localStorage.removeItem('userPhoto')
+        localStorage.removeItem('selectedCompany')
+        localStorage.removeItem('selectedBranch')
+
+        try {
+          toast.warning('Tu sesión ha expirado (15 horas). Por favor, inicia sesión nuevamente.')
+        } catch (_) {}
+
+        if (typeof window !== 'undefined' && window.location.pathname !== '/login') {
+          setTimeout(() => {
+            window.location.href = '/login'
+          }, 350)
+        }
+      }
+    }
+
     return Promise.reject(error)
   }
 )

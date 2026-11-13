@@ -12,6 +12,8 @@ export interface TokenPayload {
   company_id?: number
   theme_color?: string
   photo_url?: string | null
+  exp?: number
+  iat?: number
 }
 
 export interface SidebarSubModuleItem {
@@ -72,6 +74,18 @@ export const useAuthStore = defineStore('auth', {
           this.tokenPayload?.developer ||
           this.tokenPayload?.multi_company
       )
+    },
+
+    isTokenExpired(): boolean {
+      if (!this.token) return true
+      const payload = this.tokenPayload
+      if (!payload || !payload.exp) return false
+      // Margen de 5 segundos para prevenir desfasajes
+      return payload.exp * 1000 <= Date.now() + 5000
+    },
+
+    isAuthenticated(): boolean {
+      return Boolean(this.token && !this.isTokenExpired)
     },
   },
 

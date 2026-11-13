@@ -17,7 +17,7 @@
 }
 
 .select2-container-custom.is-open {
-  z-index: 1070;
+  z-index: 2000;
 }
 
 /* --------------------------------------------------------------------------
@@ -105,7 +105,7 @@
   top: calc(100% + 4px);
   left: 0;
   right: 0;
-  z-index: 1060;
+  z-index: 2050;
   background-color: var(--bs-card-bg, #111c2d);
   border: 1px solid var(--bs-border-color, rgba(189, 200, 240, 0.15));
   border-radius: 8px;

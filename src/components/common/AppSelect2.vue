@@ -105,8 +105,8 @@ const openDropdown = () => {
     if (rootRef.value) {
       const rect = rootRef.value.getBoundingClientRect()
       const spaceBelow = window.innerHeight - rect.bottom
-      const dropdownHeight = 280
-      openUpwards.value = spaceBelow < dropdownHeight && rect.top > dropdownHeight
+      const dropdownHeight = 240
+      openUpwards.value = spaceBelow < dropdownHeight && rect.top > 180
     }
     searchInputRef.value?.focus()
   })

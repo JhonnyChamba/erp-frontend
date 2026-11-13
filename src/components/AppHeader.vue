@@ -1,10 +1,11 @@
 <script setup lang="ts">
-import { ref, onMounted, computed } from 'vue'
+import { ref, onMounted, onUnmounted, computed } from 'vue'
 import { useAuthStore } from '@/stores/auth.store'
 import { useThemeStore } from '@/stores/theme.store'
 import { useRouter } from 'vue-router'
 import { api } from '@/services/axios'
 import { resolveAvatarUrl, handleAvatarError } from '@/utils/avatar'
+import { toast } from '@/utils/toastr'
 
 const authStore = useAuthStore()
 const themeStore = useThemeStore()
@@ -15,6 +16,7 @@ const emit = defineEmits(['toggle-sidebar', 'open-customizer'])
 const selectedCompany = ref<any>(null)
 const selectedBranch = ref<any>(null)
 const userName = ref('Usuario')
+let sessionCheckTimer: any = null
 const userPhoto = computed(() => {
   return resolveAvatarUrl(
     authStore.tokenPayload?.photo_url ||
@@ -24,6 +26,14 @@ const userPhoto = computed(() => {
 
 const activeRoleLabel = computed(() => {
   return authStore.accessInfo?.roleName || (authStore.tokenPayload?.super_admin ? 'Super Admin' : 'Admin')
+})
+
+const isSuperAdmin = computed(() => {
+  return Boolean(
+    authStore.tokenPayload?.super_admin ||
+    authStore.tokenPayload?.developer ||
+    authStore.accessInfo?.isSuperAdmin
+  )
 })
 
 onMounted(() => {
@@ -65,6 +75,25 @@ onMounted(() => {
         localStorage.setItem('userPhoto', data.photo_url)
       }
     }).catch(() => {})
+  }
+
+  // Verificación proactiva de expiración de sesión (15 horas)
+  sessionCheckTimer = setInterval(() => {
+    if (authStore.token && authStore.isTokenExpired) {
+      clearInterval(sessionCheckTimer)
+      authStore.logout()
+      try {
+        toast.warning('Tu sesión ha expirado (15 horas). Por favor, inicia sesión nuevamente.')
+      } catch (_) {}
+      router.replace('/login')
+    }
+  }, 30000)
+})
+
+onUnmounted(() => {
+  if (sessionCheckTimer) {
+    clearInterval(sessionCheckTimer)
+    sessionCheckTimer = null
   }
 })
 
@@ -255,6 +284,15 @@ const changeCompany = () => {
                 <span class="d-block fw-bold fs-3" style="color: var(--bs-text-title);">{{ userName }}</span>
                 <small class="text-muted">{{ activeRoleLabel }}</small>
               </div>
+              <router-link
+                v-if="isSuperAdmin"
+                to="/configuracion-global"
+                class="dropdown-item py-2 d-flex align-items-center gap-2 text-primary fw-semibold"
+              >
+                <iconify-icon icon="solar:settings-bold-duotone" class="fs-5"></iconify-icon>
+                <span>Configuración Global</span>
+              </router-link>
+              <div v-if="isSuperAdmin" class="dropdown-divider my-1"></div>
               <a class="dropdown-item py-2 text-danger" href="javascript:void(0)" @click="logout">
                 <iconify-icon icon="solar:logout-2-line-duotone" class="fs-5"></iconify-icon>
                 <span>Cerrar Sesión</span>

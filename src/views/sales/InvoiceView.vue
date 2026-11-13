@@ -32,6 +32,7 @@ import {
   getNextSequential,
   type EmissionPointItem,
 } from '@/services/emission-points.service'
+import { getDocumentTypes, type DocumentTypeItem } from '@/services/document-types.service'
 import SriResponseModal from '@/components/common/SriResponseModal.vue'
 import { printRideDoc } from '@/utils/sri-ride'
 
@@ -274,13 +275,14 @@ const loadData = async () => {
       if (branchesList.value.some((b) => b.id === activeId)) branchFilter.value = activeId
     }
 
-    const [invs, custs, arts, srvs, subs, whs] = await Promise.all([
+    const [invs, custs, arts, srvs, subs, whs, dtList] = await Promise.all([
       getInvoices(companyId, selectedBranchFilterId()).catch(() => []),
       getCustomers(companyId).catch(() => []),
       getInventoryItems(companyId).catch(() => []),
       getInventoryServices(companyId).catch(() => []),
       getInventorySubcontracts(companyId).catch(() => []),
       getInventoryWarehouses(companyId).catch(() => []),
+      getDocumentTypes({ active: true }).catch(() => []),
     ])
 
     invoices.value = invs
@@ -289,6 +291,7 @@ const loadData = async () => {
     servicesList.value = srvs
     subcontractsList.value = subs
     warehousesList.value = Array.isArray(whs) ? whs : []
+    docTypes.value = Array.isArray(dtList) ? dtList : []
   } catch (err: any) {
     errorMsg.value = err?.response?.data?.message || 'Error al cargar datos de facturación'
   } finally {
@@ -992,6 +995,24 @@ const onPrintTicket = (inv: InvoiceItem) => {
 }
 
 // Modal de Cliente Rápido para POS / Mostrador
+const docTypes = ref<DocumentTypeItem[]>([])
+const quickCustomerDocTypeOptions = computed(() => {
+  const filtered = docTypes.value.filter((dt) => dt.status === 'ACTIVO' && (dt.type === 'TODOS' || dt.type === 'CLIENTE'))
+  if (filtered.length === 0) {
+    return [
+      { value: '05', label: 'Cédula (05)' },
+      { value: '04', label: 'RUC (04)' },
+      { value: '06', label: 'Pasaporte (06)' },
+      { value: '07', label: 'Consumidor Final (07)' },
+      { value: '08', label: 'Identificación del Exterior (08)' },
+    ]
+  }
+  return filtered.map((dt) => ({
+    value: dt.code,
+    label: `${dt.name} (${dt.code})`,
+  }))
+})
+
 const showQuickCustomerModal = ref(false)
 const quickCustomerLoading = ref(false)
 const quickCustomerForm = ref({
@@ -2212,9 +2233,9 @@ watch(() => route.path, () => {
             <div class="col-md-5">
               <label class="form-label text-secondary fs-2 fw-semibold">Tipo Identificación *</label>
               <select v-model="quickCustomerForm.tipo_documento" class="form-select bg-dark border-secondary text-white" required>
-                <option value="05">Cédula (05)</option>
-                <option value="04">RUC (04)</option>
-                <option value="06">Pasaporte (06)</option>
+                <option v-for="opt in quickCustomerDocTypeOptions" :key="opt.value" :value="opt.value">
+                  {{ opt.label }}
+                </option>
               </select>
             </div>
             <div class="col-md-7">

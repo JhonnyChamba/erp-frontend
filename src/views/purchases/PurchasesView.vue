@@ -18,6 +18,7 @@ import {
   type InventoryWarehouse,
   type InventoryArticle
 } from '@/services/inventory.service'
+import { getDocumentTypes, type DocumentTypeItem } from '@/services/document-types.service'
 import { toast } from '@/utils/toastr'
 
 const route = useRoute()
@@ -159,6 +160,22 @@ const previewInvoiceNumber = computed(() => {
 
 // Auto-completado al elegir proveedor existente
 const isRegisteredProvider = computed(() => Boolean(purchaseForm.value.provider_id))
+
+const docTypes = ref<DocumentTypeItem[]>([])
+const providerDocTypeOptions = computed(() => {
+  const filtered = docTypes.value.filter((dt) => dt.status === 'ACTIVO' && (dt.type === 'TODOS' || dt.type === 'PROVEEDOR'))
+  if (filtered.length === 0) {
+    return [
+      { value: '04', label: 'RUC (04)' },
+      { value: '05', label: 'Cédula (05)' },
+      { value: '06', label: 'Pasaporte (06)' },
+    ]
+  }
+  return filtered.map((dt) => ({
+    value: dt.code,
+    label: `${dt.name} (${dt.code})`,
+  }))
+})
 
 const onProviderSelect = () => {
   if (!purchaseForm.value.provider_id) return
@@ -433,16 +450,18 @@ const loadPurchasesData = async () => {
   loading.value = true
   const companyId = getActiveCompanyId()
   try {
-    const [purchases, providers, warehouses, articles] = await Promise.all([
+    const [purchases, providers, warehouses, articles, dtList] = await Promise.all([
       getPurchases(companyId),
       getProviders(companyId).catch(() => []),
       getInventoryWarehouses(companyId).catch(() => []),
-      getInventoryItems(companyId).catch(() => [])
+      getInventoryItems(companyId).catch(() => []),
+      getDocumentTypes({ active: true }).catch(() => [])
     ])
     purchasesList.value = purchases || []
     providersList.value = providers || []
     warehousesList.value = warehouses || []
     articlesList.value = articles || []
+    docTypes.value = Array.isArray(dtList) ? dtList : []
   } catch (err: any) {
     showFeedback('Error al cargar la información del módulo de compras', 'error')
   } finally {
@@ -461,98 +480,116 @@ onMounted(() => {
 </script>
 
 <template>
-  <div class="purchases-page" :class="{ 'form-open': isFormOpen }">
+  <div class="crud-page purchases-page" :class="{ 'form-open': isFormOpen }">
     <!-- Top Header -->
-    <div class="page-header">
+    <div class="crud-page-header keep-in-form">
       <div>
-        <div class="header-badge-row">
-          <span class="mod-code-badge pur">MOD-002</span>
-          <span class="mod-sub-badge">COMPRAS & INGRESOS</span>
+        <div class="d-flex align-items-center gap-2 mb-1">
+          <span class="badge bg-primary-subtle text-primary border border-primary-subtle font-monospace">
+            MOD-002 · COMPRAS
+          </span>
+          <span class="badge bg-info-subtle text-info border border-info-subtle font-monospace">
+            COMPRAS & INGRESOS
+          </span>
         </div>
-        <h2 class="page-title">Módulo de Compras y Recepción de Inventario</h2>
-        <p class="page-subtitle">
-          Registro de facturas de proveedores, ingreso físico a bodegas y actualización automática del costo promedio ponderado
+        <h2 class="crud-title">Módulo de Compras y Recepción de Inventario</h2>
+        <p class="crud-subtitle">
+          Registro de facturas de proveedores, ingreso físico a bodegas y actualización automática del costo promedio ponderado.
         </p>
       </div>
-      <div class="header-actions">
-        <button class="btn-secondary" @click="loadPurchasesData" :disabled="loading">
-          <iconify-icon icon="solar:refresh-line-duotone" width="18" :class="{ 'spin-anim': loading }"></iconify-icon>
+      <div class="crud-header-actions">
+        <button class="btn btn-secondary d-flex align-items-center gap-2" @click="loadPurchasesData" :disabled="loading">
+          <iconify-icon icon="solar:refresh-line-duotone" :class="{ 'spin-anim': loading }"></iconify-icon>
           <span>Actualizar</span>
         </button>
-        <button class="btn-primary" @click="openCreatePurchase">
-          <iconify-icon icon="solar:add-circle-line-duotone" width="18"></iconify-icon>
+        <button class="btn btn-primary d-flex align-items-center gap-2" @click="openCreatePurchase">
+          <iconify-icon icon="solar:add-circle-bold" class="fs-5"></iconify-icon>
           <span>Nueva Compra</span>
         </button>
       </div>
     </div>
 
     <!-- KPIs -->
-    <div class="kpi-grid">
-      <div class="kpi-card">
-        <div class="kpi-icon blue">
-          <iconify-icon icon="solar:cart-large-minimalistic-bold-duotone" width="24"></iconify-icon>
+    <div class="crud-kpi-grid mt-3">
+      <div class="crud-kpi-card">
+        <div class="crud-kpi-icon primary">
+          <iconify-icon icon="solar:cart-large-minimalistic-bold-duotone" class="fs-5"></iconify-icon>
         </div>
         <div>
-          <span class="kpi-label">Total Compras Registradas</span>
-          <h4 class="kpi-val">{{ totalPurchasesCount }}</h4>
+          <span class="crud-kpi-label">Total Compras</span>
+          <h4 class="crud-kpi-val">{{ totalPurchasesCount }}</h4>
         </div>
       </div>
-      <div class="kpi-card">
-        <div class="kpi-icon green">
-          <iconify-icon icon="solar:dollar-bold-duotone" width="24"></iconify-icon>
+      <div class="crud-kpi-card">
+        <div class="crud-kpi-icon success">
+          <iconify-icon icon="solar:wallet-money-line-duotone" class="fs-5"></iconify-icon>
         </div>
         <div>
-          <span class="kpi-label">Total Comprado (Efectivo / Recibido)</span>
-          <h4 class="kpi-val">${{ formatNumber(totalPurchasesAmount) }}</h4>
+          <span class="crud-kpi-label">Total Comprado</span>
+          <h4 class="crud-kpi-val">${{ formatNumber(totalPurchasesAmount) }}</h4>
         </div>
       </div>
-      <div class="kpi-card">
-        <div class="kpi-icon purple">
-          <iconify-icon icon="solar:box-minimalistic-bold-duotone" width="24"></iconify-icon>
+      <div class="crud-kpi-card">
+        <div class="crud-kpi-icon info">
+          <iconify-icon icon="solar:box-minimalistic-bold-duotone" class="fs-5"></iconify-icon>
         </div>
         <div>
-          <span class="kpi-label">Ingresos Confirmados a Bodega</span>
-          <h4 class="kpi-val">{{ completedPurchasesCount }}</h4>
+          <span class="crud-kpi-label">Ingresos Confirmados</span>
+          <h4 class="crud-kpi-val">{{ completedPurchasesCount }}</h4>
         </div>
       </div>
-      <div class="kpi-card">
-        <div class="kpi-icon amber">
-          <iconify-icon icon="solar:danger-circle-bold-duotone" width="24"></iconify-icon>
+      <div class="crud-kpi-card">
+        <div class="crud-kpi-icon warning">
+          <iconify-icon icon="solar:close-circle-line-duotone" class="fs-5"></iconify-icon>
         </div>
         <div>
-          <span class="kpi-label">Compras Anuladas</span>
-          <h4 class="kpi-val">{{ canceledPurchasesCount }}</h4>
+          <span class="crud-kpi-label">Compras Anuladas</span>
+          <h4 class="crud-kpi-val">{{ canceledPurchasesCount }}</h4>
         </div>
       </div>
     </div>
 
     <!-- Filters Row -->
-    <div class="filters-row">
-      <div class="search-box">
-        <iconify-icon icon="solar:magnifer-line-duotone" class="search-ic"></iconify-icon>
-        <input v-model="searchTerm" type="text" placeholder="Buscar por factura, proveedor o RUC..." />
-      </div>
+    <div class="crud-filters-card mt-3">
+      <div class="d-flex flex-wrap align-items-center justify-content-between gap-3">
+        <div class="d-flex align-items-center gap-2 flex-grow-1" style="max-width: 420px;">
+          <div class="input-group">
+            <span class="input-group-text">
+              <iconify-icon icon="solar:magnifer-line-duotone"></iconify-icon>
+            </span>
+            <input
+              v-model="searchTerm"
+              type="text"
+              class="form-control"
+              placeholder="Buscar por factura, proveedor o RUC..."
+            />
+          </div>
+        </div>
 
-      <div style="min-width: 260px;">
-        <AppSelect2
-          v-model="filterWarehouseId"
-          :options="filterWarehouseOptions"
-          placeholder="Todas las bodegas de destino"
-          search-placeholder="Buscar bodega..."
-        />
-      </div>
+        <div class="d-flex align-items-center gap-2 flex-wrap">
+          <div style="min-width: 260px;">
+            <AppSelect2
+              v-model="filterWarehouseId"
+              :options="filterWarehouseOptions"
+              placeholder="Todas las bodegas de destino"
+              search-placeholder="Buscar bodega..."
+            />
+          </div>
 
-      <select v-model="filterStatus" class="filter-select">
-        <option value="TODOS">Todos los estados</option>
-        <option value="COMPLETED">Completadas (Ingresadas)</option>
-        <option value="CANCELED">Anuladas (Revertidas)</option>
-      </select>
+          <label class="small fw-semibold text-muted ms-2">Estado:</label>
+          <select v-model="filterStatus" class="form-select w-auto">
+            <option value="TODOS">Todos los estados</option>
+            <option value="COMPLETED">Completadas (Ingresadas)</option>
+            <option value="CANCELED">Anuladas (Revertidas)</option>
+          </select>
+        </div>
+      </div>
     </div>
 
     <!-- Purchases Table Card -->
-    <div class="table-card">
-      <div class="table-scroll">
-        <table class="erp-table">
+    <div class="crud-table-card mt-3">
+      <div class="table-responsive">
+        <table class="crud-table">
           <thead>
             <tr>
               <th>No. Factura Proveedor</th>
@@ -605,7 +642,10 @@ onMounted(() => {
               <td class="text-right font-mono">${{ formatNumber(pur.tax_value) }}</td>
               <td class="text-right font-mono price-highlight">${{ formatNumber(pur.total) }}</td>
               <td class="text-center">
-                <span class="status-badge" :class="pur.status === 'COMPLETED' ? 'completed' : 'canceled'">
+                <span
+                  class="badge font-monospace"
+                  :class="pur.status === 'COMPLETED' ? 'bg-success-subtle text-success border border-success-subtle' : 'bg-danger-subtle text-danger border border-danger-subtle'"
+                >
                   {{ pur.status === 'COMPLETED' ? 'Ingresada' : 'Anulada' }}
                 </span>
               </td>
@@ -714,9 +754,9 @@ onMounted(() => {
                 :disabled="isRegisteredProvider"
                 :class="{ 'bg-dark-subtle text-secondary': isRegisteredProvider }"
               >
-                <option value="04">RUC (04)</option>
-                <option value="05">Cédula (05)</option>
-                <option value="06">Pasaporte (06)</option>
+                <option v-for="opt in providerDocTypeOptions" :key="opt.value" :value="opt.value">
+                  {{ opt.label }}
+                </option>
               </select>
             </div>
 

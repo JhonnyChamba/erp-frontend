@@ -1,263 +1,280 @@
 <template>
-  <div class="inventory-page" :class="{ 'form-open': isFormOpen }">
+  <div class="crud-page inventory-page" :class="{ 'form-open': isFormOpen }">
     <!-- Top Header -->
-    <div class="page-header">
+    <div class="crud-page-header keep-in-form">
       <div>
-        <div class="header-badge-row">
-          <span class="mod-code-badge">MOD-003</span>
-          <span class="mod-sub-badge">{{ activeTabBadge.code }}</span>
+        <div class="d-flex align-items-center gap-2 mb-1">
+          <span class="badge bg-primary-subtle text-primary border border-primary-subtle font-monospace">
+            MOD-003 · INVENTARIO
+          </span>
+          <span class="badge bg-info-subtle text-info border border-info-subtle font-monospace">
+            {{ activeTabBadge.code }}
+          </span>
         </div>
-        <h2 class="page-title">Módulo de Inventario y Catálogo</h2>
-        <p class="page-subtitle">
-          Gestión independiente de artículos físicos, servicios propios y servicios de subcontratación / mano de obra
+        <h2 class="crud-title">Módulo de Inventario y Catálogo</h2>
+        <p class="crud-subtitle">
+          Gestión independiente de artículos físicos, servicios propios y servicios de subcontratación / mano de obra.
         </p>
       </div>
-      <div class="header-actions">
-        <button class="btn-secondary" @click="loadAllInventory" :disabled="loading">
-          <iconify-icon icon="solar:refresh-line-duotone" width="18" :class="{ 'spin-anim': loading }"></iconify-icon>
+      <div class="crud-header-actions">
+        <button class="btn btn-secondary d-flex align-items-center gap-2" @click="loadAllInventory" :disabled="loading">
+          <iconify-icon icon="solar:refresh-line-duotone" :class="{ 'spin-anim': loading }"></iconify-icon>
           <span>Actualizar</span>
         </button>
         <template v-if="activeTab === 'kardex'">
-          <button class="btn-secondary" @click="openCreateTransfer">
-            <iconify-icon icon="solar:transfer-horizontal-bold-duotone" width="18"></iconify-icon>
+          <button class="btn btn-secondary d-flex align-items-center gap-2" @click="openCreateTransfer">
+            <iconify-icon icon="solar:transfer-horizontal-bold-duotone" class="fs-5"></iconify-icon>
             <span>Transferencia</span>
           </button>
-          <button class="btn-primary" @click="openCreateAdjustment">
-            <iconify-icon icon="solar:tuning-square-2-bold-duotone" width="18"></iconify-icon>
+          <button class="btn btn-primary d-flex align-items-center gap-2" @click="openCreateAdjustment">
+            <iconify-icon icon="solar:tuning-square-2-bold-duotone" class="fs-5"></iconify-icon>
             <span>Ajuste de Stock</span>
           </button>
         </template>
-        <button v-else class="btn-primary" @click="openCreateModal">
-          <iconify-icon icon="solar:add-circle-line-duotone" width="18"></iconify-icon>
+        <button v-else class="btn btn-primary d-flex align-items-center gap-2" @click="openCreateModal">
+          <iconify-icon icon="solar:add-circle-bold" class="fs-5"></iconify-icon>
           <span>{{ createButtonLabel }}</span>
         </button>
       </div>
     </div>
 
     <!-- Main Tab Switcher -->
-    <div class="tabs-bar">
-      <div class="tabs-pills">
-        <button
-          class="tab-pill"
-          :class="{ active: activeTab === 'categorias' }"
-          @click="switchTab('categorias')"
-        >
-          <iconify-icon icon="solar:tag-price-line-duotone" width="18"></iconify-icon>
-          <span>Categorías</span>
-          <span class="pill-count">{{ categoriesList.length }}</span>
-        </button>
+    <div class="d-flex align-items-center gap-2 mt-3 mb-2 flex-wrap">
+      <button
+        type="button"
+        class="btn btn-sm rounded-pill px-3 py-1 fw-semibold d-inline-flex align-items-center gap-2"
+        :class="activeTab === 'categorias' ? 'btn-primary' : 'btn-outline-secondary'"
+        @click="switchTab('categorias')"
+      >
+        <iconify-icon icon="solar:tag-price-line-duotone" class="fs-4"></iconify-icon>
+        <span>Categorías</span>
+        <span class="badge bg-dark-subtle text-info ms-1">{{ categoriesList.length }}</span>
+      </button>
 
-        <button
-          class="tab-pill"
-          :class="{ active: activeTab === 'bodegas' }"
-          @click="switchTab('bodegas')"
-        >
-          <iconify-icon icon="solar:home-smile-line-duotone" width="18"></iconify-icon>
-          <span>Bodegas / Almacenes</span>
-          <span class="pill-count">{{ warehousesList.length }}</span>
-        </button>
+      <button
+        type="button"
+        class="btn btn-sm rounded-pill px-3 py-1 fw-semibold d-inline-flex align-items-center gap-2"
+        :class="activeTab === 'bodegas' ? 'btn-primary' : 'btn-outline-secondary'"
+        @click="switchTab('bodegas')"
+      >
+        <iconify-icon icon="solar:home-smile-line-duotone" class="fs-4"></iconify-icon>
+        <span>Bodegas / Almacenes</span>
+        <span class="badge bg-dark-subtle text-info ms-1">{{ warehousesList.length }}</span>
+      </button>
 
-        <button
-          class="tab-pill"
-          :class="{ active: activeTab === 'articulos' }"
-          @click="switchTab('articulos')"
-        >
-          <iconify-icon icon="solar:box-line-duotone" width="18"></iconify-icon>
-          <span>Ítems / Artículos</span>
-          <span class="pill-count">{{ itemsList.length }}</span>
-        </button>
+      <button
+        type="button"
+        class="btn btn-sm rounded-pill px-3 py-1 fw-semibold d-inline-flex align-items-center gap-2"
+        :class="activeTab === 'articulos' ? 'btn-primary' : 'btn-outline-secondary'"
+        @click="switchTab('articulos')"
+      >
+        <iconify-icon icon="solar:box-line-duotone" class="fs-4"></iconify-icon>
+        <span>Ítems / Artículos</span>
+        <span class="badge bg-dark-subtle text-info ms-1">{{ itemsList.length }}</span>
+      </button>
 
-        <button
-          class="tab-pill"
-          :class="{ active: activeTab === 'servicios' }"
-          @click="switchTab('servicios')"
-        >
-          <iconify-icon icon="solar:settings-minimalistic-line-duotone" width="18"></iconify-icon>
-          <span>Servicios</span>
-          <span class="pill-count">{{ servicesList.length }}</span>
-        </button>
+      <button
+        type="button"
+        class="btn btn-sm rounded-pill px-3 py-1 fw-semibold d-inline-flex align-items-center gap-2"
+        :class="activeTab === 'servicios' ? 'btn-primary' : 'btn-outline-secondary'"
+        @click="switchTab('servicios')"
+      >
+        <iconify-icon icon="solar:settings-minimalistic-line-duotone" class="fs-4"></iconify-icon>
+        <span>Servicios</span>
+        <span class="badge bg-dark-subtle text-info ms-1">{{ servicesList.length }}</span>
+      </button>
 
-        <button
-          class="tab-pill"
-          :class="{ active: activeTab === 'subcontratacion' }"
-          @click="switchTab('subcontratacion')"
-        >
-          <iconify-icon icon="solar:users-group-rounded-line-duotone" width="18"></iconify-icon>
-          <span>Subcontratación / Mano de Obra</span>
-          <span class="pill-count">{{ subcontractsList.length }}</span>
-        </button>
+      <button
+        type="button"
+        class="btn btn-sm rounded-pill px-3 py-1 fw-semibold d-inline-flex align-items-center gap-2"
+        :class="activeTab === 'subcontratacion' ? 'btn-primary' : 'btn-outline-secondary'"
+        @click="switchTab('subcontratacion')"
+      >
+        <iconify-icon icon="solar:users-group-rounded-line-duotone" class="fs-4"></iconify-icon>
+        <span>Subcontratación / Mano de Obra</span>
+        <span class="badge bg-dark-subtle text-info ms-1">{{ subcontractsList.length }}</span>
+      </button>
 
-        <button
-          class="tab-pill"
-          :class="{ active: activeTab === 'kardex' }"
-          @click="switchTab('kardex')"
-        >
-          <iconify-icon icon="solar:history-bold-duotone" width="18"></iconify-icon>
-          <span>Kardex / Movimientos</span>
-          <span class="pill-count">{{ kardexMovements.length }}</span>
-        </button>
-      </div>
+      <button
+        type="button"
+        class="btn btn-sm rounded-pill px-3 py-1 fw-semibold d-inline-flex align-items-center gap-2"
+        :class="activeTab === 'kardex' ? 'btn-primary' : 'btn-outline-secondary'"
+        @click="switchTab('kardex')"
+      >
+        <iconify-icon icon="solar:history-bold-duotone" class="fs-4"></iconify-icon>
+        <span>Kardex / Movimientos</span>
+        <span class="badge bg-dark-subtle text-info ms-1">{{ kardexMovements.length }}</span>
+      </button>
+    </div>
 
-      <!-- Search & Filters -->
-      <div class="filters-row">
-        <div class="search-box">
-          <iconify-icon icon="solar:magnifer-line-duotone" width="17" class="search-ic"></iconify-icon>
-          <input
-            v-model="searchQuery"
-            type="text"
-            :placeholder="searchPlaceholder"
-          />
+    <!-- Search & Filters -->
+    <div class="crud-filters-card mt-2 mb-3">
+      <div class="d-flex flex-wrap align-items-center justify-content-between gap-3">
+        <div class="d-flex align-items-center gap-2 flex-grow-1" style="max-width: 420px;">
+          <div class="input-group">
+            <span class="input-group-text">
+              <iconify-icon icon="solar:magnifer-line-duotone"></iconify-icon>
+            </span>
+            <input
+              v-model="searchQuery"
+              type="text"
+              class="form-control"
+              :placeholder="searchPlaceholder"
+            />
+          </div>
         </div>
 
-        <select v-if="activeTab === 'kardex'" v-model="kardexProductFilter" @change="loadKardex" class="filter-select" style="min-width: 220px;">
-          <option :value="0">-- Todos los productos --</option>
-          <option v-for="it in itemsList" :key="it.id" :value="it.id">
-            {{ it.code ? `[${it.code}] ` : '' }}{{ it.name }}
-          </option>
-        </select>
+        <div class="d-flex align-items-center gap-2 flex-wrap">
+          <select v-if="activeTab === 'kardex'" v-model="kardexProductFilter" @change="loadKardex" class="form-select w-auto" style="min-width: 220px;">
+            <option :value="0">-- Todos los productos --</option>
+            <option v-for="it in itemsList" :key="it.id" :value="it.id">
+              {{ it.code ? `[${it.code}] ` : '' }}{{ it.name }}
+            </option>
+          </select>
 
-        <select v-if="activeTab === 'kardex'" v-model="kardexWarehouseFilter" @change="loadKardex" class="filter-select">
-          <option :value="0">-- Todas las bodegas --</option>
-          <option v-for="wh in activeWarehouses" :key="wh.id" :value="wh.id">
-            {{ wh.name }}
-          </option>
-        </select>
+          <select v-if="activeTab === 'kardex'" v-model="kardexWarehouseFilter" @change="loadKardex" class="form-select w-auto">
+            <option :value="0">-- Todas las bodegas --</option>
+            <option v-for="wh in activeWarehouses" :key="wh.id" :value="wh.id">
+              {{ wh.name }}
+            </option>
+          </select>
 
-        <select v-if="activeTab !== 'kardex'" v-model="statusFilter" class="filter-select">
-          <option value="ALL">Todos los estados</option>
-          <option value="ACTIVE">Solo Activos</option>
-          <option value="INACTIVE">Inactivos</option>
-          <option v-if="activeTab === 'articulos'" value="LOW_STOCK">Stock Bajo</option>
-        </select>
+          <select v-if="activeTab !== 'kardex'" v-model="statusFilter" class="form-select w-auto">
+            <option value="ALL">Todos los estados</option>
+            <option value="ACTIVE">Solo Activos</option>
+            <option value="INACTIVE">Inactivos</option>
+            <option v-if="activeTab === 'articulos'" value="LOW_STOCK">Stock Bajo</option>
+          </select>
+        </div>
       </div>
     </div>
 
     <!-- KPI Cards per Active Section -->
-    <div class="kpi-grid" v-if="activeTab === 'articulos'">
-      <div class="kpi-card">
-        <div class="kpi-icon blue">
-          <iconify-icon icon="solar:box-bold-duotone" width="24"></iconify-icon>
+    <div class="crud-kpi-grid" v-if="activeTab === 'articulos'">
+      <div class="crud-kpi-card">
+        <div class="crud-kpi-icon primary">
+          <iconify-icon icon="solar:box-bold-duotone" class="fs-5"></iconify-icon>
         </div>
         <div>
-          <span class="kpi-label">Total Artículos</span>
-          <h4 class="kpi-val">{{ itemsList.length }}</h4>
+          <span class="crud-kpi-label">Total Artículos</span>
+          <h4 class="crud-kpi-val">{{ itemsList.length }}</h4>
         </div>
       </div>
-      <div class="kpi-card">
-        <div class="kpi-icon green">
-          <iconify-icon icon="solar:wallet-money-bold-duotone" width="24"></iconify-icon>
+      <div class="crud-kpi-card">
+        <div class="crud-kpi-icon success">
+          <iconify-icon icon="solar:wallet-money-bold-duotone" class="fs-5"></iconify-icon>
         </div>
         <div>
-          <span class="kpi-label">Valorizado en Bodega (Costo)</span>
-          <h4 class="kpi-val">${{ formatNumber(totalInventoryCostValue) }}</h4>
+          <span class="crud-kpi-label">Valorizado en Bodega (Costo)</span>
+          <h4 class="crud-kpi-val">${{ formatNumber(totalInventoryCostValue) }}</h4>
         </div>
       </div>
-      <div class="kpi-card">
-        <div class="kpi-icon purple">
-          <iconify-icon icon="solar:tag-price-bold-duotone" width="24"></iconify-icon>
+      <div class="crud-kpi-card">
+        <div class="crud-kpi-icon info">
+          <iconify-icon icon="solar:tag-price-bold-duotone" class="fs-5"></iconify-icon>
         </div>
         <div>
-          <span class="kpi-label">Valor Potencial de Venta</span>
-          <h4 class="kpi-val">${{ formatNumber(totalInventorySaleValue) }}</h4>
+          <span class="crud-kpi-label">Valor Potencial de Venta</span>
+          <h4 class="crud-kpi-val">${{ formatNumber(totalInventorySaleValue) }}</h4>
         </div>
       </div>
-      <div class="kpi-card">
-        <div class="kpi-icon amber">
-          <iconify-icon icon="solar:danger-triangle-bold-duotone" width="24"></iconify-icon>
+      <div class="crud-kpi-card">
+        <div class="crud-kpi-icon warning">
+          <iconify-icon icon="solar:danger-triangle-bold-duotone" class="fs-5"></iconify-icon>
         </div>
         <div>
-          <span class="kpi-label">Alertas Stock Mínimo</span>
-          <h4 class="kpi-val">{{ lowStockCount }}</h4>
-        </div>
-      </div>
-    </div>
-
-    <div class="kpi-grid" v-else-if="activeTab === 'servicios'">
-      <div class="kpi-card">
-        <div class="kpi-icon blue">
-          <iconify-icon icon="solar:settings-minimalistic-bold-duotone" width="24"></iconify-icon>
-        </div>
-        <div>
-          <span class="kpi-label">Total Servicios Propios</span>
-          <h4 class="kpi-val">{{ servicesList.length }}</h4>
-        </div>
-      </div>
-      <div class="kpi-card">
-        <div class="kpi-icon green">
-          <iconify-icon icon="solar:check-circle-bold-duotone" width="24"></iconify-icon>
-        </div>
-        <div>
-          <span class="kpi-label">Servicios Activos</span>
-          <h4 class="kpi-val">{{ servicesList.filter(s => s.status).length }}</h4>
-        </div>
-      </div>
-      <div class="kpi-card">
-        <div class="kpi-icon purple">
-          <iconify-icon icon="solar:dollar-minimalistic-bold-duotone" width="24"></iconify-icon>
-        </div>
-        <div>
-          <span class="kpi-label">Tarifa Promedio Venta</span>
-          <h4 class="kpi-val">${{ formatNumber(averageServicePrice) }}</h4>
+          <span class="crud-kpi-label">Alertas Stock Mínimo</span>
+          <h4 class="crud-kpi-val">{{ lowStockCount }}</h4>
         </div>
       </div>
     </div>
 
-    <div class="kpi-grid" v-else-if="activeTab === 'subcontratacion'">
-      <div class="kpi-card">
-        <div class="kpi-icon blue">
-          <iconify-icon icon="solar:users-group-rounded-bold-duotone" width="24"></iconify-icon>
+    <div class="crud-kpi-grid" v-else-if="activeTab === 'servicios'">
+      <div class="crud-kpi-card">
+        <div class="crud-kpi-icon primary">
+          <iconify-icon icon="solar:settings-minimalistic-bold-duotone" class="fs-5"></iconify-icon>
         </div>
         <div>
-          <span class="kpi-label">Rubros Mano de Obra / Subcontratos</span>
-          <h4 class="kpi-val">{{ subcontractsList.length }}</h4>
+          <span class="crud-kpi-label">Total Servicios Propios</span>
+          <h4 class="crud-kpi-val">{{ servicesList.length }}</h4>
         </div>
       </div>
-      <div class="kpi-card">
-        <div class="kpi-icon green">
-          <iconify-icon icon="solar:shield-user-bold-duotone" width="24"></iconify-icon>
+      <div class="crud-kpi-card">
+        <div class="crud-kpi-icon success">
+          <iconify-icon icon="solar:check-circle-bold-duotone" class="fs-5"></iconify-icon>
         </div>
         <div>
-          <span class="kpi-label">Con Materiales Incluidos</span>
-          <h4 class="kpi-val">{{ subcontractsList.filter(s => s.includesMaterials).length }}</h4>
+          <span class="crud-kpi-label">Servicios Activos</span>
+          <h4 class="crud-kpi-val">{{ servicesList.filter(s => s.status).length }}</h4>
         </div>
       </div>
-      <div class="kpi-card">
-        <div class="kpi-icon amber">
-          <iconify-icon icon="solar:calculator-bold-duotone" width="24"></iconify-icon>
+      <div class="crud-kpi-card">
+        <div class="crud-kpi-icon info">
+          <iconify-icon icon="solar:dollar-minimalistic-bold-duotone" class="fs-5"></iconify-icon>
         </div>
         <div>
-          <span class="kpi-label">Costo Promedio Rubro</span>
-          <h4 class="kpi-val">${{ formatNumber(averageSubcontractCost) }}</h4>
+          <span class="crud-kpi-label">Tarifa Promedio Venta</span>
+          <h4 class="crud-kpi-val">${{ formatNumber(averageServicePrice) }}</h4>
         </div>
       </div>
     </div>
 
-    <div class="kpi-grid" v-else-if="activeTab === 'categorias'">
-      <div class="kpi-card">
-        <div class="kpi-icon blue">
-          <iconify-icon icon="solar:tag-price-bold-duotone" width="24"></iconify-icon>
+    <div class="crud-kpi-grid" v-else-if="activeTab === 'subcontratacion'">
+      <div class="crud-kpi-card">
+        <div class="crud-kpi-icon primary">
+          <iconify-icon icon="solar:users-group-rounded-bold-duotone" class="fs-5"></iconify-icon>
         </div>
         <div>
-          <span class="kpi-label">Total Categorías</span>
-          <h4 class="kpi-val">{{ categoriesList.length }}</h4>
+          <span class="crud-kpi-label">Rubros Mano de Obra / Subcontratos</span>
+          <h4 class="crud-kpi-val">{{ subcontractsList.length }}</h4>
         </div>
       </div>
-      <div class="kpi-card">
-        <div class="kpi-icon green">
-          <iconify-icon icon="solar:check-circle-bold-duotone" width="24"></iconify-icon>
+      <div class="crud-kpi-card">
+        <div class="crud-kpi-icon success">
+          <iconify-icon icon="solar:shield-user-bold-duotone" class="fs-5"></iconify-icon>
         </div>
         <div>
-          <span class="kpi-label">Categorías Activas</span>
-          <h4 class="kpi-val">{{ categoriesList.filter(c => c.status).length }}</h4>
+          <span class="crud-kpi-label">Con Materiales Incluidos</span>
+          <h4 class="crud-kpi-val">{{ subcontractsList.filter(s => s.includesMaterials).length }}</h4>
         </div>
       </div>
-      <div class="kpi-card">
-        <div class="kpi-icon purple">
-          <iconify-icon icon="solar:box-minimalistic-bold-duotone" width="24"></iconify-icon>
+      <div class="crud-kpi-card">
+        <div class="crud-kpi-icon warning">
+          <iconify-icon icon="solar:calculator-bold-duotone" class="fs-5"></iconify-icon>
         </div>
         <div>
-          <span class="kpi-label">Artículos Categorizados</span>
-          <h4 class="kpi-val">{{ itemsList.filter(i => i.categoryId || i.category).length }}</h4>
+          <span class="crud-kpi-label">Costo Promedio Rubro</span>
+          <h4 class="crud-kpi-val">${{ formatNumber(averageSubcontractCost) }}</h4>
+        </div>
+      </div>
+    </div>
+
+    <div class="crud-kpi-grid" v-else-if="activeTab === 'categorias'">
+      <div class="crud-kpi-card">
+        <div class="crud-kpi-icon primary">
+          <iconify-icon icon="solar:tag-price-bold-duotone" class="fs-5"></iconify-icon>
+        </div>
+        <div>
+          <span class="crud-kpi-label">Total Categorías</span>
+          <h4 class="crud-kpi-val">{{ categoriesList.length }}</h4>
+        </div>
+      </div>
+      <div class="crud-kpi-card">
+        <div class="crud-kpi-icon success">
+          <iconify-icon icon="solar:check-circle-bold-duotone" class="fs-5"></iconify-icon>
+        </div>
+        <div>
+          <span class="crud-kpi-label">Categorías Activas</span>
+          <h4 class="crud-kpi-val">{{ categoriesList.filter(c => c.status).length }}</h4>
+        </div>
+      </div>
+      <div class="crud-kpi-card">
+        <div class="crud-kpi-icon info">
+          <iconify-icon icon="solar:box-minimalistic-bold-duotone" class="fs-5"></iconify-icon>
+        </div>
+        <div>
+          <span class="crud-kpi-label">Artículos Categorizados</span>
+          <h4 class="crud-kpi-val">{{ itemsList.filter(i => i.categoryId || i.category).length }}</h4>
         </div>
       </div>
     </div>

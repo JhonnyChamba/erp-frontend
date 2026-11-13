@@ -27,7 +27,6 @@ export interface UpdateDocumentTypePayload {
 }
 
 export const getDocumentTypes = async (params?: {
-  companyId?: number
   type?: string
   active?: boolean
 }): Promise<DocumentTypeItem[]> => {

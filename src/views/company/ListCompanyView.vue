@@ -67,6 +67,14 @@ const profilePhoto = computed(() => {
 })
 
 const profileRole = computed(() => profile.value?.role_name || (authStore.tokenPayload?.super_admin ? 'Super Admin' : 'Usuario'))
+const isSuperAdmin = computed(() => {
+  return Boolean(
+    profile.value?.super_admin ||
+    authStore.tokenPayload?.super_admin ||
+    authStore.tokenPayload?.developer ||
+    authStore.accessInfo?.isSuperAdmin
+  )
+})
 const profileType = computed(() => {
   const p = profile.value
   const superAdmin = p ? p.super_admin : Boolean(authStore.tokenPayload?.super_admin)
@@ -357,6 +365,25 @@ onMounted(async () => {
                 </div>
               </li>
             </ul>
+
+            <!-- ACCESO PARA SUPER ADMINISTRADORES: CONFIGURACIÓN GLOBAL -->
+            <div v-if="isSuperAdmin" class="mt-4 pt-3 border-top border-secondary-subtle">
+              <div class="p-3 rounded-4 bg-primary-subtle border border-primary-subtle text-center">
+                <small class="text-primary fw-bold text-uppercase fs-1 d-block mb-1">
+                  Administración del Sistema
+                </small>
+                <p class="text-secondary fs-2 mb-3">
+                  Acceso exclusivo para Super Administradores: gestión de empresas, usuarios globales, planes SaaS, módulos e impuestos.
+                </p>
+                <router-link
+                  to="/configuracion-global"
+                  class="btn btn-primary rounded-pill w-100 py-2 d-inline-flex align-items-center justify-content-center gap-2 fw-semibold shadow-sm"
+                >
+                  <iconify-icon icon="solar:settings-bold-duotone" class="fs-5"></iconify-icon>
+                  <span>Configuración Global</span>
+                </router-link>
+              </div>
+            </div>
           </template>
         </div>
       </div>

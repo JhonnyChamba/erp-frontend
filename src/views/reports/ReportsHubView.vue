@@ -80,13 +80,13 @@
           </div>
 
           <!-- LISTA DE REPORTES DE LA CATEGORÍA -->
-          <div class="card-body p-3 pt-2">
+          <div class="card-body p-2.5 pt-1">
             <div class="list-group list-group-flush border-0">
               <a
                 v-for="rep in cat.reports"
                 :key="rep.title"
                 href="javascript:void(0)"
-                class="list-group-item list-group-item-action border-0 rounded-3 mb-1 px-3 py-2 report-item d-flex align-items-center justify-content-between gap-2"
+                class="list-group-item list-group-item-action border-0 rounded-3 mb-1 px-2.5 py-2 report-item d-flex align-items-center justify-content-between gap-2"
                 :class="{ 'item-active-route': rep.route, 'item-roadmap': !rep.route }"
                 @click="handleReportClick(rep)"
                 :title="rep.description || rep.title"
@@ -101,24 +101,24 @@
                   <span
                     class="report-title fs-2 text-wrap"
                     :class="{ 'fw-semibold': rep.route }"
-                    style="line-height: 1.3; word-break: break-word;"
+                    style="line-height: 1.3; overflow-wrap: anywhere;"
                   >
                     {{ rep.title }}
                   </span>
                 </div>
 
                 <!-- BADGE DE ACCION O ESTADO PENDIENTE (SIEMPRE VISIBLE A LA DERECHA) -->
-                <div class="flex-shrink-0 ms-2 text-end">
+                <div class="flex-shrink-0 ms-1 text-end">
                   <span
                     v-if="rep.route"
-                    class="badge bg-success-subtle text-success border border-success-subtle rounded-pill px-2 py-1 fs-1 d-inline-flex align-items-center gap-1"
+                    class="badge bg-success-subtle text-success border border-success-subtle rounded-pill px-2 py-0.5 fs-1 d-inline-flex align-items-center gap-1"
                   >
                     <span>Abrir</span>
                     <iconify-icon icon="solar:arrow-right-line-duotone" class="fs-2"></iconify-icon>
                   </span>
                   <span
                     v-else-if="isSuperAdmin"
-                    class="badge bg-warning-subtle text-warning border border-warning-subtle rounded-pill px-2 py-1 fs-1"
+                    class="badge bg-warning-subtle text-warning border border-warning-subtle rounded-pill px-2 py-0.5 fs-1"
                   >
                     Pendiente
                   </span>
@@ -519,7 +519,7 @@ const handleReportClick = (rep: ReportItem) => {
 
 .reports-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
   gap: 1.5rem;
   width: 100%;
 }
@@ -533,6 +533,8 @@ const handleReportClick = (rep: ReportItem) => {
   width: 100%;
   background: var(--bs-card-bg);
   border: 1px solid var(--bs-border-color) !important;
+  overflow: hidden;
+  box-sizing: border-box;
   transition: transform 0.2s ease, box-shadow 0.2s ease;
 }
 
@@ -588,13 +590,14 @@ const handleReportClick = (rep: ReportItem) => {
 .report-item {
   background: transparent;
   color: var(--bs-body-color);
-  transition: background-color 0.18s ease, transform 0.18s ease;
+  transition: background-color 0.18s ease;
   cursor: pointer;
+  box-sizing: border-box;
+  max-width: 100%;
 }
 
 .report-item:hover {
   background-color: var(--bs-subtle-bg);
-  transform: translateX(3px);
 }
 
 .item-active-route {

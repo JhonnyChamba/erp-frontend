@@ -63,11 +63,7 @@ export function resolveAvatarUrl(url?: string | null): string {
 export function handleAvatarError(e: Event) {
   const target = e.target as HTMLImageElement | null
   if (!target) return
-  // Si falló una URL personalizada, intentar primero el asset estático por defecto
-  if (!target.src.includes(DEFAULT_AVATAR_PATH) && target.src !== FALLBACK_AVATAR_SVG) {
-    target.src = DEFAULT_AVATAR_PATH
-  } else if (target.src !== FALLBACK_AVATAR_SVG) {
-    // Si incluso el archivo estático falla, usar el SVG embebido
-    target.src = FALLBACK_AVATAR_SVG
-  }
+  target.onerror = null
+  target.src = FALLBACK_AVATAR_SVG
 }
+

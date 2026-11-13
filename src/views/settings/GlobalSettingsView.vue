@@ -1,0 +1,5004 @@
+<script setup lang="ts">
+import { ref, onMounted, computed, watch, nextTick } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
+import { toast } from '@/utils/toastr'
+import {
+  getCompanies,
+  createCompany,
+  updateCompany,
+  getUsers,
+  createUser,
+  updateUser,
+  getRoles,
+  createRole,
+  updateRole,
+  getPlans,
+  createPlan,
+  getSubscriptions,
+  createSubscription,
+  updateSubscription,
+  getModules,
+  createModule,
+  updateModule,
+  getSubModules,
+  createSubModule,
+  updateSubModule,
+  getBranches,
+  createBranch,
+  updateBranch,
+  deleteBranch,
+  setMainBranch,
+  inspectCompanyCert,
+  type BranchItem,
+  type CompanyItem,
+  type UserItem,
+  type RoleItem,
+  type RoleAccessDetail,
+  type PlanItem,
+  type SubscriptionItem,
+  type ModuleItem,
+  type SubModuleItem,
+} from '@/services/config.service'
+import {
+  getTaxes,
+  createTax,
+  updateTax,
+  toggleTaxStatus,
+  deleteTax,
+  type TaxItem,
+} from '@/services/taxes.service'
+import {
+  getDocumentTypes,
+  createDocumentType,
+  updateDocumentType,
+  toggleDocumentTypeStatus,
+  deleteDocumentType,
+  type DocumentTypeItem,
+} from '@/services/document-types.service'
+import {
+  uploadCompanyLogo,
+  uploadBranchLogo,
+  uploadUserPhoto,
+} from '@/services/storage.service'
+import { resolveAvatarUrl, handleAvatarError } from '@/utils/avatar'
+import { getMyProfile, type MyProfile } from '@/services/auth.service'
+import { useAuthStore } from '@/stores/auth.store'
+import { useThemeStore } from '@/stores/theme.store'
+
+const route = useRoute()
+const router = useRouter()
+const authStore = useAuthStore()
+const themeStore = useThemeStore()
+
+// Perfil del Super Administrador (Panel Lateral)
+const profile = ref<MyProfile | null>(null)
+const profileLoading = ref(false)
+const fetchProfile = async () => {
+  profileLoading.value = true
+  try {
+    profile.value = await getMyProfile()
+  } catch (error) {
+    console.error('Error al obtener perfil de super admin', error)
+  } finally {
+    profileLoading.value = false
+  }
+}
+const profileFullName = computed(() => profile.value?.full_name || authStore.tokenPayload?.user_name || 'Super Administrador')
+const profilePhoto = computed(() => {
+  return resolveAvatarUrl(
+    profile.value?.photo_url ||
+    authStore.tokenPayload?.photo_url ||
+    localStorage.getItem('userPhoto')
+  )
+})
+const profileRole = computed(() => profile.value?.role_name || (authStore.tokenPayload?.super_admin ? 'Super Administrador' : 'Administrador'))
+
+const logout = () => {
+  authStore.logout()
+  router.push('/login')
+}
+
+// Subida de imágenes (Empresa, Sucursal, Usuario) a Supabase Storage
+const companyLogoFile = ref<File | null>(null)
+const companyLogoPreview = ref<string>('')
+const branchLogoFile = ref<File | null>(null)
+const branchLogoPreview = ref<string>('')
+const userPhotoFile = ref<File | null>(null)
+const userPhotoPreview = ref<string>('')
+
+const onCompanyLogoChange = (e: Event) => {
+  const file = (e.target as HTMLInputElement).files?.[0]
+  if (!file) return
+  if (!/^image\/(png|jpe?g|webp|svg\+xml)$/i.test(file.type)) {
+    toast.error('Formato no permitido. Solo se aceptan imágenes (PNG, JPG, WEBP, SVG).')
+    return
+  }
+  if (file.size > 5 * 1024 * 1024) {
+    toast.error('El tamaño de la imagen no puede superar 5MB.')
+    return
+  }
+  companyLogoFile.value = file
+  companyLogoPreview.value = URL.createObjectURL(file)
+}
+
+const onBranchLogoChange = (e: Event) => {
+  const file = (e.target as HTMLInputElement).files?.[0]
+  if (!file) return
+  if (!/^image\/(png|jpe?g|webp|svg\+xml)$/i.test(file.type)) {
+    toast.error('Formato no permitido. Solo se aceptan imágenes (PNG, JPG, WEBP, SVG).')
+    return
+  }
+  if (file.size > 5 * 1024 * 1024) {
+    toast.error('El tamaño de la imagen no puede superar 5MB.')
+    return
+  }
+  branchLogoFile.value = file
+  branchLogoPreview.value = URL.createObjectURL(file)
+}
+
+const onUserPhotoChange = (e: Event) => {
+  const file = (e.target as HTMLInputElement).files?.[0]
+  if (!file) return
+  if (!/^image\/(png|jpe?g|webp|svg\+xml)$/i.test(file.type)) {
+    toast.error('Formato no permitido. Solo se aceptan imágenes (PNG, JPG, WEBP, SVG).')
+    return
+  }
+  if (file.size > 5 * 1024 * 1024) {
+    toast.error('El tamaño de la imagen no puede superar 5MB.')
+    return
+  }
+  userPhotoFile.value = file
+  userPhotoPreview.value = URL.createObjectURL(file)
+}
+
+// Paleta de colores de temas (Spike Admin)
+const themeColorsList = [
+  { id: 'Blue_Theme', name: 'Azul Clásico', color: '#0085db' },
+  { id: 'Aqua_Theme', name: 'Aqua Profundo', color: '#0074ba' },
+  { id: 'Purple_Theme', name: 'Púrpura Spike', color: '#763ebd' },
+  { id: 'Green_Theme', name: 'Teal Verde', color: '#0a7ea4' },
+  { id: 'Cyan_Theme', name: 'Turquesa Cyan', color: '#01c0c8' },
+  { id: 'Orange_Theme', name: 'Naranja Coral', color: '#fa896b' },
+]
+
+const getThemeColorHex = (themeId?: string) => {
+  const found = themeColorsList.find((t) => t.id === themeId)
+  return found?.color || '#0085db'
+}
+
+const getThemeName = (themeId?: string) => {
+  const found = themeColorsList.find((t) => t.id === themeId)
+  return found?.name || 'Azul Clásico'
+}
+
+const getThemeBadgeStyle = (themeId?: string) => {
+  const hex = getThemeColorHex(themeId)
+  return {
+    backgroundColor: `${hex}25`,
+    border: `1px solid ${hex}70`,
+    color: '#ffffff',
+  }
+}
+
+const selectTheme = (themeId: string) => {
+  formUser.value.theme_color = themeId
+  // Vista previa en vivo del tema en toda la interfaz
+  document.documentElement.setAttribute('data-color-theme', themeId)
+}
+
+const closeUserModal = () => {
+  showUserModal.value = false
+  // Restaurar el tema guardado en caso de cancelar
+  const currentTheme = localStorage.getItem('userTheme') || 'Blue_Theme'
+  document.documentElement.setAttribute('data-color-theme', currentTheme)
+}
+
+// Pestaña activa ('companies' | 'branches' | 'users' | 'modules' | 'subscriptions' | 'taxes' | 'document_types')
+const activeTab = ref<'companies' | 'branches' | 'users' | 'modules' | 'subscriptions' | 'taxes' | 'document_types'>('companies')
+
+// Filtros específicos para Usuarios Globales
+const userFilterCompanyId = ref<number | ''>('')
+const userSearch = ref<string>('')
+
+// Estado de carga y mensajes
+const loading = ref(false)
+const successMsg = ref('')
+const errorMsg = ref('')
+
+watch(successMsg, (msg) => {
+  if (msg) toast.success(msg, 'Configuración')
+})
+watch(errorMsg, (msg) => {
+  if (msg) toast.error(msg, 'Error en Configuración')
+})
+
+// Contexto de empresa seleccionada
+const getStoredCompany = (): any => {
+  try {
+    const raw = localStorage.getItem('selectedCompany')
+    if (raw) return JSON.parse(raw)
+  } catch {}
+  return null
+}
+const selectedCompany = ref<any>(getStoredCompany())
+const selectedRoleCompanyId = ref<number>(
+  Number(selectedCompany.value?.companyId || selectedCompany.value?.company?.id || selectedCompany.value?.id || 4)
+)
+const currentCompanyId = computed(() => {
+  const cId = Number(selectedCompany.value?.companyId || selectedCompany.value?.company?.id || selectedCompany.value?.id)
+  if (!Number.isNaN(cId) && cId > 0) return cId
+  const authCompId = Number(authStore.accessInfo?.companyId || authStore.tokenPayload?.company_id)
+  if (!Number.isNaN(authCompId) && authCompId > 0) return authCompId
+  return selectedRoleCompanyId.value || 4
+})
+const isCurrentUserSuperAdmin = computed(() =>
+  Boolean(authStore.tokenPayload?.super_admin || authStore.tokenPayload?.developer)
+)
+
+// Listas de datos
+const companies = ref<CompanyItem[]>([])
+const users = ref<UserItem[]>([])
+const roles = ref<RoleItem[]>([])
+const modulesList = ref<ModuleItem[]>([])
+const subModulesList = ref<SubModuleItem[]>([])
+const filterModuleId = ref<number | undefined>(undefined)
+const plans = ref<PlanItem[]>([])
+const subscriptions = ref<SubscriptionItem[]>([])
+const taxes = ref<TaxItem[]>([])
+const docTypes = ref<DocumentTypeItem[]>([])
+
+// Modales
+const showCompanyModal = ref(false)
+const showUserModal = ref(false)
+const showRoleModal = ref(false)
+const showModuleModal = ref(false)
+const showSubModuleModal = ref(false)
+const showPlanModal = ref(false)
+const showSubscriptionModal = ref(false)
+const showBranchModal = ref(false)
+const showTaxModal = ref(false)
+const showDocTypeModal = ref(false)
+
+// Mientras un formulario de registro/edición está abierto se muestra como página y se oculta el listado
+const isFormOpen = computed(
+  () =>
+    showCompanyModal.value ||
+    showUserModal.value ||
+    showRoleModal.value ||
+    showModuleModal.value ||
+    showSubModuleModal.value ||
+    showPlanModal.value ||
+    showSubscriptionModal.value ||
+    showBranchModal.value ||
+    showTaxModal.value ||
+    showDocTypeModal.value,
+)
+watch(isFormOpen, async (open) => {
+  if (open) {
+    await nextTick()
+    document.getElementById('form-page')?.scrollIntoView({ block: 'start' })
+  }
+})
+
+// ==========================================
+// ESTADO Y MÉTODOS DE IMPUESTOS (CRUD)
+// ==========================================
+const isEditingTax = ref(false)
+const editingTaxId = ref<number | null>(null)
+const taxSearch = ref('')
+const savingTax = ref(false)
+const formTax = ref({
+  code: '',
+  percentage: 15,
+  description: '',
+  status: 'ACTIVO',
+  is_default: false,
+})
+
+const taxStatusOptions = [
+  { value: 'ACTIVO', label: 'Activo' },
+  { value: 'INACTIVO', label: 'Inactivo' },
+]
+
+const filteredTaxes = computed(() => {
+  const q = taxSearch.value.toLowerCase().trim()
+  if (!q) return taxes.value
+  return taxes.value.filter(
+    (t) =>
+      t.code.toLowerCase().includes(q) ||
+      t.description.toLowerCase().includes(q) ||
+      String(t.percentage).includes(q)
+  )
+})
+
+const openCreateTaxModal = () => {
+  isEditingTax.value = false
+  editingTaxId.value = null
+  formTax.value = {
+    code: '',
+    percentage: 15,
+    description: '',
+    status: 'ACTIVO',
+    is_default: false,
+  }
+  showTaxModal.value = true
+}
+
+const openEditTaxModal = (t: TaxItem) => {
+  isEditingTax.value = true
+  editingTaxId.value = t.id
+  formTax.value = {
+    code: t.code,
+    percentage: Number(t.percentage),
+    description: t.description,
+    status: t.status,
+    is_default: Boolean(t.is_default),
+  }
+  showTaxModal.value = true
+}
+
+const submitTax = async () => {
+  if (!formTax.value.code.trim()) {
+    toast.warning('El código del impuesto es obligatorio', 'Validación')
+    return
+  }
+  if (!formTax.value.description.trim()) {
+    toast.warning('La descripción del impuesto es obligatoria', 'Validación')
+    return
+  }
+  savingTax.value = true
+  try {
+    if (isEditingTax.value && editingTaxId.value) {
+      await updateTax(editingTaxId.value, {
+        code: formTax.value.code,
+        percentage: Number(formTax.value.percentage),
+        description: formTax.value.description,
+        status: formTax.value.status,
+        is_default: formTax.value.is_default,
+      })
+      toast.success('Impuesto actualizado con éxito', 'Configuración')
+    } else {
+      await createTax({
+        code: formTax.value.code,
+        percentage: Number(formTax.value.percentage),
+        description: formTax.value.description,
+        status: formTax.value.status,
+        is_default: formTax.value.is_default,
+      })
+      toast.success('Impuesto creado con éxito', 'Configuración')
+    }
+    showTaxModal.value = false
+    const res = await getTaxes({ companyId: currentCompanyId.value })
+    taxes.value = Array.isArray(res) ? res : []
+  } catch (err: any) {
+    toast.error(err?.response?.data?.message || err?.message || 'Error al guardar el impuesto', 'Error')
+  } finally {
+    savingTax.value = false
+  }
+}
+
+const onToggleTaxStatus = async (t: TaxItem) => {
+  try {
+    await toggleTaxStatus(t.id)
+    t.status = t.status === 'ACTIVO' ? 'INACTIVO' : 'ACTIVO'
+    toast.success(`Estado del impuesto "${t.description}" cambiado a ${t.status}`, 'Configuración')
+  } catch (err: any) {
+    toast.error(err?.response?.data?.message || 'Error al cambiar estado', 'Error')
+  }
+}
+
+const onDeleteTax = async (t: TaxItem) => {
+  if (!confirm(`¿Está seguro de eliminar el impuesto "${t.description}"?`)) return
+  try {
+    await deleteTax(t.id)
+    toast.success('Impuesto eliminado correctamente', 'Configuración')
+    taxes.value = taxes.value.filter((item) => item.id !== t.id)
+  } catch (err: any) {
+    toast.error(err?.response?.data?.message || 'Error al eliminar impuesto', 'Error')
+  }
+}
+
+// ==========================================
+// ESTADO Y MÉTODOS DE TIPOS DE DOCUMENTOS (CRUD)
+// ==========================================
+const isEditingDocType = ref(false)
+const editingDocTypeId = ref<number | null>(null)
+const docTypeSearch = ref('')
+const docTypeFilterType = ref('TODOS')
+const savingDocType = ref(false)
+const formDocType = ref({
+  name: '',
+  type: 'TODOS',
+  code: '',
+  status: 'ACTIVO',
+})
+
+const docTypeTargetOptions = [
+  { value: 'TODOS', label: 'Todos (General)' },
+  { value: 'CLIENTE', label: 'Clientes' },
+  { value: 'PROVEEDOR', label: 'Proveedores' },
+  { value: 'VENDEDOR', label: 'Vendedores' },
+]
+
+const docTypeStatusOptions = [
+  { value: 'ACTIVO', label: 'Activo' },
+  { value: 'INACTIVO', label: 'Inactivo' },
+]
+
+const filteredDocTypes = computed(() => {
+  let list = docTypes.value
+  if (docTypeFilterType.value !== 'TODOS') {
+    list = list.filter((dt) => dt.type === docTypeFilterType.value || dt.type === 'TODOS')
+  }
+  const q = docTypeSearch.value.toLowerCase().trim()
+  if (!q) return list
+  return list.filter(
+    (dt) =>
+      dt.name.toLowerCase().includes(q) ||
+      dt.code.toLowerCase().includes(q) ||
+      dt.type.toLowerCase().includes(q)
+  )
+})
+
+const openCreateDocTypeModal = () => {
+  isEditingDocType.value = false
+  editingDocTypeId.value = null
+  formDocType.value = {
+    name: '',
+    type: 'TODOS',
+    code: '',
+    status: 'ACTIVO',
+  }
+  showDocTypeModal.value = true
+}
+
+const openEditDocTypeModal = (dt: DocumentTypeItem) => {
+  isEditingDocType.value = true
+  editingDocTypeId.value = dt.id
+  formDocType.value = {
+    name: dt.name,
+    type: dt.type,
+    code: dt.code,
+    status: dt.status,
+  }
+  showDocTypeModal.value = true
+}
+
+const submitDocType = async () => {
+  if (!formDocType.value.name.trim()) {
+    toast.warning('El nombre del tipo de documento es obligatorio', 'Validación')
+    return
+  }
+  if (!formDocType.value.code.trim()) {
+    toast.warning('El código del tipo de documento es obligatorio', 'Validación')
+    return
+  }
+  savingDocType.value = true
+  try {
+    if (isEditingDocType.value && editingDocTypeId.value) {
+      await updateDocumentType(editingDocTypeId.value, {
+        name: formDocType.value.name,
+        type: formDocType.value.type,
+        code: formDocType.value.code,
+        status: formDocType.value.status,
+      })
+      toast.success('Tipo de documento actualizado con éxito', 'Configuración')
+    } else {
+      await createDocumentType({
+        name: formDocType.value.name,
+        type: formDocType.value.type,
+        code: formDocType.value.code,
+        status: formDocType.value.status,
+      })
+      toast.success('Tipo de documento creado con éxito', 'Configuración')
+    }
+    showDocTypeModal.value = false
+    const res = await getDocumentTypes()
+    docTypes.value = Array.isArray(res) ? res : []
+  } catch (err: any) {
+    toast.error(err?.response?.data?.message || err?.message || 'Error al guardar el tipo de documento', 'Error')
+  } finally {
+    savingDocType.value = false
+  }
+}
+
+const onToggleDocTypeStatus = async (dt: DocumentTypeItem) => {
+  try {
+    await toggleDocumentTypeStatus(dt.id)
+    dt.status = dt.status === 'ACTIVO' ? 'INACTIVO' : 'ACTIVO'
+    toast.success(`Estado de "${dt.name}" cambiado a ${dt.status}`, 'Configuración')
+  } catch (err: any) {
+    toast.error(err?.response?.data?.message || 'Error al cambiar estado', 'Error')
+  }
+}
+
+const onDeleteDocType = async (dt: DocumentTypeItem) => {
+  if (!confirm(`¿Está seguro de eliminar el tipo de documento "${dt.name}"?`)) return
+  try {
+    await deleteDocumentType(dt.id)
+    toast.success('Tipo de documento eliminado correctamente', 'Configuración')
+    docTypes.value = docTypes.value.filter((item) => item.id !== dt.id)
+  } catch (err: any) {
+    toast.error(err?.response?.data?.message || 'Error al eliminar tipo de documento', 'Error')
+  }
+}
+
+// Estado de edición de usuario y rol
+const isEditingUser = ref(false)
+const editingUserId = ref<number | null>(null)
+const isEditingRole = ref(false)
+const editingRoleId = ref<number | null>(null)
+const rolesByCompany = ref<Record<number, RoleItem[]>>({})
+
+// Estado de edición de módulo y submódulo
+const isEditingModule = ref(false)
+const editingModuleId = ref<number | null>(null)
+const isEditingSubModule = ref(false)
+const editingSubModuleId = ref<number | null>(null)
+const isEditingSubscription = ref(false)
+const editingSubscriptionId = ref<number | null>(null)
+const allSubModulesList = ref<SubModuleItem[]>([])
+
+// Iconos sugeridos para módulos y submódulos (Solar Iconify)
+const suggestedIcons = [
+  { icon: 'solar:widget-4-line-duotone', label: 'Módulo' },
+  { icon: 'solar:cart-large-2-line-duotone', label: 'Ventas' },
+  { icon: 'solar:bag-4-line-duotone', label: 'Compras' },
+  { icon: 'solar:box-minimalistic-line-duotone', label: 'Inventario' },
+  { icon: 'solar:calculator-line-duotone', label: 'Contabilidad' },
+  { icon: 'solar:wallet-money-line-duotone', label: 'Tesorería' },
+  { icon: 'solar:users-group-rounded-line-duotone', label: 'RRHH / Clientes' },
+  { icon: 'solar:document-text-line-duotone', label: 'Facturación' },
+  { icon: 'solar:chart-2-line-duotone', label: 'Reportes' },
+  { icon: 'solar:settings-line-duotone', label: 'Configuración' },
+]
+
+// Formularios
+const initialFormCompany = () => ({
+  ruc: '',
+  business_name: '',
+  trade_name: '',
+  description: '',
+  address_matriz: '',
+  phone: '',
+  email: '',
+  obligated_accounting: false,
+  special_taxpayer: '',
+  tax_regime: 'GENERAL',
+  sri_environment: '1',
+  auto_send_sri: false,
+  default_establishment: '001',
+  default_emission_point: '001',
+  // Firma electrónica
+  cert_p12_base64: '',
+  cert_file_name: '',
+  cert_password: '',
+  cert_expires_at: '',
+  has_certificate: false,
+  remove_certificate: false,
+  // SMTP
+  smtp_host: '',
+  smtp_port: 587,
+  smtp_secure: true,
+  smtp_user: '',
+  smtp_password: '',
+  has_smtp_password: false,
+  smtp_from_name: '',
+  smtp_from_email: '',
+})
+const formCompany = ref(initialFormCompany())
+const isEditingCompany = ref(false)
+const editingCompanyId = ref<number | null>(null)
+const companyFormTab = ref<'general' | 'fiscal' | 'firma' | 'correo'>('general')
+
+const openCreateCompany = () => {
+  isEditingCompany.value = false
+  editingCompanyId.value = null
+  companyLogoFile.value = null
+  companyLogoPreview.value = ''
+  formCompany.value = initialFormCompany()
+  companyFormTab.value = 'general'
+  showCompanyModal.value = true
+}
+
+const openEditCompany = (comp: CompanyItem) => {
+  const f = comp.fiscal || {}
+  isEditingCompany.value = true
+  editingCompanyId.value = comp.id
+  companyLogoFile.value = null
+  companyLogoPreview.value = comp.logo_url || f.logo_url || ''
+  formCompany.value = {
+    ...initialFormCompany(),
+    ruc: comp.ruc,
+    business_name: comp.business_name,
+    trade_name: comp.trade_name,
+    description: comp.description || '',
+    address_matriz: f.address_matriz || '',
+    phone: f.phone || '',
+    email: f.email || '',
+    obligated_accounting: Boolean(f.obligated_accounting),
+    special_taxpayer: f.special_taxpayer || '',
+    tax_regime: f.tax_regime || 'GENERAL',
+    sri_environment: f.sri_environment || '1',
+    auto_send_sri: Boolean(f.auto_send_sri ?? (comp as any).auto_send_sri ?? false),
+    default_establishment: f.default_establishment || '001',
+    default_emission_point: f.default_emission_point || '001',
+    cert_file_name: f.cert_file_name || '',
+    cert_expires_at: f.cert_expires_at || '',
+    has_certificate: Boolean(f.has_certificate),
+    smtp_host: f.smtp_host || '',
+    smtp_port: f.smtp_port || 587,
+    smtp_secure: f.smtp_secure !== false,
+    smtp_user: f.smtp_user || '',
+    has_smtp_password: Boolean(f.has_smtp_password),
+    smtp_from_name: f.smtp_from_name || '',
+    smtp_from_email: f.smtp_from_email || '',
+  }
+  companyFormTab.value = 'general'
+  showCompanyModal.value = true
+}
+
+// Lee el archivo .p12 y lo convierte a base64 (se envía al backend, que lo guarda)
+const onP12Selected = (e: Event) => {
+  const file = (e.target as HTMLInputElement).files?.[0]
+  if (!file) return
+  if (!/\.(p12|pfx)$/i.test(file.name)) {
+    errorMsg.value = 'El archivo de firma debe ser .p12 o .pfx'
+    return
+  }
+  const reader = new FileReader()
+  reader.onload = () => {
+    const result = String(reader.result || '')
+    formCompany.value.cert_p12_base64 = result.split(',')[1] || ''
+    formCompany.value.cert_file_name = file.name
+    formCompany.value.remove_certificate = false
+    if (formCompany.value.cert_password) {
+      handleInspectCert()
+    }
+  }
+  reader.readAsDataURL(file)
+}
+
+const onCertPasswordBlur = () => {
+  if (formCompany.value.cert_password && (formCompany.value.cert_p12_base64 || formCompany.value.has_certificate)) {
+    handleInspectCert()
+  }
+}
+
+const removeP12 = () => {
+  formCompany.value.cert_p12_base64 = ''
+  formCompany.value.cert_file_name = ''
+  formCompany.value.cert_password = ''
+  formCompany.value.cert_expires_at = ''
+  formCompany.value.has_certificate = false
+  formCompany.value.remove_certificate = true
+}
+
+const inspectingCert = ref(false)
+const handleInspectCert = async () => {
+  if (!formCompany.value.cert_password && !formCompany.value.has_certificate) {
+    toast.warning('Ingresa la contraseña de la firma para leer el certificado.', 'Contraseña Requerida')
+    return
+  }
+  inspectingCert.value = true
+  try {
+    const payload: any = {}
+    if (formCompany.value.cert_p12_base64) {
+      payload.cert_p12_base64 = formCompany.value.cert_p12_base64
+    }
+    if (formCompany.value.cert_password) {
+      payload.cert_password = formCompany.value.cert_password
+    }
+    const res = await inspectCompanyCert(isEditingCompany.value ? editingCompanyId.value : null, payload)
+    if (res?.expires_at) {
+      formCompany.value.cert_expires_at = res.expires_at
+      if (res.is_expired) {
+        toast.warning(`Atención: el certificado caducó el ${res.expires_at} (${res.subject_name || ''})`, 'Firma Expirada')
+      } else {
+        toast.success(`Fecha de caducidad obtenida del certificado: ${res.expires_at} (${res.subject_name || ''})`, 'Certificado Leído')
+      }
+    }
+  } catch (err: any) {
+    toast.error(err?.response?.data?.message || 'No se pudo leer la fecha del certificado. Verifica la contraseña.')
+  } finally {
+    inspectingCert.value = false
+  }
+}
+
+const formUser = ref({
+  companyId: 1,
+  num_document: '',
+  birth_date: '',
+  name_user: '',
+  last_name_user: '',
+  email: '',
+  password: '',
+  super_admin: false,
+  multi_company: false,
+  companyIds: [] as number[],
+  roleId: null as number | null,
+  companyRolesMap: {} as Record<number, number | null>,
+  theme_color: 'Blue_Theme',
+  photo_url: '',
+})
+
+const ensureRolesForCompany = async (compId: number) => {
+  if (!compId) return
+  try {
+    const res = await getRoles(compId, { page: 1, limit: 100 })
+    const list = Array.isArray(res?.data) ? res.data : Array.isArray(res) ? res : []
+    rolesByCompany.value = {
+      ...rolesByCompany.value,
+      [compId]: list,
+    }
+  } catch (e) {
+    rolesByCompany.value = {
+      ...rolesByCompany.value,
+      [compId]: [],
+    }
+  }
+}
+
+const getCompanyNameById = (compId?: number) => {
+  if (!compId) return 'Global / Sistema'
+  const found = companies.value.find((c) => Number(c.id) === Number(compId))
+  return found ? (found.trade_name || found.business_name) : `Empresa #${compId}`
+}
+
+const onSuperAdminChange = () => {
+  if (formUser.value.super_admin) {
+    formUser.value.multi_company = false
+    formUser.value.roleId = null
+    formUser.value.companyIds = []
+    formUser.value.companyRolesMap = {}
+  } else {
+    formUser.value.companyIds = [currentCompanyId.value]
+  }
+}
+
+const onMultiCompanyChange = async () => {
+  if (formUser.value.multi_company) {
+    formUser.value.super_admin = false
+    if (formUser.value.companyIds.length === 0) {
+      formUser.value.companyIds = [currentCompanyId.value]
+    }
+    for (const cId of formUser.value.companyIds) {
+      await ensureRolesForCompany(cId)
+      if (formUser.value.companyRolesMap[cId] === undefined) {
+        const firstRole = rolesByCompany.value[cId]?.[0]?.id ?? null
+        formUser.value.companyRolesMap[cId] = firstRole
+      }
+    }
+  }
+}
+
+const onToggleUserCompany = async (compId: number) => {
+  const isSelected = formUser.value.companyIds.includes(compId)
+  if (isSelected) {
+    await ensureRolesForCompany(compId)
+    if (formUser.value.companyRolesMap[compId] === undefined) {
+      formUser.value.companyRolesMap[compId] = rolesByCompany.value[compId]?.[0]?.id ?? null
+    }
+  } else {
+    delete formUser.value.companyRolesMap[compId]
+  }
+}
+
+const openCreateUser = async () => {
+  isEditingUser.value = false
+  editingUserId.value = null
+  userPhotoFile.value = null
+  userPhotoPreview.value = ''
+  await Promise.all([
+    companies.value.length === 0
+      ? getCompanies({ page: 1, limit: 100 }).then((res) => {
+          companies.value = Array.isArray(res?.data) ? res.data : Array.isArray(res) ? res : []
+        }).catch(() => {})
+      : Promise.resolve(),
+    ensureRolesForCompany(currentCompanyId.value),
+  ])
+  const defaultRole = rolesByCompany.value[currentCompanyId.value]?.[0]?.id ?? null
+  formUser.value = {
+    companyId: currentCompanyId.value,
+    num_document: '',
+    birth_date: '',
+    name_user: '',
+    last_name_user: '',
+    email: '',
+    password: '',
+    super_admin: false,
+    multi_company: false,
+    companyIds: [currentCompanyId.value],
+    roleId: defaultRole,
+    companyRolesMap: { [currentCompanyId.value]: defaultRole },
+    theme_color: 'Blue_Theme',
+    photo_url: '',
+  }
+  showUserModal.value = true
+}
+
+const openEditUser = async (user: UserItem) => {
+  isEditingUser.value = true
+  editingUserId.value = user.id
+  userPhotoFile.value = null
+  userPhotoPreview.value = (user as any).photo_url || ''
+  if (companies.value.length === 0) {
+    try {
+      const res = await getCompanies({ page: 1, limit: 100 })
+      companies.value = Array.isArray(res?.data) ? res.data : Array.isArray(res) ? res : []
+    } catch (e) {}
+  }
+
+  const targetCompanyIds =
+    user.companyIds && user.companyIds.length > 0
+      ? user.companyIds.map(Number)
+      : [currentCompanyId.value]
+
+  const allCompToLoad = Array.from(new Set([currentCompanyId.value, ...targetCompanyIds]))
+  await Promise.all(allCompToLoad.map((cId) => ensureRolesForCompany(cId)))
+
+  const roleMap: Record<number, number | null> = {}
+  if (Array.isArray(user.companyRoles)) {
+    for (const cr of user.companyRoles) {
+      roleMap[Number(cr.companyId)] = cr.roleId ? Number(cr.roleId) : null
+    }
+  }
+  for (const cId of targetCompanyIds) {
+    if (roleMap[cId] === undefined) {
+      roleMap[cId] =
+        cId === currentCompanyId.value && user.roleId
+          ? Number(user.roleId)
+          : rolesByCompany.value[cId]?.[0]?.id ?? null
+    }
+  }
+
+  const isSuper = isCurrentUserSuperAdmin.value ? Boolean(user.super_admin || user.developer) : false
+  formUser.value = {
+    companyId: currentCompanyId.value,
+    num_document: user.num_document || '',
+    birth_date: user.birth_date ? String(user.birth_date).slice(0, 10) : '',
+    name_user: user.name_user || '',
+    last_name_user: user.last_name_user || '',
+    email: user.email || '',
+    password: '',
+    super_admin: isSuper,
+    multi_company: isSuper ? false : Boolean(user.multi_company),
+    companyIds: isSuper ? [] : targetCompanyIds,
+    roleId: isSuper
+      ? null
+      : user.roleId ?? roleMap[currentCompanyId.value] ?? rolesByCompany.value[currentCompanyId.value]?.[0]?.id ?? null,
+    companyRolesMap: isSuper ? {} : roleMap,
+    theme_color: user.theme_color || 'Blue_Theme',
+    photo_url: (user as any).photo_url || '',
+  }
+  showUserModal.value = true
+}
+
+const formRole = ref({
+  companyId: 1,
+  code: '',
+  description: '',
+  enabled: true,
+  moduleAccess: {} as Record<number, boolean>,
+  subModuleAccess: {} as Record<number, boolean>,
+})
+
+const formModule = ref({
+  code: '',
+  desc_icon: 'solar:widget-4-line-duotone',
+  description: '',
+  order_index: 0,
+  enabled: true,
+})
+
+const formSubModule = ref({
+  moduleId: 0,
+  code: '',
+  desc_icon: 'solar:round-alt-arrow-right-line-duotone',
+  description: '',
+  url_desc: '',
+  order_index: 0,
+  enabled: true,
+})
+
+const formPlan = ref({
+  price: '29.99',
+  billing_cycle: 'monthly',
+  description: '',
+  max_users: 5,
+  max_branches: 2,
+})
+
+const todayStr = new Date().toISOString().slice(0, 10)
+const nextYearStr = new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10)
+
+const formSubscription = ref({
+  companyId: 1,
+  planId: 1,
+  begin_date: todayStr,
+  end_date: nextYearStr,
+  enabled: true,
+  moduleIds: [] as number[],
+  subModuleIds: [] as number[],
+})
+
+const loadCurrentTabData = async () => {
+  successMsg.value = ''
+  errorMsg.value = ''
+  loading.value = true
+  try {
+    if (activeTab.value === 'companies') {
+      const res = await getCompanies({ page: 1, limit: 50 })
+      companies.value = Array.isArray(res?.data) ? res.data : Array.isArray(res) ? res : []
+    } else if (activeTab.value === 'branches') {
+      const res = await getBranches(currentCompanyId.value)
+      branches.value = Array.isArray(res?.data) ? res.data : Array.isArray(res) ? res : []
+    } else if (activeTab.value === 'users') {
+      const targetCompany = userFilterCompanyId.value ? Number(userFilterCompanyId.value) : undefined
+      const [usersRes, compsRes] = await Promise.all([
+        getUsers(targetCompany, { page: 1, limit: 100 }),
+        getCompanies({ page: 1, limit: 100 }).catch(() => ({ data: [] })),
+      ])
+      users.value = Array.isArray(usersRes?.data) ? usersRes.data : Array.isArray(usersRes) ? usersRes : []
+      companies.value = Array.isArray(compsRes?.data) ? compsRes.data : Array.isArray(compsRes) ? compsRes : []
+      // Pre-cargar roles para cada empresa encontrada
+      const compIds = Array.from(new Set(users.value.map((u: any) => u.company_id || u.companyId || u.companyIds?.[0]).filter(Boolean)))
+      await Promise.all(compIds.map((cid: any) => ensureRolesForCompany(Number(cid))))
+    } else if (activeTab.value === 'modules') {
+      const [modsRes, subModsRes, allSubModsRes] = await Promise.all([
+        getModules({ page: 1, limit: 100 }),
+        getSubModules({ moduleId: filterModuleId.value, page: 1, limit: 100 }).catch(() => ({ data: [] })),
+        getSubModules({ page: 1, limit: 200 }).catch(() => ({ data: [] })),
+      ])
+      modulesList.value = Array.isArray(modsRes?.data) ? modsRes.data : Array.isArray(modsRes) ? modsRes : []
+      subModulesList.value = Array.isArray(subModsRes?.data) ? subModsRes.data : Array.isArray(subModsRes) ? subModsRes : []
+      allSubModulesList.value = Array.isArray(allSubModsRes?.data) ? allSubModsRes.data : Array.isArray(allSubModsRes) ? allSubModsRes : []
+    } else if (activeTab.value === 'subscriptions') {
+      const [plansRes, subsRes, modsRes, allSubModsRes] = await Promise.all([
+        getPlans({ page: 1, limit: 50 }),
+        getSubscriptions(currentCompanyId.value, { page: 1, limit: 50 }).catch(() => ({ data: [] })),
+        getModules({ page: 1, limit: 100 }).catch(() => ({ data: [] })),
+        getSubModules({ page: 1, limit: 200 }).catch(() => ({ data: [] })),
+      ])
+      plans.value = Array.isArray(plansRes?.data) ? plansRes.data : Array.isArray(plansRes) ? plansRes : []
+      subscriptions.value = Array.isArray(subsRes?.data) ? subsRes.data : Array.isArray(subsRes) ? subsRes : []
+      modulesList.value = Array.isArray(modsRes?.data) ? modsRes.data : Array.isArray(modsRes) ? modsRes : []
+      allSubModulesList.value = Array.isArray(allSubModsRes?.data) ? allSubModsRes.data : Array.isArray(allSubModsRes) ? allSubModsRes : []
+    } else if (activeTab.value === 'taxes') {
+      const taxesRes = await getTaxes({ companyId: currentCompanyId.value })
+      taxes.value = Array.isArray(taxesRes) ? taxesRes : []
+    } else if (activeTab.value === 'document_types') {
+      const docTypesRes = await getDocumentTypes()
+      docTypes.value = Array.isArray(docTypesRes) ? docTypesRes : []
+    }
+  } catch (err: any) {
+    console.error('Error cargando datos de configuración:', err)
+    errorMsg.value = err.response?.data?.message || err.message || 'Error al cargar los datos'
+  } finally {
+    loading.value = false
+  }
+}
+
+// Sincronizar filtro de empresa de usuarios
+watch(userFilterCompanyId, () => {
+  if (activeTab.value === 'users') {
+    loadCurrentTabData()
+  }
+})
+
+const userCompanyFilterOptions = computed(() => [
+  { value: '', label: '🏢 Todas las Empresas (Global)' },
+  ...companies.value.map((c) => ({
+    value: c.id,
+    label: `${c.business_name || c.trade_name} (${c.ruc || 'S/RUC'})`,
+  })),
+])
+
+const filteredUsers = computed(() => {
+  let list = users.value || []
+  if (userSearch.value.trim()) {
+    const q = userSearch.value.toLowerCase().trim()
+    list = list.filter((u: any) =>
+      (u.name_user && u.name_user.toLowerCase().includes(q)) ||
+      (u.last_name_user && u.last_name_user.toLowerCase().includes(q)) ||
+      (u.email && u.email.toLowerCase().includes(q)) ||
+      (u.num_document && u.num_document.includes(q))
+    )
+  }
+  return list
+})
+
+const switchTab = (tab: 'companies' | 'branches' | 'users' | 'modules' | 'subscriptions' | 'taxes' | 'document_types') => {
+  activeTab.value = tab
+  router.replace({ query: { ...route.query, tab } })
+  loadCurrentTabData()
+}
+
+// Sincronizar pestaña con query params
+watch(
+  () => route.query.tab,
+  (newTab) => {
+    if (newTab && ['companies', 'branches', 'users', 'modules', 'subscriptions', 'taxes', 'document_types'].includes(newTab as string)) {
+      activeTab.value = newTab as any
+      showCompanyModal.value = false
+      showBranchModal.value = false
+      showUserModal.value = false
+      showRoleModal.value = false
+      showModuleModal.value = false
+      showSubModuleModal.value = false
+      showPlanModal.value = false
+      showSubscriptionModal.value = false
+      showTaxModal.value = false
+      showDocTypeModal.value = false
+      loadCurrentTabData()
+    } else if (!newTab) {
+      activeTab.value = 'companies'
+      loadCurrentTabData()
+    }
+  },
+  { immediate: true }
+)
+
+onMounted(async () => {
+  fetchProfile()
+  const comp = localStorage.getItem('selectedCompany')
+  if (comp) {
+    try {
+      selectedCompany.value = JSON.parse(comp)
+      formUser.value.companyId = selectedCompany.value.id
+      formRole.value.companyId = selectedCompany.value.id
+      formSubscription.value.companyId = selectedCompany.value.id
+    } catch (e) {}
+  }
+  loadCurrentTabData()
+})
+
+// =================== GUARDAR EMPRESA ===================
+const submitCompany = async () => {
+  loading.value = true
+  errorMsg.value = ''
+  try {
+    const f = formCompany.value
+    if (f.cert_p12_base64 && !f.cert_password) {
+      errorMsg.value = 'Ingresa la contraseña de la firma electrónica (.p12).'
+      companyFormTab.value = 'firma'
+      return
+    }
+    const { has_certificate, has_smtp_password, ...rest } = f
+    const payload: any = { ...rest }
+    // No enviar vacíos de secretos para no sobrescribir los ya guardados
+    if (!payload.cert_p12_base64) { delete payload.cert_p12_base64; delete payload.cert_password }
+    if (!payload.smtp_password) delete payload.smtp_password
+    if (!payload.cert_file_name) delete payload.cert_file_name
+    if (!payload.remove_certificate) delete payload.remove_certificate
+
+    let savedCompanyId = editingCompanyId.value
+    if (isEditingCompany.value && editingCompanyId.value) {
+      await updateCompany(editingCompanyId.value, payload)
+      successMsg.value = 'Empresa actualizada exitosamente.'
+    } else {
+      const created: any = await createCompany(payload)
+      savedCompanyId = created?.id || created?.data?.id
+      successMsg.value = 'Empresa y rol Administrador creados exitosamente.'
+    }
+
+    if (companyLogoFile.value && savedCompanyId) {
+      try {
+        const upRes = await uploadCompanyLogo(savedCompanyId, companyLogoFile.value)
+        companyLogoPreview.value = upRes.url
+        companyLogoFile.value = null
+        const activeCompRaw = localStorage.getItem('selectedCompany')
+        if (activeCompRaw) {
+          try {
+            const activeComp = JSON.parse(activeCompRaw)
+            if (Number(activeComp.id) === Number(savedCompanyId)) {
+              activeComp.logo_url = upRes.url
+              localStorage.setItem('selectedCompany', JSON.stringify(activeComp))
+            }
+          } catch {}
+        }
+      } catch (uploadErr) {
+        toast.warning('La empresa se guardó, pero hubo un inconveniente al subir el logo.')
+      }
+    }
+
+    showCompanyModal.value = false
+    formCompany.value = initialFormCompany()
+    await loadCurrentTabData()
+  } catch (err: any) {
+    const m = err.response?.data?.message
+    errorMsg.value = (Array.isArray(m) ? m.join(', ') : m) || 'Error al guardar la empresa'
+  } finally {
+    loading.value = false
+  }
+}
+
+// =================== SUCURSALES (ESTABLECIMIENTOS) ===================
+const branches = ref<BranchItem[]>([])
+const isEditingBranch = ref(false)
+const editingBranchId = ref<number | null>(null)
+const emptyBranchForm = () => ({
+  companyId: currentCompanyId.value || companies.value[0]?.id || 1,
+  code: '',
+  name: '',
+  address: '',
+  phone: '',
+  email: '',
+  is_matrix: false,
+  enabled: true,
+})
+const formBranch = ref(emptyBranchForm())
+
+const branchCompanyOptions = computed(() => {
+  return companies.value.map((c) => ({
+    id: c.id,
+    label: `${c.ruc} - ${c.business_name || c.trade_name || c.description}`,
+    sublabel: c.trade_name || c.business_name,
+  }))
+})
+
+// Ya existe una matriz en la empresa: no se puede marcar otra desde el formulario (se usa "Marcar como matriz")
+const hasMatrix = computed(() => branches.value.some((b) => b.isMatrix))
+const matrixSwitchLocked = computed(() => isEditingBranch.value || hasMatrix.value || branches.value.length === 0)
+
+const onlyDigits3 = (value: string) => String(value || '').replace(/\D/g, '').slice(0, 3)
+
+// Propone el siguiente número de establecimiento libre (001, 002, ...)
+const nextBranchCode = () => {
+  const used = new Set(branches.value.map((b) => Number(b.code)))
+  let n = 1
+  while (used.has(n)) n++
+  return String(n).padStart(3, '0')
+}
+
+const openCreateBranch = () => {
+  isEditingBranch.value = false
+  editingBranchId.value = null
+  errorMsg.value = ''
+  branchLogoFile.value = null
+  branchLogoPreview.value = ''
+  // La primera sucursal es la matriz; si ya hay una, las nuevas son sucursales normales
+  formBranch.value = {
+    ...emptyBranchForm(),
+    companyId: currentCompanyId.value || companies.value[0]?.id || 1,
+    code: nextBranchCode(),
+    is_matrix: branches.value.length === 0,
+  }
+  showBranchModal.value = true
+}
+
+const openEditBranch = (b: BranchItem) => {
+  isEditingBranch.value = true
+  editingBranchId.value = b.id
+  errorMsg.value = ''
+  branchLogoFile.value = null
+  branchLogoPreview.value = (b as any).logo_url || ''
+  formBranch.value = {
+    companyId: currentCompanyId.value || companies.value[0]?.id || 1,
+    code: b.code,
+    name: b.name,
+    address: b.address,
+    phone: b.phone || '',
+    email: b.email || '',
+    is_matrix: b.isMatrix,
+    enabled: b.enabled,
+  }
+  showBranchModal.value = true
+}
+
+const branchErrorMessage = (err: any, fallback: string) => {
+  const m = err?.response?.data?.message
+  return (Array.isArray(m) ? m.join('. ') : m) || fallback
+}
+
+const submitBranch = async () => {
+  loading.value = true
+  errorMsg.value = ''
+  try {
+    const f = formBranch.value
+    const targetCompanyId = Number(f.companyId || currentCompanyId.value)
+    const payload = {
+      code: f.code,
+      name: f.name.trim(),
+      address: f.address.trim(),
+      phone: f.phone ? f.phone.trim() : undefined,
+      email: f.email ? f.email.trim() : undefined,
+    }
+    let savedBranchId = editingBranchId.value
+    if (isEditingBranch.value && editingBranchId.value) {
+      // La matriz no se cambia desde aquí: se usa la acción "Marcar como matriz"
+      await updateBranch(targetCompanyId, editingBranchId.value, { ...payload, enabled: f.enabled })
+      successMsg.value = 'Sucursal actualizada exitosamente.'
+    } else {
+      const created: any = await createBranch(targetCompanyId, { ...payload, is_matrix: f.is_matrix && !hasMatrix.value })
+      savedBranchId = created?.id || created?.data?.id
+      successMsg.value = 'Sucursal registrada exitosamente.'
+    }
+
+    if (branchLogoFile.value && savedBranchId) {
+      try {
+        const upRes = await uploadBranchLogo(savedBranchId, targetCompanyId, branchLogoFile.value)
+        branchLogoPreview.value = upRes.url
+        branchLogoFile.value = null
+        const activeBranchRaw = localStorage.getItem('selectedBranch')
+        if (activeBranchRaw) {
+          try {
+            const activeB = JSON.parse(activeBranchRaw)
+            if (Number(activeB.id) === Number(savedBranchId)) {
+              activeB.logo_url = upRes.url
+              localStorage.setItem('selectedBranch', JSON.stringify(activeB))
+            }
+          } catch {}
+        }
+      } catch (uploadErr) {
+        toast.warning('La sucursal se guardó, pero hubo un inconveniente al subir el logo.')
+      }
+    }
+
+    showBranchModal.value = false
+    await loadCurrentTabData()
+    if (!errorMsg.value) successMsg.value = isEditingBranch.value ? 'Sucursal actualizada exitosamente.' : 'Sucursal registrada exitosamente.'
+  } catch (err: any) {
+    errorMsg.value = branchErrorMessage(err, 'Error al guardar la sucursal')
+  } finally {
+    loading.value = false
+  }
+}
+
+const markAsMatrix = async (b: BranchItem) => {
+  const actual = branches.value.find((x) => x.isMatrix)
+  const msg = actual
+    ? `¿Marcar ${b.code} - ${b.name} como matriz? La matriz actual (${actual.code} - ${actual.name}) pasará a ser una sucursal normal. Una empresa solo puede tener una matriz.`
+    : `¿Marcar ${b.code} - ${b.name} como la matriz de la empresa?`
+  if (!window.confirm(msg)) return
+  errorMsg.value = ''
+  try {
+    await setMainBranch(currentCompanyId.value, b.id)
+    await loadCurrentTabData()
+    successMsg.value = `La sucursal ${b.code} - ${b.name} es ahora la matriz.`
+  } catch (err: any) {
+    errorMsg.value = branchErrorMessage(err, 'No se pudo cambiar la matriz')
+  }
+}
+
+const toggleBranch = async (b: BranchItem) => {
+  errorMsg.value = ''
+  try {
+    await updateBranch(currentCompanyId.value, b.id, { enabled: !b.enabled })
+    await loadCurrentTabData()
+    successMsg.value = `Sucursal ${b.code} ${b.enabled ? 'deshabilitada' : 'habilitada'}.`
+  } catch (err: any) {
+    errorMsg.value = branchErrorMessage(err, 'No se pudo cambiar el estado de la sucursal')
+  }
+}
+
+const removeBranch = async (b: BranchItem) => {
+  if (!window.confirm(`¿Eliminar la sucursal ${b.code} - ${b.name}? Las facturas ya emitidas conservan sus datos.`)) return
+  errorMsg.value = ''
+  try {
+    await deleteBranch(currentCompanyId.value, b.id)
+    await loadCurrentTabData()
+    successMsg.value = `Sucursal ${b.code} eliminada.`
+  } catch (err: any) {
+    errorMsg.value = branchErrorMessage(err, 'No se pudo eliminar la sucursal')
+  }
+}
+
+// =================== GUARDAR USUARIO ===================
+const submitUser = async () => {
+  loading.value = true
+  errorMsg.value = ''
+  try {
+    formUser.value.companyId = currentCompanyId.value
+    const isSuper = isCurrentUserSuperAdmin.value ? Boolean(formUser.value.super_admin) : false
+    const isMulti = isSuper ? false : Boolean(formUser.value.multi_company)
+
+    const companyRolesPayload = isSuper
+      ? []
+      : isMulti
+      ? formUser.value.companyIds.map((cId) => ({
+          companyId: Number(cId),
+          roleId: formUser.value.companyRolesMap[Number(cId)]
+            ? Number(formUser.value.companyRolesMap[Number(cId)])
+            : null,
+        }))
+      : [
+          {
+            companyId: currentCompanyId.value,
+            roleId: formUser.value.roleId ? Number(formUser.value.roleId) : null,
+          },
+        ]
+
+    const effectiveRoleId = isSuper
+      ? null
+      : isMulti
+      ? formUser.value.companyRolesMap[currentCompanyId.value] ?? null
+      : formUser.value.roleId ?? null
+
+    let savedUserId = editingUserId.value
+    if (isEditingUser.value && editingUserId.value) {
+      const payload: any = {
+        companyId: currentCompanyId.value,
+        num_document: formUser.value.num_document,
+        birth_date: formUser.value.birth_date || null,
+        name_user: formUser.value.name_user,
+        last_name_user: formUser.value.last_name_user,
+        email: formUser.value.email,
+        super_admin: isSuper,
+        developer: isSuper,
+        multi_company: isMulti,
+        companyIds: isSuper ? [] : isMulti ? formUser.value.companyIds.map(Number) : [currentCompanyId.value],
+        roleId: effectiveRoleId,
+        companyRoles: companyRolesPayload,
+        theme_color: formUser.value.theme_color || 'Blue_Theme',
+      }
+      if (formUser.value.password) {
+        payload.password = formUser.value.password
+      }
+      await updateUser(editingUserId.value, payload)
+      successMsg.value = 'Usuario y configuración actualizados exitosamente.'
+
+      // Si el usuario editado es el actual logueado, aplicar y persistir el tema inmediatamente
+      if (authStore.tokenPayload?.user_id === editingUserId.value) {
+        authStore.applyTheme(formUser.value.theme_color)
+      }
+    } else {
+      const createdUser: any = await createUser({
+        companyId: currentCompanyId.value,
+        num_document: formUser.value.num_document,
+        birth_date: formUser.value.birth_date || null,
+        name_user: formUser.value.name_user,
+        last_name_user: formUser.value.last_name_user,
+        email: formUser.value.email,
+        password: formUser.value.password,
+        super_admin: isSuper,
+        developer: isSuper,
+        multi_company: isMulti,
+        companyIds: isSuper ? [] : isMulti ? formUser.value.companyIds.map(Number) : [currentCompanyId.value],
+        roleId: effectiveRoleId,
+        companyRoles: companyRolesPayload,
+        theme_color: formUser.value.theme_color || 'Blue_Theme',
+        photo_url: formUser.value.photo_url || '/controller/images/profile/user-1.jpg',
+      })
+      savedUserId = createdUser?.id || createdUser?.data?.id
+      successMsg.value = 'Usuario registrado exitosamente.'
+    }
+
+    if (userPhotoFile.value && savedUserId) {
+      try {
+        const upRes = await uploadUserPhoto(savedUserId, userPhotoFile.value)
+        userPhotoPreview.value = upRes.url
+        userPhotoFile.value = null
+        if (authStore.tokenPayload?.user_id === savedUserId) {
+          localStorage.setItem('userPhoto', upRes.url)
+        }
+      } catch (uploadErr) {
+        toast.warning('El usuario se guardó, pero hubo un inconveniente al subir la fotografía.')
+      }
+    }
+
+    showUserModal.value = false
+    await Promise.all([loadCurrentTabData(), authStore.fetchCompanyAccess(currentCompanyId.value)])
+  } catch (err: any) {
+    errorMsg.value = err.response?.data?.message || 'Error al guardar el usuario'
+  } finally {
+    loading.value = false
+  }
+}
+
+// =================== GESTIÓN DE ROLES (CABECERA Y DETALLE DE MÓDULOS) ===================
+// Conjunto reactivo de IDs de módulos y submódulos autorizados en la suscripción vigente de la empresa
+const companySubscribedModIds = computed<Set<number>>(() => {
+  const activeSubs = subscriptions.value.filter((s) => s.enabled !== false)
+  const set = new Set<number>()
+  for (const s of activeSubs) {
+    for (const mId of s.moduleIds || []) {
+      set.add(Number(mId))
+    }
+  }
+  return set
+})
+
+const companySubscribedSubModIds = computed<Set<number>>(() => {
+  const activeSubs = subscriptions.value.filter((s) => s.enabled !== false)
+  const set = new Set<number>()
+  for (const s of activeSubs) {
+    for (const smId of s.subModuleIds || []) {
+      set.add(Number(smId))
+    }
+  }
+  return set
+})
+
+// Módulos Madre a los que tiene acceso la empresa según su suscripción vigente
+const companyAccessibleModules = computed(() => {
+  const subscribedIds = companySubscribedModIds.value
+  const activeSystemMods = modulesList.value.filter((m) => m.enabled !== false)
+  if (subscribedIds.size > 0) {
+    return activeSystemMods.filter((m) => subscribedIds.has(Number(m.id)))
+  }
+  return activeSystemMods
+})
+
+// Submódulos Hijas a los que tiene acceso la empresa para un módulo padre dado
+const getCompanyAccessibleSubModules = (modId: number) => {
+  const subscribedSubIds = companySubscribedSubModIds.value
+  const childSubMods = allSubModulesList.value.filter(
+    (sm) => Number(sm.moduleId) === Number(modId) && sm.enabled !== false
+  )
+  if (subscribedSubIds.size > 0) {
+    return childSubMods.filter((sm) => subscribedSubIds.has(Number(sm.id)))
+  }
+  return childSubMods
+}
+
+// Filtra los módulos de un rol para mostrar en la tabla SOLO los permitidos por la suscripción
+const getRoleSubscribedModuleIds = (role: RoleItem): number[] => {
+  const roleMods = role.moduleIds || []
+  if (companySubscribedModIds.value.size === 0) {
+    return roleMods
+  }
+  return roleMods.filter((id) => companySubscribedModIds.value.has(Number(id)))
+}
+
+// Cuenta de submódulos contratados que tiene el rol
+const getRoleSubscribedSubModuleCount = (role: RoleItem): number => {
+  const roleSubMods = role.subModuleIds || []
+  if (companySubscribedSubModIds.value.size === 0) {
+    return roleSubMods.length
+  }
+  return roleSubMods.filter((id) => companySubscribedSubModIds.value.has(Number(id))).length
+}
+
+// Cambio de empresa en la pestaña de Roles
+const onRoleCompanyChange = async () => {
+  loading.value = true
+  try {
+    const targetComp = selectedRoleCompanyId.value
+    formRole.value.companyId = targetComp
+    const [rolesRes, subsRes] = await Promise.all([
+      getRoles(targetComp, { page: 1, limit: 50 }),
+      getSubscriptions(targetComp, { page: 1, limit: 50 }).catch(() => ({ data: [] })),
+    ])
+    roles.value = Array.isArray(rolesRes?.data) ? rolesRes.data : Array.isArray(rolesRes) ? rolesRes : []
+    rolesByCompany.value = {
+      ...rolesByCompany.value,
+      [targetComp]: roles.value,
+    }
+    subscriptions.value = Array.isArray(subsRes?.data) ? subsRes.data : Array.isArray(subsRes) ? subsRes : []
+  } catch (err: any) {
+    toast.error('Error al cargar roles de la empresa seleccionada')
+  } finally {
+    loading.value = false
+  }
+}
+
+const toggleRoleModuleAccess = (modId: number, val: boolean) => {
+  formRole.value.moduleAccess[modId] = val
+  const children = getCompanyAccessibleSubModules(modId)
+  for (const sm of children) {
+    formRole.value.subModuleAccess[sm.id] = val
+  }
+}
+
+const toggleRoleSubModuleAccess = (subMod: SubModuleItem, val: boolean) => {
+  formRole.value.subModuleAccess[subMod.id] = val
+  if (val && subMod.moduleId) {
+    formRole.value.moduleAccess[subMod.moduleId] = true
+  }
+}
+
+const setAllRoleAccess = (val: boolean) => {
+  for (const mod of companyAccessibleModules.value) {
+    formRole.value.moduleAccess[mod.id] = val
+    for (const sm of getCompanyAccessibleSubModules(mod.id)) {
+      formRole.value.subModuleAccess[sm.id] = val
+    }
+  }
+}
+
+const openCreateRole = async () => {
+  isEditingRole.value = false
+  editingRoleId.value = null
+  const targetComp = selectedRoleCompanyId.value || currentCompanyId.value
+  if (modulesList.value.length === 0 || allSubModulesList.value.length === 0) {
+    try {
+      const [subsRes, modsRes, subModsRes] = await Promise.all([
+        getSubscriptions(targetComp, { page: 1, limit: 50 }).catch(() => ({ data: [] })),
+        getModules({ page: 1, limit: 100 }),
+        getSubModules({ page: 1, limit: 200 }),
+      ])
+      subscriptions.value = Array.isArray(subsRes?.data) ? subsRes.data : Array.isArray(subsRes) ? subsRes : []
+      modulesList.value = Array.isArray(modsRes?.data) ? modsRes.data : Array.isArray(modsRes) ? modsRes : []
+      allSubModulesList.value = Array.isArray(subModsRes?.data) ? subModsRes.data : Array.isArray(subModsRes) ? subModsRes : []
+    } catch (e) {}
+  }
+
+  const modMap: Record<number, boolean> = {}
+  const subModMap: Record<number, boolean> = {}
+  for (const mod of companyAccessibleModules.value) {
+    modMap[mod.id] = true
+    for (const sm of getCompanyAccessibleSubModules(mod.id)) {
+      subModMap[sm.id] = true
+    }
+  }
+
+  formRole.value = {
+    companyId: targetComp,
+    code: computeNextSequentialCode(roles.value, 'ROL-'),
+    description: '',
+    enabled: true,
+    moduleAccess: modMap,
+    subModuleAccess: subModMap,
+  }
+  showRoleModal.value = true
+}
+
+const openEditRole = async (role: RoleItem) => {
+  isEditingRole.value = true
+  editingRoleId.value = role.id
+  const targetComp = selectedRoleCompanyId.value || currentCompanyId.value
+  if (modulesList.value.length === 0 || allSubModulesList.value.length === 0) {
+    try {
+      const [subsRes, modsRes, subModsRes] = await Promise.all([
+        getSubscriptions(targetComp, { page: 1, limit: 50 }).catch(() => ({ data: [] })),
+        getModules({ page: 1, limit: 100 }),
+        getSubModules({ page: 1, limit: 200 }),
+      ])
+      subscriptions.value = Array.isArray(subsRes?.data) ? subsRes.data : Array.isArray(subsRes) ? subsRes : []
+      modulesList.value = Array.isArray(modsRes?.data) ? modsRes.data : Array.isArray(modsRes) ? modsRes : []
+      allSubModulesList.value = Array.isArray(subModsRes?.data) ? subModsRes.data : Array.isArray(subModsRes) ? subModsRes : []
+    } catch (e) {}
+  }
+
+  const modSet = new Set((role.moduleIds || []).map(Number))
+  const subModSet = new Set((role.subModuleIds || []).map(Number))
+
+  const modMap: Record<number, boolean> = {}
+  const subModMap: Record<number, boolean> = {}
+
+  for (const mod of companyAccessibleModules.value) {
+    modMap[mod.id] = modSet.has(Number(mod.id))
+    for (const sm of getCompanyAccessibleSubModules(mod.id)) {
+      subModMap[sm.id] = subModSet.has(Number(sm.id))
+    }
+  }
+
+  // Si existen detalles explícitos con hasAccess boolean, respetarlos
+  if (Array.isArray(role.details) && role.details.length > 0) {
+    for (const d of role.details) {
+      if (d.moduleId) {
+        modMap[Number(d.moduleId)] = Boolean(d.hasAccess)
+      }
+      if (d.subModuleId) {
+        subModMap[Number(d.subModuleId)] = Boolean(d.hasAccess)
+      }
+    }
+  }
+
+  formRole.value = {
+    companyId: targetComp,
+    code: role.code || '',
+    description: role.description || '',
+    enabled: role.enabled !== false,
+    moduleAccess: modMap,
+    subModuleAccess: subModMap,
+  }
+  showRoleModal.value = true
+}
+
+const submitRole = async () => {
+  loading.value = true
+  errorMsg.value = ''
+  try {
+    const targetComp = selectedRoleCompanyId.value || currentCompanyId.value
+    formRole.value.companyId = targetComp
+
+    const selectedModIds: number[] = []
+    const selectedSubModIds: number[] = []
+    const detailsPayload: RoleAccessDetail[] = []
+
+    for (const mod of companyAccessibleModules.value) {
+      const hasModAccess = Boolean(formRole.value.moduleAccess[mod.id])
+      if (hasModAccess) {
+        selectedModIds.push(Number(mod.id))
+      }
+      detailsPayload.push({
+        moduleId: Number(mod.id),
+        subModuleId: null,
+        hasAccess: hasModAccess,
+      })
+
+      for (const sm of getCompanyAccessibleSubModules(mod.id)) {
+        const hasSubAccess = Boolean(formRole.value.subModuleAccess[sm.id])
+        if (hasSubAccess) {
+          selectedSubModIds.push(Number(sm.id))
+        }
+        detailsPayload.push({
+          moduleId: null,
+          subModuleId: Number(sm.id),
+          hasAccess: hasSubAccess,
+        })
+      }
+    }
+
+    if (isEditingRole.value && editingRoleId.value) {
+      await updateRole(editingRoleId.value, {
+        companyId: targetComp,
+        code: formRole.value.code,
+        description: formRole.value.description,
+        enabled: formRole.value.enabled,
+        moduleIds: selectedModIds,
+        subModuleIds: selectedSubModIds,
+        details: detailsPayload,
+      })
+      successMsg.value = 'Rol y detalle de accesos actualizados exitosamente.'
+    } else {
+      await createRole({
+        companyId: targetComp,
+        code: formRole.value.code,
+        description: formRole.value.description,
+        moduleIds: selectedModIds,
+        subModuleIds: selectedSubModIds,
+        details: detailsPayload,
+      })
+      successMsg.value = 'Rol y detalle de accesos creados exitosamente.'
+    }
+    showRoleModal.value = false
+    await Promise.all([loadCurrentTabData(), authStore.fetchCompanyAccess(targetComp)])
+  } catch (err: any) {
+    errorMsg.value = err.response?.data?.message || 'Error al guardar el rol'
+  } finally {
+    loading.value = false
+  }
+}
+
+// =================== GESTIÓN DE MÓDULOS Y SUBMÓDULOS ===================
+const getModuleNameById = (modId?: number) => {
+  if (!modId) return 'Sin Módulo'
+  const found = modulesList.value.find((m) => m.id === modId)
+  return found ? `${found.code} - ${found.description}` : `Módulo #${modId}`
+}
+
+const onFilterModuleChange = async () => {
+  loading.value = true
+  try {
+    const subModsRes = await getSubModules({
+      moduleId: filterModuleId.value,
+      page: 1,
+      limit: 100,
+    })
+    subModulesList.value = Array.isArray(subModsRes?.data)
+      ? subModsRes.data
+      : Array.isArray(subModsRes)
+      ? subModsRes
+      : []
+  } catch (err: any) {
+    errorMsg.value = err.response?.data?.message || 'Error al filtrar submódulos'
+  } finally {
+    loading.value = false
+  }
+}
+
+// Calcula el siguiente código secuencial tomando el último registrado y sumando 1
+const computeNextSequentialCode = (
+  items: { id: number; code: string }[],
+  defaultPrefix: string
+): string => {
+  if (!items || items.length === 0) {
+    return `${defaultPrefix}001`
+  }
+  const sorted = [...items].sort((a, b) => (b.id || 0) - (a.id || 0))
+  const last = sorted[0]
+  const match = String(last?.code || '').trim().match(/^(.*?)(\d+)$/)
+
+  let prefix = defaultPrefix
+  let padLen = 3
+  let nextNum = (last?.id || items.length) + 1
+
+  if (match && match[2]) {
+    prefix = match[1] ?? defaultPrefix
+    padLen = match[2].length
+    nextNum = parseInt(match[2], 10) + 1
+  }
+
+  const existingCodes = new Set(items.map((i) => String(i.code || '').toUpperCase()))
+  let candidate = `${prefix}${String(nextNum).padStart(padLen, '0')}`
+  while (existingCodes.has(candidate.toUpperCase())) {
+    nextNum++
+    candidate = `${prefix}${String(nextNum).padStart(padLen, '0')}`
+  }
+
+  return candidate
+}
+
+const openCreateModule = () => {
+  isEditingModule.value = false
+  editingModuleId.value = null
+  formModule.value = {
+    code: computeNextSequentialCode(modulesList.value, 'MOD-'),
+    desc_icon: 'solar:widget-4-line-duotone',
+    description: '',
+    order_index: (modulesList.value.length || 0) + 1,
+    enabled: true,
+  }
+  showModuleModal.value = true
+}
+
+const openEditModule = (mod: ModuleItem) => {
+  isEditingModule.value = true
+  editingModuleId.value = mod.id
+  formModule.value = {
+    code: mod.code || '',
+    desc_icon: mod.desc_icon || 'solar:widget-4-line-duotone',
+    description: mod.description || '',
+    order_index: mod.order_index ?? 0,
+    enabled: mod.enabled !== false,
+  }
+  showModuleModal.value = true
+}
+
+const submitModule = async () => {
+  loading.value = true
+  errorMsg.value = ''
+  try {
+    if (isEditingModule.value && editingModuleId.value) {
+      await updateModule(editingModuleId.value, {
+        code: formModule.value.code,
+        desc_icon: formModule.value.desc_icon,
+        description: formModule.value.description,
+        order_index: Number(formModule.value.order_index || 0),
+        enabled: formModule.value.enabled,
+      })
+      successMsg.value = 'Módulo actualizado exitosamente.'
+    } else {
+      await createModule({
+        code: formModule.value.code,
+        desc_icon: formModule.value.desc_icon,
+        description: formModule.value.description,
+        order_index: Number(formModule.value.order_index || 0),
+      })
+      successMsg.value = 'Módulo creado exitosamente.'
+    }
+    showModuleModal.value = false
+    await Promise.all([loadCurrentTabData(), authStore.fetchCompanyAccess(currentCompanyId.value)])
+  } catch (err: any) {
+    errorMsg.value = err.response?.data?.message || 'Error al guardar el módulo'
+  } finally {
+    loading.value = false
+  }
+}
+
+const openCreateSubModule = (preselectedModuleId?: number) => {
+  isEditingSubModule.value = false
+  editingSubModuleId.value = null
+  const defaultModId =
+    preselectedModuleId || filterModuleId.value || modulesList.value[0]?.id || 0
+  const sourceList =
+    allSubModulesList.value.length > 0 ? allSubModulesList.value : subModulesList.value
+  formSubModule.value = {
+    moduleId: defaultModId,
+    code: computeNextSequentialCode(sourceList, 'SUB-'),
+    desc_icon: 'solar:round-alt-arrow-right-line-duotone',
+    description: '',
+    url_desc: '/',
+    order_index: (sourceList.filter(s => s.moduleId === defaultModId).length || 0) + 1,
+    enabled: true,
+  }
+  showSubModuleModal.value = true
+}
+
+const openEditSubModule = (subMod: SubModuleItem) => {
+  isEditingSubModule.value = true
+  editingSubModuleId.value = subMod.id
+  formSubModule.value = {
+    moduleId: subMod.moduleId || modulesList.value[0]?.id || 0,
+    code: subMod.code || '',
+    desc_icon: subMod.desc_icon || 'solar:round-alt-arrow-right-line-duotone',
+    description: subMod.description || '',
+    url_desc: subMod.url_desc || '/',
+    order_index: subMod.order_index ?? 0,
+    enabled: subMod.enabled !== false,
+  }
+  showSubModuleModal.value = true
+}
+
+const submitSubModule = async () => {
+  if (!formSubModule.value.moduleId) {
+    errorMsg.value = 'Debes seleccionar un módulo principal para el submódulo.'
+    return
+  }
+  loading.value = true
+  errorMsg.value = ''
+  try {
+    if (isEditingSubModule.value && editingSubModuleId.value) {
+      await updateSubModule(editingSubModuleId.value, {
+        moduleId: Number(formSubModule.value.moduleId),
+        code: formSubModule.value.code,
+        desc_icon: formSubModule.value.desc_icon,
+        description: formSubModule.value.description,
+        url_desc: formSubModule.value.url_desc,
+        order_index: Number(formSubModule.value.order_index || 0),
+        enabled: formSubModule.value.enabled,
+      })
+      successMsg.value = 'Submódulo actualizado exitosamente.'
+    } else {
+      await createSubModule({
+        moduleId: Number(formSubModule.value.moduleId),
+        code: formSubModule.value.code,
+        desc_icon: formSubModule.value.desc_icon,
+        description: formSubModule.value.description,
+        url_desc: formSubModule.value.url_desc,
+        order_index: Number(formSubModule.value.order_index || 0),
+      })
+      successMsg.value = 'Submódulo creado exitosamente.'
+    }
+    showSubModuleModal.value = false
+    await Promise.all([loadCurrentTabData(), authStore.fetchCompanyAccess(currentCompanyId.value)])
+  } catch (err: any) {
+    errorMsg.value = err.response?.data?.message || 'Error al guardar el submódulo'
+  } finally {
+    loading.value = false
+  }
+}
+
+// =================== GUARDAR PLAN ===================
+const submitPlan = async () => {
+  loading.value = true
+  errorMsg.value = ''
+  try {
+    await createPlan(formPlan.value)
+    successMsg.value = 'Plan SaaS registrado exitosamente.'
+    showPlanModal.value = false
+    formPlan.value = { price: '29.99', billing_cycle: 'monthly', description: '', max_users: 5, max_branches: 2 }
+    await loadCurrentTabData()
+  } catch (err: any) {
+    errorMsg.value = err.response?.data?.message || 'Error al crear el plan'
+  } finally {
+    loading.value = false
+  }
+}
+
+// =================== GUARDAR SUSCRIPCIÓN Y ACCESO A MÓDULOS ===================
+const getPlanNameById = (planId?: number) => {
+  if (!planId) return 'Sin Plan'
+  const found = plans.value.find((p) => p.id === planId)
+  return found ? `${found.description} ($${found.price})` : `Plan #${planId}`
+}
+
+const getSubModulesForModule = (modId: number) => {
+  return allSubModulesList.value.filter((sm) => sm.moduleId === modId && sm.enabled !== false)
+}
+
+const getSubModuleNameById = (subModId: number) => {
+  const found = allSubModulesList.value.find((sm) => sm.id === subModId)
+  return found ? found.description : `Submódulo #${subModId}`
+}
+
+const toggleSubscriptionModule = (modId: number) => {
+  const idx = formSubscription.value.moduleIds.indexOf(modId)
+  const childSubModIds = getSubModulesForModule(modId).map((sm) => sm.id)
+
+  if (idx >= 0) {
+    // Desmarcar módulo y sus submódulos hijos
+    formSubscription.value.moduleIds.splice(idx, 1)
+    formSubscription.value.subModuleIds = formSubscription.value.subModuleIds.filter(
+      (id) => !childSubModIds.includes(id)
+    )
+  } else {
+    // Marcar módulo y todos sus submódulos hijos por defecto
+    formSubscription.value.moduleIds.push(modId)
+    for (const smId of childSubModIds) {
+      if (!formSubscription.value.subModuleIds.includes(smId)) {
+        formSubscription.value.subModuleIds.push(smId)
+      }
+    }
+  }
+}
+
+const toggleSubscriptionSubModule = (subMod: SubModuleItem) => {
+  const idx = formSubscription.value.subModuleIds.indexOf(subMod.id)
+  if (idx >= 0) {
+    formSubscription.value.subModuleIds.splice(idx, 1)
+  } else {
+    formSubscription.value.subModuleIds.push(subMod.id)
+    // Asegurar que el módulo padre quede habilitado si se marca un submódulo hijo
+    if (subMod.moduleId && !formSubscription.value.moduleIds.includes(subMod.moduleId)) {
+      formSubscription.value.moduleIds.push(subMod.moduleId)
+    }
+  }
+}
+
+const selectAllSubscriptionAccess = () => {
+  formSubscription.value.moduleIds = modulesList.value
+    .filter((m) => m.enabled !== false)
+    .map((m) => m.id)
+  formSubscription.value.subModuleIds = allSubModulesList.value
+    .filter((sm) => sm.enabled !== false)
+    .map((sm) => sm.id)
+}
+
+const clearAllSubscriptionAccess = () => {
+  formSubscription.value.moduleIds = []
+  formSubscription.value.subModuleIds = []
+}
+
+const openCreateSubscription = async () => {
+  isEditingSubscription.value = false
+  editingSubscriptionId.value = null
+  if (modulesList.value.length === 0 || allSubModulesList.value.length === 0) {
+    try {
+      const [modsRes, subModsRes] = await Promise.all([
+        getModules({ page: 1, limit: 100 }),
+        getSubModules({ page: 1, limit: 200 }),
+      ])
+      modulesList.value = Array.isArray(modsRes?.data) ? modsRes.data : Array.isArray(modsRes) ? modsRes : []
+      allSubModulesList.value = Array.isArray(subModsRes?.data) ? subModsRes.data : Array.isArray(subModsRes) ? subModsRes : []
+    } catch (e) {}
+  }
+  formSubscription.value = {
+    companyId: currentCompanyId.value,
+    planId: plans.value[0]?.id || 1,
+    begin_date: todayStr,
+    end_date: nextYearStr,
+    enabled: true,
+    moduleIds: modulesList.value.filter((m) => m.enabled !== false).map((m) => m.id),
+    subModuleIds: allSubModulesList.value.filter((sm) => sm.enabled !== false).map((sm) => sm.id),
+  }
+  showSubscriptionModal.value = true
+}
+
+const openEditSubscription = async (sub: SubscriptionItem) => {
+  isEditingSubscription.value = true
+  editingSubscriptionId.value = sub.id
+  if (modulesList.value.length === 0 || allSubModulesList.value.length === 0) {
+    try {
+      const [modsRes, subModsRes] = await Promise.all([
+        getModules({ page: 1, limit: 100 }),
+        getSubModules({ page: 1, limit: 200 }),
+      ])
+      modulesList.value = Array.isArray(modsRes?.data) ? modsRes.data : Array.isArray(modsRes) ? modsRes : []
+      allSubModulesList.value = Array.isArray(subModsRes?.data) ? subModsRes.data : Array.isArray(subModsRes) ? subModsRes : []
+    } catch (e) {}
+  }
+  formSubscription.value = {
+    companyId: currentCompanyId.value,
+    planId: sub.planId || plans.value[0]?.id || 1,
+    begin_date: sub.begin_date ? String(sub.begin_date).slice(0, 10) : todayStr,
+    end_date: sub.end_date ? String(sub.end_date).slice(0, 10) : nextYearStr,
+    enabled: sub.enabled !== false,
+    moduleIds: Array.isArray(sub.moduleIds) ? sub.moduleIds.map(Number) : [],
+    subModuleIds: Array.isArray(sub.subModuleIds) ? sub.subModuleIds.map(Number) : [],
+  }
+  showSubscriptionModal.value = true
+}
+
+const submitSubscription = async () => {
+  loading.value = true
+  errorMsg.value = ''
+  try {
+    formSubscription.value.companyId = currentCompanyId.value
+    if (isEditingSubscription.value && editingSubscriptionId.value) {
+      await updateSubscription(editingSubscriptionId.value, {
+        companyId: currentCompanyId.value,
+        planId: formSubscription.value.planId,
+        begin_date: formSubscription.value.begin_date,
+        end_date: formSubscription.value.end_date,
+        enabled: formSubscription.value.enabled,
+        moduleIds: formSubscription.value.moduleIds.map(Number),
+        subModuleIds: formSubscription.value.subModuleIds.map(Number),
+      })
+      successMsg.value = 'Suscripción actualizada y accesos sincronizados con el rol Administrador.'
+    } else {
+      await createSubscription({
+        companyId: currentCompanyId.value,
+        planId: formSubscription.value.planId,
+        begin_date: formSubscription.value.begin_date,
+        end_date: formSubscription.value.end_date,
+        moduleIds: formSubscription.value.moduleIds.map(Number),
+        subModuleIds: formSubscription.value.subModuleIds.map(Number),
+      })
+      successMsg.value = 'Suscripción creada y accesos asignados automáticamente al rol Administrador.'
+    }
+    delete rolesByCompany.value[currentCompanyId.value]
+    showSubscriptionModal.value = false
+    await Promise.all([loadCurrentTabData(), authStore.fetchCompanyAccess(currentCompanyId.value)])
+  } catch (err: any) {
+    errorMsg.value = err.response?.data?.message || 'Error al guardar la suscripción'
+  } finally {
+    loading.value = false
+  }
+}
+</script>
+
+<template>
+  <div id="main-wrapper" class="d-flex">
+    <!-- Sidebar Propio de Super Admin (Estilo Listado de Empresas) -->
+    <aside class="left-sidebar with-vertical d-flex flex-column justify-content-between">
+      <div class="d-flex flex-column flex-grow-1" style="min-height: 0;">
+        <div class="brand-logo flex-shrink-0 d-flex align-items-center p-3 border-bottom border-translucent">
+          <router-link to="/companies" class="text-nowrap logo-img d-flex align-items-center text-decoration-none">
+            <img src="/controller/images/logos/logo-dark.svg" class="dark-logo" alt="Deskounta Logo" height="34" />
+            <img src="/controller/images/logos/logo-light.svg" class="light-logo" alt="Deskounta Logo" height="34" />
+          </router-link>
+        </div>
+
+        <!-- Perfil Super Admin -->
+        <div class="scroll-sidebar p-3 flex-grow-1" style="min-height: 0; overflow-y: auto;">
+          <div class="text-center mb-3">
+            <img
+              :src="profilePhoto"
+              @error="handleAvatarError"
+              alt="Foto de perfil"
+              width="84"
+              height="84"
+              class="rounded-circle border border-primary border-3 mb-3"
+              style="object-fit: cover;"
+            />
+            <h5 class="fw-bold mb-1 text-white">{{ profileFullName }}</h5>
+            <span class="badge bg-danger-subtle text-danger border border-danger-subtle">
+              <iconify-icon icon="solar:crown-line-duotone" class="me-1"></iconify-icon>Super Administrador
+            </span>
+          </div>
+
+          <!-- Opciones de Navegación del Panel Lateral -->
+          <div class="d-flex flex-column gap-2 mt-4 pt-3 border-top border-secondary-subtle">
+            <small class="text-secondary fw-bold text-uppercase fs-1 px-2">Acceso a Plataforma</small>
+            <router-link
+              to="/companies"
+              class="btn btn-outline-secondary rounded-pill w-100 py-2 d-inline-flex align-items-center justify-content-start px-3 gap-2 fw-semibold"
+            >
+              <iconify-icon icon="solar:buildings-2-line-duotone" class="fs-5 text-primary"></iconify-icon>
+              <span>Listado de Empresas</span>
+            </router-link>
+
+            <router-link
+              to="/dashboard"
+              class="btn btn-outline-primary rounded-pill w-100 py-2 d-inline-flex align-items-center justify-content-start px-3 gap-2 fw-semibold"
+            >
+              <iconify-icon icon="solar:home-smile-line-duotone" class="fs-5"></iconify-icon>
+              <span>Entrar al ERP</span>
+            </router-link>
+          </div>
+        </div>
+
+        <!-- Botón Inferior: Cerrar Sesión -->
+        <div class="p-3 border-top border-translucent">
+          <button
+            class="btn btn-danger-subtle text-danger w-100 rounded-pill py-2 d-flex align-items-center justify-content-center gap-2 fw-semibold"
+            @click="logout"
+          >
+            <iconify-icon icon="solar:logout-2-line-duotone" class="fs-5"></iconify-icon>
+            <span>Cerrar Sesión</span>
+          </button>
+        </div>
+      </div>
+    </aside>
+
+    <!-- Page Wrapper -->
+    <div class="page-wrapper flex-grow-1" style="min-width: 0; min-height: 100vh;">
+      <div class="body-wrapper p-3 p-md-4">
+        <!-- Barra Superior Flotante -->
+        <div class="card rounded-4 border-0 shadow-sm p-3 mb-4 bg-navy-card d-flex flex-row justify-content-between align-items-center">
+          <div class="d-flex align-items-center gap-2">
+            <span class="p-2 bg-primary-subtle text-primary rounded-3 d-inline-flex">
+              <iconify-icon icon="solar:shield-user-bold-duotone" class="fs-6"></iconify-icon>
+            </span>
+            <div>
+              <h5 class="fw-bold text-white mb-0">Configuración General del Sistema</h5>
+              <small class="text-secondary">Administración maestra independiente de empresas del ERP</small>
+            </div>
+          </div>
+          <div class="d-flex align-items-center gap-2">
+            <button
+              type="button"
+              class="btn btn-sm btn-outline-light rounded-circle p-2 d-flex align-items-center justify-content-center border-0"
+              @click="themeStore.toggleTheme"
+              :title="themeStore.themeMode === 'dark' ? 'Cambiar a modo claro' : 'Cambiar a modo oscuro'"
+              style="width: 36px; height: 36px;"
+            >
+              <iconify-icon :icon="themeStore.themeMode === 'dark' ? 'solar:sun-bold-duotone' : 'solar:moon-bold-duotone'" class="fs-5 text-white"></iconify-icon>
+            </button>
+            <router-link to="/companies" class="btn btn-outline-secondary btn-sm rounded-pill px-3 py-1 d-flex align-items-center gap-1">
+              <iconify-icon icon="solar:arrow-left-line-duotone"></iconify-icon>
+              <span>Volver a Empresas</span>
+            </router-link>
+          </div>
+        </div>
+
+        <div class="crud-page settings-page" :class="{ 'form-open': isFormOpen }">
+    
+    <!-- ENCABEZADO DE MÓDULO -->
+    <div class="card rounded-4 border-0 shadow-sm p-4 mb-4 bg-navy-card keep-in-form">
+      <div class="d-flex flex-wrap justify-content-between align-items-center gap-3">
+        <div>
+          <div class="d-flex align-items-center gap-2 mb-1">
+            <span class="p-2 bg-primary-subtle text-primary rounded-3 d-inline-flex">
+              <iconify-icon icon="solar:shield-user-bold-duotone" class="fs-6"></iconify-icon>
+            </span>
+            <h4 class="fw-bold text-white mb-0">Configuración General del Sistema</h4>
+            <span class="badge bg-danger-subtle text-danger border border-danger-subtle ms-2">
+              <iconify-icon icon="solar:crown-line-duotone" class="me-1"></iconify-icon>SUPER ADMIN
+            </span>
+          </div>
+          <p class="text-secondary fs-3 mb-0">
+            Administración centralizada de empresas, sucursales, usuarios de todo el sistema, catálogo maestro de módulos, planes SaaS, impuestos y tipos de documento.
+          </p>
+        </div>
+
+        <!-- Botones de Navegación -->
+        <div class="d-flex align-items-center gap-2">
+          <router-link
+            to="/companies"
+            class="btn btn-outline-secondary rounded-pill px-3 py-2 d-flex align-items-center gap-2 fs-2"
+          >
+            <iconify-icon icon="solar:buildings-2-line-duotone" class="fs-4"></iconify-icon>
+            <span>Mis Empresas</span>
+          </router-link>
+          <router-link
+            to="/"
+            class="btn btn-primary rounded-pill px-3 py-2 d-flex align-items-center gap-2 fs-2"
+          >
+            <iconify-icon icon="solar:home-smile-line-duotone" class="fs-4"></iconify-icon>
+            <span>Ir al ERP</span>
+          </router-link>
+        </div>
+      </div>
+
+      <!-- PESTAÑAS TIPO PILLS (ESTILO SPIKE / PHP ORIGINAL) -->
+      <ul v-show="!isFormOpen" class="nav nav-pills user-profile-tab mt-4 border-top border-dark-subtle pt-3" role="tablist">
+        
+        <li class="nav-item me-2">
+          <button
+            class="nav-link rounded-pill px-4 py-2 d-flex align-items-center gap-2 fs-3 text-decoration-none"
+            :class="{ 'active bg-primary text-white': activeTab === 'companies', 'text-white-50 hover-tab': activeTab !== 'companies' }"
+            @click="switchTab('companies')"
+          >
+            <iconify-icon icon="solar:buildings-3-line-duotone" class="fs-5"></iconify-icon>
+            <span>Empresas</span>
+          </button>
+        </li>
+
+        <li class="nav-item me-2">
+          <button
+            class="nav-link rounded-pill px-4 py-2 d-flex align-items-center gap-2 fs-3 text-decoration-none"
+            :class="{ 'active bg-primary text-white': activeTab === 'branches', 'text-white-50 hover-tab': activeTab !== 'branches' }"
+            @click="switchTab('branches')"
+          >
+            <iconify-icon icon="solar:shop-2-line-duotone" class="fs-5"></iconify-icon>
+            <span>Sucursales</span>
+          </button>
+        </li>
+
+        <li class="nav-item me-2">
+          <button
+            class="nav-link rounded-pill px-4 py-2 d-flex align-items-center gap-2 fs-3 text-decoration-none"
+            :class="{ 'active bg-primary text-white': activeTab === 'users', 'text-white-50 hover-tab': activeTab !== 'users' }"
+            @click="switchTab('users')"
+          >
+            <iconify-icon icon="solar:users-group-two-rounded-line-duotone" class="fs-5"></iconify-icon>
+            <span>Usuarios Globales</span>
+          </button>
+        </li>
+
+        <li class="nav-item me-2">
+          <button
+            class="nav-link rounded-pill px-4 py-2 d-flex align-items-center gap-2 fs-3 text-decoration-none"
+            :class="{ 'active bg-primary text-white': activeTab === 'modules', 'text-white-50 hover-tab': activeTab !== 'modules' }"
+            @click="switchTab('modules')"
+          >
+            <iconify-icon icon="solar:widget-4-line-duotone" class="fs-5"></iconify-icon>
+            <span>Módulos & Submódulos</span>
+          </button>
+        </li>
+
+        <li class="nav-item me-2">
+          <button
+            class="nav-link rounded-pill px-4 py-2 d-flex align-items-center gap-2 fs-3 text-decoration-none"
+            :class="{ 'active bg-primary text-white': activeTab === 'subscriptions', 'text-white-50 hover-tab': activeTab !== 'subscriptions' }"
+            @click="switchTab('subscriptions')"
+          >
+            <iconify-icon icon="solar:card-line-duotone" class="fs-5"></iconify-icon>
+            <span>Planes & Suscripciones</span>
+          </button>
+        </li>
+
+        <li class="nav-item me-2">
+          <button
+            class="nav-link rounded-pill px-4 py-2 d-flex align-items-center gap-2 fs-3 text-decoration-none"
+            :class="{ 'active bg-primary text-white': activeTab === 'taxes', 'text-white-50 hover-tab': activeTab !== 'taxes' }"
+            @click="switchTab('taxes')"
+          >
+            <iconify-icon icon="solar:calculator-minimalistic-line-duotone" class="fs-5"></iconify-icon>
+            <span>Impuestos</span>
+          </button>
+        </li>
+
+        <li class="nav-item">
+          <button
+            class="nav-link rounded-pill px-4 py-2 d-flex align-items-center gap-2 fs-3 text-decoration-none"
+            :class="{ 'active bg-primary text-white': activeTab === 'document_types', 'text-white-50 hover-tab': activeTab !== 'document_types' }"
+            @click="switchTab('document_types')"
+          >
+            <iconify-icon icon="solar:document-text-line-duotone" class="fs-5"></iconify-icon>
+            <span>Tipos de Documentos</span>
+          </button>
+        </li>
+
+      </ul>
+    </div>
+
+    <!-- CONTENIDO DE LA PESTAÑA ACTIVA -->
+
+    <!-- ======================================================== -->
+    <!-- TAB 1: EMPRESAS                                          -->
+    <!-- ======================================================== -->
+    <div v-if="activeTab === 'companies'" class="card rounded-4 border-0 shadow-sm p-4 bg-navy-card">
+      <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+          <h5 class="fw-bold text-white mb-1">Listado de Empresas</h5>
+          <small class="text-secondary">Empresas registradas en la plataforma</small>
+        </div>
+        <button class="btn btn-primary rounded-pill px-4 d-flex align-items-center gap-2" @click="openCreateCompany">
+          <iconify-icon icon="solar:add-circle-line-duotone" class="fs-5"></iconify-icon>
+          <span>Nueva Empresa</span>
+        </button>
+      </div>
+
+      <div v-if="loading" class="text-center py-5">
+        <div class="d-flex align-items-center justify-content-center gap-2 mb-2">
+          <div class="spinner-grow text-primary" role="status"><span class="visually-hidden">Cargando...</span></div>
+          <div class="spinner-grow text-info" role="status"><span class="visually-hidden">Cargando...</span></div>
+          <div class="spinner-grow text-secondary" role="status"><span class="visually-hidden">Cargando...</span></div>
+        </div>
+        <p class="text-muted mt-2">Cargando empresas...</p>
+      </div>
+
+      <div v-else class="table-responsive">
+        <table class="table table-hover align-middle mb-0">
+          <thead class="table-primary">
+            <tr>
+              <th width="5%">#</th>
+              <th width="15%">RUC</th>
+              <th width="30%">Razón Social</th>
+              <th width="20%">Nombre Comercial</th>
+              <th width="12%">Ambiente SRI</th>
+              <th width="8%">Estado</th>
+              <th width="10%" class="text-end">Acciones</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr v-for="comp in companies" :key="comp.id">
+              <td><span class="badge bg-dark-subtle text-white">{{ comp.id }}</span></td>
+              <td class="fw-semibold text-white">{{ comp.ruc }}</td>
+              <td class="text-white">
+                <div class="d-flex align-items-center gap-2">
+                  <img
+                    v-if="comp.logo_url || comp.fiscal?.logo_url"
+                    :src="(comp.logo_url || comp.fiscal?.logo_url) || ''"
+                    alt="Logo"
+                    class="rounded border border-secondary-subtle"
+                    style="width: 28px; height: 28px; object-fit: contain; background: #000;"
+                  />
+                  <span>{{ comp.business_name }}</span>
+                </div>
+              </td>
+              <td class="text-secondary">{{ comp.trade_name }}</td>
+              <td>
+                <span
+                  class="badge d-inline-flex align-items-center gap-1 px-2 py-1"
+                  :class="comp.fiscal?.sri_environment === '2' ? 'bg-success-subtle text-success border border-success-subtle' : 'bg-warning-subtle text-warning border border-warning-subtle'"
+                >
+                  <iconify-icon :icon="comp.fiscal?.sri_environment === '2' ? 'solar:shield-check-bold' : 'solar:test-tube-minimalistic-bold-duotone'"></iconify-icon>
+                  {{ comp.fiscal?.sri_environment === '2' ? 'Producción' : 'Pruebas' }}
+                </span>
+              </td>
+              <td>
+                <span class="badge" :class="comp.enabled !== false ? 'bg-success-subtle text-success' : 'bg-danger-subtle text-danger'">
+                  {{ comp.enabled !== false ? 'Activo' : 'Inactivo' }}
+                </span>
+              </td>
+              <td class="text-end">
+                <div class="dropdown">
+                  <button
+                    class="btn bg-secondary-subtle text-secondary btn-sm dropdown-toggle d-inline-flex align-items-center gap-1 fw-semibold"
+                    type="button"
+                    data-bs-toggle="dropdown"
+                    data-bs-popper-config='{"strategy":"fixed"}'
+                    aria-expanded="false"
+                  >
+                    <iconify-icon icon="solar:menu-dots-bold" class="fs-4"></iconify-icon>
+                    <span>Acciones</span>
+                  </button>
+                  <ul class="dropdown-menu dropdown-menu-end shadow-lg py-1">
+                    <li>
+                      <a class="dropdown-item py-2" href="javascript:void(0)" @click="openEditCompany(comp)">
+                        <iconify-icon icon="solar:pen-2-line-duotone" class="fs-5 text-warning"></iconify-icon>
+                        <span>Editar Empresa</span>
+                      </a>
+                    </li>
+                  </ul>
+                </div>
+              </td>
+            </tr>
+            <tr v-if="companies.length === 0">
+              <td colspan="7" class="text-center text-muted py-5">No hay empresas registradas aún.</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- ======================================================== -->
+    <!-- TAB: SUCURSALES (ESTABLECIMIENTOS)                       -->
+    <!-- ======================================================== -->
+    <div v-if="activeTab === 'branches'" class="card rounded-4 border-0 shadow-sm p-4 bg-navy-card">
+      <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+          <h5 class="fw-bold text-white mb-1">Sucursales de {{ selectedCompany?.razon_social || selectedCompany?.nombre_comercial || 'la Empresa Activa' }}</h5>
+          <small class="text-secondary">Establecimientos y puntos de emisión con los que se factura (número de factura: establecimiento-punto de emisión-secuencial)</small>
+        </div>
+        <button class="btn btn-primary rounded-pill px-4 d-flex align-items-center gap-2" @click="openCreateBranch">
+          <iconify-icon icon="solar:add-circle-line-duotone" class="fs-5"></iconify-icon>
+          <span>Nueva Sucursal</span>
+        </button>
+      </div>
+
+      <div v-if="loading" class="text-center py-5">
+        <div class="d-flex align-items-center justify-content-center gap-2 mb-2">
+          <div class="spinner-grow text-primary" role="status"><span class="visually-hidden">Cargando...</span></div>
+          <div class="spinner-grow text-info" role="status"><span class="visually-hidden">Cargando...</span></div>
+          <div class="spinner-grow text-secondary" role="status"><span class="visually-hidden">Cargando...</span></div>
+        </div>
+        <p class="text-muted mt-2">Cargando sucursales...</p>
+      </div>
+
+      <div v-else class="table-responsive">
+        <table class="table table-hover align-middle mb-0">
+          <thead class="table-primary">
+            <tr>
+              <th width="9%">Estab.</th>
+              <th width="9%">Pto. Emisión</th>
+              <th width="20%">Nombre</th>
+              <th width="26%">Dirección del establecimiento</th>
+              <th width="16%">Contacto</th>
+              <th width="8%">Tipo</th>
+              <th width="8%">Estado</th>
+              <th width="14%" class="text-end">Acciones</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr v-for="b in branches" :key="b.id">
+              <td><span class="badge bg-primary text-white fw-bold font-monospace">{{ b.code }}</span></td>
+              <td><span class="badge bg-dark-subtle text-white font-monospace">{{ b.emissionPoint }}</span></td>
+              <td class="text-white fw-semibold">
+                <div class="d-flex align-items-center gap-2">
+                  <img
+                    v-if="b.logo_url"
+                    :src="b.logo_url || ''"
+                    alt="Logo"
+                    class="rounded border border-secondary-subtle"
+                    style="width: 28px; height: 28px; object-fit: contain; background: #000;"
+                  />
+                  <span>{{ b.name }}</span>
+                </div>
+              </td>
+              <td class="text-white">{{ b.address }}</td>
+              <td class="text-white">
+                <div v-if="b.phone">{{ b.phone }}</div>
+                <div v-if="b.email" class="fs-2 text-secondary">{{ b.email }}</div>
+                <span v-if="!b.phone && !b.email" class="text-secondary fst-italic fs-2">Sin datos</span>
+              </td>
+              <td>
+                <span class="badge" :class="b.isMatrix ? 'bg-info-subtle text-info border border-info-subtle' : 'bg-secondary-subtle text-secondary'">
+                  {{ b.isMatrix ? 'Matriz' : 'Sucursal' }}
+                </span>
+              </td>
+              <td>
+                <span class="badge" :class="b.enabled ? 'bg-success-subtle text-success' : 'bg-danger-subtle text-danger'">
+                  {{ b.enabled ? 'Activa' : 'Inactiva' }}
+                </span>
+              </td>
+              <td class="text-end">
+                <div class="dropdown">
+                  <button
+                    class="btn bg-secondary-subtle text-secondary btn-sm dropdown-toggle d-inline-flex align-items-center gap-1 fw-semibold"
+                    type="button"
+                    data-bs-toggle="dropdown"
+                    data-bs-popper-config='{"strategy":"fixed"}'
+                    aria-expanded="false"
+                  >
+                    <iconify-icon icon="solar:menu-dots-bold" class="fs-4"></iconify-icon>
+                    <span>Acciones</span>
+                  </button>
+                  <ul class="dropdown-menu dropdown-menu-end shadow-lg py-1">
+                    <li>
+                      <a class="dropdown-item py-2" href="javascript:void(0)" @click="openEditBranch(b)">
+                        <iconify-icon icon="solar:pen-2-line-duotone" class="fs-5 text-warning"></iconify-icon>
+                        <span>Editar Sucursal</span>
+                      </a>
+                    </li>
+                    <li v-if="!b.isMatrix && b.enabled">
+                      <a class="dropdown-item py-2 text-success" href="javascript:void(0)" @click="markAsMatrix(b)">
+                        <iconify-icon icon="solar:crown-line-duotone" class="fs-5 text-success"></iconify-icon>
+                        <span>Marcar como Matriz</span>
+                      </a>
+                    </li>
+                    <li v-if="!b.isMatrix">
+                      <a class="dropdown-item py-2" href="javascript:void(0)" @click="toggleBranch(b)">
+                        <iconify-icon :icon="b.enabled ? 'solar:eye-closed-line-duotone' : 'solar:eye-line-duotone'" class="fs-5 text-info"></iconify-icon>
+                        <span>{{ b.enabled ? 'Deshabilitar' : 'Habilitar' }}</span>
+                      </a>
+                    </li>
+                    <li v-if="!b.isMatrix">
+                      <hr class="dropdown-divider">
+                      <a class="dropdown-item py-2 text-danger" href="javascript:void(0)" @click="removeBranch(b)">
+                        <iconify-icon icon="solar:trash-bin-trash-line-duotone" class="fs-5 text-danger"></iconify-icon>
+                        <span>Eliminar Sucursal</span>
+                      </a>
+                    </li>
+                  </ul>
+                </div>
+              </td>
+            </tr>
+            <tr v-if="branches.length === 0">
+              <td colspan="8" class="text-center text-muted py-5">
+                Esta empresa aún no tiene sucursales. Registra la primera (será la matriz) para poder facturar por establecimiento.
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- ======================================================== -->
+    <!-- TAB 2: USUARIOS GLOBALES (CRUD Y FILTRO POR EMPRESA)    -->
+    <!-- ======================================================== -->
+    <div v-if="activeTab === 'users'" class="card rounded-4 border-0 shadow-sm p-4 bg-navy-card">
+      <div class="d-flex flex-wrap justify-content-between align-items-center gap-3 mb-3">
+        <div>
+          <h5 class="fw-bold text-white mb-1">Usuarios Globales del Sistema</h5>
+          <small class="text-secondary">Inventario general de usuarios con filtro por empresa y asignación de credenciales</small>
+        </div>
+        <button class="btn btn-primary rounded-pill px-4 d-flex align-items-center gap-2" style="height: 40px;" @click="openCreateUser">
+          <iconify-icon icon="solar:user-plus-line-duotone" class="fs-5"></iconify-icon>
+          <span>Nuevo Usuario</span>
+        </button>
+      </div>
+
+      <!-- Barra de Filtros por Empresa y Búsqueda -->
+      <div class="d-flex flex-wrap align-items-center gap-2 mb-4 p-2 rounded-3 bg-dark-subtle border border-secondary-subtle">
+        <div style="width: 280px;" class="flex-shrink-0">
+          <AppSelect2
+            v-model="userFilterCompanyId"
+            :options="userCompanyFilterOptions"
+            placeholder="Todas las empresas"
+          />
+        </div>
+        <div class="input-group flex-grow-1" style="max-width: 380px;">
+          <span class="input-group-text bg-dark border-secondary-subtle text-secondary" style="height: 40px;">
+            <iconify-icon icon="solar:magnifer-line-duotone"></iconify-icon>
+          </span>
+          <input
+            v-model="userSearch"
+            type="text"
+            class="form-control bg-dark border-secondary-subtle text-white"
+            style="height: 40px;"
+            placeholder="Buscar usuario por nombre, email o cédula..."
+          />
+        </div>
+        <div class="ms-auto pe-2 text-secondary fs-2 d-none d-sm-block">
+          Mostrando <span class="text-white fw-bold">{{ filteredUsers.length }}</span> usuario(s)
+        </div>
+      </div>
+
+      <div v-if="loading" class="text-center py-5">
+        <div class="d-flex align-items-center justify-content-center gap-2 mb-2">
+          <div class="spinner-grow text-primary" role="status"><span class="visually-hidden">Cargando...</span></div>
+          <div class="spinner-grow text-info" role="status"><span class="visually-hidden">Cargando...</span></div>
+          <div class="spinner-grow text-secondary" role="status"><span class="visually-hidden">Cargando...</span></div>
+        </div>
+        <p class="text-muted mt-2">Cargando usuarios...</p>
+      </div>
+
+      <div v-else class="table-responsive">
+        <table class="table table-hover align-middle mb-0">
+          <thead class="table-primary">
+            <tr>
+              <th width="5%">#</th>
+              <th width="10%">Documento</th>
+              <th width="18%">Nombre Completo</th>
+              <th width="18%">Correo Electrónico</th>
+              <th width="16%">Empresa Asignada</th>
+              <th width="14%">Rol / Permiso</th>
+              <th width="10%">Tema</th>
+              <th width="5%">Estado</th>
+              <th width="4%" class="text-end">Acciones</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr v-for="user in filteredUsers" :key="user.id">
+              <td><span class="badge bg-dark-subtle text-white">{{ user.id }}</span></td>
+              <td class="fw-semibold text-white">{{ user.num_document || 'S/D' }}</td>
+              <td class="text-white">
+                <div class="d-flex align-items-center gap-2">
+                  <img
+                    v-if="user.photo_url"
+                    :src="user.photo_url || ''"
+                    alt="Foto"
+                    class="rounded-circle border border-primary border-2"
+                    style="width: 28px; height: 28px; object-fit: cover;"
+                  />
+                  <span>{{ user.name_user }} {{ user.last_name_user }}</span>
+                </div>
+              </td>
+              <td class="text-info">{{ user.email }}</td>
+              <td>
+                <span v-if="user.super_admin || user.developer" class="badge bg-danger-subtle text-danger border border-danger-subtle">
+                  <iconify-icon icon="solar:shield-star-bold" class="me-1"></iconify-icon>Acceso Global
+                </span>
+                <span v-else-if="user.company_id || user.companyId || (user.companyIds && user.companyIds.length > 0)" class="badge bg-dark-subtle text-white border border-secondary-subtle">
+                  <iconify-icon icon="solar:buildings-bold" class="me-1 text-primary"></iconify-icon>
+                  {{ getCompanyNameById(user.company_id || user.companyId || user.companyIds?.[0]) }}
+                </span>
+                <span v-else class="badge bg-secondary-subtle text-secondary">
+                  Sin empresa
+                </span>
+              </td>
+              <td>
+                <span v-if="user.super_admin || user.developer" class="badge bg-danger-subtle text-danger border border-danger-subtle me-1">
+                  <iconify-icon icon="solar:shield-star-bold" class="me-1"></iconify-icon>Super Admin
+                </span>
+                <template v-else-if="user.multi_company">
+                  <span class="badge bg-warning-subtle text-warning border border-warning-subtle me-1">
+                    <iconify-icon icon="solar:buildings-bold" class="me-1"></iconify-icon>Multi-Empresa
+                  </span>
+                  <div v-if="user.companyRoles && user.companyRoles.length > 0" class="d-flex flex-wrap gap-1 mt-1">
+                    <span
+                      v-for="cr in user.companyRoles"
+                      :key="cr.companyId"
+                      class="badge bg-dark-subtle text-info border border-info-subtle fs-1"
+                    >
+                      {{ getCompanyNameById(cr.companyId) }}: <strong>{{ cr.roleName || 'Sin rol' }}</strong>
+                    </span>
+                  </div>
+                </template>
+                <span v-else-if="user.roleName" class="badge bg-primary-subtle text-primary border border-primary-subtle">
+                  <iconify-icon icon="solar:shield-check-bold" class="me-1"></iconify-icon>{{ user.roleName }}
+                </span>
+                <span v-else class="badge bg-secondary-subtle text-secondary">
+                  Sin rol asignado
+                </span>
+              </td>
+              <td>
+                <span class="badge d-inline-flex align-items-center gap-2 px-2 py-1 rounded-pill" :style="getThemeBadgeStyle(user.theme_color)">
+                  <span class="theme-mini-dot" :style="{ backgroundColor: getThemeColorHex(user.theme_color) }"></span>
+                  <span>{{ getThemeName(user.theme_color) }}</span>
+                </span>
+              </td>
+              <td>
+                <span class="badge" :class="user.enabled !== false ? 'bg-success-subtle text-success' : 'bg-danger-subtle text-danger'">
+                  {{ user.enabled !== false ? 'Activo' : 'Inactivo' }}
+                </span>
+              </td>
+              <td class="text-end">
+                <div class="dropdown">
+                  <button
+                    class="btn bg-secondary-subtle text-secondary btn-sm dropdown-toggle d-inline-flex align-items-center gap-1 fw-semibold"
+                    type="button"
+                    data-bs-toggle="dropdown"
+                    data-bs-popper-config='{"strategy":"fixed"}'
+                    aria-expanded="false"
+                  >
+                    <iconify-icon icon="solar:menu-dots-bold" class="fs-4"></iconify-icon>
+                    <span>Acciones</span>
+                  </button>
+                  <ul class="dropdown-menu dropdown-menu-end shadow-lg py-1">
+                    <li>
+                      <a class="dropdown-item py-2" href="javascript:void(0)" @click="openEditUser(user)">
+                        <iconify-icon icon="solar:pen-2-line-duotone" class="fs-5 text-warning"></iconify-icon>
+                        <span>Editar Usuario</span>
+                      </a>
+                    </li>
+                  </ul>
+                </div>
+              </td>
+            </tr>
+            <tr v-if="filteredUsers.length === 0">
+              <td colspan="9" class="text-center text-muted py-5">No se encontraron usuarios coincidentes.</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- ======================================================== -->
+    <!-- TAB 3.5: MÓDULOS & SUBMÓDULOS                            -->
+    <!-- ======================================================== -->
+    <div v-if="activeTab === 'modules'" class="d-flex flex-column gap-4">
+      
+      <!-- SUBSECTION 1: MÓDULOS PRINCIPALES (tab_module) -->
+      <div class="card rounded-4 border-0 shadow-sm p-4 bg-navy-card">
+        <div class="d-flex flex-wrap justify-content-between align-items-center gap-3 mb-4">
+          <div>
+            <h5 class="fw-bold text-white mb-1 d-flex align-items-center gap-2">
+              <iconify-icon icon="solar:widget-4-line-duotone" class="text-primary fs-5"></iconify-icon>
+              <span>Módulos Principales del Sistema</span>
+            </h5>
+            <small class="text-secondary">Agrupadores principales del menú lateral (Ej. Ventas, Compras, Contabilidad, Inventario)</small>
+          </div>
+          <button class="btn btn-primary rounded-pill px-4 d-flex align-items-center gap-2" @click="openCreateModule">
+            <iconify-icon icon="solar:add-circle-line-duotone" class="fs-5"></iconify-icon>
+            <span>Nuevo Módulo</span>
+          </button>
+        </div>
+
+        <div v-if="loading" class="text-center py-4">
+          <div class="d-flex align-items-center justify-content-center gap-2 mb-2">
+            <div class="spinner-grow text-primary" role="status"><span class="visually-hidden">Cargando...</span></div>
+            <div class="spinner-grow text-info" role="status"><span class="visually-hidden">Cargando...</span></div>
+            <div class="spinner-grow text-secondary" role="status"><span class="visually-hidden">Cargando...</span></div>
+          </div>
+          <p class="text-muted mt-2">Cargando módulos...</p>
+        </div>
+
+        <div v-else class="table-responsive">
+          <table class="table table-hover align-middle mb-0">
+            <thead class="table-primary">
+              <tr>
+                <th width="6%">#</th>
+                <th width="10%">Icono</th>
+                <th width="14%">Código</th>
+                <th width="32%">Nombre / Descripción</th>
+                <th width="10%">Orden</th>
+                <th width="12%">Estado</th>
+                <th width="16%" class="text-end">Acciones</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr v-for="mod in modulesList" :key="mod.id">
+                <td><span class="badge bg-dark-subtle text-white">{{ mod.id }}</span></td>
+                <td>
+                  <div class="d-inline-flex align-items-center gap-2 bg-dark-subtle px-2 py-1 rounded border border-secondary-subtle">
+                    <iconify-icon :icon="mod.desc_icon || 'solar:widget-4-line-duotone'" class="fs-5 text-primary"></iconify-icon>
+                    <small class="text-secondary font-monospace d-none d-lg-inline">{{ mod.desc_icon }}</small>
+                  </div>
+                </td>
+                <td><span class="badge bg-primary-subtle text-primary border border-primary-subtle fw-bold">{{ mod.code }}</span></td>
+                <td class="text-white fw-semibold">{{ mod.description }}</td>
+                <td>
+                  <span class="badge bg-info-subtle text-info fw-bold font-monospace fs-2 px-2 py-1">
+                    {{ mod.order_index ?? 0 }}
+                  </span>
+                </td>
+                <td>
+                  <span class="badge" :class="mod.enabled !== false ? 'bg-success-subtle text-success' : 'bg-danger-subtle text-danger'">
+                    {{ mod.enabled !== false ? 'Activo' : 'Inactivo' }}
+                  </span>
+                </td>
+                <td class="text-end">
+                  <div class="dropdown">
+                    <button
+                      class="btn bg-secondary-subtle text-secondary btn-sm dropdown-toggle d-inline-flex align-items-center gap-1 fw-semibold"
+                      type="button"
+                      data-bs-toggle="dropdown"
+                      data-bs-popper-config='{"strategy":"fixed"}'
+                      aria-expanded="false"
+                    >
+                      <iconify-icon icon="solar:menu-dots-bold" class="fs-4"></iconify-icon>
+                      <span>Acciones</span>
+                    </button>
+                    <ul class="dropdown-menu dropdown-menu-end shadow-lg py-1">
+                      <li>
+                        <a class="dropdown-item py-2 text-primary" href="javascript:void(0)" @click="openCreateSubModule(mod.id)">
+                          <iconify-icon icon="solar:add-circle-line-duotone" class="fs-5 text-primary"></iconify-icon>
+                          <span>Agregar Submódulo</span>
+                        </a>
+                      </li>
+                      <li>
+                        <a class="dropdown-item py-2" href="javascript:void(0)" @click="openEditModule(mod)">
+                          <iconify-icon icon="solar:pen-2-line-duotone" class="fs-5 text-warning"></iconify-icon>
+                          <span>Editar Módulo</span>
+                        </a>
+                      </li>
+                    </ul>
+                  </div>
+                </td>
+              </tr>
+              <tr v-if="modulesList.length === 0">
+                <td colspan="6" class="text-center text-muted py-4">
+                  No hay módulos registrados aún. Haz clic en <strong>"Nuevo Módulo"</strong> para crear el primero.
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- SUBSECTION 2: SUBMÓDULOS Y RUTAS (tab_sub_module) -->
+      <div class="card rounded-4 border-0 shadow-sm p-4 bg-navy-card">
+        <div class="d-flex flex-wrap justify-content-between align-items-center gap-3 mb-4">
+          <div>
+            <h5 class="fw-bold text-white mb-1 d-flex align-items-center gap-2">
+              <iconify-icon icon="solar:layers-minimalistic-line-duotone" class="text-info fs-5"></iconify-icon>
+              <span>Submódulos (Vistas y Rutas Hijas)</span>
+            </h5>
+            <small class="text-secondary">Opciones internas asociadas a cada módulo principal y su ruta URL</small>
+          </div>
+
+          <div class="d-flex flex-wrap align-items-center gap-2">
+            <!-- Filtro por Módulo Padre -->
+            <div class="d-flex align-items-center gap-2">
+              <small class="text-secondary text-nowrap">Filtrar por módulo:</small>
+              <select
+                v-model="filterModuleId"
+                class="form-select form-select-sm bg-dark-subtle border-secondary text-white rounded-pill px-3"
+                style="min-width: 200px;"
+                @change="onFilterModuleChange"
+              >
+                <option :value="undefined">Todos los módulos</option>
+                <option v-for="mod in modulesList" :key="mod.id" :value="mod.id">
+                  {{ mod.code }} - {{ mod.description }}
+                </option>
+              </select>
+            </div>
+
+            <button
+              class="btn btn-info text-dark fw-semibold rounded-pill px-4 d-flex align-items-center gap-2"
+              :disabled="modulesList.length === 0"
+              @click="openCreateSubModule()"
+            >
+              <iconify-icon icon="solar:add-circle-line-duotone" class="fs-5"></iconify-icon>
+              <span>Nuevo Submódulo</span>
+            </button>
+          </div>
+        </div>
+
+        <div class="table-responsive">
+          <table class="table table-hover align-middle mb-0">
+            <thead class="table-primary">
+              <tr>
+                <th width="5%">#</th>
+                <th width="18%">Módulo Padre</th>
+                <th width="8%">Icono</th>
+                <th width="12%">Código</th>
+                <th width="20%">Descripción</th>
+                <th width="15%">Ruta (URL)</th>
+                <th width="8%">Orden</th>
+                <th width="7%">Estado</th>
+                <th width="7%" class="text-end">Acciones</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr v-for="subMod in subModulesList" :key="subMod.id">
+                <td><span class="badge bg-dark-subtle text-white">{{ subMod.id }}</span></td>
+                <td>
+                  <span class="badge bg-primary-subtle text-primary border border-primary-subtle">
+                    {{ getModuleNameById(subMod.moduleId) }}
+                  </span>
+                </td>
+                <td>
+                  <span class="d-inline-flex align-items-center justify-content-center p-1 bg-dark-subtle rounded border border-secondary-subtle">
+                    <iconify-icon :icon="subMod.desc_icon || 'solar:round-alt-arrow-right-line-duotone'" class="fs-5 text-info"></iconify-icon>
+                  </span>
+                </td>
+                <td><span class="badge bg-info-subtle text-info border border-info-subtle fw-bold">{{ subMod.code }}</span></td>
+                <td class="text-white fw-semibold">{{ subMod.description }}</td>
+                <td><code class="text-warning bg-dark-subtle px-2 py-1 rounded">{{ subMod.url_desc }}</code></td>
+                <td>
+                  <span class="badge bg-info-subtle text-info fw-bold font-monospace fs-2 px-2 py-1">
+                    {{ subMod.order_index ?? 0 }}
+                  </span>
+                </td>
+                <td>
+                  <span class="badge" :class="subMod.enabled !== false ? 'bg-success-subtle text-success' : 'bg-danger-subtle text-danger'">
+                    {{ subMod.enabled !== false ? 'Activo' : 'Inactivo' }}
+                  </span>
+                </td>
+                <td class="text-end">
+                  <div class="dropdown">
+                    <button
+                      class="btn bg-secondary-subtle text-secondary btn-sm dropdown-toggle d-inline-flex align-items-center gap-1 fw-semibold"
+                      type="button"
+                      data-bs-toggle="dropdown"
+                      data-bs-popper-config='{"strategy":"fixed"}'
+                      aria-expanded="false"
+                    >
+                      <iconify-icon icon="solar:menu-dots-bold" class="fs-4"></iconify-icon>
+                      <span>Acciones</span>
+                    </button>
+                    <ul class="dropdown-menu dropdown-menu-end shadow-lg py-1">
+                      <li>
+                        <a class="dropdown-item py-2" href="javascript:void(0)" @click="openEditSubModule(subMod)">
+                          <iconify-icon icon="solar:pen-2-line-duotone" class="fs-5 text-warning"></iconify-icon>
+                          <span>Editar Submódulo</span>
+                        </a>
+                      </li>
+                    </ul>
+                  </div>
+                </td>
+              </tr>
+              <tr v-if="subModulesList.length === 0">
+                <td colspan="8" class="text-center text-muted py-4">
+                  No hay submódulos registrados{{ filterModuleId ? ' para el módulo seleccionado' : '' }}.
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- ======================================================== -->
+    <!-- TAB 4: PLANES & SUSCRIPCIONES                            -->
+    <!-- ======================================================== -->
+    <div v-if="activeTab === 'subscriptions'" class="d-flex flex-column gap-4">
+      
+      <!-- SUBSECTION 1: PLANES SAAS -->
+      <div class="card rounded-4 border-0 shadow-sm p-4 bg-navy-card">
+        <div class="d-flex justify-content-between align-items-center mb-4">
+          <div>
+            <h5 class="fw-bold text-white mb-1">Catálogo de Planes SaaS</h5>
+            <small class="text-secondary">Planes configurados con límites de usuarios y sucursales</small>
+          </div>
+          <button class="btn btn-primary rounded-pill px-4 d-flex align-items-center gap-2" @click="showPlanModal = true">
+            <iconify-icon icon="solar:add-circle-line-duotone" class="fs-5"></iconify-icon>
+            <span>Crear Plan</span>
+          </button>
+        </div>
+
+        <div class="row g-3">
+          <div v-for="plan in plans" :key="plan.id" class="col-md-4">
+            <div class="card border border-dark-subtle p-3 rounded-4 bg-dark-subtle h-100">
+              <div class="d-flex justify-content-between align-items-start mb-2">
+                <h5 class="text-white fw-bold mb-0">{{ plan.description }}</h5>
+                <span class="badge bg-primary-subtle text-primary text-uppercase">{{ plan.billing_cycle }}</span>
+              </div>
+              <h3 class="fw-bold text-white mb-3">${{ plan.price }} <span class="fs-2 text-secondary fw-normal">/ ciclo</span></h3>
+              <ul class="list-unstyled text-secondary fs-2 mb-3">
+                <li class="mb-1"><iconify-icon icon="solar:check-circle-line-duotone" class="text-success me-1"></iconify-icon> Hasta {{ plan.max_users }} usuarios</li>
+                <li class="mb-1"><iconify-icon icon="solar:check-circle-line-duotone" class="text-success me-1"></iconify-icon> Hasta {{ plan.max_branches }} sucursales</li>
+                <li><iconify-icon icon="solar:check-circle-line-duotone" class="text-success me-1"></iconify-icon> Facturación y compras</li>
+              </ul>
+            </div>
+          </div>
+          <div v-if="plans.length === 0" class="col-12 text-center text-muted py-4">
+            No hay planes registrados aún.
+          </div>
+        </div>
+      </div>
+
+      <!-- SUBSECTION 2: SUSCRIPCIÓN ACTIVA DE LA EMPRESA -->
+      <div class="card rounded-4 border-0 shadow-sm p-4 bg-navy-card">
+        <div class="d-flex justify-content-between align-items-center mb-4">
+          <div>
+            <h5 class="fw-bold text-white mb-1">Suscripciones Activas</h5>
+            <small class="text-secondary">Vigencia, plan contratado y acceso a módulos/submódulos de la empresa activa</small>
+          </div>
+          <button class="btn btn-outline-primary rounded-pill px-4 d-flex align-items-center gap-2" @click="openCreateSubscription">
+            <iconify-icon icon="solar:card-recive-line-duotone" class="fs-5"></iconify-icon>
+            <span>Asignar Suscripción</span>
+          </button>
+        </div>
+
+        <div class="table-responsive">
+          <table class="table table-hover align-middle mb-0">
+            <thead class="table-primary">
+              <tr>
+                <th width="5%">#</th>
+                <th width="16%">Plan Contratado</th>
+                <th width="12%">Fecha Inicio</th>
+                <th width="12%">Fecha Fin</th>
+                <th width="37%">Módulos & Submódulos con Acceso</th>
+                <th width="10%">Estado</th>
+                <th width="8%" class="text-end">Acciones</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr v-for="sub in subscriptions" :key="sub.id">
+                <td><span class="badge bg-dark-subtle text-white">{{ sub.id }}</span></td>
+                <td><span class="badge bg-info text-dark fw-bold">{{ getPlanNameById(sub.planId) }}</span></td>
+                <td class="text-white">{{ new Date(sub.begin_date).toLocaleDateString() }}</td>
+                <td class="text-white">{{ new Date(sub.end_date).toLocaleDateString() }}</td>
+                <td>
+                  <div v-if="(sub.moduleIds && sub.moduleIds.length > 0) || (sub.subModuleIds && sub.subModuleIds.length > 0)" class="d-flex flex-wrap gap-1">
+                    <span
+                      v-for="modId in sub.moduleIds"
+                      :key="'m-' + modId"
+                      class="badge bg-primary-subtle text-primary border border-primary-subtle d-inline-flex align-items-center gap-1"
+                    >
+                      <iconify-icon icon="solar:widget-4-line-duotone"></iconify-icon>
+                      {{ getModuleNameById(modId) }}
+                    </span>
+                    <span
+                      v-if="sub.subModuleIds && sub.subModuleIds.length > 0"
+                      class="badge bg-info-subtle text-info border border-info-subtle"
+                      :title="sub.subModuleIds.map(getSubModuleNameById).join(', ')"
+                    >
+                      +{{ sub.subModuleIds.length }} submódulo(s)
+                    </span>
+                  </div>
+                  <span v-else class="text-secondary fs-2 fst-italic">Sin módulos asignados</span>
+                </td>
+                <td>
+                  <span class="badge" :class="sub.enabled !== false ? 'bg-success-subtle text-success' : 'bg-danger-subtle text-danger'">
+                    {{ sub.enabled !== false ? 'Vigente' : 'Expirada' }}
+                  </span>
+                </td>
+                <td class="text-end">
+                  <div class="dropdown">
+                    <button
+                      class="btn bg-secondary-subtle text-secondary btn-sm dropdown-toggle d-inline-flex align-items-center gap-1 fw-semibold"
+                      type="button"
+                      data-bs-toggle="dropdown"
+                      data-bs-popper-config='{"strategy":"fixed"}'
+                      aria-expanded="false"
+                    >
+                      <iconify-icon icon="solar:menu-dots-bold" class="fs-4"></iconify-icon>
+                      <span>Acciones</span>
+                    </button>
+                    <ul class="dropdown-menu dropdown-menu-end shadow-lg py-1">
+                      <li>
+                        <a class="dropdown-item py-2" href="javascript:void(0)" @click="openEditSubscription(sub)">
+                          <iconify-icon icon="solar:pen-2-line-duotone" class="fs-5 text-warning"></iconify-icon>
+                          <span>Editar Suscripción</span>
+                        </a>
+                      </li>
+                    </ul>
+                  </div>
+                </td>
+              </tr>
+              <tr v-if="subscriptions.length === 0">
+                <td colspan="7" class="text-center text-muted py-4">Esta empresa no tiene suscripciones registradas.</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- ======================================================== -->
+    <!-- TAB 5: IMPUESTOS (CRUD)                                  -->
+    <!-- ======================================================== -->
+    <div v-if="activeTab === 'taxes'" class="card rounded-4 border-0 shadow-sm p-4 bg-navy-card">
+      <!-- Encabezado con Botón de Acción -->
+      <div class="d-flex flex-wrap justify-content-between align-items-center gap-3 mb-3">
+        <div>
+          <h5 class="fw-bold text-white mb-1">Catálogo de Impuestos y Tarifas</h5>
+          <small class="text-secondary">Gestión de tarifas tributarias (IVA, ICE) aplicables a artículos y servicios</small>
+        </div>
+        <button
+          class="btn btn-primary rounded-pill px-4 d-flex align-items-center gap-2 text-nowrap"
+          style="height: 40px;"
+          @click="openCreateTaxModal"
+        >
+          <iconify-icon icon="solar:add-circle-line-duotone" class="fs-5"></iconify-icon>
+          <span>Nuevo Impuesto</span>
+        </button>
+      </div>
+
+      <!-- Barra de Filtros y Búsqueda Alineada -->
+      <div class="d-flex flex-wrap align-items-center gap-2 mb-4 p-2 rounded-3 bg-dark-subtle border border-secondary-subtle">
+        <div class="input-group flex-grow-1" style="max-width: 360px;">
+          <span class="input-group-text bg-dark border-secondary-subtle text-secondary" style="height: 40px;">
+            <iconify-icon icon="solar:magnifer-line-duotone"></iconify-icon>
+          </span>
+          <input
+            v-model="taxSearch"
+            type="text"
+            class="form-control bg-dark border-secondary-subtle text-white"
+            style="height: 40px;"
+            placeholder="Buscar impuesto..."
+          />
+        </div>
+        <div class="ms-auto pe-2 text-secondary fs-2 d-none d-sm-block">
+          Mostrando <span class="text-white fw-bold">{{ filteredTaxes.length }}</span> tarifa(s)
+        </div>
+      </div>
+
+      <div class="table-responsive">
+        <table class="table table-hover align-middle mb-0">
+          <thead>
+            <tr class="border-bottom border-dark-subtle text-secondary fs-2 text-uppercase">
+              <th>Código</th>
+              <th>Descripción</th>
+              <th class="text-center">Porcentaje (%)</th>
+              <th class="text-center">Predeterminada</th>
+              <th class="text-center">Estado</th>
+              <th class="text-end">Acciones</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr v-for="tax in filteredTaxes" :key="tax.id" class="border-bottom border-dark-subtle">
+              <td>
+                <span class="badge bg-dark-subtle text-primary border border-primary-subtle font-monospace px-2 py-1">
+                  {{ tax.code }}
+                </span>
+              </td>
+              <td>
+                <span class="text-white fw-bold">{{ tax.description }}</span>
+              </td>
+              <td class="text-center">
+                <span class="badge bg-info-subtle text-info border border-info-subtle px-3 py-1 fs-2 font-monospace fw-bold">
+                  {{ Number(tax.percentage) }}%
+                </span>
+              </td>
+              <td class="text-center">
+                <span v-if="tax.is_default" class="badge bg-warning-subtle text-warning border border-warning-subtle px-2 py-1 fs-1">
+                  ★ Predeterminada
+                </span>
+                <span v-else class="text-muted fs-1">-</span>
+              </td>
+              <td class="text-center">
+                <button
+                  type="button"
+                  class="badge px-3 py-1 rounded-pill border-0 cursor-pointer transition-all"
+                  :class="tax.status === 'ACTIVO' ? 'bg-success-subtle text-success border border-success-subtle' : 'bg-danger-subtle text-danger border border-danger-subtle'"
+                  @click="onToggleTaxStatus(tax)"
+                  title="Click para cambiar estado"
+                >
+                  {{ tax.status }}
+                </button>
+              </td>
+              <td class="text-end">
+                <div class="dropdown">
+                  <button
+                    class="btn bg-secondary-subtle text-secondary btn-sm dropdown-toggle d-inline-flex align-items-center gap-1 fw-semibold"
+                    type="button"
+                    data-bs-toggle="dropdown"
+                    data-bs-popper-config='{"strategy":"fixed"}'
+                    aria-expanded="false"
+                  >
+                    <iconify-icon icon="solar:menu-dots-bold" class="fs-4"></iconify-icon>
+                    <span>Acciones</span>
+                  </button>
+                  <ul class="dropdown-menu dropdown-menu-end shadow-lg py-1">
+                    <li>
+                      <a class="dropdown-item py-2" href="javascript:void(0)" @click="openEditTaxModal(tax)">
+                        <iconify-icon icon="solar:pen-2-line-duotone" class="fs-5 text-warning"></iconify-icon>
+                        <span>Editar Impuesto</span>
+                      </a>
+                    </li>
+                    <li>
+                      <a class="dropdown-item py-2" href="javascript:void(0)" @click="onToggleTaxStatus(tax)">
+                        <iconify-icon :icon="tax.status === 'ACTIVO' ? 'solar:eye-closed-line-duotone' : 'solar:eye-line-duotone'" class="fs-5 text-info"></iconify-icon>
+                        <span>{{ tax.status === 'ACTIVO' ? 'Desactivar' : 'Activar' }}</span>
+                      </a>
+                    </li>
+                    <li>
+                      <hr class="dropdown-divider">
+                      <a class="dropdown-item py-2 text-danger" href="javascript:void(0)" @click="onDeleteTax(tax)">
+                        <iconify-icon icon="solar:trash-bin-trash-line-duotone" class="fs-5 text-danger"></iconify-icon>
+                        <span>Eliminar Impuesto</span>
+                      </a>
+                    </li>
+                  </ul>
+                </div>
+              </td>
+            </tr>
+            <tr v-if="filteredTaxes.length === 0">
+              <td colspan="6" class="text-center text-muted py-4">
+                No se encontraron impuestos registrados o que coincidan con la búsqueda.
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- ======================================================== -->
+    <!-- TAB 6: TIPOS DE DOCUMENTO (CRUD)                         -->
+    <!-- ======================================================== -->
+    <div v-if="activeTab === 'document_types'" class="card rounded-4 border-0 shadow-sm p-4 bg-navy-card">
+      <!-- Encabezado con Botón de Acción -->
+      <div class="d-flex flex-wrap justify-content-between align-items-center gap-3 mb-3">
+        <div>
+          <h5 class="fw-bold text-white mb-1">Catálogo de Tipos de Documentos</h5>
+          <small class="text-secondary">Documentos de identidad y tributarios para clientes, proveedores y vendedores</small>
+        </div>
+        <button
+          class="btn btn-primary rounded-pill px-4 d-flex align-items-center gap-2 text-nowrap"
+          style="height: 40px;"
+          @click="openCreateDocTypeModal"
+        >
+          <iconify-icon icon="solar:add-circle-line-duotone" class="fs-5"></iconify-icon>
+          <span>Nuevo Tipo Documento</span>
+        </button>
+      </div>
+
+      <!-- Barra de Filtros y Búsqueda Alineada -->
+      <div class="d-flex flex-wrap align-items-center gap-2 mb-4 p-2 rounded-3 bg-dark-subtle border border-secondary-subtle">
+        <div style="width: 220px;" class="flex-shrink-0">
+          <AppSelect2
+            v-model="docTypeFilterType"
+            :options="docTypeTargetOptions"
+            placeholder="Filtrar por tipo..."
+          />
+        </div>
+        <div class="input-group flex-grow-1" style="max-width: 360px;">
+          <span class="input-group-text bg-dark border-secondary-subtle text-secondary" style="height: 40px;">
+            <iconify-icon icon="solar:magnifer-line-duotone"></iconify-icon>
+          </span>
+          <input
+            v-model="docTypeSearch"
+            type="text"
+            class="form-control bg-dark border-secondary-subtle text-white"
+            style="height: 40px;"
+            placeholder="Buscar tipo de documento..."
+          />
+        </div>
+        <div class="ms-auto pe-2 text-secondary fs-2 d-none d-sm-block">
+          Mostrando <span class="text-white fw-bold">{{ filteredDocTypes.length }}</span> tipo(s)
+        </div>
+      </div>
+
+      <div class="table-responsive">
+        <table class="table table-hover align-middle mb-0">
+          <thead>
+            <tr class="border-bottom border-dark-subtle text-secondary fs-2 text-uppercase">
+              <th>Código</th>
+              <th>Nombre del Documento</th>
+              <th class="text-center">Aplica a</th>
+              <th class="text-center">Estado</th>
+              <th class="text-end">Acciones</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr v-for="dt in filteredDocTypes" :key="dt.id" class="border-bottom border-dark-subtle">
+              <td>
+                <span class="badge bg-dark-subtle text-info border border-info-subtle font-monospace px-2 py-1">
+                  {{ dt.code }}
+                </span>
+              </td>
+              <td>
+                <span class="text-white fw-bold">{{ dt.name }}</span>
+              </td>
+              <td class="text-center">
+                <span
+                  class="badge px-3 py-1 rounded-pill fs-1 fw-bold"
+                  :class="{
+                    'bg-primary-subtle text-primary border border-primary-subtle': dt.type === 'TODOS',
+                    'bg-info-subtle text-info border border-info-subtle': dt.type === 'CLIENTE',
+                    'bg-warning-subtle text-warning border border-warning-subtle': dt.type === 'PROVEEDOR',
+                    'bg-success-subtle text-success border border-success-subtle': dt.type === 'VENDEDOR'
+                  }"
+                >
+                  {{ dt.type }}
+                </span>
+              </td>
+              <td class="text-center">
+                <button
+                  type="button"
+                  class="badge px-3 py-1 rounded-pill border-0 cursor-pointer transition-all"
+                  :class="dt.status === 'ACTIVO' ? 'bg-success-subtle text-success border border-success-subtle' : 'bg-danger-subtle text-danger border border-danger-subtle'"
+                  @click="onToggleDocTypeStatus(dt)"
+                  title="Click para cambiar estado"
+                >
+                  {{ dt.status }}
+                </button>
+              </td>
+              <td class="text-end">
+                <div class="dropdown">
+                  <button
+                    class="btn bg-secondary-subtle text-secondary btn-sm dropdown-toggle d-inline-flex align-items-center gap-1 fw-semibold"
+                    type="button"
+                    data-bs-toggle="dropdown"
+                    data-bs-popper-config='{"strategy":"fixed"}'
+                    aria-expanded="false"
+                  >
+                    <iconify-icon icon="solar:menu-dots-bold" class="fs-4"></iconify-icon>
+                    <span>Acciones</span>
+                  </button>
+                  <ul class="dropdown-menu dropdown-menu-end shadow-lg py-1">
+                    <li>
+                      <a class="dropdown-item py-2" href="javascript:void(0)" @click="openEditDocTypeModal(dt)">
+                        <iconify-icon icon="solar:pen-2-line-duotone" class="fs-5 text-warning"></iconify-icon>
+                        <span>Editar Documento</span>
+                      </a>
+                    </li>
+                    <li>
+                      <a class="dropdown-item py-2" href="javascript:void(0)" @click="onToggleDocTypeStatus(dt)">
+                        <iconify-icon :icon="dt.status === 'ACTIVO' ? 'solar:eye-closed-line-duotone' : 'solar:eye-line-duotone'" class="fs-5 text-info"></iconify-icon>
+                        <span>{{ dt.status === 'ACTIVO' ? 'Desactivar' : 'Activar' }}</span>
+                      </a>
+                    </li>
+                    <li>
+                      <hr class="dropdown-divider">
+                      <a class="dropdown-item py-2 text-danger" href="javascript:void(0)" @click="onDeleteDocType(dt)">
+                        <iconify-icon icon="solar:trash-bin-trash-line-duotone" class="fs-5 text-danger"></iconify-icon>
+                        <span>Eliminar Documento</span>
+                      </a>
+                    </li>
+                  </ul>
+                </div>
+              </td>
+            </tr>
+            <tr v-if="filteredDocTypes.length === 0">
+              <td colspan="5" class="text-center text-muted py-4">
+                No se encontraron tipos de documento registrados o que coincidan con la búsqueda.
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- ======================================================== -->
+    <!-- MODALES DE CREACIÓN                                      -->
+    <!-- ======================================================== -->
+
+    <!-- 0. FORMULARIO NUEVA / EDITAR SUCURSAL -->
+      <div v-if="showBranchModal" id="form-page" class="form-page">
+        <div class="form-page-card">
+          <div class="card bg-navy-card border border-secondary-subtle rounded-4 shadow-sm">
+            <div class="modal-header d-flex justify-content-between align-items-center px-4 py-3 border-bottom border-dark-subtle">
+              <div class="d-flex align-items-center gap-2">
+                <span class="p-2 bg-primary-subtle text-primary rounded-3 d-inline-flex"><iconify-icon icon="solar:shop-2-line-duotone" class="fs-5"></iconify-icon></span>
+                <h5 class="fw-bold text-white mb-0">{{ isEditingBranch ? 'Editar Sucursal' : 'Registrar Nueva Sucursal' }}</h5>
+              </div>
+              <button type="button" class="btn btn-outline-secondary btn-sm rounded-3 d-flex align-items-center gap-1" @click="showBranchModal = false">
+                <iconify-icon icon="solar:alt-arrow-left-line-duotone" class="fs-5"></iconify-icon>
+                <span>Volver</span>
+              </button>
+            </div>
+            <form @submit.prevent="submitBranch">
+              <div class="modal-body p-4">
+                <!-- LOGOTIPO DE LA SUCURSAL (SUPABASE STORAGE) -->
+                <div class="mb-4">
+                  <div class="p-3 rounded-3 border border-secondary-subtle bg-dark-subtle d-flex flex-wrap align-items-center justify-content-between gap-3">
+                    <div class="d-flex align-items-center gap-3">
+                      <div class="rounded-3 border border-secondary-subtle bg-black d-flex align-items-center justify-content-center overflow-hidden" style="width: 80px; height: 80px;">
+                        <img v-if="branchLogoPreview" :src="branchLogoPreview" alt="Logo Sucursal" style="max-width: 100%; max-height: 100%; object-fit: contain;" />
+                        <iconify-icon v-else icon="solar:shop-2-bold-duotone" class="fs-9 text-secondary"></iconify-icon>
+                      </div>
+                      <div>
+                        <h6 class="text-white fw-bold mb-1">Logotipo Propio de la Sucursal</h6>
+                        <p class="text-secondary fs-2 mb-0">Prioridad #1 en la impresión RIDE. Si no se sube, se usará automáticamente el de la empresa.</p>
+                        <small class="text-white-50 fs-1">Formatos: PNG, JPG, WEBP, SVG (Máx. 5MB). Guardado en Supabase Storage.</small>
+                      </div>
+                    </div>
+                    <div>
+                      <label class="btn btn-outline-primary btn-sm rounded-pill px-3 cursor-pointer d-inline-flex align-items-center gap-2 mb-0">
+                        <iconify-icon icon="solar:upload-track-2-line-duotone" class="fs-4"></iconify-icon>
+                        <span>{{ branchLogoPreview ? 'Cambiar Logotipo' : 'Subir Logotipo' }}</span>
+                        <input type="file" accept="image/png,image/jpeg,image/webp,image/svg+xml" class="d-none" @change="onBranchLogoChange" />
+                      </label>
+                    </div>
+                  </div>
+                </div>
+                <div class="alert alert-info d-flex align-items-start gap-2 py-2 mb-4">
+                  <iconify-icon icon="solar:info-circle-line-duotone" class="fs-5 mt-1"></iconify-icon>
+                  <span class="fs-2">
+                    El número de establecimiento (3 dígitos) identifica la sucursal ante el SRI (ej: <b>001, 002</b>).
+                    Los puntos de emisión y secuenciales se configuran de forma independiente en el módulo de <b>Puntos de Emisión</b>.
+                  </span>
+                </div>
+
+                <div class="row">
+                  <div class="col-md-5 mb-3">
+                    <label class="form-label text-secondary fs-2 fw-semibold">Empresa a la que pertenece *</label>
+                    <select
+                      v-model="formBranch.companyId"
+                      class="form-select bg-dark-subtle border-secondary-subtle text-white"
+                      required
+                      :disabled="isEditingBranch"
+                    >
+                      <option v-for="c in companies" :key="c.id" :value="c.id">
+                        {{ c.ruc }} - {{ c.business_name || c.trade_name || c.description }}
+                      </option>
+                    </select>
+                  </div>
+                  <div class="col-md-3 mb-3">
+                    <label class="form-label text-secondary fs-2 fw-semibold">Establecimiento (3 dígitos) *</label>
+                    <input v-model="formBranch.code" @input="formBranch.code = onlyDigits3(formBranch.code)" type="text" inputmode="numeric" maxlength="3" minlength="3" pattern="[0-9]{3}" class="form-control bg-dark-subtle border-secondary-subtle text-white font-monospace text-center" placeholder="001" required />
+                  </div>
+                  <div class="col-md-4 mb-3">
+                    <label class="form-label text-secondary fs-2 fw-semibold">Nombre de la sucursal *</label>
+                    <input v-model="formBranch.name" type="text" maxlength="150" class="form-control bg-dark-subtle border-secondary-subtle text-white" placeholder="Ej. Sucursal Norte" required />
+                  </div>
+                </div>
+
+                <div class="mb-3">
+                  <label class="form-label text-secondary fs-2 fw-semibold">Dirección del establecimiento *</label>
+                  <input v-model="formBranch.address" type="text" maxlength="300" class="form-control bg-dark-subtle border-secondary-subtle text-white" placeholder="Calle principal, número y secundaria, ciudad" required />
+                </div>
+
+                <div class="row">
+                  <div class="col-md-6 mb-3">
+                    <label class="form-label text-secondary fs-2 fw-semibold">Teléfono</label>
+                    <input v-model="formBranch.phone" type="text" maxlength="30" class="form-control bg-dark-subtle border-secondary-subtle text-white" placeholder="Ej. 022998800" />
+                  </div>
+                  <div class="col-md-6 mb-3">
+                    <label class="form-label text-secondary fs-2 fw-semibold">Correo electrónico</label>
+                    <input v-model="formBranch.email" type="email" maxlength="150" class="form-control bg-dark-subtle border-secondary-subtle text-white" placeholder="sucursal@empresa.com" />
+                  </div>
+                </div>
+
+                <div class="row">
+                  <div class="col-md-6 mb-2">
+                    <div class="form-check form-switch">
+                      <input id="branchMatrix" v-model="formBranch.is_matrix" class="form-check-input" type="checkbox" role="switch" :disabled="matrixSwitchLocked" />
+                      <label class="form-check-label text-secondary fs-2 fw-semibold" for="branchMatrix">Es la matriz de la empresa</label>
+                    </div>
+                    <small class="text-secondary d-block mt-1">
+                      Una empresa solo puede tener una matriz.
+                      <template v-if="branches.length === 0 && !isEditingBranch">La primera sucursal es la matriz.</template>
+                      <template v-else-if="isEditingBranch && formBranch.is_matrix">Esta es la matriz actual; para cambiarla usa "Marcar como matriz" en otra sucursal.</template>
+                      <template v-else-if="hasMatrix">Ya existe una matriz; para cambiarla usa "Marcar como matriz" en el listado.</template>
+                    </small>
+                  </div>
+                  <div v-if="isEditingBranch" class="col-md-6 mb-2">
+                    <div class="form-check form-switch">
+                      <input id="branchEnabled" v-model="formBranch.enabled" class="form-check-input" type="checkbox" role="switch" />
+                      <label class="form-check-label text-secondary fs-2 fw-semibold" for="branchEnabled">Sucursal activa (se puede facturar con ella)</label>
+                    </div>
+                  </div>
+                </div>
+              </div>
+              <div class="modal-footer d-flex justify-content-end gap-2 px-4 py-3 border-top border-dark-subtle">
+                <button type="button" class="btn btn-outline-secondary px-4 rounded-3" @click="showBranchModal = false">Cancelar</button>
+                <button type="submit" class="btn btn-primary px-4 rounded-3 fw-bold" :disabled="loading">
+                  <span v-if="loading" class="spinner-grow spinner-grow-sm me-2" role="status" aria-hidden="true"></span>
+                  <span>{{ loading ? 'Guardando...' : (isEditingBranch ? 'Guardar Cambios' : 'Guardar Sucursal') }}</span>
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      </div>
+
+    <!-- 1. MODAL NUEVA / EDITAR EMPRESA -->
+      <div v-if="showCompanyModal" id="form-page" class="form-page">
+        <div class="form-page-card form-page-card-lg">
+          <div class="card bg-navy-card border border-secondary-subtle rounded-4 shadow-sm">
+            <div class="modal-header d-flex justify-content-between align-items-center px-4 py-3 border-bottom border-dark-subtle">
+              <div class="d-flex align-items-center gap-2">
+                <span class="p-2 bg-primary-subtle text-primary rounded-3 d-inline-flex"><iconify-icon icon="solar:buildings-3-line-duotone" class="fs-5"></iconify-icon></span>
+                <h5 class="fw-bold text-white mb-0">{{ isEditingCompany ? 'Editar Empresa' : 'Registrar Nueva Empresa' }}</h5>
+              </div>
+              <button type="button" class="btn btn-outline-secondary btn-sm rounded-3 d-flex align-items-center gap-1" @click="showCompanyModal = false">
+                <iconify-icon icon="solar:alt-arrow-left-line-duotone" class="fs-5"></iconify-icon>
+                <span>Volver</span>
+              </button>
+            </div>
+            <form @submit.prevent="submitCompany">
+              <ul class="nav nav-pills gap-2 px-4 pt-3">
+                <li class="nav-item" v-for="t in [{k:'general',l:'General'},{k:'fiscal',l:'Datos SRI'},{k:'firma',l:'Firma electrónica'},{k:'correo',l:'Correo (SMTP)'}]" :key="t.k">
+                  <button type="button" class="nav-link rounded-pill px-4 py-2 fs-3 text-decoration-none" :class="companyFormTab === t.k ? 'active bg-primary text-white' : 'text-white-50'" @click="companyFormTab = t.k as any">{{ t.l }}</button>
+                </li>
+              </ul>
+              <div class="modal-body p-4">
+                <!-- GENERAL -->
+                <div v-show="companyFormTab === 'general'" class="row g-3">
+                  <!-- LOGOTIPO DE LA EMPRESA (SUPABASE STORAGE) -->
+                  <div class="col-12">
+                    <div class="p-3 rounded-3 border border-secondary-subtle bg-dark-subtle d-flex flex-wrap align-items-center justify-content-between gap-3">
+                      <div class="d-flex align-items-center gap-3">
+                        <div class="rounded-3 border border-secondary-subtle bg-black d-flex align-items-center justify-content-center overflow-hidden" style="width: 80px; height: 80px;">
+                          <img v-if="companyLogoPreview" :src="companyLogoPreview" alt="Logo Empresa" style="max-width: 100%; max-height: 100%; object-fit: contain;" />
+                          <iconify-icon v-else icon="solar:buildings-bold-duotone" class="fs-9 text-secondary"></iconify-icon>
+                        </div>
+                        <div>
+                          <h6 class="text-white fw-bold mb-1">Logotipo de la Empresa</h6>
+                          <p class="text-secondary fs-2 mb-0">Se mostrará en la impresión de facturas y notas de crédito (RIDE A4 y Ticket) de las sucursales sin logo propio.</p>
+                          <small class="text-white-50 fs-1">Formatos: PNG, JPG, WEBP, SVG (Máx. 5MB). Guardado en Supabase Storage.</small>
+                        </div>
+                      </div>
+                      <div>
+                        <label class="btn btn-outline-primary btn-sm rounded-pill px-3 cursor-pointer d-inline-flex align-items-center gap-2 mb-0">
+                          <iconify-icon icon="solar:upload-track-2-line-duotone" class="fs-4"></iconify-icon>
+                          <span>{{ companyLogoPreview ? 'Cambiar Logotipo' : 'Subir Logotipo' }}</span>
+                          <input type="file" accept="image/png,image/jpeg,image/webp,image/svg+xml" class="d-none" @change="onCompanyLogoChange" />
+                        </label>
+                      </div>
+                    </div>
+                  </div>
+                  <div class="col-md-6">
+                    <label class="form-label text-secondary fs-2 fw-semibold">RUC *</label>
+                    <input v-model="formCompany.ruc" type="text" maxlength="13" class="form-control bg-dark-subtle border-secondary-subtle text-white" placeholder="1725620247001" required />
+                  </div>
+                  <div class="col-md-6">
+                    <label class="form-label text-secondary fs-2 fw-semibold">Nombre Comercial *</label>
+                    <input v-model="formCompany.trade_name" type="text" class="form-control bg-dark-subtle border-secondary-subtle text-white" required />
+                  </div>
+                  <div class="col-12">
+                    <label class="form-label text-secondary fs-2 fw-semibold">Razón Social *</label>
+                    <input v-model="formCompany.business_name" type="text" class="form-control bg-dark-subtle border-secondary-subtle text-white" required />
+                  </div>
+                  <div class="col-12">
+                    <label class="form-label text-secondary fs-2 fw-semibold">Dirección de Matriz</label>
+                    <input v-model="formCompany.address_matriz" type="text" class="form-control bg-dark-subtle border-secondary-subtle text-white" />
+                  </div>
+                  <div class="col-md-6">
+                    <label class="form-label text-secondary fs-2 fw-semibold">Teléfono</label>
+                    <input v-model="formCompany.phone" type="text" class="form-control bg-dark-subtle border-secondary-subtle text-white" />
+                  </div>
+                  <div class="col-md-6">
+                    <label class="form-label text-secondary fs-2 fw-semibold">Correo de la empresa</label>
+                    <input v-model="formCompany.email" type="email" class="form-control bg-dark-subtle border-secondary-subtle text-white" />
+                  </div>
+                  <div class="col-12">
+                    <label class="form-label text-secondary fs-2 fw-semibold">Descripción / Actividad económica *</label>
+                    <textarea v-model="formCompany.description" class="form-control bg-dark-subtle border-secondary-subtle text-white" rows="2" required></textarea>
+                  </div>
+
+                  <!-- Selector de Ambiente SRI en pestaña General -->
+                  <div class="col-12 mt-2 pt-2 border-top border-dark-subtle">
+                    <label class="form-label text-secondary fs-2 fw-semibold fw-bold d-flex align-items-center gap-2 mb-2">
+                      <iconify-icon icon="solar:server-square-bold-duotone" class="text-primary fs-5"></iconify-icon>
+                      Ambiente de Emisión SRI *
+                    </label>
+                    <div class="row g-2">
+                      <div class="col-md-6">
+                        <div
+                          class="p-3 rounded-3 border transition-all d-flex align-items-center gap-3"
+                          :class="formCompany.sri_environment === '1' ? 'border-warning bg-warning-subtle text-warning' : 'border-secondary-subtle bg-dark-subtle text-secondary'"
+                          @click="formCompany.sri_environment = '1'"
+                          style="cursor: pointer;"
+                        >
+                          <div class="rounded-circle p-2 bg-warning-subtle text-warning border border-warning-subtle d-flex align-items-center justify-content-center" style="width: 38px; height: 38px;">
+                            <iconify-icon icon="solar:test-tube-minimalistic-bold-duotone" class="fs-5"></iconify-icon>
+                          </div>
+                          <div>
+                            <div class="fw-bold fs-3 text-white">1 - Ambiente de Pruebas</div>
+                            <small class="text-white-50 d-block fs-1">Comprobantes de prueba e integración SRI sin validez fiscal.</small>
+                          </div>
+                          <iconify-icon v-if="formCompany.sri_environment === '1'" icon="solar:check-circle-bold" class="fs-5 text-warning ms-auto flex-shrink-0"></iconify-icon>
+                        </div>
+                      </div>
+                      <div class="col-md-6">
+                        <div
+                          class="p-3 rounded-3 border transition-all d-flex align-items-center gap-3"
+                          :class="formCompany.sri_environment === '2' ? 'border-success bg-success-subtle text-success' : 'border-secondary-subtle bg-dark-subtle text-secondary'"
+                          @click="formCompany.sri_environment = '2'"
+                          style="cursor: pointer;"
+                        >
+                          <div class="rounded-circle p-2 bg-success-subtle text-success border border-success-subtle d-flex align-items-center justify-content-center" style="width: 38px; height: 38px;">
+                            <iconify-icon icon="solar:shield-check-bold" class="fs-5"></iconify-icon>
+                          </div>
+                          <div>
+                            <div class="fw-bold fs-3 text-white">2 - Ambiente de Producción</div>
+                            <small class="text-white-50 d-block fs-1">Facturas reales con autorización formal del SRI.</small>
+                          </div>
+                          <iconify-icon v-if="formCompany.sri_environment === '2'" icon="solar:check-circle-bold" class="fs-5 text-success ms-auto flex-shrink-0"></iconify-icon>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- SRI -->
+                <div v-show="companyFormTab === 'fiscal'" class="row g-3">
+                  <div class="col-12">
+                    <label class="form-label text-secondary fs-2 fw-semibold fw-bold d-flex align-items-center gap-2 mb-2">
+                      <iconify-icon icon="solar:server-square-bold-duotone" class="text-primary fs-5"></iconify-icon>
+                      Ambiente SRI *
+                    </label>
+                    <div class="row g-2">
+                      <div class="col-md-6">
+                        <div
+                          class="p-3 rounded-3 border transition-all d-flex align-items-center gap-3"
+                          :class="formCompany.sri_environment === '1' ? 'border-warning bg-warning-subtle text-warning' : 'border-secondary-subtle bg-dark-subtle text-secondary'"
+                          @click="formCompany.sri_environment = '1'"
+                          style="cursor: pointer;"
+                        >
+                          <div class="rounded-circle p-2 bg-warning-subtle text-warning border border-warning-subtle d-flex align-items-center justify-content-center" style="width: 38px; height: 38px;">
+                            <iconify-icon icon="solar:test-tube-minimalistic-bold-duotone" class="fs-5"></iconify-icon>
+                          </div>
+                          <div>
+                            <div class="fw-bold fs-3 text-white">1 - Pruebas</div>
+                            <small class="text-white-50 d-block fs-1">Sin validez fiscal real.</small>
+                          </div>
+                          <iconify-icon v-if="formCompany.sri_environment === '1'" icon="solar:check-circle-bold" class="fs-5 text-warning ms-auto flex-shrink-0"></iconify-icon>
+                        </div>
+                      </div>
+                      <div class="col-md-6">
+                        <div
+                          class="p-3 rounded-3 border transition-all d-flex align-items-center gap-3"
+                          :class="formCompany.sri_environment === '2' ? 'border-success bg-success-subtle text-success' : 'border-secondary-subtle bg-dark-subtle text-secondary'"
+                          @click="formCompany.sri_environment = '2'"
+                          style="cursor: pointer;"
+                        >
+                          <div class="rounded-circle p-2 bg-success-subtle text-success border border-success-subtle d-flex align-items-center justify-content-center" style="width: 38px; height: 38px;">
+                            <iconify-icon icon="solar:shield-check-bold" class="fs-5"></iconify-icon>
+                          </div>
+                          <div>
+                            <div class="fw-bold fs-3 text-white">2 - Producción</div>
+                            <small class="text-white-50 d-block fs-1">Facturas autorizadas formalmente.</small>
+                          </div>
+                          <iconify-icon v-if="formCompany.sri_environment === '2'" icon="solar:check-circle-bold" class="fs-5 text-success ms-auto flex-shrink-0"></iconify-icon>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  <!-- Modalidad de Envío SRI (Manual / Automático) -->
+                  <div class="col-12">
+                    <label class="form-label text-secondary fs-2 fw-semibold fw-bold d-flex align-items-center gap-2 mb-2">
+                      <iconify-icon icon="solar:plain-2-bold-duotone" class="text-primary fs-5"></iconify-icon>
+                      Modalidad de Envío al SRI *
+                    </label>
+                    <div class="row g-2">
+                      <div class="col-md-6">
+                        <div
+                          class="p-3 rounded-3 border transition-all d-flex align-items-center gap-3"
+                          :class="!formCompany.auto_send_sri ? 'border-primary bg-primary-subtle text-primary' : 'border-secondary-subtle bg-dark-subtle text-secondary'"
+                          @click="formCompany.auto_send_sri = false"
+                          style="cursor: pointer;"
+                        >
+                          <div class="rounded-circle p-2 bg-primary-subtle text-primary border border-primary-subtle d-flex align-items-center justify-content-center" style="width: 38px; height: 38px;">
+                            <iconify-icon icon="solar:hand-shake-bold-duotone" class="fs-5"></iconify-icon>
+                          </div>
+                          <div>
+                            <div class="fw-bold fs-3 text-white">Manual</div>
+                            <small class="text-white-50 d-block fs-1">El usuario envía los comprobantes desde el listado.</small>
+                          </div>
+                          <iconify-icon v-if="!formCompany.auto_send_sri" icon="solar:check-circle-bold" class="fs-5 text-primary ms-auto flex-shrink-0"></iconify-icon>
+                        </div>
+                      </div>
+                      <div class="col-md-6">
+                        <div
+                          class="p-3 rounded-3 border transition-all d-flex align-items-center gap-3"
+                          :class="formCompany.auto_send_sri ? 'border-info bg-info-subtle text-info' : 'border-secondary-subtle bg-dark-subtle text-secondary'"
+                          @click="formCompany.auto_send_sri = true"
+                          style="cursor: pointer;"
+                        >
+                          <div class="rounded-circle p-2 bg-info-subtle text-info border border-info-subtle d-flex align-items-center justify-content-center" style="width: 38px; height: 38px;">
+                            <iconify-icon icon="solar:bolt-circle-bold-duotone" class="fs-5"></iconify-icon>
+                          </div>
+                          <div>
+                            <div class="fw-bold fs-3 text-white">Automático al registrar</div>
+                            <small class="text-white-50 d-block fs-1">Facturas y notas de crédito se envían y autorizan al instante.</small>
+                          </div>
+                          <iconify-icon v-if="formCompany.auto_send_sri" icon="solar:check-circle-bold" class="fs-5 text-info ms-auto flex-shrink-0"></iconify-icon>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div class="col-md-6">
+                    <label class="form-label text-secondary fs-2 fw-semibold">Régimen tributario</label>
+                    <select v-model="formCompany.tax_regime" class="form-select bg-dark-subtle border-secondary-subtle text-white">
+                      <option value="GENERAL">General</option>
+                      <option value="RIMPE_EMPRENDEDOR">RIMPE - Emprendedor</option>
+                      <option value="RIMPE_NEGOCIO_POPULAR">RIMPE - Negocio Popular</option>
+                    </select>
+                  </div>
+                  <div class="col-md-6">
+                    <label class="form-label text-secondary fs-2 fw-semibold">Establecimiento por defecto</label>
+                    <input v-model="formCompany.default_establishment" type="text" maxlength="3" class="form-control bg-dark-subtle border-secondary-subtle text-white font-monospace" />
+                  </div>
+                  <div class="col-md-6">
+                    <label class="form-label text-secondary fs-2 fw-semibold">Punto de emisión por defecto</label>
+                    <input v-model="formCompany.default_emission_point" type="text" maxlength="3" class="form-control bg-dark-subtle border-secondary-subtle text-white font-monospace" />
+                  </div>
+                  <div class="col-md-6">
+                    <label class="form-label text-secondary fs-2 fw-semibold">Nº Resolución Contribuyente Especial</label>
+                    <input v-model="formCompany.special_taxpayer" type="text" class="form-control bg-dark-subtle border-secondary-subtle text-white" placeholder="Dejar vacío si no aplica" />
+                  </div>
+                  <div class="col-md-6 d-flex align-items-end">
+                    <div class="form-check form-switch">
+                      <input v-model="formCompany.obligated_accounting" class="form-check-input" type="checkbox" id="chkContab" />
+                      <label class="form-check-label text-white-50" for="chkContab">Obligado a llevar contabilidad</label>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- FIRMA -->
+                <div v-show="companyFormTab === 'firma'" class="row g-3">
+                  <div class="col-12">
+                    <div v-if="formCompany.has_certificate || formCompany.cert_file_name" class="alert alert-success py-2 d-flex justify-content-between align-items-center">
+                      <span>Firma cargada: <strong>{{ formCompany.cert_file_name || 'certificado.p12' }}</strong></span>
+                      <button type="button" class="btn btn-sm btn-outline-danger" @click="removeP12">Quitar</button>
+                    </div>
+                    <div v-else class="alert alert-secondary py-2 mb-0">No hay firma electrónica cargada.</div>
+                  </div>
+                  <div class="col-12">
+                    <label class="form-label text-secondary fs-2 fw-semibold">Archivo de firma (.p12 / .pfx)</label>
+                    <input type="file" accept=".p12,.pfx" class="form-control bg-dark-subtle border-secondary-subtle text-white" @change="onP12Selected" />
+                  </div>
+                  <div class="col-md-6">
+                    <label class="form-label text-secondary fs-2 fw-semibold">Contraseña de la firma</label>
+                    <input
+                      v-model="formCompany.cert_password"
+                      @blur="onCertPasswordBlur"
+                      @keyup.enter="onCertPasswordBlur"
+                      type="password"
+                      autocomplete="new-password"
+                      class="form-control bg-dark-subtle border-secondary-subtle text-white"
+                      placeholder="Contraseña del archivo .p12"
+                    />
+                    <small class="text-secondary d-block mt-1">Al salir del campo o presionar Enter, se lee automáticamente la fecha de caducidad.</small>
+                  </div>
+                  <div class="col-md-6">
+                    <label class="form-label text-secondary fs-2 fw-semibold mb-1">Fecha de caducidad</label>
+                    <div class="input-group mb-1">
+                      <input v-model="formCompany.cert_expires_at" type="date" class="form-control bg-dark-subtle border-secondary-subtle text-white" />
+                      <button
+                        type="button"
+                        class="btn btn-outline-info d-inline-flex align-items-center gap-1"
+                        :disabled="inspectingCert || (!formCompany.cert_password && !formCompany.has_certificate && !formCompany.cert_p12_base64)"
+                        title="Obtener fecha de caducidad directamente del archivo de firma"
+                        @click="handleInspectCert"
+                      >
+                        <span v-if="inspectingCert" class="spinner-grow spinner-grow-sm" role="status" aria-hidden="true"></span>
+                        <iconify-icon v-else icon="solar:calendar-search-line-duotone" class="fs-5"></iconify-icon>
+                        <span class="fs-2">Obtener</span>
+                      </button>
+                    </div>
+                    <button
+                      type="button"
+                      class="btn btn-link p-0 text-info text-decoration-none fs-2 d-inline-flex align-items-center gap-1 mt-1"
+                      :disabled="inspectingCert || (!formCompany.cert_password && !formCompany.has_certificate && !formCompany.cert_p12_base64)"
+                      @click="handleInspectCert"
+                    >
+                      <iconify-icon icon="solar:calendar-date-bold" class="fs-4"></iconify-icon>
+                      <span>Obtener fecha de caducidad del certificado</span>
+                    </button>
+                  </div>
+                  <small class="text-secondary">El archivo y su contraseña se guardan cifrados (AES-256) y nunca se devuelven al navegador.</small>
+                </div>
+
+                <!-- SMTP -->
+                <div v-show="companyFormTab === 'correo'" class="row g-3">
+                  <div class="col-md-8">
+                    <label class="form-label text-secondary fs-2 fw-semibold">Servidor SMTP</label>
+                    <input v-model="formCompany.smtp_host" type="text" class="form-control bg-dark-subtle border-secondary-subtle text-white" placeholder="smtp.gmail.com" />
+                  </div>
+                  <div class="col-md-4">
+                    <label class="form-label text-secondary fs-2 fw-semibold">Puerto</label>
+                    <input v-model.number="formCompany.smtp_port" type="number" class="form-control bg-dark-subtle border-secondary-subtle text-white" />
+                  </div>
+                  <div class="col-md-6">
+                    <label class="form-label text-secondary fs-2 fw-semibold">Usuario</label>
+                    <input v-model="formCompany.smtp_user" type="text" class="form-control bg-dark-subtle border-secondary-subtle text-white" />
+                  </div>
+                  <div class="col-md-6">
+                    <label class="form-label text-secondary fs-2 fw-semibold">Contraseña {{ formCompany.has_smtp_password ? '(guardada, vacío = no cambiar)' : '' }}</label>
+                    <input v-model="formCompany.smtp_password" type="password" autocomplete="new-password" class="form-control bg-dark-subtle border-secondary-subtle text-white" />
+                  </div>
+                  <div class="col-md-6">
+                    <label class="form-label text-secondary fs-2 fw-semibold">Nombre del remitente</label>
+                    <input v-model="formCompany.smtp_from_name" type="text" class="form-control bg-dark-subtle border-secondary-subtle text-white" />
+                  </div>
+                  <div class="col-md-6">
+                    <label class="form-label text-secondary fs-2 fw-semibold">Correo del remitente</label>
+                    <input v-model="formCompany.smtp_from_email" type="email" class="form-control bg-dark-subtle border-secondary-subtle text-white" />
+                  </div>
+                  <div class="col-12">
+                    <div class="form-check form-switch">
+                      <input v-model="formCompany.smtp_secure" class="form-check-input" type="checkbox" id="chkSsl" />
+                      <label class="form-check-label text-white-50" for="chkSsl">Usar SSL/TLS</label>
+                    </div>
+                  </div>
+                </div>
+              </div>
+              <div class="modal-footer d-flex justify-content-end gap-2 px-4 py-3 border-top border-dark-subtle">
+                <button type="button" class="btn btn-outline-secondary px-4 rounded-3" @click="showCompanyModal = false">Cancelar</button>
+                <button type="submit" class="btn btn-primary px-4 rounded-3 fw-bold" :disabled="loading">
+                  <span v-if="loading" class="spinner-grow spinner-grow-sm me-2" role="status" aria-hidden="true"></span>
+                  <span>{{ loading ? 'Guardando...' : (isEditingCompany ? 'Guardar Cambios' : 'Guardar Empresa') }}</span>
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      </div>
+
+    <!-- 2. MODAL NUEVO / EDITAR USUARIO -->
+      <div v-if="showUserModal" id="form-page" class="form-page">
+        <div class="form-page-card form-page-card-lg">
+          <div class="card bg-navy-card border border-secondary-subtle rounded-4 shadow-sm">
+            <div class="modal-header d-flex justify-content-between align-items-center px-4 py-3 border-bottom border-dark-subtle">
+              <div class="d-flex align-items-center gap-2">
+                <span class="p-2 bg-primary-subtle text-primary rounded-3 d-inline-flex"><iconify-icon :icon="isEditingUser ? 'solar:user-bold' : 'solar:user-plus-line-duotone'" class="fs-5"></iconify-icon></span>
+                <h5 class="fw-bold text-white mb-0">{{ isEditingUser ? 'Editar Usuario del Sistema' : 'Crear Usuario del Sistema' }}</h5>
+              </div>
+              <button type="button" class="btn btn-outline-secondary btn-sm rounded-3 d-flex align-items-center gap-1" @click="closeUserModal">
+                <iconify-icon icon="solar:alt-arrow-left-line-duotone" class="fs-5"></iconify-icon>
+                <span>Volver</span>
+              </button>
+            </div>
+            <form @submit.prevent="submitUser">
+              <div class="modal-body p-4">
+                <!-- FOTOGRAFÍA / AVATAR DEL USUARIO (SUPABASE STORAGE) -->
+                <div class="mb-4">
+                  <div class="p-3 rounded-3 border border-secondary-subtle bg-dark-subtle d-flex flex-wrap align-items-center justify-content-between gap-3">
+                    <div class="d-flex align-items-center gap-3">
+                      <div class="rounded-circle border border-primary border-2 bg-black d-flex align-items-center justify-content-center overflow-hidden" style="width: 72px; height: 72px;">
+                        <img :src="resolveAvatarUrl(userPhotoPreview || formUser.photo_url)" @error="handleAvatarError" alt="Foto Usuario" style="width: 100%; height: 100%; object-fit: cover;" />
+                      </div>
+                      <div>
+                        <h6 class="text-white fw-bold mb-1">Fotografía / Avatar del Usuario</h6>
+                        <p class="text-secondary fs-2 mb-0">Foto de perfil visible en la barra superior y pie lateral del sistema.</p>
+                        <small class="text-white-50 fs-1">Formatos: PNG, JPG, WEBP (Máx. 5MB). Guardado en Supabase Storage.</small>
+                      </div>
+                    </div>
+                    <div>
+                      <label class="btn btn-outline-primary btn-sm rounded-pill px-3 cursor-pointer d-inline-flex align-items-center gap-2 mb-0">
+                        <iconify-icon icon="solar:camera-line-duotone" class="fs-4"></iconify-icon>
+                        <span>{{ userPhotoPreview ? 'Cambiar Foto' : 'Subir Foto' }}</span>
+                        <input type="file" accept="image/png,image/jpeg,image/webp" class="d-none" @change="onUserPhotoChange" />
+                      </label>
+                    </div>
+                  </div>
+                </div>
+                <div class="row">
+                  <div class="col-md-6 mb-3">
+                    <label class="form-label text-secondary fs-2 fw-semibold">Número de Cédula / Documento</label>
+                    <input v-model="formUser.num_document" type="text" class="form-control bg-dark-subtle border-secondary-subtle text-white" placeholder="Ej. 1725620247" required />
+                  </div>
+                  <div class="col-md-6 mb-3">
+                    <label class="form-label text-secondary fs-2 fw-semibold">Fecha de Nacimiento</label>
+                    <input v-model="formUser.birth_date" type="date" :max="new Date().toISOString().slice(0, 10)" class="form-control bg-dark-subtle border-secondary-subtle text-white" />
+                  </div>
+                </div>
+                <div class="row">
+                  <div class="col-md-6 mb-3">
+                    <label class="form-label text-secondary fs-2 fw-semibold">Nombres</label>
+                    <input v-model="formUser.name_user" type="text" class="form-control bg-dark-subtle border-secondary-subtle text-white" placeholder="Nombre" required />
+                  </div>
+                  <div class="col-md-6 mb-3">
+                    <label class="form-label text-secondary fs-2 fw-semibold">Apellidos</label>
+                    <input v-model="formUser.last_name_user" type="text" class="form-control bg-dark-subtle border-secondary-subtle text-white" placeholder="Apellido" required />
+                  </div>
+                </div>
+                <div class="mb-3">
+                  <label class="form-label text-secondary fs-2 fw-semibold">Correo Electrónico (Login)</label>
+                  <input v-model="formUser.email" type="email" class="form-control bg-dark-subtle border-secondary-subtle text-white" placeholder="usuario@correo.com" required />
+                </div>
+                <div class="mb-3">
+                  <label class="form-label text-secondary fs-2 fw-semibold d-flex justify-content-between align-items-center">
+                    <span>Contraseña</span>
+                    <span v-if="isEditingUser" class="text-secondary fs-2">(Dejar en blanco para mantener la actual)</span>
+                  </label>
+                  <input
+                    v-model="formUser.password"
+                    type="password"
+                    class="form-control bg-dark-subtle border-secondary-subtle text-white"
+                    :placeholder="isEditingUser ? '•••••••• (Sin cambios)' : 'Contraseña segura'"
+                    :required="!isEditingUser"
+                  />
+                </div>
+
+                <!-- PRIVILEGIOS: SUPER ADMIN, MULTI-EMPRESA Y ROL POR EMPRESA -->
+                <div class="mb-3 pt-3 border-top border-dark-subtle">
+                  <label class="form-label text-white fw-semibold mb-2">Permisos, Empresas y Asignación de Rol</label>
+                  <div class="row g-2 mb-3">
+                    <!-- Switch Super Admin (Visible solo cuando el usuario logueado es Super Admin; deshabilitado si Multi-Empresa está activo) -->
+                    <div v-if="isCurrentUserSuperAdmin" :class="formUser.super_admin ? 'col-12' : 'col-md-6'">
+                      <div
+                        class="form-check form-switch bg-dark-subtle p-3 rounded border d-flex align-items-center justify-content-between"
+                        :class="[
+                          formUser.super_admin ? 'border-danger' : 'border-secondary-subtle',
+                          formUser.multi_company ? 'opacity-50' : ''
+                        ]"
+                      >
+                        <label class="form-check-label text-white ms-0 cursor-pointer" for="switchSuperAdmin">
+                          <div class="fw-bold d-flex align-items-center gap-1 text-danger">
+                            <iconify-icon icon="solar:shield-star-bold"></iconify-icon> Super Admin
+                          </div>
+                          <small class="text-secondary d-block fs-1">
+                            {{
+                              formUser.multi_company
+                                ? 'Desactivado porque el usuario es Multi-Empresa'
+                                : 'Acceso total a todas las empresas y módulos del sistema (no requiere rol)'
+                            }}
+                          </small>
+                        </label>
+                        <input
+                          v-model="formUser.super_admin"
+                          class="form-check-input fs-5 m-0 cursor-pointer"
+                          type="checkbox"
+                          id="switchSuperAdmin"
+                          :disabled="formUser.multi_company"
+                          @change="onSuperAdminChange"
+                        />
+                      </div>
+                    </div>
+
+                    <!-- Switch Multi Empresa (Desaparece si es Super Admin) -->
+                    <div v-if="!formUser.super_admin" :class="isCurrentUserSuperAdmin ? 'col-md-6' : 'col-12'">
+                      <div
+                        class="form-check form-switch bg-dark-subtle p-3 rounded border d-flex align-items-center justify-content-between"
+                        :class="formUser.multi_company ? 'border-warning' : 'border-secondary-subtle'"
+                      >
+                        <label class="form-check-label text-white ms-0 cursor-pointer" for="switchMultiCompany">
+                          <div class="fw-bold d-flex align-items-center gap-1 text-warning">
+                            <iconify-icon icon="solar:buildings-bold"></iconify-icon> Multi-Empresa
+                          </div>
+                          <small class="text-secondary d-block fs-1">Asignar varias empresas y un rol distinto en cada una</small>
+                        </label>
+                        <input
+                          v-model="formUser.multi_company"
+                          class="form-check-input fs-5 m-0 cursor-pointer"
+                          type="checkbox"
+                          id="switchMultiCompany"
+                          @change="onMultiCompanyChange"
+                        />
+                      </div>
+                    </div>
+                  </div>
+
+                  <!-- CASO 1: SI ES SUPER ADMIN -> AVISO DE ACCESO TOTAL -->
+                  <div v-if="formUser.super_admin" class="p-3 bg-danger-subtle text-danger rounded border border-danger-subtle mb-2 d-flex align-items-center gap-2">
+                    <iconify-icon icon="solar:shield-star-bold" class="fs-5 flex-shrink-0"></iconify-icon>
+                    <span class="fs-2">
+                      Al ser <strong>Super Admin</strong>, este usuario tiene acceso absoluto a todas las empresas, módulos y submódulos sin restricción de rol.
+                    </span>
+                  </div>
+
+                  <!-- CASO 2: SI NO ES SUPER ADMIN Y NO ES MULTI-EMPRESA -> SELECTOR DE ROL EN LA EMPRESA ACTIVA -->
+                  <div v-else-if="!formUser.multi_company" class="p-3 bg-dark-subtle rounded border border-primary-subtle mb-3">
+                    <label class="form-label text-white fw-semibold d-flex align-items-center justify-content-between mb-2">
+                      <span class="d-flex align-items-center gap-2">
+                        <iconify-icon icon="solar:shield-user-line-duotone" class="text-primary fs-5"></iconify-icon>
+                        <span>Rol del Usuario en {{ selectedCompany?.razon_social || selectedCompany?.nombre_comercial || 'la Empresa Activa' }}</span>
+                      </span>
+                      <span class="badge bg-primary-subtle text-primary">Empresa #{{ currentCompanyId }}</span>
+                    </label>
+                    <select
+                      v-model="formUser.roleId"
+                      class="form-select bg-dark border-secondary-subtle text-white"
+                      required
+                    >
+                      <option :value="null" disabled>Selecciona un rol para esta empresa...</option>
+                      <option
+                        v-for="r in rolesByCompany[currentCompanyId] || []"
+                        :key="r.id"
+                        :value="r.id"
+                      >
+                        {{ r.code }} - {{ r.description }}
+                      </option>
+                    </select>
+                    <small
+                      v-if="(rolesByCompany[currentCompanyId] || []).length === 0"
+                      class="text-warning d-block mt-1 fs-1"
+                    >
+                      No hay roles registrados en esta empresa aún. Crea uno en la pestaña "Roles".
+                    </small>
+                  </div>
+
+                  <!-- CASO 3: SI ES MULTI-EMPRESA -> SELECCIÓN DE EMPRESAS Y ROL ESPECÍFICO POR CADA EMPRESA -->
+                  <div v-else class="p-3 bg-dark-subtle rounded border border-warning-subtle mb-3">
+                    <div class="d-flex align-items-center justify-content-between mb-2">
+                      <label class="form-label text-warning fw-semibold d-flex align-items-center gap-2 mb-0">
+                        <iconify-icon icon="solar:checklist-minimalistic-bold" class="fs-4"></iconify-icon>
+                        <span>Empresas Habilitadas y Rol por Empresa</span>
+                      </label>
+                      <span class="badge bg-warning-subtle text-warning border border-warning-subtle">
+                        {{ formUser.companyIds.length }} empresa(s) seleccionada(s)
+                      </span>
+                    </div>
+                    <p class="text-secondary fs-2 mb-2">
+                      Marca las empresas a las que tendrá acceso el usuario y elige qué rol desempeñará en cada una (Ej. Contable en una, Ventas en otra):
+                    </p>
+
+                    <div class="d-flex flex-column gap-2 overflow-y-auto pe-1" style="max-height: 240px;">
+                      <div
+                        v-for="company in companies"
+                        :key="company.id"
+                        class="p-2 rounded border transition-all"
+                        :class="
+                          formUser.companyIds.includes(company.id)
+                            ? 'bg-primary-subtle border-primary text-white'
+                            : 'bg-dark border-secondary-subtle text-secondary'
+                        "
+                      >
+                        <div class="row align-items-center g-2">
+                          <div class="col-md-6">
+                            <label class="d-flex align-items-center gap-2 cursor-pointer mb-0">
+                              <input
+                                type="checkbox"
+                                class="form-check-input m-0 cursor-pointer"
+                                :value="company.id"
+                                v-model="formUser.companyIds"
+                                @change="onToggleUserCompany(company.id)"
+                              />
+                              <div class="text-truncate">
+                                <span class="d-block fw-semibold text-truncate fs-2">
+                                  {{ company.business_name || company.trade_name }}
+                                </span>
+                                <small class="text-secondary font-monospace fs-1">RUC: {{ company.ruc }}</small>
+                              </div>
+                            </label>
+                          </div>
+
+                          <!-- Selector de Rol para esta empresa específica -->
+                          <div v-if="formUser.companyIds.includes(company.id)" class="col-md-6">
+                            <select
+                              v-model="formUser.companyRolesMap[company.id]"
+                              class="form-select form-select-sm bg-dark border-primary text-white"
+                              required
+                            >
+                              <option :value="null" disabled>Selecciona rol en {{ company.trade_name || company.business_name }}...</option>
+                              <option
+                                v-for="r in rolesByCompany[company.id] || []"
+                                :key="r.id"
+                                :value="r.id"
+                              >
+                                {{ r.code }} - {{ r.description }}
+                              </option>
+                            </select>
+                            <small
+                              v-if="(rolesByCompany[company.id] || []).length === 0"
+                              class="text-warning d-block fs-1 mt-1"
+                            >
+                              Esta empresa aún no tiene roles creados.
+                            </small>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- SELECTOR DE MODO OSCURO / CLARO (SPIKE ADMIN THEME MODE) -->
+                <div class="mb-3 pt-2 border-top border-dark-subtle">
+                  <label class="form-label text-secondary fs-2 fw-semibold d-flex justify-content-between align-items-center mb-2">
+                    <span class="fw-semibold text-adaptive-light">Modo de Apariencia</span>
+                    <span class="badge bg-info-subtle text-info border border-info-subtle px-2 py-1 fs-1">
+                      {{ themeStore.isDark ? 'Oscuro activo' : 'Claro activo' }}
+                    </span>
+                  </label>
+                  <div class="d-flex gap-2">
+                    <button
+                      type="button"
+                      class="btn flex-fill d-flex align-items-center justify-content-center gap-2 py-2 rounded-3 border"
+                      :class="!themeStore.isDark ? 'btn-primary text-white shadow-sm' : 'btn-outline-secondary text-secondary'"
+                      @click="themeStore.applyThemeMode('light')"
+                    >
+                      <iconify-icon icon="solar:sun-2-line-duotone" class="fs-5"></iconify-icon>
+                      <span class="fw-semibold">Modo Claro</span>
+                    </button>
+                    <button
+                      type="button"
+                      class="btn flex-fill d-flex align-items-center justify-content-center gap-2 py-2 rounded-3 border"
+                      :class="themeStore.isDark ? 'btn-primary text-white shadow-sm' : 'btn-outline-secondary text-secondary'"
+                      @click="themeStore.applyThemeMode('dark')"
+                    >
+                      <iconify-icon icon="solar:moon-line-duotone" class="fs-5"></iconify-icon>
+                      <span class="fw-semibold">Modo Oscuro</span>
+                    </button>
+                  </div>
+                </div>
+
+                <!-- SELECTOR DE COLOR DE TEMA (SPIKE ADMIN THEME COLORS) -->
+                <div class="mb-2 pt-2 border-top border-dark-subtle">
+                  <label class="form-label text-secondary fs-2 fw-semibold d-flex justify-content-between align-items-center mb-2">
+                    <span class="fw-semibold text-white">Color de Tema de la Interfaz</span>
+                    <span class="badge bg-primary-subtle text-primary border border-primary-subtle px-2 py-1 fs-1">
+                      Se aplicará al iniciar sesión
+                    </span>
+                  </label>
+                  
+                  <div class="theme-colors-grid">
+                    <div
+                      v-for="theme in themeColorsList"
+                      :key="theme.id"
+                      class="theme-color-card"
+                      :class="{ active: formUser.theme_color === theme.id }"
+                      @click="selectTheme(theme.id)"
+                      :title="theme.name"
+                    >
+                      <div class="theme-circle" :style="{ backgroundColor: theme.color }">
+                        <iconify-icon
+                          v-if="formUser.theme_color === theme.id"
+                          icon="solar:check-read-outline"
+                          class="check-icon"
+                        ></iconify-icon>
+                      </div>
+                      <span class="theme-label">{{ theme.name }}</span>
+                    </div>
+                  </div>
+
+                  <small class="text-secondary fs-2 mt-2 d-flex align-items-center gap-1">
+                    <iconify-icon icon="solar:info-circle-line-duotone" class="text-info fs-4"></iconify-icon>
+                    <span>Haz clic en un color para previsualizarlo en tiempo real en todo el sistema ERP.</span>
+                  </small>
+                </div>
+              </div>
+              <div class="modal-footer d-flex justify-content-end gap-2 px-4 py-3 border-top border-dark-subtle">
+                <button type="button" class="btn btn-outline-secondary px-4 rounded-3" @click="closeUserModal">Cancelar</button>
+                <button type="submit" class="btn btn-primary px-4 rounded-3 fw-bold" :disabled="loading">
+                  <span v-if="loading" class="spinner-grow spinner-grow-sm me-2" role="status" aria-hidden="true"></span>
+                  <span>{{ loading ? 'Guardando...' : (isEditingUser ? 'Actualizar Usuario' : 'Guardar Usuario') }}</span>
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      </div>
+
+    <!-- 3. MODAL NUEVO / EDITAR ROL (CABECERA Y DETALLE DE ACCESOS) -->
+      <div v-if="showRoleModal" id="form-page" class="form-page">
+        <div class="form-page-card form-page-card-lg">
+          <div class="card bg-navy-card border border-secondary-subtle rounded-4 shadow-sm">
+            <div class="modal-header d-flex justify-content-between align-items-center px-4 py-3 border-bottom border-dark-subtle">
+              <div class="d-flex align-items-center gap-2">
+                <span class="p-2 bg-primary-subtle text-primary rounded-3 d-inline-flex"><iconify-icon icon="solar:shield-check-line-duotone" class="fs-5"></iconify-icon></span>
+                <h5 class="fw-bold text-white mb-0">{{ isEditingRole ? 'Editar Rol (Cabecera y Detalle de Accesos)' : 'Registrar Nuevo Rol (Cabecera y Detalle)' }}</h5>
+              </div>
+              <button type="button" class="btn btn-outline-secondary btn-sm rounded-3 d-flex align-items-center gap-1" @click="showRoleModal = false">
+                <iconify-icon icon="solar:alt-arrow-left-line-duotone" class="fs-5"></iconify-icon>
+                <span>Volver</span>
+              </button>
+            </div>
+            <form @submit.prevent="submitRole">
+              <div class="modal-body p-4">
+                <!-- CABECERA DEL ROL -->
+                <div class="p-3 rounded-3 bg-dark-subtle border border-secondary-subtle mb-3">
+                  <div class="d-flex justify-content-between align-items-center mb-2">
+                    <h6 class="fw-bold text-primary mb-0 d-flex align-items-center gap-1">
+                      <iconify-icon icon="solar:document-text-line-duotone"></iconify-icon>
+                      <span>1. Cabecera del Rol</span>
+                    </h6>
+                    <span class="badge bg-dark text-white border border-secondary-subtle">
+                      Empresa: {{ getCompanyNameById(selectedRoleCompanyId) }}
+                    </span>
+                  </div>
+                  <div class="row g-3">
+                    <div class="col-md-4">
+                      <label class="form-label text-secondary fs-2 fw-semibold d-flex justify-content-between align-items-center">
+                        <span>Código del Rol</span>
+                        <span class="badge bg-primary-subtle text-primary fs-1">Auto (+1)</span>
+                      </label>
+                      <input
+                        v-model="formRole.code"
+                        type="text"
+                        class="form-control bg-dark border-secondary-subtle text-info fw-bold font-monospace text-uppercase"
+                        readonly
+                      />
+                    </div>
+                    <div class="col-md-8">
+                      <label class="form-label text-secondary fs-2 fw-semibold">Nombre / Descripción del Rol</label>
+                      <input
+                        v-model="formRole.description"
+                        type="text"
+                        class="form-control bg-dark border-secondary-subtle text-white"
+                        placeholder="Ej. Contador General, Vendedor, Administrador de Bodega"
+                        required
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                <!-- DETALLE DEL ROL: MÓDULOS MADRE E HIJAS DE LA EMPRESA CON BOOLEAN TRUE / FALSE -->
+                <div class="p-3 rounded-3 bg-dark-subtle border border-secondary-subtle">
+                  <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-2">
+                    <div>
+                      <h6 class="fw-bold text-info mb-0 d-flex align-items-center gap-1">
+                        <iconify-icon icon="solar:widget-4-line-duotone"></iconify-icon>
+                        <span>2. Detalle del Rol — Módulos Madre y Submódulos Hijas de la Empresa</span>
+                      </h6>
+                      <small class="text-secondary fs-1">
+                        Activa (<code>true</code>) o desactiva (<code>false</code>) los módulos y submódulos a los que tendrá acceso este rol:
+                      </small>
+                    </div>
+                    <div class="d-flex gap-1">
+                      <button
+                        type="button"
+                        class="btn btn-sm btn-outline-success rounded-pill px-2 py-1 fs-1"
+                        @click="setAllRoleAccess(true)"
+                      >
+                        Todos en true
+                      </button>
+                      <button
+                        type="button"
+                        class="btn btn-sm btn-outline-danger rounded-pill px-2 py-1 fs-1"
+                        @click="setAllRoleAccess(false)"
+                      >
+                        Todos en false
+                      </button>
+                    </div>
+                  </div>
+
+                  <div
+                    v-if="companyAccessibleModules.length > 0"
+                    class="d-flex flex-column gap-2 overflow-y-auto pe-1 mt-2"
+                    style="max-height: 310px;"
+                  >
+                    <div
+                      v-for="mod in companyAccessibleModules"
+                      :key="mod.id"
+                      class="p-3 rounded-3 border"
+                      :class="
+                        formRole.moduleAccess[mod.id]
+                          ? 'bg-dark border-primary'
+                          : 'bg-dark border-secondary-subtle opacity-75'
+                      "
+                    >
+                      <!-- Fila Módulo Madre -->
+                      <div class="d-flex justify-content-between align-items-center">
+                        <div class="d-flex align-items-center gap-2">
+                          <iconify-icon
+                            :icon="mod.desc_icon || 'solar:widget-4-line-duotone'"
+                            class="fs-5 text-primary"
+                          ></iconify-icon>
+                          <div>
+                            <span class="fw-bold text-white">{{ mod.description }}</span>
+                            <span class="badge bg-dark-subtle text-secondary font-monospace ms-2 fs-1">
+                              Madre · {{ mod.code }}
+                            </span>
+                          </div>
+                        </div>
+
+                        <!-- Switch Boolean True / False para Módulo Madre -->
+                        <div class="d-flex align-items-center gap-2">
+                          <span
+                            class="badge font-monospace"
+                            :class="
+                              formRole.moduleAccess[mod.id]
+                                ? 'bg-success-subtle text-success border border-success-subtle'
+                                : 'bg-danger-subtle text-danger border border-danger-subtle'
+                            "
+                          >
+                            {{ formRole.moduleAccess[mod.id] ? 'true' : 'false' }}
+                          </span>
+                          <div class="form-check form-switch m-0">
+                            <input
+                              type="checkbox"
+                              class="form-check-input fs-5 m-0 cursor-pointer"
+                              :checked="Boolean(formRole.moduleAccess[mod.id])"
+                              @change="toggleRoleModuleAccess(mod.id, ($event.target as HTMLInputElement).checked)"
+                            />
+                          </div>
+                        </div>
+                      </div>
+
+                      <!-- Submódulos Hijas de este Módulo Madre -->
+                      <div
+                        v-if="getCompanyAccessibleSubModules(mod.id).length > 0"
+                        class="mt-2 ps-4 pt-2 border-top border-secondary-subtle d-flex flex-column gap-1"
+                      >
+                        <div
+                          v-for="subMod in getCompanyAccessibleSubModules(mod.id)"
+                          :key="subMod.id"
+                          class="d-flex justify-content-between align-items-center p-2 rounded border"
+                          :class="
+                            formRole.subModuleAccess[subMod.id]
+                              ? 'bg-dark-subtle border-info-subtle text-white'
+                              : 'bg-dark border-secondary-subtle text-secondary'
+                          "
+                        >
+                          <div class="d-flex align-items-center gap-2 text-truncate">
+                            <iconify-icon
+                              :icon="subMod.desc_icon || 'solar:round-alt-arrow-right-line-duotone'"
+                              class="fs-4 text-info"
+                            ></iconify-icon>
+                            <div class="text-truncate">
+                              <span class="fw-semibold fs-2">{{ subMod.description }}</span>
+                              <small class="text-secondary font-monospace ms-2 fs-1">
+                                Hija · {{ subMod.code }} ({{ subMod.url_desc }})
+                              </small>
+                            </div>
+                          </div>
+
+                          <!-- Switch Boolean True / False para Submódulo Hija -->
+                          <div class="d-flex align-items-center gap-2 flex-shrink-0">
+                            <span
+                              class="badge font-monospace"
+                              :class="
+                                formRole.subModuleAccess[subMod.id]
+                                  ? 'bg-success-subtle text-success border border-success-subtle'
+                                  : 'bg-danger-subtle text-danger border border-danger-subtle'
+                              "
+                            >
+                              {{ formRole.subModuleAccess[subMod.id] ? 'true' : 'false' }}
+                            </span>
+                            <div class="form-check form-switch m-0">
+                              <input
+                                type="checkbox"
+                                class="form-check-input m-0 cursor-pointer"
+                                :checked="Boolean(formRole.subModuleAccess[subMod.id])"
+                                @change="toggleRoleSubModuleAccess(subMod, ($event.target as HTMLInputElement).checked)"
+                              />
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                      <div v-else class="ps-4 mt-1">
+                        <small class="text-secondary fst-italic fs-1">Sin submódulos hijas asociados.</small>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div v-else class="alert alert-warning mt-2 mb-0 py-2 fs-2">
+                    <iconify-icon icon="solar:info-circle-line-duotone" class="me-1 align-middle fs-4"></iconify-icon>
+                    Esta empresa aún no tiene módulos habilitados en su suscripción o en el sistema.
+                  </div>
+                </div>
+              </div>
+              <div class="modal-footer d-flex justify-content-end gap-2 px-4 py-3 border-top border-dark-subtle">
+                <button type="button" class="btn btn-outline-secondary px-4 rounded-3" @click="showRoleModal = false">Cancelar</button>
+                <button type="submit" class="btn btn-primary px-4 rounded-3 fw-bold" :disabled="loading">
+                  <span v-if="loading" class="spinner-grow spinner-grow-sm me-2" role="status" aria-hidden="true"></span>
+                  <span>{{ loading ? 'Guardando...' : (isEditingRole ? 'Actualizar Rol y Detalle' : 'Guardar Rol y Detalle') }}</span>
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      </div>
+
+    <!-- 3.5 MODAL NUEVO / EDITAR MÓDULO -->
+      <div v-if="showModuleModal" id="form-page" class="form-page">
+        <div class="form-page-card">
+          <div class="card bg-navy-card border border-secondary-subtle rounded-4 shadow-sm">
+            <div class="modal-header d-flex justify-content-between align-items-center px-4 py-3 border-bottom border-dark-subtle">
+              <div class="d-flex align-items-center gap-2">
+                <span class="p-2 bg-primary-subtle text-primary rounded-3 d-inline-flex"><iconify-icon icon="solar:widget-4-line-duotone" class="fs-5"></iconify-icon></span>
+                <h5 class="fw-bold text-white mb-0">{{ isEditingModule ? 'Editar Módulo Principal' : 'Crear Nuevo Módulo' }}</h5>
+              </div>
+              <button type="button" class="btn btn-outline-secondary btn-sm rounded-3 d-flex align-items-center gap-1" @click="showModuleModal = false">
+                <iconify-icon icon="solar:alt-arrow-left-line-duotone" class="fs-5"></iconify-icon>
+                <span>Volver</span>
+              </button>
+            </div>
+            <form @submit.prevent="submitModule">
+              <div class="modal-body p-4">
+                <div class="mb-3">
+                  <label class="form-label text-secondary fs-2 fw-semibold d-flex justify-content-between align-items-center">
+                    <span>Código Único del Módulo</span>
+                    <span class="badge bg-primary-subtle text-primary border border-primary-subtle fs-1">
+                      Autogenerado (+1)
+                    </span>
+                  </label>
+                  <input
+                    v-model="formModule.code"
+                    type="text"
+                    maxlength="20"
+                    class="form-control bg-dark border-secondary-subtle text-info fw-bold font-monospace text-uppercase"
+                    readonly
+                  />
+                  <small class="text-secondary fs-1">
+                    Se calcula automáticamente tomando el último módulo registrado + 1 para validaciones de acceso.
+                  </small>
+                </div>
+                <div class="row g-3 mb-3">
+                  <div class="col-md-8">
+                    <label class="form-label text-secondary fs-2 fw-semibold">Nombre / Descripción del Módulo</label>
+                    <input
+                      v-model="formModule.description"
+                      type="text"
+                      maxlength="150"
+                      class="form-control bg-dark-subtle border-secondary-subtle text-white"
+                      placeholder="Ej. Ventas y Facturación"
+                      required
+                    />
+                  </div>
+                  <div class="col-md-4">
+                    <label class="form-label text-secondary fs-2 fw-semibold">Orden en Menú</label>
+                    <input
+                      v-model.number="formModule.order_index"
+                      type="number"
+                      min="0"
+                      class="form-control bg-dark-subtle border-secondary-subtle text-white font-monospace"
+                      placeholder="1, 2, 3..."
+                    />
+                  </div>
+                </div>
+                <div class="mb-3">
+                  <label class="form-label text-secondary fs-2 fw-semibold d-flex justify-content-between align-items-center">
+                    <span>Icono del Módulo (Iconify Solar)</span>
+                    <span class="d-inline-flex align-items-center gap-1 badge bg-primary-subtle text-primary">
+                      <iconify-icon :icon="formModule.desc_icon || 'solar:widget-4-line-duotone'" class="fs-4"></iconify-icon>
+                      Vista previa
+                    </span>
+                  </label>
+                  <input
+                    v-model="formModule.desc_icon"
+                    type="text"
+                    class="form-control bg-dark-subtle border-secondary-subtle text-white font-monospace mb-2"
+                    placeholder="Ej. solar:cart-large-2-line-duotone"
+                    required
+                  />
+                  <!-- Selector rápido de iconos -->
+                  <div class="d-flex flex-wrap gap-1 mt-1">
+                    <button
+                      v-for="item in suggestedIcons"
+                      :key="item.icon"
+                      type="button"
+                      class="btn btn-sm rounded-pill d-inline-flex align-items-center gap-1 px-2 py-1"
+                      :class="formModule.desc_icon === item.icon ? 'btn-primary text-white' : 'btn-outline-secondary text-white-50'"
+                      @click="formModule.desc_icon = item.icon"
+                    >
+                      <iconify-icon :icon="item.icon" class="fs-4"></iconify-icon>
+                      <span class="fs-1">{{ item.label }}</span>
+                    </button>
+                  </div>
+                </div>
+
+                <div v-if="isEditingModule" class="form-check form-switch bg-dark-subtle p-3 rounded border border-secondary-subtle d-flex align-items-center justify-content-between">
+                  <label class="form-check-label text-white ms-0" for="switchModuleEnabled">
+                    <div class="fw-bold">Estado del Módulo</div>
+                    <small class="text-secondary d-block fs-1">Habilitar o deshabilitar este módulo en el sistema</small>
+                  </label>
+                  <input
+                    v-model="formModule.enabled"
+                    class="form-check-input fs-5 m-0"
+                    type="checkbox"
+                    id="switchModuleEnabled"
+                  />
+                </div>
+              </div>
+              <div class="modal-footer d-flex justify-content-end gap-2 px-4 py-3 border-top border-dark-subtle">
+                <button type="button" class="btn btn-outline-secondary px-4 rounded-3" @click="showModuleModal = false">Cancelar</button>
+                <button type="submit" class="btn btn-primary px-4 rounded-3 fw-bold" :disabled="loading">
+                  <span v-if="loading" class="spinner-grow spinner-grow-sm me-2" role="status" aria-hidden="true"></span>
+                  <span>{{ loading ? 'Guardando...' : (isEditingModule ? 'Actualizar Módulo' : 'Guardar Módulo') }}</span>
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      </div>
+
+    <!-- 3.6 MODAL NUEVO / EDITAR SUBMÓDULO -->
+      <div v-if="showSubModuleModal" id="form-page" class="form-page">
+        <div class="form-page-card">
+          <div class="card bg-navy-card border border-secondary-subtle rounded-4 shadow-sm">
+            <div class="modal-header d-flex justify-content-between align-items-center px-4 py-3 border-bottom border-dark-subtle">
+              <div class="d-flex align-items-center gap-2">
+                <span class="p-2 bg-primary-subtle text-primary rounded-3 d-inline-flex"><iconify-icon icon="solar:layers-minimalistic-line-duotone" class="fs-5"></iconify-icon></span>
+                <h5 class="fw-bold text-white mb-0">{{ isEditingSubModule ? 'Editar Submódulo' : 'Crear Nuevo Submódulo' }}</h5>
+              </div>
+              <button type="button" class="btn btn-outline-secondary btn-sm rounded-3 d-flex align-items-center gap-1" @click="showSubModuleModal = false">
+                <iconify-icon icon="solar:alt-arrow-left-line-duotone" class="fs-5"></iconify-icon>
+                <span>Volver</span>
+              </button>
+            </div>
+            <form @submit.prevent="submitSubModule">
+              <div class="modal-body p-4">
+                <div class="mb-3">
+                  <label class="form-label text-secondary fs-2 fw-semibold">Módulo Principal (Padre)</label>
+                  <select
+                    v-model.number="formSubModule.moduleId"
+                    class="form-select bg-dark-subtle border-secondary-subtle text-white"
+                    required
+                  >
+                    <option :value="0" disabled>Selecciona un módulo principal...</option>
+                    <option v-for="mod in modulesList" :key="mod.id" :value="mod.id">
+                      {{ mod.code }} - {{ mod.description }}
+                    </option>
+                  </select>
+                </div>
+
+                <div class="row">
+                  <div class="col-md-4 mb-3">
+                    <label class="form-label text-secondary fs-2 fw-semibold d-flex justify-content-between align-items-center">
+                      <span>Código Único</span>
+                      <span class="badge bg-info-subtle text-info border border-info-subtle fs-1">Auto (+1)</span>
+                    </label>
+                    <input
+                      v-model="formSubModule.code"
+                      type="text"
+                      maxlength="20"
+                      class="form-control bg-dark border-secondary-subtle text-info fw-bold font-monospace text-uppercase"
+                      readonly
+                    />
+                  </div>
+                  <div class="col-md-5 mb-3">
+                    <label class="form-label text-secondary fs-2 fw-semibold">Ruta / URL del Submódulo</label>
+                    <input
+                      v-model="formSubModule.url_desc"
+                      type="text"
+                      class="form-control bg-dark-subtle border-secondary-subtle text-white font-monospace"
+                      placeholder="Ej. /ventas/facturas"
+                      required
+                    />
+                  </div>
+                  <div class="col-md-3 mb-3">
+                    <label class="form-label text-secondary fs-2 fw-semibold">Orden Submenú</label>
+                    <input
+                      v-model.number="formSubModule.order_index"
+                      type="number"
+                      min="0"
+                      class="form-control bg-dark-subtle border-secondary-subtle text-white font-monospace"
+                      placeholder="1, 2, 3..."
+                    />
+                  </div>
+                </div>
+
+                <div class="mb-3">
+                  <label class="form-label text-secondary fs-2 fw-semibold">Nombre / Descripción del Submódulo</label>
+                  <input
+                    v-model="formSubModule.description"
+                    type="text"
+                    maxlength="150"
+                    class="form-control bg-dark-subtle border-secondary-subtle text-white"
+                    placeholder="Ej. Emisión de Facturas Electrónicas"
+                    required
+                  />
+                </div>
+
+                <div class="mb-3">
+                  <label class="form-label text-secondary fs-2 fw-semibold d-flex justify-content-between align-items-center">
+                    <span>Icono del Submódulo</span>
+                    <span class="d-inline-flex align-items-center gap-1 badge bg-info-subtle text-info">
+                      <iconify-icon :icon="formSubModule.desc_icon || 'solar:round-alt-arrow-right-line-duotone'" class="fs-4"></iconify-icon>
+                      Vista previa
+                    </span>
+                  </label>
+                  <input
+                    v-model="formSubModule.desc_icon"
+                    type="text"
+                    class="form-control bg-dark-subtle border-secondary-subtle text-white font-monospace mb-2"
+                    placeholder="Ej. solar:document-text-line-duotone"
+                    required
+                  />
+                  <div class="d-flex flex-wrap gap-1 mt-1">
+                    <button
+                      v-for="item in suggestedIcons"
+                      :key="item.icon"
+                      type="button"
+                      class="btn btn-sm rounded-pill d-inline-flex align-items-center gap-1 px-2 py-1"
+                      :class="formSubModule.desc_icon === item.icon ? 'btn-info text-dark fw-semibold' : 'btn-outline-secondary text-white-50'"
+                      @click="formSubModule.desc_icon = item.icon"
+                    >
+                      <iconify-icon :icon="item.icon" class="fs-4"></iconify-icon>
+                      <span class="fs-1">{{ item.label }}</span>
+                    </button>
+                  </div>
+                </div>
+
+                <div v-if="isEditingSubModule" class="form-check form-switch bg-dark-subtle p-3 rounded border border-secondary-subtle d-flex align-items-center justify-content-between">
+                  <label class="form-check-label text-white ms-0" for="switchSubModuleEnabled">
+                    <div class="fw-bold">Estado del Submódulo</div>
+                    <small class="text-secondary d-block fs-1">Habilitar o deshabilitar este submódulo</small>
+                  </label>
+                  <input
+                    v-model="formSubModule.enabled"
+                    class="form-check-input fs-5 m-0"
+                    type="checkbox"
+                    id="switchSubModuleEnabled"
+                  />
+                </div>
+              </div>
+              <div class="modal-footer d-flex justify-content-end gap-2 px-4 py-3 border-top border-dark-subtle">
+                <button type="button" class="btn btn-outline-secondary px-4 rounded-3" @click="showSubModuleModal = false">Cancelar</button>
+                <button type="submit" class="btn btn-info text-dark fw-semibold px-4" :disabled="loading">
+                  <span v-if="loading" class="spinner-grow spinner-grow-sm me-2" role="status" aria-hidden="true"></span>
+                  <span>{{ loading ? 'Guardando...' : (isEditingSubModule ? 'Actualizar Submódulo' : 'Guardar Submódulo') }}</span>
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      </div>
+
+    <!-- 4. MODAL NUEVO PLAN -->
+      <div v-if="showPlanModal" id="form-page" class="form-page">
+        <div class="form-page-card">
+          <div class="card bg-navy-card border border-secondary-subtle rounded-4 shadow-sm">
+            <div class="modal-header d-flex justify-content-between align-items-center px-4 py-3 border-bottom border-dark-subtle">
+              <div class="d-flex align-items-center gap-2">
+                <span class="p-2 bg-primary-subtle text-primary rounded-3 d-inline-flex"><iconify-icon icon="solar:tag-price-line-duotone" class="fs-5"></iconify-icon></span>
+                <h5 class="fw-bold text-white mb-0">Crear Plan SaaS</h5>
+              </div>
+              <button type="button" class="btn btn-outline-secondary btn-sm rounded-3 d-flex align-items-center gap-1" @click="showPlanModal = false">
+                <iconify-icon icon="solar:alt-arrow-left-line-duotone" class="fs-5"></iconify-icon>
+                <span>Volver</span>
+              </button>
+            </div>
+            <form @submit.prevent="submitPlan">
+              <div class="modal-body p-4">
+                <div class="mb-3">
+                  <label class="form-label text-secondary fs-2 fw-semibold">Nombre / Descripción del Plan</label>
+                  <input v-model="formPlan.description" type="text" class="form-control bg-dark-subtle border-secondary-subtle text-white" placeholder="Ej. Plan Emprendedor" required />
+                </div>
+                <div class="row">
+                  <div class="col-md-6 mb-3">
+                    <label class="form-label text-secondary fs-2 fw-semibold">Precio ($)</label>
+                    <input v-model="formPlan.price" type="number" step="0.01" class="form-control bg-dark-subtle border-secondary-subtle text-white" required />
+                  </div>
+                  <div class="col-md-6 mb-3">
+                    <label class="form-label text-secondary fs-2 fw-semibold">Ciclo de Facturación</label>
+                    <select v-model="formPlan.billing_cycle" class="form-select bg-dark-subtle border-secondary-subtle text-white">
+                      <option value="monthly">Mensual</option>
+                      <option value="yearly">Anual</option>
+                      <option value="weekly">Semanal</option>
+                    </select>
+                  </div>
+                </div>
+                <div class="row">
+                  <div class="col-md-6 mb-3">
+                    <label class="form-label text-secondary fs-2 fw-semibold">Máx. Usuarios</label>
+                    <input v-model.number="formPlan.max_users" type="number" class="form-control bg-dark-subtle border-secondary-subtle text-white" required />
+                  </div>
+                  <div class="col-md-6 mb-3">
+                    <label class="form-label text-secondary fs-2 fw-semibold">Máx. Sucursales</label>
+                    <input v-model.number="formPlan.max_branches" type="number" class="form-control bg-dark-subtle border-secondary-subtle text-white" required />
+                  </div>
+                </div>
+              </div>
+              <div class="modal-footer d-flex justify-content-end gap-2 px-4 py-3 border-top border-dark-subtle">
+                <button type="button" class="btn btn-outline-secondary px-4 rounded-3" @click="showPlanModal = false">Cancelar</button>
+                <button type="submit" class="btn btn-primary px-4 rounded-3 fw-bold" :disabled="loading">
+                  <span v-if="loading" class="spinner-grow spinner-grow-sm me-2" role="status" aria-hidden="true"></span>
+                  <span>{{ loading ? 'Guardando...' : 'Guardar Plan' }}</span>
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      </div>
+
+    <!-- 5. MODAL ASIGNAR / EDITAR SUSCRIPCIÓN Y ACCESO A MÓDULOS -->
+      <div v-if="showSubscriptionModal" id="form-page" class="form-page">
+        <div class="form-page-card form-page-card-lg">
+          <div class="card bg-navy-card border border-secondary-subtle rounded-4 shadow-sm">
+            <div class="modal-header d-flex justify-content-between align-items-center px-4 py-3 border-bottom border-dark-subtle">
+              <div class="d-flex align-items-center gap-2">
+                <span class="p-2 bg-primary-subtle text-primary rounded-3 d-inline-flex"><iconify-icon icon="solar:card-recive-line-duotone" class="fs-5"></iconify-icon></span>
+                <h5 class="fw-bold text-white mb-0">{{ isEditingSubscription ? 'Editar Suscripción y Módulos de Acceso' : 'Asignar Suscripción y Módulos a la Empresa' }}</h5>
+              </div>
+              <button type="button" class="btn btn-outline-secondary btn-sm rounded-3 d-flex align-items-center gap-1" @click="showSubscriptionModal = false">
+                <iconify-icon icon="solar:alt-arrow-left-line-duotone" class="fs-5"></iconify-icon>
+                <span>Volver</span>
+              </button>
+            </div>
+            <form @submit.prevent="submitSubscription">
+              <div class="modal-body p-4">
+                <div class="row">
+                  <div class="col-md-6 mb-3">
+                    <label class="form-label text-secondary fs-2 fw-semibold">Plan a Contratar</label>
+                    <select v-model.number="formSubscription.planId" class="form-select bg-dark-subtle border-secondary-subtle text-white" required>
+                      <option v-for="plan in plans" :key="plan.id" :value="plan.id">
+                        {{ plan.description }} - ${{ plan.price }} ({{ plan.billing_cycle }})
+                      </option>
+                    </select>
+                  </div>
+                  <div class="col-md-3 mb-3">
+                    <label class="form-label text-secondary fs-2 fw-semibold">Fecha de Inicio</label>
+                    <input v-model="formSubscription.begin_date" type="date" class="form-control bg-dark-subtle border-secondary-subtle text-white" required />
+                  </div>
+                  <div class="col-md-3 mb-3">
+                    <label class="form-label text-secondary fs-2 fw-semibold">Fecha de Fin</label>
+                    <input v-model="formSubscription.end_date" type="date" class="form-control bg-dark-subtle border-secondary-subtle text-white" required />
+                  </div>
+                </div>
+
+                <!-- SELECCIÓN DE MÓDULOS Y SUBMÓDULOS CON ACCESO -->
+                <div class="mt-2 pt-3 border-top border-dark-subtle">
+                  <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-2">
+                    <div>
+                      <label class="form-label text-white fw-semibold d-flex align-items-center gap-2 mb-0">
+                        <iconify-icon icon="solar:widget-4-line-duotone" class="text-primary fs-5"></iconify-icon>
+                        <span>Módulos y Submódulos con Acceso Habilitado</span>
+                      </label>
+                      <small class="text-secondary d-block fs-2">
+                        Marca los módulos principales y submódulos específicos a los que tendrá acceso esta empresa:
+                      </small>
+                    </div>
+
+                    <div class="d-flex align-items-center gap-2">
+                      <span class="badge bg-primary-subtle text-primary border border-primary-subtle">
+                        {{ formSubscription.moduleIds.length }} módulo(s) · {{ formSubscription.subModuleIds.length }} submódulo(s)
+                      </span>
+                      <button
+                        type="button"
+                        class="btn btn-sm btn-outline-info rounded-pill px-2 py-1 fs-1"
+                        @click="selectAllSubscriptionAccess"
+                      >
+                        Marcar todo
+                      </button>
+                      <button
+                        type="button"
+                        class="btn btn-sm btn-outline-secondary rounded-pill px-2 py-1 fs-1"
+                        @click="clearAllSubscriptionAccess"
+                      >
+                        Limpiar
+                      </button>
+                    </div>
+                  </div>
+
+                  <!-- Árbol de Módulos y Submódulos -->
+                  <div
+                    v-if="modulesList.length > 0"
+                    class="d-flex flex-column gap-2 overflow-y-auto pe-1 mt-2"
+                    style="max-height: 300px;"
+                  >
+                    <div
+                      v-for="mod in modulesList.filter((m) => m.enabled !== false)"
+                      :key="mod.id"
+                      class="p-3 rounded-3 border transition-all"
+                      :class="
+                        formSubscription.moduleIds.includes(mod.id)
+                          ? 'bg-dark-subtle border-primary'
+                          : 'bg-dark border-secondary-subtle opacity-75'
+                      "
+                    >
+                      <!-- Cabecera del Módulo Principal -->
+                      <div class="d-flex justify-content-between align-items-center">
+                        <label class="d-flex align-items-center gap-2 cursor-pointer mb-0">
+                          <input
+                            type="checkbox"
+                            class="form-check-input m-0 fs-5 cursor-pointer"
+                            :checked="formSubscription.moduleIds.includes(mod.id)"
+                            @change="toggleSubscriptionModule(mod.id)"
+                          />
+                          <iconify-icon
+                            :icon="mod.desc_icon || 'solar:widget-4-line-duotone'"
+                            class="fs-5 text-primary ms-1"
+                          ></iconify-icon>
+                          <span class="fw-bold text-white">{{ mod.description }}</span>
+                          <span class="badge bg-dark text-secondary font-monospace fs-1">{{ mod.code }}</span>
+                        </label>
+
+                        <span class="badge bg-dark-subtle text-secondary fs-1">
+                          {{
+                            getSubModulesForModule(mod.id).filter((sm) =>
+                              formSubscription.subModuleIds.includes(sm.id)
+                            ).length
+                          }}
+                          / {{ getSubModulesForModule(mod.id).length }} submódulos
+                        </span>
+                      </div>
+
+                      <!-- Submódulos hijos del Módulo Principal -->
+                      <div
+                        v-if="getSubModulesForModule(mod.id).length > 0"
+                        class="row g-2 mt-2 ps-4 pt-2 border-top border-secondary-subtle"
+                      >
+                        <div
+                          v-for="subMod in getSubModulesForModule(mod.id)"
+                          :key="subMod.id"
+                          class="col-md-6"
+                        >
+                          <label
+                            class="d-flex align-items-center gap-2 p-2 rounded border cursor-pointer w-100 h-100"
+                            :class="
+                              formSubscription.subModuleIds.includes(subMod.id)
+                                ? 'bg-info-subtle border-info text-white'
+                                : 'bg-dark border-secondary-subtle text-secondary'
+                            "
+                          >
+                            <input
+                              type="checkbox"
+                              class="form-check-input m-0 cursor-pointer"
+                              :checked="formSubscription.subModuleIds.includes(subMod.id)"
+                              @change="toggleSubscriptionSubModule(subMod)"
+                            />
+                            <iconify-icon
+                              :icon="subMod.desc_icon || 'solar:round-alt-arrow-right-line-duotone'"
+                              class="fs-4 text-info"
+                            ></iconify-icon>
+                            <div class="text-truncate">
+                              <span class="d-block fw-semibold text-truncate fs-2">{{ subMod.description }}</span>
+                              <small class="text-secondary font-monospace fs-1">{{ subMod.url_desc }}</small>
+                            </div>
+                          </label>
+                        </div>
+                      </div>
+                      <div v-else class="ps-4 mt-1">
+                        <small class="text-secondary fst-italic fs-1">
+                          Este módulo aún no tiene submódulos registrados.
+                        </small>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div v-else class="alert alert-warning mt-2 mb-0 py-2 fs-2">
+                    <iconify-icon icon="solar:info-circle-line-duotone" class="me-1 align-middle fs-4"></iconify-icon>
+                    No hay módulos registrados aún. Ve a la pestaña <strong>"Módulos & Submódulos"</strong> para crearlos primero.
+                  </div>
+                </div>
+
+                <!-- Switch Vigencia (Solo en edición) -->
+                <div
+                  v-if="isEditingSubscription"
+                  class="form-check form-switch bg-dark-subtle p-3 rounded border border-secondary-subtle d-flex align-items-center justify-content-between mt-3"
+                >
+                  <label class="form-check-label text-white ms-0" for="switchSubscriptionEnabled">
+                    <div class="fw-bold">Estado de la Suscripción</div>
+                    <small class="text-secondary d-block fs-1">Marcar suscripción como vigente o expirada</small>
+                  </label>
+                  <input
+                    v-model="formSubscription.enabled"
+                    class="form-check-input fs-5 m-0"
+                    type="checkbox"
+                    id="switchSubscriptionEnabled"
+                  />
+                </div>
+              </div>
+              <div class="modal-footer d-flex justify-content-end gap-2 px-4 py-3 border-top border-dark-subtle">
+                <button type="button" class="btn btn-outline-secondary px-4 rounded-3" @click="showSubscriptionModal = false">Cancelar</button>
+                <button type="submit" class="btn btn-primary px-4 rounded-3 fw-bold" :disabled="loading">
+                  <span v-if="loading" class="spinner-grow spinner-grow-sm me-2" role="status" aria-hidden="true"></span>
+                  <span>{{ loading ? 'Guardando...' : (isEditingSubscription ? 'Guardar Cambios de Suscripción' : 'Activar Suscripción y Accesos') }}</span>
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      </div>
+
+    <!-- 8. FORMULARIO EN PÁGINA: NUEVO / EDITAR IMPUESTO -->
+    <div v-if="showTaxModal" id="form-page" class="form-page">
+      <div class="form-page-card">
+        <div class="card bg-navy-card border border-secondary-subtle rounded-4 shadow-sm">
+          <div class="modal-header d-flex justify-content-between align-items-center px-4 py-3 border-bottom border-dark-subtle">
+            <div class="d-flex align-items-center gap-2">
+              <span class="p-2 bg-primary-subtle text-primary rounded-3 d-inline-flex">
+                <iconify-icon icon="solar:calculator-minimalistic-line-duotone" class="fs-5"></iconify-icon>
+              </span>
+              <h5 class="fw-bold text-white mb-0">{{ isEditingTax ? 'Editar Impuesto' : 'Registrar Nuevo Impuesto' }}</h5>
+            </div>
+            <button type="button" class="btn btn-outline-secondary btn-sm rounded-3 d-flex align-items-center gap-1" @click="showTaxModal = false">
+              <iconify-icon icon="solar:alt-arrow-left-line-duotone" class="fs-5"></iconify-icon>
+              <span>Volver</span>
+            </button>
+          </div>
+          <form @submit.prevent="submitTax">
+            <div class="modal-body p-4">
+              <div class="row g-3">
+                <div class="col-md-4">
+                  <label class="form-label text-secondary fs-2 fw-semibold">Código del Impuesto *</label>
+                  <input
+                    v-model="formTax.code"
+                    type="text"
+                    class="form-control bg-dark-subtle border-secondary-subtle text-white font-monospace"
+                    placeholder="Ej. 4, 0, 2, IVA15"
+                    required
+                  />
+                  <small class="text-muted fs-1 d-block mt-1">Código tributario SRI o identificador interno</small>
+                </div>
+
+                <div class="col-md-4">
+                  <label class="form-label text-secondary fs-2 fw-semibold">Porcentaje (%) *</label>
+                  <div class="input-group">
+                    <input
+                      v-model.number="formTax.percentage"
+                      type="number"
+                      step="0.01"
+                      min="0"
+                      max="100"
+                      class="form-control bg-dark-subtle border-secondary-subtle text-white font-monospace"
+                      placeholder="Ej. 15.00"
+                      required
+                    />
+                    <span class="input-group-text bg-dark-subtle border-secondary-subtle text-secondary">%</span>
+                  </div>
+                </div>
+
+                <div class="col-md-4">
+                  <label class="form-label text-secondary fs-2 fw-semibold">Estado *</label>
+                  <AppSelect2
+                    v-model="formTax.status"
+                    :options="taxStatusOptions"
+                    placeholder="Seleccionar Estado"
+                    required
+                  />
+                </div>
+
+                <div class="col-12">
+                  <label class="form-label text-secondary fs-2 fw-semibold">Descripción del Impuesto *</label>
+                  <input
+                    v-model="formTax.description"
+                    type="text"
+                    class="form-control bg-dark-subtle border-secondary-subtle text-white"
+                    placeholder="Ej. IVA 15% (Tarifa General)"
+                    required
+                  />
+                </div>
+
+                <div class="col-12 mt-3">
+                  <div class="form-check form-switch">
+                    <input
+                      v-model="formTax.is_default"
+                      class="form-check-input"
+                      type="checkbox"
+                      role="switch"
+                      id="taxDefaultSwitch"
+                    />
+                    <label class="form-check-label text-white fw-semibold" for="taxDefaultSwitch">
+                      Establecer como tarifa de impuesto predeterminada
+                    </label>
+                    <small class="text-muted d-block fs-1">
+                      Si se activa, los nuevos artículos y servicios se crearán seleccionando esta tarifa por defecto.
+                    </small>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div class="modal-footer px-4 py-3 border-top border-dark-subtle d-flex justify-content-between">
+              <button type="button" class="btn btn-outline-secondary rounded-pill px-4" @click="showTaxModal = false">
+                Cancelar
+              </button>
+              <button type="submit" class="btn btn-primary rounded-pill px-4 fw-semibold d-flex align-items-center gap-2" :disabled="savingTax">
+                <span v-if="savingTax" class="spinner-grow spinner-grow-sm text-white" role="status"></span>
+                <iconify-icon v-else icon="solar:check-circle-line-duotone" class="fs-4"></iconify-icon>
+                <span>{{ isEditingTax ? 'Guardar Cambios' : 'Registrar Impuesto' }}</span>
+              </button>
+            </div>
+          </form>
+        </div>
+      </div>
+    </div>
+
+    <!-- 9. FORMULARIO EN PÁGINA: NUEVO / EDITAR TIPO DE DOCUMENTO -->
+    <div v-if="showDocTypeModal" id="form-page" class="form-page">
+      <div class="form-page-card" style="overflow: visible;">
+        <div class="card bg-navy-card border border-secondary-subtle rounded-4 shadow-sm" style="overflow: visible;">
+          <div class="modal-header d-flex justify-content-between align-items-center px-4 py-3 border-bottom border-dark-subtle">
+            <div class="d-flex align-items-center gap-2">
+              <span class="p-2 bg-primary-subtle text-primary rounded-3 d-inline-flex">
+                <iconify-icon icon="solar:document-text-line-duotone" class="fs-5"></iconify-icon>
+              </span>
+              <h5 class="fw-bold text-white mb-0">{{ isEditingDocType ? 'Editar Tipo de Documento' : 'Registrar Nuevo Tipo de Documento' }}</h5>
+            </div>
+            <button type="button" class="btn btn-outline-secondary btn-sm rounded-3 d-flex align-items-center gap-1" @click="showDocTypeModal = false">
+              <iconify-icon icon="solar:alt-arrow-left-line-duotone" class="fs-5"></iconify-icon>
+              <span>Volver</span>
+            </button>
+          </div>
+          <form @submit.prevent="submitDocType" style="overflow: visible;">
+            <div class="modal-body p-4" style="overflow: visible; min-height: 280px; padding-bottom: 8rem;">
+              <div class="row g-3">
+                <div class="col-md-6">
+                  <label class="form-label text-secondary fs-2 fw-semibold">Nombre del Documento *</label>
+                  <input
+                    v-model="formDocType.name"
+                    type="text"
+                    class="form-control bg-dark-subtle border-secondary-subtle text-white"
+                    placeholder="Ej. Cédula de Identidad, RUC, Pasaporte"
+                    required
+                  />
+                </div>
+
+                <div class="col-md-6">
+                  <label class="form-label text-secondary fs-2 fw-semibold">Código SRI / Identificador *</label>
+                  <input
+                    v-model="formDocType.code"
+                    type="text"
+                    class="form-control bg-dark-subtle border-secondary-subtle text-white font-monospace"
+                    placeholder="Ej. 05, 04, 06, 07, 08"
+                    required
+                  />
+                  <small class="text-muted fs-1 d-block mt-1">04 = RUC, 05 = Cédula, 06 = Pasaporte, 07 = Consumidor Final, 08 = Exterior</small>
+                </div>
+
+                <div class="col-md-6">
+                  <label class="form-label text-secondary fs-2 fw-semibold">Aplica a *</label>
+                  <AppSelect2
+                    v-model="formDocType.type"
+                    :options="docTypeTargetOptions"
+                    placeholder="Seleccionar Destinatario"
+                    required
+                  />
+                </div>
+
+                <div class="col-md-6">
+                  <label class="form-label text-secondary fs-2 fw-semibold">Estado *</label>
+                  <AppSelect2
+                    v-model="formDocType.status"
+                    :options="docTypeStatusOptions"
+                    placeholder="Seleccionar Estado"
+                    required
+                  />
+                </div>
+              </div>
+            </div>
+
+            <div class="modal-footer px-4 py-3 border-top border-dark-subtle d-flex justify-content-between">
+              <button type="button" class="btn btn-outline-secondary rounded-pill px-4" @click="showDocTypeModal = false">
+                Cancelar
+              </button>
+              <button type="submit" class="btn btn-primary rounded-pill px-4 fw-semibold d-flex align-items-center gap-2" :disabled="savingDocType">
+                <span v-if="savingDocType" class="spinner-grow spinner-grow-sm text-white" role="status"></span>
+                <iconify-icon v-else icon="solar:check-circle-line-duotone" class="fs-4"></iconify-icon>
+                <span>{{ isEditingDocType ? 'Guardar Cambios' : 'Registrar Tipo Documento' }}</span>
+              </button>
+            </div>
+          </form>
+        </div>
+      </div>
+    </div>
+
+        </div>
+      </div>
+    </div>
+  </div>
+</template>
+
+<style scoped>
+.bg-navy-card {
+  background-color: #0d182e !important;
+  border: 1px solid rgba(255, 255, 255, 0.05) !important;
+}
+
+.hover-tab:hover {
+  background-color: rgba(255, 255, 255, 0.08);
+  color: #fff !important;
+}
+
+/* PALETA DE TEMAS (SPIKE ADMIN THEME COLORS) */
+.theme-colors-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 12px;
+}
+
+.theme-color-card {
+  background: rgba(255, 255, 255, 0.04);
+  border: 2px solid rgba(255, 255, 255, 0.08);
+  border-radius: 12px;
+  padding: 12px 8px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.theme-color-card:hover {
+  background: rgba(255, 255, 255, 0.08);
+  border-color: rgba(255, 255, 255, 0.25);
+  transform: translateY(-2px);
+}
+
+.theme-color-card.active {
+  border-color: var(--bs-primary, #0085db);
+  background: rgba(0, 133, 219, 0.15);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.35);
+}
+
+.theme-circle {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.4);
+}
+
+.check-icon {
+  color: #ffffff;
+  font-size: 18px;
+  font-weight: bold;
+  filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.7));
+}
+
+.theme-label {
+  font-size: 11px;
+  color: rgba(255, 255, 255, 0.75);
+  text-align: center;
+  white-space: nowrap;
+}
+
+.theme-color-card.active .theme-label {
+  color: #ffffff;
+  font-weight: 600;
+}
+
+.theme-mini-dot {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  display: inline-block;
+  box-shadow: 0 0 4px rgba(0, 0, 0, 0.5);
+}
+
+/* Formularios de registro/edición como página (no modal): al abrirse reemplazan al listado */
+.form-open > :not(.form-page):not(.keep-in-form) {
+  display: none !important;
+}
+.form-page {
+  width: 100%;
+  scroll-margin-top: 110px; /* deja libre la barra superior fija */
+}
+.form-page-card {
+  max-width: none;
+  margin: 0 auto;
+}
+.form-page-card-lg {
+  max-width: none;
+}
+</style>

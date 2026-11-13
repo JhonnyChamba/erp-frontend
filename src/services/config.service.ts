@@ -81,6 +81,8 @@ export interface UserItem {
   developer?: boolean
   super_admin?: boolean
   multi_company?: boolean
+  companyId?: number
+  company_id?: number
   companyIds?: number[]
   roleId?: number | null
   roleName?: string | null
@@ -136,6 +138,7 @@ export interface ModuleItem {
   code: string
   desc_icon: string
   description: string
+  order_index?: number
   enabled?: boolean
   createdAt?: string
 }
@@ -147,6 +150,7 @@ export interface SubModuleItem {
   desc_icon: string
   description: string
   url_desc: string
+  order_index?: number
   enabled?: boolean
   createdAt?: string
 }
@@ -173,15 +177,21 @@ export const updateCompany = async (id: number, payload: CompanyPayload) => {
 }
 
 // USUARIOS
-export const getUsers = async (companyId: number, params: { page?: number; limit?: number } = {}) => {
-  const { data } = await api.get('/users', {
-    params: { companyId, page: params.page || 1, limit: params.limit || 20 },
-  })
+export const getUsers = async (companyId?: number, params: { page?: number; limit?: number } = {}) => {
+  const queryParams: any = {
+    page: params.page || 1,
+    limit: params.limit || 50,
+  }
+  if (companyId && Number(companyId) > 0) {
+    queryParams.companyId = Number(companyId)
+  }
+  const { data } = await api.get('/users', { params: queryParams })
   return data
 }
 
 export const createUser = async (payload: {
-  companyId: number
+  companyId?: number
+  company_id?: number
   num_document: string
   name_user: string
   last_name_user: string
@@ -310,6 +320,7 @@ export const createModule = async (payload: {
   code?: string
   desc_icon: string
   description: string
+  order_index?: number
 }) => {
   const { data } = await api.post('/module', payload)
   return data
@@ -372,6 +383,7 @@ export const createSubModule = async (payload: {
   desc_icon: string
   description: string
   url_desc: string
+  order_index?: number
 }) => {
   const { data } = await api.post('/subModule', payload)
   return data
