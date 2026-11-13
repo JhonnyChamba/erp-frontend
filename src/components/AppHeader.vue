@@ -3,6 +3,7 @@ import { ref, onMounted, computed } from 'vue'
 import { useAuthStore } from '@/stores/auth.store'
 import { useThemeStore } from '@/stores/theme.store'
 import { useRouter } from 'vue-router'
+import { api } from '@/services/axios'
 
 const authStore = useAuthStore()
 const themeStore = useThemeStore()
@@ -33,6 +34,23 @@ onMounted(() => {
   if (payload?.user_name) {
     userName.value = payload.user_name
   }
+
+  // Si la empresa guardada dice 'Deskounta' o falta razón social real, consultar al backend
+  const compId = selectedCompany.value?.id || payload?.company_id
+  if (compId && (!selectedCompany.value?.razon_social || selectedCompany.value?.razon_social === 'Deskounta')) {
+    api.get(`/company/${compId}`).then(({ data }: any) => {
+      if (data) {
+        selectedCompany.value = {
+          ...selectedCompany.value,
+          id: data.id,
+          ruc: data.ruc,
+          razon_social: data.business_name || data.trade_name || data.description || 'Deskounta',
+          nombre_comercial: data.trade_name || data.business_name || 'Deskounta',
+        }
+        localStorage.setItem('selectedCompany', JSON.stringify(selectedCompany.value))
+      }
+    }).catch(() => {})
+  }
 })
 
 const logout = () => {
@@ -42,7 +60,15 @@ const logout = () => {
   router.replace('/login')
 }
 
-const companyLabel = computed(() => selectedCompany.value?.razon_social || selectedCompany.value?.nombre_comercial || 'Deskounta')
+const companyLabel = computed(() => {
+  const comp = selectedCompany.value
+  if (comp?.razon_social && comp.razon_social !== 'Deskounta') return comp.razon_social
+  if (comp?.nombre_comercial && comp.nombre_comercial !== 'Deskounta') return comp.nombre_comercial
+  if (comp?.business_name) return comp.business_name
+  if (comp?.trade_name) return comp.trade_name
+  if (comp?.description && comp.description !== 'Deskounta') return comp.description
+  return comp?.razon_social || comp?.nombre_comercial || 'Deskounta'
+})
 const branchLabel = computed(() => (selectedBranch.value?.name ? `${selectedBranch.value.name} (${selectedBranch.value.code})` : 'Sucursal General'))
 const isProduction = computed(() => selectedCompany.value?.fiscal?.sri_environment === '2' || selectedCompany.value?.sri_environment === '2')
 

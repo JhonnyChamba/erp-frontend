@@ -470,9 +470,13 @@
                 <input
                   v-model="form.issue_date"
                   type="date"
-                  class="form-control"
+                  class="form-control opacity-75"
+                  readonly
+                  disabled
+                  :title="'Por normativa SRI, la fecha de emisión siempre corresponde a la fecha actual'"
                   required
                 />
+                <small class="text-secondary d-block mt-0.5 fs-1">Fijada a la fecha actual por SRI</small>
               </div>
 
               <!-- Motivo SRI -->
@@ -902,6 +906,18 @@ const getActiveCompanyId = (): number => {
   return Number(authStore.accessInfo?.companyId || authStore.tokenPayload?.company_id || 1)
 }
 
+const getActiveBranchId = (): number | undefined => {
+  try {
+    const raw = localStorage.getItem('selectedBranch')
+    if (raw) {
+      const parsed = JSON.parse(raw)
+      const id = Number(parsed?.id)
+      if (!Number.isNaN(id) && id > 0) return id
+    }
+  } catch {}
+  return undefined
+}
+
 // Estados de vista: 'list' | 'form' | 'detail'
 const currentView = ref<'list' | 'form' | 'detail'>('list')
 const loading = ref(false)
@@ -996,13 +1012,15 @@ const branchSelectOptions = computed(() =>
   }))
 )
 
-// Opciones de Select2 para facturas emitidas
+// Opciones de Select2 para facturas emitidas (solo autorizadas por SRI y no anuladas)
 const invoiceSelectOptions = computed(() =>
-  invoicesList.value.map((inv) => ({
-    value: inv.id,
-    label: `${inv.invoice_number} - ${inv.customer_name} ($${formatMoney(inv.total)})`,
-    sublabel: `Fecha: ${inv.issue_date} | Estado: ${inv.status || 'EMITIDA'}`
-  }))
+  invoicesList.value
+    .filter((inv) => inv.sri_status === 'AUTHORIZED' && inv.status !== 'CANCELED')
+    .map((inv) => ({
+      value: inv.id,
+      label: `${inv.invoice_number} - ${inv.customer_name} ($${formatMoney(inv.total)})`,
+      sublabel: `Fecha: ${inv.issue_date} | Estado SRI: AUTORIZADA`
+    }))
 )
 
 // Opciones de Select2 para puntos de emisión
@@ -1106,7 +1124,11 @@ const loadData = async () => {
     branchesList.value = Array.isArray(branchesData) ? branchesData : []
     emissionPointsList.value = Array.isArray(points) ? points : []
 
-    if (branchesList.value.length > 0 && !form.value.branchId) {
+    const activeBranchId = getActiveBranchId()
+    if (activeBranchId && branchesList.value.some((b) => b.id === activeBranchId)) {
+      filterBranchId.value = String(activeBranchId)
+      if (!form.value.branchId) form.value.branchId = activeBranchId
+    } else if (branchesList.value.length > 0 && !form.value.branchId) {
       form.value.branchId = branchesList.value[0]?.id || null
     }
   } catch (err: any) {
@@ -1169,6 +1191,11 @@ const openDetailView = (cn: CreditNoteItem) => {
 const onInvoiceSelected = (invId: any) => {
   const inv = invoicesList.value.find((i) => i.id === Number(invId))
   if (!inv) return
+
+  if (inv.sri_status !== 'AUTHORIZED' || inv.status === 'CANCELED') {
+    toast.warning('Solo se pueden emitir notas de crédito para facturas electrónicas autorizadas por el SRI.', 'Factura No Autorizada')
+    return
+  }
 
   selectedInvoice.value = inv
   selectedInvoiceId.value = inv.id
@@ -1329,7 +1356,7 @@ const handleSendSri = async (cn: CreditNoteItem) => {
 
 const handleDownloadXml = async (cn: CreditNoteItem) => {
   try {
-    await downloadCreditNoteXml(cn.id)
+    await downloadCreditNoteXml(cn.id, cn.access_key)
     toast.success(`XML de la NC ${cn.credit_note_number} descargado.`, 'Descarga')
   } catch (e: any) {
     toast.error(e?.response?.data?.message || 'Error descargando el XML.')

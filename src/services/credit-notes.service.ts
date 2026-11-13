@@ -118,13 +118,14 @@ export const getNextCreditNoteSequential = async (branchId: number, emissionPoin
   return res.data
 }
 
-export const downloadCreditNoteXml = async (id: number): Promise<void> => {
+export const downloadCreditNoteXml = async (id: number, accessKey?: string | null): Promise<void> => {
   const res = await api.get(`/sales/credit-notes/${id}/xml`, { responseType: 'blob' })
   const blob = new Blob([res.data], { type: 'application/xml' })
   const link = document.createElement('a')
   link.href = window.URL.createObjectURL(blob)
-  link.download = `NotaCredito_${id}.xml`
+  link.download = accessKey ? `${accessKey}.xml` : `NotaCredito_${id}.xml`
   document.body.appendChild(link)
   link.click()
   document.body.removeChild(link)
+  window.URL.revokeObjectURL(link.href)
 }

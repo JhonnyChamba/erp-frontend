@@ -2,6 +2,7 @@
 import { useAuthStore } from '@/stores/auth.store'
 import { useThemeStore } from '@/stores/theme.store'
 import { getBranches } from '@/services/config.service'
+import { api } from '@/services/axios'
 import { ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { toast } from '@/utils/toastr'
@@ -35,14 +36,30 @@ const login = async () => {
       router.push('/companies')
     } else {
       const assignedCompId = payload?.company_id || 1
-      localStorage.setItem(
-        'selectedCompany',
-        JSON.stringify({
-          id: assignedCompId,
-          razon_social: 'Deskounta',
-          nombre_comercial: 'Deskounta',
-        })
-      )
+      try {
+        const { data: compData } = await api.get(`/company/${assignedCompId}`)
+        localStorage.setItem(
+          'selectedCompany',
+          JSON.stringify({
+            id: assignedCompId,
+            ruc: compData.ruc,
+            razon_social: compData.business_name || compData.trade_name || compData.description || 'Deskounta',
+            nombre_comercial: compData.trade_name || compData.business_name || 'Deskounta',
+            fiscal: {
+              sri_environment: compData.sri_environment || '1',
+            }
+          })
+        )
+      } catch {
+        localStorage.setItem(
+          'selectedCompany',
+          JSON.stringify({
+            id: assignedCompId,
+            razon_social: 'Deskounta',
+            nombre_comercial: 'Deskounta',
+          })
+        )
+      }
       await authStore.fetchCompanyAccess(assignedCompId)
       // Si la empresa solo tiene una sucursal, se inicia directamente en ella
       localStorage.removeItem('selectedBranch')

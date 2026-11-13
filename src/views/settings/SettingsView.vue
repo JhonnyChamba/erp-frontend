@@ -602,8 +602,17 @@ const onP12Selected = (e: Event) => {
     formCompany.value.cert_p12_base64 = result.split(',')[1] || ''
     formCompany.value.cert_file_name = file.name
     formCompany.value.remove_certificate = false
+    if (formCompany.value.cert_password) {
+      handleInspectCert()
+    }
   }
   reader.readAsDataURL(file)
+}
+
+const onCertPasswordBlur = () => {
+  if (formCompany.value.cert_password && (formCompany.value.cert_p12_base64 || formCompany.value.has_certificate)) {
+    handleInspectCert()
+  }
 }
 
 const removeP12 = () => {
@@ -3390,7 +3399,16 @@ const submitSubscription = async () => {
                   </div>
                   <div class="col-md-6">
                     <label class="form-label text-secondary fs-2 fw-semibold">Contraseña de la firma</label>
-                    <input v-model="formCompany.cert_password" type="password" autocomplete="new-password" class="form-control bg-dark-subtle border-secondary-subtle text-white" placeholder="Contraseña del archivo .p12" />
+                    <input
+                      v-model="formCompany.cert_password"
+                      @blur="onCertPasswordBlur"
+                      @keyup.enter="onCertPasswordBlur"
+                      type="password"
+                      autocomplete="new-password"
+                      class="form-control bg-dark-subtle border-secondary-subtle text-white"
+                      placeholder="Contraseña del archivo .p12"
+                    />
+                    <small class="text-secondary d-block mt-1">Al salir del campo o presionar Enter, se lee automáticamente la fecha de caducidad.</small>
                   </div>
                   <div class="col-md-6">
                     <label class="form-label text-secondary fs-2 fw-semibold mb-1">Fecha de caducidad</label>
@@ -4572,8 +4590,8 @@ const submitSubscription = async () => {
 
     <!-- 9. FORMULARIO EN PÁGINA: NUEVO / EDITAR TIPO DE DOCUMENTO -->
     <div v-if="showDocTypeModal" id="form-page" class="form-page">
-      <div class="form-page-card">
-        <div class="card bg-navy-card border border-secondary-subtle rounded-4 shadow-sm">
+      <div class="form-page-card" style="overflow: visible;">
+        <div class="card bg-navy-card border border-secondary-subtle rounded-4 shadow-sm" style="overflow: visible;">
           <div class="modal-header d-flex justify-content-between align-items-center px-4 py-3 border-bottom border-dark-subtle">
             <div class="d-flex align-items-center gap-2">
               <span class="p-2 bg-primary-subtle text-primary rounded-3 d-inline-flex">
@@ -4586,8 +4604,8 @@ const submitSubscription = async () => {
               <span>Volver</span>
             </button>
           </div>
-          <form @submit.prevent="submitDocType">
-            <div class="modal-body p-4">
+          <form @submit.prevent="submitDocType" style="overflow: visible;">
+            <div class="modal-body p-4" style="overflow: visible; min-height: 280px; padding-bottom: 8rem;">
               <div class="row g-3">
                 <div class="col-md-6">
                   <label class="form-label text-secondary fs-2 fw-semibold">Nombre del Documento *</label>

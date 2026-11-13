@@ -80,10 +80,16 @@ export const createEmissionPoint = async (
   payload: CreateEmissionPointPayload,
   companyId?: number
 ): Promise<EmissionPointItem> => {
-  const { data } = await api.post('/sales/emission-points', {
-    ...payload,
-    ...(companyId ? { companyId } : {})
-  })
+  const { data } = await api.post(
+    '/sales/emission-points',
+    {
+      ...payload,
+      ...(companyId ? { companyId, company_id: companyId } : {})
+    },
+    {
+      params: companyId ? { companyId } : {}
+    }
+  )
   return data
 }
 
@@ -92,10 +98,16 @@ export const updateEmissionPoint = async (
   payload: UpdateEmissionPointPayload,
   companyId?: number
 ): Promise<EmissionPointItem> => {
-  const { data } = await api.patch(`/sales/emission-points/${id}`, {
-    ...payload,
-    ...(companyId ? { companyId } : {})
-  })
+  const { data } = await api.patch(
+    `/sales/emission-points/${id}`,
+    {
+      ...payload,
+      ...(companyId ? { companyId, company_id: companyId } : {})
+    },
+    {
+      params: companyId ? { companyId } : {}
+    }
+  )
   return data
 }
 

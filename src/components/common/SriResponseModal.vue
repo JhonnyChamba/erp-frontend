@@ -182,19 +182,19 @@ const getResolution = (msg: SriDetailMessage): SriErrorInfo | null => {
         </div>
 
         <!-- DETALLES DE AUTORIZACIÓN (SI EXISTEN) -->
-        <div class="card bg-dark-subtle border-secondary-subtle p-3 mb-4">
-          <div class="row g-3">
-            <div v-if="authNumber" class="col-md-7">
-              <label class="form-label text-secondary fs-1 fw-bold text-uppercase mb-1">Nº de Autorización</label>
+        <div v-if="accessKey || authDate" class="card bg-dark-subtle border-secondary-subtle p-3 mb-4">
+          <div class="row g-3 align-items-center">
+            <div v-if="accessKey" class="col-md-8">
+              <label class="form-label text-secondary fs-1 fw-bold text-uppercase mb-1">Clave de Acceso (49 dígitos)</label>
               <div class="d-flex align-items-center gap-2">
-                <code class="text-info fs-2 bg-dark p-2 rounded border border-secondary-subtle flex-grow-1 text-break">
-                  {{ authNumber }}
+                <code class="text-warning fs-2 bg-dark p-2 rounded border border-secondary-subtle flex-grow-1 text-break font-monospace">
+                  {{ accessKey }}
                 </code>
                 <button
                   type="button"
-                  class="btn btn-outline-info btn-sm px-2 py-1 d-flex align-items-center gap-1"
-                  title="Copiar número"
-                  @click="copyToClipboard(authNumber, 'Nº Autorización')"
+                  class="btn btn-outline-warning btn-sm px-2 py-1 d-flex align-items-center gap-1"
+                  title="Copiar Clave de Acceso"
+                  @click="copyToClipboard(accessKey, 'Clave de Acceso')"
                 >
                   <iconify-icon icon="solar:copy-line-duotone" class="fs-4"></iconify-icon>
                   <span>Copiar</span>
@@ -202,28 +202,11 @@ const getResolution = (msg: SriDetailMessage): SriErrorInfo | null => {
               </div>
             </div>
 
-            <div v-if="authDate" class="col-md-5">
+            <div v-if="authDate" class="col-md-4">
               <label class="form-label text-secondary fs-1 fw-bold text-uppercase mb-1">Fecha de Autorización</label>
               <div class="text-white fw-bold fs-3 py-2">
                 <iconify-icon icon="solar:calendar-date-line-duotone" class="text-primary me-1"></iconify-icon>
                 {{ authDate }}
-              </div>
-            </div>
-
-            <div v-if="accessKey" class="col-12">
-              <label class="form-label text-secondary fs-1 fw-bold text-uppercase mb-1">Clave de Acceso (49 dígitos)</label>
-              <div class="d-flex align-items-center gap-2">
-                <code class="text-warning fs-1 bg-dark p-2 rounded border border-secondary-subtle flex-grow-1 text-break font-monospace">
-                  {{ accessKey }}
-                </code>
-                <button
-                  type="button"
-                  class="btn btn-outline-secondary btn-sm px-2 py-1 d-flex align-items-center gap-1"
-                  title="Copiar clave"
-                  @click="copyToClipboard(accessKey, 'Clave de Acceso')"
-                >
-                  <iconify-icon icon="solar:copy-line-duotone" class="fs-4"></iconify-icon>
-                </button>
               </div>
             </div>
           </div>

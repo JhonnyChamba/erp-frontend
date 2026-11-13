@@ -111,7 +111,9 @@ watch(() => modalAlert.value.text, (text) => {
 
 const invoices = ref<InvoiceItem[]>([])
 const searchInvoice = ref('')
-const statusFilter = ref<'TODOS' | 'ISSUED' | 'CANCELED'>('TODOS')
+const statusFilter = ref<string>('TODOS')
+const selectedCustomerId = ref<number | null>(null)
+const isRegisteredCustomer = computed(() => Boolean(selectedCustomerId.value !== null))
 
 // Modales
 const showCreateModal = ref(false)
@@ -298,9 +300,27 @@ const loadData = async () => {
 const filteredInvoices = computed(() => {
   const q = searchInvoice.value.trim().toLowerCase()
   return invoices.value.filter((inv) => {
-    if (statusFilter.value !== 'TODOS' && inv.status !== statusFilter.value) {
+    // Filtro por Sucursal
+    if (branchFilter.value !== 'TODAS' && inv.branch_id && Number(inv.branch_id) !== Number(branchFilter.value)) {
       return false
     }
+
+    // Filtro por Estado
+    if (statusFilter.value !== 'TODOS') {
+      if (statusFilter.value === 'AUTHORIZED') {
+        if (inv.sri_status !== 'AUTHORIZED' || inv.status === 'CANCELED') return false
+      } else if (statusFilter.value === 'ISSUED') {
+        if (inv.status !== 'ISSUED') return false
+      } else if (statusFilter.value === 'CANCELED') {
+        if (inv.status !== 'CANCELED') return false
+      } else if (statusFilter.value === 'RETURNED') {
+        const s = String(inv.sri_status || '')
+        if (s !== 'RETURNED' && s !== 'NOT_AUTHORIZED' && s !== 'DEVUELTA') return false
+      } else if (statusFilter.value === 'NOT_SENT') {
+        if (inv.sri_status !== 'NOT_SENT' && inv.sri_status) return false
+      }
+    }
+
     if (!q) return true
     return (
       inv.invoice_number?.toLowerCase().includes(q) ||
@@ -493,6 +513,7 @@ const onSelectCustomer = (e: Event) => {
 
 // Modo Consumidor Final rápido
 const setFinalConsumer = () => {
+  selectedCustomerId.value = -1
   form.value.customer_id_type = '07'
   form.value.customer_id_number = '9999999999999'
   form.value.customer_name = 'CONSUMIDOR FINAL'
@@ -597,7 +618,11 @@ const customerSelectOptions = computed(() =>
 )
 
 const onSelectCustomerSelect2 = (custId: number | null) => {
-  if (!custId) return
+  if (!custId) {
+    selectedCustomerId.value = null
+    return
+  }
+  selectedCustomerId.value = Number(custId)
   const cust = customersList.value.find((c) => c.id === Number(custId))
   if (cust) {
     form.value.customer_id_type = cust.tipo_documento
@@ -643,6 +668,7 @@ const preselectWarehouse = () => {
 
 const openCreateModal = async () => {
   successMsg.value = ''
+  selectedCustomerId.value = null
   // Toda factura pertenece a una empresa y a una sucursal: sin sucursales activas no se puede emitir
   if (issuableBranches.value.length === 0) {
     errorMsg.value = 'Para emitir facturas primero registra y activa al menos una sucursal en Configuración > Sucursales.'
@@ -1271,13 +1297,20 @@ watch(() => route.path, () => {
 
           <div class="d-flex align-items-center gap-2">
             <label class="small fw-semibold text-muted">Sucursal:</label>
-            <span class="badge bg-primary-subtle text-primary border border-primary-subtle px-3 py-2" title="Sucursal seleccionada">
-              {{ branchFilter === 'TODAS' ? 'Todas las sucursales' : branchName(Number(branchFilter)) }}
-            </span>
+            <select v-model="branchFilter" class="form-select w-auto">
+              <option value="TODAS">Todas las sucursales</option>
+              <option v-for="b in branchesList" :key="b.id" :value="b.id">
+                {{ b.code }} - {{ b.name }}
+              </option>
+            </select>
+
             <label class="small fw-semibold ms-2 text-muted">Estado:</label>
             <select v-model="statusFilter" class="form-select w-auto">
               <option value="TODOS">Todos</option>
-              <option value="ISSUED">Emitidas</option>
+              <option value="AUTHORIZED">Autorizadas SRI</option>
+              <option value="ISSUED">Emitidas / Válidas</option>
+              <option value="RETURNED">Devueltas / Rechazadas SRI</option>
+              <option value="NOT_SENT">Pendientes de envío SRI</option>
               <option value="CANCELED">Anuladas</option>
             </select>
           </div>
@@ -1555,7 +1588,16 @@ watch(() => route.path, () => {
             </div>
             <div class="col-md-3">
               <label class="form-label text-secondary small fw-semibold">Fecha de Emisión *</label>
-              <input v-model="form.issue_date" type="date" class="form-control bg-dark-subtle border-secondary text-white" required />
+              <input
+                v-model="form.issue_date"
+                type="date"
+                class="form-control bg-dark-subtle border-secondary text-white opacity-75"
+                readonly
+                disabled
+                :title="'Por normativa SRI, la fecha de emisión siempre corresponde a la fecha actual'"
+                required
+              />
+              <small class="text-secondary d-block mt-0.5 fs-1">Fijada a la fecha actual por normativa SRI</small>
             </div>
             <div class="col-md-3">
               <label class="form-label text-secondary small fw-semibold">Forma de Pago SRI</label>
@@ -1607,7 +1649,12 @@ watch(() => route.path, () => {
             <div class="row g-2">
               <div class="col-md-3">
                 <label class="form-label text-secondary small">Tipo Identificación *</label>
-                <select v-model="form.customer_id_type" class="form-select form-select-sm bg-dark border-secondary text-white">
+                <select
+                  v-model="form.customer_id_type"
+                  :disabled="isRegisteredCustomer"
+                  class="form-select form-select-sm bg-dark border-secondary text-white"
+                  :class="{ 'opacity-75': isRegisteredCustomer }"
+                >
                   <option value="04">04 - RUC</option>
                   <option value="05">05 - Cédula</option>
                   <option value="06">06 - Pasaporte</option>
@@ -1616,11 +1663,28 @@ watch(() => route.path, () => {
               </div>
               <div class="col-md-3">
                 <label class="form-label text-secondary small">RUC / Cédula *</label>
-                <input v-model="form.customer_id_number" type="text" class="form-control form-control-sm bg-dark border-secondary text-white" placeholder="Ej: 1718293847" required />
+                <input
+                  v-model="form.customer_id_number"
+                  type="text"
+                  class="form-control form-control-sm bg-dark border-secondary text-white font-mono"
+                  :readonly="isRegisteredCustomer"
+                  :class="{ 'opacity-75': isRegisteredCustomer }"
+                  placeholder="Ej: 1718293847"
+                  required
+                />
               </div>
               <div class="col-md-6">
                 <label class="form-label text-secondary small">Razón Social / Nombre Completo *</label>
-                <input v-model="form.customer_name" type="text" class="form-control form-control-sm bg-dark border-secondary text-white" placeholder="Ej: Juan Pérez" required />
+                <input
+                  v-model="form.customer_name"
+                  type="text"
+                  class="form-control form-control-sm bg-dark border-secondary text-white"
+                  :readonly="isRegisteredCustomer"
+                  :class="{ 'opacity-75': isRegisteredCustomer }"
+                  placeholder="Ej: Juan Pérez"
+                  required
+                />
+                <small v-if="isRegisteredCustomer" class="text-info d-block fs-1 mt-1">Dato protegido cargado del cliente seleccionado</small>
               </div>
               <div class="col-md-6">
                 <label class="form-label text-secondary small">Dirección</label>

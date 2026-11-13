@@ -158,6 +158,8 @@ const previewInvoiceNumber = computed(() => {
 })
 
 // Auto-completado al elegir proveedor existente
+const isRegisteredProvider = computed(() => Boolean(purchaseForm.value.provider_id))
+
 const onProviderSelect = () => {
   if (!purchaseForm.value.provider_id) return
   const prov = providersList.value.find((p) => p.id === purchaseForm.value.provider_id)
@@ -694,12 +696,24 @@ onMounted(() => {
 
             <div class="form-group span-2">
               <label>Nombre / Razón Social del Proveedor *</label>
-              <input v-model="purchaseForm.provider_name" type="text" required placeholder="Ej: IMPORTADORA TECNOLOGICA S.A." />
+              <input
+                v-model="purchaseForm.provider_name"
+                type="text"
+                required
+                :readonly="isRegisteredProvider"
+                :class="{ 'bg-dark-subtle text-secondary': isRegisteredProvider }"
+                placeholder="Ej: IMPORTADORA TECNOLOGICA S.A."
+              />
+              <small v-if="isRegisteredProvider" class="text-info d-block fs-1 mt-1">Dato protegido cargado del proveedor seleccionado</small>
             </div>
 
             <div class="form-group">
               <label>Tipo Documento *</label>
-              <select v-model="purchaseForm.provider_id_type">
+              <select
+                v-model="purchaseForm.provider_id_type"
+                :disabled="isRegisteredProvider"
+                :class="{ 'bg-dark-subtle text-secondary': isRegisteredProvider }"
+              >
                 <option value="04">RUC (04)</option>
                 <option value="05">Cédula (05)</option>
                 <option value="06">Pasaporte (06)</option>
@@ -708,22 +722,48 @@ onMounted(() => {
 
             <div class="form-group">
               <label>Número de Identificación (RUC / CI) *</label>
-              <input v-model="purchaseForm.provider_id_number" type="text" required placeholder="Ej: 1792003456001" class="font-mono" />
+              <input
+                v-model="purchaseForm.provider_id_number"
+                type="text"
+                required
+                :readonly="isRegisteredProvider"
+                :class="{ 'bg-dark-subtle text-secondary': isRegisteredProvider }"
+                placeholder="Ej: 1792003456001"
+                class="font-mono"
+              />
             </div>
 
             <div class="form-group">
               <label>Teléfono de Contacto</label>
-              <input v-model="purchaseForm.provider_phone" type="text" placeholder="Ej: 0991234567" />
+              <input
+                v-model="purchaseForm.provider_phone"
+                type="text"
+                :readonly="isRegisteredProvider"
+                :class="{ 'bg-dark-subtle text-secondary': isRegisteredProvider }"
+                placeholder="Ej: 0991234567"
+              />
             </div>
 
             <div class="form-group">
               <label>Correo Electrónico</label>
-              <input v-model="purchaseForm.provider_email" type="email" placeholder="proveedor@empresa.com" />
+              <input
+                v-model="purchaseForm.provider_email"
+                type="email"
+                :readonly="isRegisteredProvider"
+                :class="{ 'bg-dark-subtle text-secondary': isRegisteredProvider }"
+                placeholder="proveedor@empresa.com"
+              />
             </div>
 
             <div class="form-group span-2">
               <label>Dirección del Proveedor</label>
-              <input v-model="purchaseForm.provider_address" type="text" placeholder="Ej: Av. Amazonas y República, Edificio Torre Azul" />
+              <input
+                v-model="purchaseForm.provider_address"
+                type="text"
+                :readonly="isRegisteredProvider"
+                :class="{ 'bg-dark-subtle text-secondary': isRegisteredProvider }"
+                placeholder="Ej: Av. Amazonas y República, Edificio Torre Azul"
+              />
             </div>
 
             <!-- Datos Comprobante Proveedor -->
@@ -765,7 +805,17 @@ onMounted(() => {
 
             <div class="form-group span-2">
               <label>Autorización / Clave de Acceso SRI del Proveedor (Opcional)</label>
-              <input v-model="purchaseForm.authorization_number" type="text" maxlength="49" placeholder="49 dígitos para comprobante electrónico o 10 para físico" class="font-mono" />
+              <input
+                v-model="purchaseForm.authorization_number"
+                @input="purchaseForm.authorization_number = (purchaseForm.authorization_number || '').replace(/\D/g, '').slice(0, 49)"
+                type="text"
+                maxlength="49"
+                inputmode="numeric"
+                pattern="[0-9]*"
+                placeholder="Solo números (49 dígitos para electrónico o 10 para físico)"
+                class="font-mono"
+              />
+              <small class="text-muted fs-1 mt-1 d-block">Solo números permitidos (hasta 49 dígitos para comprobante electrónico o 10 para físico)</small>
             </div>
 
             <!-- Bodega Destino Obligatoria -->
