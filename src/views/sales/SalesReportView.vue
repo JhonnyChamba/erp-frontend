@@ -26,9 +26,9 @@
           <div class="d-flex flex-wrap align-items-center gap-2">
             <button
               class="btn btn-outline-success rounded-pill px-3 py-2 d-flex align-items-center gap-2 fw-semibold"
-              @click="exportToExcelCSV"
+              @click="exportToExcel"
               :disabled="loading || !hasSearched || filteredRows.length === 0"
-              title="Descargar reporte en formato Excel / CSV"
+              title="Descargar reporte en formato Excel (.xls)"
             >
               <iconify-icon icon="solar:file-spreadsheet-line-duotone" class="fs-5"></iconify-icon>
               <span>Exportar Excel</span>
@@ -883,62 +883,234 @@ const printSingleDoc = (row: UnifiedReportRow) => {
   printRideDoc(row.raw, comp, 'a4')
 }
 
-// Exportar a Excel / CSV (compatible con MS Excel con BOM UTF-8)
-const exportToExcelCSV = () => {
+// Helper para escapar caracteres especiales en SpreadsheetML XML
+const escapeXml = (unsafe: string | number | null | undefined): string => {
+  if (unsafe === null || unsafe === undefined) return ''
+  return String(unsafe)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&apos;')
+}
+
+// Exportar a Excel nativo (SpreadsheetML .xls)
+// Evita notación científica (1E+13 o 1.21E+48), conserva los 49 dígitos de la clave de acceso
+// y elimina las alertas de conversión de Excel.
+const exportToExcel = () => {
   if (filteredRows.value.length === 0) {
     toast.warning('No hay comprobantes para exportar', 'Exportación')
     return
   }
 
-  const headers = [
-    'Tipo',
-    'Secuencial',
-    'Fecha Emision',
-    'Identificacion',
-    'Cliente / Razon Social',
-    'Sucursal',
-    'Base 15% (USD)',
-    'Base 0% (USD)',
-    'IVA 15% (USD)',
-    'Descuento (USD)',
-    'Total (USD)',
-    'Estado SRI',
-    'Estado Interno',
-    'Forma de Pago',
-    'Clave de Acceso',
-  ]
+  const comp = getActiveCompany()
+  const companyName = comp.razon_social || comp.nombre_comercial || 'Deskounta ERP'
+  const companyRuc = comp.ruc || ''
 
-  const rows = filteredRows.value.map((r) => [
-    r.type === 'INVOICE' ? 'FACTURA' : 'NOTA DE CREDITO',
-    `"${r.docNumber}"`,
-    r.date,
-    `"${r.customerId}"`,
-    `"${(r.customerName || '').replace(/"/g, '""')}"`,
-    `"${(r.branchName || '').replace(/"/g, '""')}"`,
-    r.base15.toFixed(2),
-    r.base0.toFixed(2),
-    r.tax15.toFixed(2),
-    r.discount.toFixed(2),
-    r.total.toFixed(2),
-    r.sriStatus,
-    r.status,
-    `"${r.paymentMethod || '01'}"`,
-    `"${r.accessKey || ''}"`,
-  ])
+  let sumBase15 = 0
+  let sumBase0 = 0
+  let sumTax15 = 0
+  let sumDiscount = 0
+  let sumNetSales = 0
 
-  const csvContent = '\uFEFF' + [headers.join(';'), ...rows.map((e) => e.join(';'))].join('\r\n')
-  const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' })
+  for (const r of filteredRows.value) {
+    const isNC = r.type === 'CREDIT_NOTE'
+    const mult = isNC ? -1 : 1
+    sumBase15 += mult * r.base15
+    sumBase0 += mult * r.base0
+    sumTax15 += mult * r.tax15
+    sumDiscount += mult * r.discount
+    sumNetSales += isNC ? -Math.abs(r.total) : r.total
+  }
+
+  const rowsXml = filteredRows.value
+    .map((r) => {
+      const isNC = r.type === 'CREDIT_NOTE'
+      const netTotal = isNC ? -Math.abs(r.total) : r.total
+
+      return `    <Row>
+      <Cell ss:StyleID="TextCenter"><Data ss:Type="String">${escapeXml(isNC ? 'NOTA DE CRÉDITO' : 'FACTURA')}</Data></Cell>
+      <Cell ss:StyleID="TextCenter"><Data ss:Type="String">${escapeXml(r.docNumber)}</Data></Cell>
+      <Cell ss:StyleID="TextCenter"><Data ss:Type="String">${escapeXml(r.date)}</Data></Cell>
+      <Cell ss:StyleID="TextCenter"><Data ss:Type="String">${escapeXml(r.customerId)}</Data></Cell>
+      <Cell ss:StyleID="TextLeft"><Data ss:Type="String">${escapeXml(r.customerName)}</Data></Cell>
+      <Cell ss:StyleID="TextLeft"><Data ss:Type="String">${escapeXml(r.branchName)}</Data></Cell>
+      <Cell ss:StyleID="Money"><Data ss:Type="Number">${r.base15.toFixed(2)}</Data></Cell>
+      <Cell ss:StyleID="Money"><Data ss:Type="Number">${r.base0.toFixed(2)}</Data></Cell>
+      <Cell ss:StyleID="Money"><Data ss:Type="Number">${r.tax15.toFixed(2)}</Data></Cell>
+      <Cell ss:StyleID="Money"><Data ss:Type="Number">${r.discount.toFixed(2)}</Data></Cell>
+      <Cell ss:StyleID="Money"><Data ss:Type="Number">${netTotal.toFixed(2)}</Data></Cell>
+      <Cell ss:StyleID="TextCenter"><Data ss:Type="String">${escapeXml(r.sriStatus)}</Data></Cell>
+      <Cell ss:StyleID="TextCenter"><Data ss:Type="String">${escapeXml(r.status)}</Data></Cell>
+      <Cell ss:StyleID="TextCenter"><Data ss:Type="String">${escapeXml(r.paymentMethod || '01')}</Data></Cell>
+      <Cell ss:StyleID="TextCenter"><Data ss:Type="String">${escapeXml(r.accessKey || '')}</Data></Cell>
+    </Row>`
+    })
+    .join('\n')
+
+  const excelXml = `<?xml version="1.0" encoding="UTF-8"?>
+<?mso-application progid="Excel.Sheet"?>
+<Workbook xmlns="urn:schemas-microsoft-com:office:spreadsheet"
+ xmlns:o="urn:schemas-microsoft-com:office:office"
+ xmlns:x="urn:schemas-microsoft-com:office:excel"
+ xmlns:ss="urn:schemas-microsoft-com:office:spreadsheet"
+ xmlns:html="http://www.w3.org/TR/REC-html40">
+ <DocumentProperties xmlns="urn:schemas-microsoft-com:office:office">
+  <Author>Deskounta ERP</Author>
+  <Company>${escapeXml(companyName)}</Company>
+  <Created>${new Date().toISOString()}</Created>
+ </DocumentProperties>
+ <Styles>
+  <Style ss:ID="Default" ss:Name="Normal">
+   <Alignment ss:Vertical="Center"/>
+   <Borders/>
+   <Font ss:FontName="Calibri" x:Family="Swiss" ss:Size="11" ss:Color="#1E293B"/>
+   <Interior/>
+   <NumberFormat/>
+   <Protection/>
+  </Style>
+  <Style ss:ID="TitleStyle">
+   <Alignment ss:Horizontal="Left" ss:Vertical="Center"/>
+   <Font ss:FontName="Calibri" x:Family="Swiss" ss:Size="14" ss:Color="#0085DB" ss:Bold="1"/>
+  </Style>
+  <Style ss:ID="MetaStyle">
+   <Alignment ss:Horizontal="Left" ss:Vertical="Center"/>
+   <Font ss:FontName="Calibri" x:Family="Swiss" ss:Size="10" ss:Color="#64748B" ss:Italic="1"/>
+  </Style>
+  <Style ss:ID="Header">
+   <Alignment ss:Horizontal="Center" ss:Vertical="Center" ss:WrapText="1"/>
+   <Borders>
+    <Border ss:Position="Bottom" ss:LineStyle="Continuous" ss:Weight="2" ss:Color="#0085DB"/>
+    <Border ss:Position="Top" ss:LineStyle="Continuous" ss:Weight="1" ss:Color="#CBD5E1"/>
+    <Border ss:Position="Left" ss:LineStyle="Continuous" ss:Weight="1" ss:Color="#CBD5E1"/>
+    <Border ss:Position="Right" ss:LineStyle="Continuous" ss:Weight="1" ss:Color="#CBD5E1"/>
+   </Borders>
+   <Font ss:FontName="Calibri" x:Family="Swiss" ss:Size="11" ss:Color="#FFFFFF" ss:Bold="1"/>
+   <Interior ss:Color="#0085DB" ss:Pattern="Solid"/>
+  </Style>
+  <Style ss:ID="TextLeft">
+   <Alignment ss:Horizontal="Left" ss:Vertical="Center"/>
+   <Borders>
+    <Border ss:Position="Bottom" ss:LineStyle="Continuous" ss:Weight="1" ss:Color="#E2E8F0"/>
+    <Border ss:Position="Left" ss:LineStyle="Continuous" ss:Weight="1" ss:Color="#E2E8F0"/>
+    <Border ss:Position="Right" ss:LineStyle="Continuous" ss:Weight="1" ss:Color="#E2E8F0"/>
+   </Borders>
+   <NumberFormat ss:Format="@"/>
+  </Style>
+  <Style ss:ID="TextCenter">
+   <Alignment ss:Horizontal="Center" ss:Vertical="Center"/>
+   <Borders>
+    <Border ss:Position="Bottom" ss:LineStyle="Continuous" ss:Weight="1" ss:Color="#E2E8F0"/>
+    <Border ss:Position="Left" ss:LineStyle="Continuous" ss:Weight="1" ss:Color="#E2E8F0"/>
+    <Border ss:Position="Right" ss:LineStyle="Continuous" ss:Weight="1" ss:Color="#E2E8F0"/>
+   </Borders>
+   <NumberFormat ss:Format="@"/>
+  </Style>
+  <Style ss:ID="Money">
+   <Alignment ss:Horizontal="Right" ss:Vertical="Center"/>
+   <Borders>
+    <Border ss:Position="Bottom" ss:LineStyle="Continuous" ss:Weight="1" ss:Color="#E2E8F0"/>
+    <Border ss:Position="Left" ss:LineStyle="Continuous" ss:Weight="1" ss:Color="#E2E8F0"/>
+    <Border ss:Position="Right" ss:LineStyle="Continuous" ss:Weight="1" ss:Color="#E2E8F0"/>
+   </Borders>
+   <NumberFormat ss:Format="#,##0.00"/>
+  </Style>
+  <Style ss:ID="TotalLabel">
+   <Alignment ss:Horizontal="Right" ss:Vertical="Center"/>
+   <Borders>
+    <Border ss:Position="Top" ss:LineStyle="Continuous" ss:Weight="2" ss:Color="#0085DB"/>
+    <Border ss:Position="Bottom" ss:LineStyle="Double" ss:Weight="3" ss:Color="#0085DB"/>
+   </Borders>
+   <Font ss:FontName="Calibri" x:Family="Swiss" ss:Size="11" ss:Color="#0F172A" ss:Bold="1"/>
+  </Style>
+  <Style ss:ID="TotalMoney">
+   <Alignment ss:Horizontal="Right" ss:Vertical="Center"/>
+   <Borders>
+    <Border ss:Position="Top" ss:LineStyle="Continuous" ss:Weight="2" ss:Color="#0085DB"/>
+    <Border ss:Position="Bottom" ss:LineStyle="Double" ss:Weight="3" ss:Color="#0085DB"/>
+   </Borders>
+   <Font ss:FontName="Calibri" x:Family="Swiss" ss:Size="11" ss:Color="#0085DB" ss:Bold="1"/>
+   <NumberFormat ss:Format="#,##0.00"/>
+  </Style>
+ </Styles>
+ <Worksheet ss:Name="Reporte Ventas SRI">
+  <Table>
+   <Column ss:Width="110"/>
+   <Column ss:Width="110"/>
+   <Column ss:Width="85"/>
+   <Column ss:Width="120"/>
+   <Column ss:Width="230"/>
+   <Column ss:Width="150"/>
+   <Column ss:Width="90"/>
+   <Column ss:Width="90"/>
+   <Column ss:Width="90"/>
+   <Column ss:Width="90"/>
+   <Column ss:Width="95"/>
+   <Column ss:Width="105"/>
+   <Column ss:Width="95"/>
+   <Column ss:Width="85"/>
+   <Column ss:Width="340"/>
+
+   <!-- ENCABEZADO DE EMPRESA -->
+   <Row ss:Height="24">
+    <Cell ss:MergeAcross="14" ss:StyleID="TitleStyle"><Data ss:Type="String">${escapeXml(companyName)}</Data></Cell>
+   </Row>
+   <Row ss:Height="18">
+    <Cell ss:MergeAcross="14" ss:StyleID="MetaStyle"><Data ss:Type="String">RUC: ${escapeXml(companyRuc)} | Reporte Oficial de Ventas e Impuestos SRI | Período: ${escapeXml(filters.value.dateFrom)} al ${escapeXml(filters.value.dateTo)}</Data></Cell>
+   </Row>
+   <Row ss:Height="10"></Row>
+
+   <!-- ENCABEZADOS DE COLUMNA -->
+   <Row ss:Height="24">
+    <Cell ss:StyleID="Header"><Data ss:Type="String">Tipo</Data></Cell>
+    <Cell ss:StyleID="Header"><Data ss:Type="String">Secuencial</Data></Cell>
+    <Cell ss:StyleID="Header"><Data ss:Type="String">Fecha Emisión</Data></Cell>
+    <Cell ss:StyleID="Header"><Data ss:Type="String">Identificación Cliente</Data></Cell>
+    <Cell ss:StyleID="Header"><Data ss:Type="String">Cliente / Razón Social</Data></Cell>
+    <Cell ss:StyleID="Header"><Data ss:Type="String">Sucursal</Data></Cell>
+    <Cell ss:StyleID="Header"><Data ss:Type="String">Base 15% (USD)</Data></Cell>
+    <Cell ss:StyleID="Header"><Data ss:Type="String">Base 0% (USD)</Data></Cell>
+    <Cell ss:StyleID="Header"><Data ss:Type="String">IVA 15% (USD)</Data></Cell>
+    <Cell ss:StyleID="Header"><Data ss:Type="String">Descuento (USD)</Data></Cell>
+    <Cell ss:StyleID="Header"><Data ss:Type="String">Total (USD)</Data></Cell>
+    <Cell ss:StyleID="Header"><Data ss:Type="String">Estado SRI</Data></Cell>
+    <Cell ss:StyleID="Header"><Data ss:Type="String">Estado Interno</Data></Cell>
+    <Cell ss:StyleID="Header"><Data ss:Type="String">Forma de Pago</Data></Cell>
+    <Cell ss:StyleID="Header"><Data ss:Type="String">Clave de Acceso</Data></Cell>
+   </Row>
+
+   <!-- FILAS DE DATOS -->
+${rowsXml}
+
+   <!-- FILA DE TOTALES -->
+   <Row ss:Height="22">
+    <Cell ss:MergeAcross="5" ss:StyleID="TotalLabel"><Data ss:Type="String">TOTALES CONSOLIDADOS:</Data></Cell>
+    <Cell ss:StyleID="TotalMoney"><Data ss:Type="Number">${sumBase15.toFixed(2)}</Data></Cell>
+    <Cell ss:StyleID="TotalMoney"><Data ss:Type="Number">${sumBase0.toFixed(2)}</Data></Cell>
+    <Cell ss:StyleID="TotalMoney"><Data ss:Type="Number">${sumTax15.toFixed(2)}</Data></Cell>
+    <Cell ss:StyleID="TotalMoney"><Data ss:Type="Number">${sumDiscount.toFixed(2)}</Data></Cell>
+    <Cell ss:StyleID="TotalMoney"><Data ss:Type="Number">${sumNetSales.toFixed(2)}</Data></Cell>
+    <Cell ss:MergeAcross="3" ss:StyleID="TotalLabel"><Data ss:Type="String"></Data></Cell>
+   </Row>
+  </Table>
+ </Worksheet>
+</Workbook>`
+
+  const blob = new Blob([excelXml], { type: 'application/vnd.ms-excel;charset=utf-8;' })
   const url = URL.createObjectURL(blob)
   const link = document.createElement('a')
   link.setAttribute('href', url)
-  link.setAttribute('download', `Reporte_Ventas_SRI_${filters.value.dateFrom}_al_${filters.value.dateTo}.csv`)
+  link.setAttribute('download', `Reporte_Ventas_SRI_${filters.value.dateFrom}_al_${filters.value.dateTo}.xls`)
   document.body.appendChild(link)
   link.click()
   document.body.removeChild(link)
   URL.revokeObjectURL(url)
 
-  toast.success('Archivo descargado con éxito.', 'Exportación Excel')
+  toast.success('Archivo Excel descargado con éxito.', 'Exportación Excel')
 }
+
+// Alias para compatibilidad
+const exportToExcelCSV = exportToExcel
 
 // Imprimir informe oficial membretado
 const printReport = () => {
