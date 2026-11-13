@@ -365,12 +365,25 @@ const getSalesSubItems = (mod: any) => {
       item.url = '/ventas/notas-credito'
     } else if (low.includes('factura')) {
       item.url = '/ventas/facturas'
+    } else if (low.includes('reporte')) {
+      item.url = '/ventas/reportes'
     }
     return item
   })
 
-  // Ordenar: Facturas primero, Notas de Crédito segundo, Puntos de Emisión tercero, luego el resto
-  const order = ['factura', 'notas-credito', 'puntos-emision', 'notas-venta', 'cotizaciones']
+  // Garantizar acceso directo al reporte de ventas y liquidación SRI
+  if (!children.some((c: any) => c.url?.includes('/ventas/reportes'))) {
+    children.push({
+      id: 9991,
+      code: 'SUB-VENTAS-REP',
+      description: 'Reportes de Ventas',
+      url: '/ventas/reportes',
+      icon: 'solar:chart-square-bold-duotone',
+    })
+  }
+
+  // Ordenar: Facturas primero, Notas de Crédito segundo, Puntos de Emisión tercero, Reportes cuarto, luego el resto
+  const order = ['factura', 'notas-credito', 'puntos-emision', 'reportes', 'notas-venta', 'cotizaciones']
   children.sort((a: any, b: any) => {
     const aUrl = (a.url || '').toLowerCase()
     const bUrl = (b.url || '').toLowerCase()

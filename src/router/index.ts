@@ -40,6 +40,11 @@ const routes = [
         component: () => import('@/views/sales/CreditNotesView.vue')
       },
       {
+        path: 'ventas/reportes',
+        name: 'ventas-reportes',
+        component: () => import('@/views/sales/SalesReportView.vue')
+      },
+      {
         path: 'ventas/:sub',
         name: 'ventas-submodule',
         component: () => import('@/views/sales/InvoiceView.vue')
