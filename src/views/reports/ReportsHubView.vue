@@ -91,36 +91,37 @@
                 @click="handleReportClick(rep)"
                 :title="rep.description || rep.title"
               >
+                <!-- ICONO Y TITULO DEL REPORTE CON AJUSTE MULTILINEA -->
                 <div class="d-flex align-items-center gap-2 min-w-0 flex-grow-1">
                   <iconify-icon
                     :icon="rep.icon || 'solar:document-text-line-duotone'"
                     class="fs-4 flex-shrink-0"
                     :class="rep.route ? 'text-primary' : 'text-muted'"
                   ></iconify-icon>
-                  <span class="report-title fs-2 text-truncate" :class="{ 'fw-semibold': rep.route }">
-                    {{ rep.title }}
-                  </span>
-                  <!-- ETIQUETA PENDIENTE SOLO VISIBLE PARA SUPER ADMIN -->
                   <span
-                    v-if="!rep.route && isSuperAdmin"
-                    class="badge bg-warning-subtle text-warning border border-warning-subtle rounded-pill px-2 py-0 fs-1 flex-shrink-0"
+                    class="report-title fs-2 text-wrap"
+                    :class="{ 'fw-semibold': rep.route }"
+                    style="line-height: 1.3; word-break: break-word;"
                   >
-                    Pendiente
+                    {{ rep.title }}
                   </span>
                 </div>
 
-                <div class="d-flex align-items-center gap-1 flex-shrink-0">
+                <!-- BADGE DE ACCION O ESTADO PENDIENTE (SIEMPRE VISIBLE A LA DERECHA) -->
+                <div class="flex-shrink-0 ms-2 text-end">
                   <span
                     v-if="rep.route"
-                    class="badge bg-success-subtle text-success border border-success-subtle rounded-pill px-2 py-0 fs-1"
+                    class="badge bg-success-subtle text-success border border-success-subtle rounded-pill px-2 py-1 fs-1 d-inline-flex align-items-center gap-1"
                   >
-                    Abrir
+                    <span>Abrir</span>
+                    <iconify-icon icon="solar:arrow-right-line-duotone" class="fs-2"></iconify-icon>
                   </span>
-                  <iconify-icon
-                    v-if="rep.route"
-                    icon="solar:arrow-right-line-duotone"
-                    class="fs-4 text-primary"
-                  ></iconify-icon>
+                  <span
+                    v-else-if="isSuperAdmin"
+                    class="badge bg-warning-subtle text-warning border border-warning-subtle rounded-pill px-2 py-1 fs-1"
+                  >
+                    Pendiente
+                  </span>
                 </div>
               </a>
             </div>
@@ -606,6 +607,8 @@ const handleReportClick = (rep: ReportItem) => {
 
 .report-title {
   color: var(--bs-heading-color);
+  white-space: normal;
+  word-break: break-word;
 }
 </style>
 
