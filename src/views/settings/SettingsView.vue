@@ -660,6 +660,7 @@ const formUser = ref({
   roleId: null as number | null,
   companyRolesMap: {} as Record<number, number | null>,
   theme_color: 'Blue_Theme',
+  photo_url: '',
 })
 
 const ensureRolesForCompany = async (compId: number) => {
@@ -751,6 +752,7 @@ const openCreateUser = async () => {
     roleId: defaultRole,
     companyRolesMap: { [currentCompanyId.value]: defaultRole },
     theme_color: 'Blue_Theme',
+    photo_url: '',
   }
   showUserModal.value = true
 }
@@ -807,6 +809,7 @@ const openEditUser = async (user: UserItem) => {
       : user.roleId ?? roleMap[currentCompanyId.value] ?? rolesByCompany.value[currentCompanyId.value]?.[0]?.id ?? null,
     companyRolesMap: isSuper ? {} : roleMap,
     theme_color: user.theme_color || 'Blue_Theme',
+    photo_url: (user as any).photo_url || '',
   }
   showUserModal.value = true
 }
@@ -1275,6 +1278,7 @@ const submitUser = async () => {
         roleId: effectiveRoleId,
         companyRoles: companyRolesPayload,
         theme_color: formUser.value.theme_color || 'Blue_Theme',
+        photo_url: formUser.value.photo_url || '/controller/images/profile/user-1.jpg',
       })
       savedUserId = createdUser?.id || createdUser?.data?.id
       successMsg.value = 'Usuario registrado exitosamente.'
@@ -3476,8 +3480,7 @@ const submitSubscription = async () => {
                   <div class="p-3 rounded-3 border border-secondary-subtle bg-dark-subtle d-flex flex-wrap align-items-center justify-content-between gap-3">
                     <div class="d-flex align-items-center gap-3">
                       <div class="rounded-circle border border-primary border-2 bg-black d-flex align-items-center justify-content-center overflow-hidden" style="width: 72px; height: 72px;">
-                        <img v-if="userPhotoPreview" :src="userPhotoPreview" alt="Foto Usuario" style="width: 100%; height: 100%; object-fit: cover;" />
-                        <iconify-icon v-else icon="solar:user-bold-duotone" class="fs-9 text-secondary"></iconify-icon>
+                        <img :src="userPhotoPreview || '/controller/images/profile/user-1.jpg'" alt="Foto Usuario" style="width: 100%; height: 100%; object-fit: cover;" />
                       </div>
                       <div>
                         <h6 class="text-white fw-bold mb-1">Fotografía / Avatar del Usuario</h6>

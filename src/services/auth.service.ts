@@ -1,7 +1,9 @@
 import { api } from './axios'
 
 export const loginRequest = async (email: string, password: string) => {
-  const response = await api.post('/auth/login', { email, password })
+  const response = await api.post('/auth/login', { email, password }, {
+    loadingMessage: 'Iniciando sesión...',
+  } as any)
   return response.data
 }
 
@@ -13,6 +15,7 @@ export interface MyProfile {
   full_name: string
   email: string
   birth_date: string | null
+  photo_url?: string | null
   enabled: boolean
   super_admin: boolean
   multi_company: boolean

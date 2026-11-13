@@ -44,7 +44,9 @@ api.interceptors.request.use(
       let message = customConfig.loadingMessage
 
       if (!message) {
-        if (method === 'POST') {
+        if (config.url?.includes('/auth/login')) {
+          message = 'Iniciando sesión...'
+        } else if (method === 'POST') {
           message = 'Registrando información...'
         } else if (method === 'PUT' || method === 'PATCH') {
           message = 'Actualizando información...'

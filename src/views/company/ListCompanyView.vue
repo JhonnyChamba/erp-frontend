@@ -54,6 +54,22 @@ const fetchProfile = async () => {
 }
 
 const profileFullName = computed(() => profile.value?.full_name || userName.value)
+const profilePhoto = computed(() => {
+  return (
+    profile.value?.photo_url ||
+    authStore.tokenPayload?.photo_url ||
+    localStorage.getItem('userPhoto') ||
+    '/controller/images/profile/user-1.jpg'
+  )
+})
+
+const handleImageError = (e: Event) => {
+  const target = e.target as HTMLImageElement
+  if (target && !target.src.includes('/controller/images/profile/user-1.jpg')) {
+    target.src = '/controller/images/profile/user-1.jpg'
+  }
+}
+
 const profileRole = computed(() => profile.value?.role_name || (authStore.tokenPayload?.super_admin ? 'Super Admin' : 'Usuario'))
 const profileType = computed(() => {
   const p = profile.value
@@ -313,7 +329,15 @@ onMounted(async () => {
 
           <template v-else>
             <div class="text-center mb-3">
-              <img src="/controller/images/profile/user-1.jpg" alt="Foto de perfil" width="84" height="84" class="rounded-circle border border-primary border-3 mb-3" />
+              <img
+                :src="profilePhoto"
+                @error="handleImageError"
+                alt="Foto de perfil"
+                width="84"
+                height="84"
+                class="rounded-circle border border-primary border-3 mb-3"
+                style="object-fit: cover;"
+              />
               <h5 class="profile-title fw-bold mb-2">{{ profileFullName }}</h5>
               <span class="profile-role d-inline-flex align-items-center gap-1">
                 <iconify-icon icon="solar:shield-check-bold" class="fs-4"></iconify-icon>
