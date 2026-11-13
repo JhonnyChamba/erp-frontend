@@ -91,7 +91,7 @@
                 @click="handleReportClick(rep)"
                 :title="rep.description || rep.title"
               >
-                <div class="d-flex align-items-center gap-2 min-w-0">
+                <div class="d-flex align-items-center gap-2 min-w-0 flex-grow-1">
                   <iconify-icon
                     :icon="rep.icon || 'solar:document-text-line-duotone'"
                     class="fs-4 flex-shrink-0"
@@ -512,19 +512,24 @@ const handleReportClick = (rep: ReportItem) => {
 </script>
 
 <style scoped>
-.reports-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-  gap: 1.25rem;
+.reports-hub-page {
+  width: 100%;
 }
 
-@media (min-width: 1400px) {
-  .reports-grid {
-    grid-template-columns: repeat(5, 1fr);
-  }
+.reports-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+  gap: 1.5rem;
+  width: 100%;
+}
+
+.report-category-col {
+  min-width: 0;
+  display: flex;
 }
 
 .report-category-card {
+  width: 100%;
   background: var(--bs-card-bg);
   border: 1px solid var(--bs-border-color) !important;
   transition: transform 0.2s ease, box-shadow 0.2s ease;
