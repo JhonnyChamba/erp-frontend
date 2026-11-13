@@ -30,6 +30,11 @@ const routes = [
         component: () => import('@/views/dashboard/DashboardView.vue')
       },
       {
+        path: 'reportes',
+        name: 'reportes-hub',
+        component: () => import('@/views/reports/ReportsHubView.vue')
+      },
+      {
         path: 'ventas/puntos-emision',
         name: 'ventas-puntos-emision',
         component: () => import('@/views/sales/EmissionPointsView.vue')

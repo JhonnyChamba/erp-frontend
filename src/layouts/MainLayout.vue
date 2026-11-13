@@ -81,6 +81,20 @@
                 </li>
               </template>
 
+              <!-- MÓDULO DIRECTO REPORTES (SIN SUBMÓDULOS) -->
+              <li class="sidebar-item mb-1">
+                <router-link
+                  to="/reportes"
+                  class="sidebar-link info-hover-bg"
+                  :class="{ active: route.path === '/reportes' || route.path.startsWith('/ventas/reportes') }"
+                >
+                  <span class="aside-icon p-2 bg-info-subtle rounded-1 text-info">
+                    <iconify-icon icon="solar:chart-square-bold-duotone" class="fs-6"></iconify-icon>
+                  </span>
+                  <span class="hide-menu ps-1">Reportes</span>
+                </router-link>
+              </li>
+
               <!-- MÓDULOS DE SISTEMA / CONFIGURACIÓN DINÁMICOS -->
               <template v-if="systemModules.length > 0">
                 <li class="nav-small-cap mt-3">
@@ -356,34 +370,23 @@ const isSalesMod = (mod: any) =>
   mod.children?.some((s: any) => s.url?.toLowerCase().includes('venta'))
 
 const getSalesSubItems = (mod: any) => {
-  const children = (mod.children || []).map((s: any) => {
-    const item = { ...s }
-    const low = (item.url || item.description || '').toLowerCase()
-    if (low.includes('puntos-emision') || low.includes('punto de emisi')) {
-      item.url = '/ventas/puntos-emision'
-    } else if (low.includes('notas-credito') || low.includes('nota de cr')) {
-      item.url = '/ventas/notas-credito'
-    } else if (low.includes('factura')) {
-      item.url = '/ventas/facturas'
-    } else if (low.includes('reporte')) {
-      item.url = '/ventas/reportes'
-    }
-    return item
-  })
-
-  // Garantizar acceso directo al reporte de ventas y liquidación SRI
-  if (!children.some((c: any) => c.url?.includes('/ventas/reportes'))) {
-    children.push({
-      id: 9991,
-      code: 'SUB-VENTAS-REP',
-      description: 'Reportes de Ventas',
-      url: '/ventas/reportes',
-      icon: 'solar:chart-square-bold-duotone',
+  const children = (mod.children || [])
+    .filter((s: any) => !s.description?.toLowerCase().includes('reporte') && !s.url?.toLowerCase().includes('reporte'))
+    .map((s: any) => {
+      const item = { ...s }
+      const low = (item.url || item.description || '').toLowerCase()
+      if (low.includes('puntos-emision') || low.includes('punto de emisi')) {
+        item.url = '/ventas/puntos-emision'
+      } else if (low.includes('notas-credito') || low.includes('nota de cr')) {
+        item.url = '/ventas/notas-credito'
+      } else if (low.includes('factura')) {
+        item.url = '/ventas/facturas'
+      }
+      return item
     })
-  }
 
-  // Ordenar: Facturas primero, Notas de Crédito segundo, Puntos de Emisión tercero, Reportes cuarto, luego el resto
-  const order = ['factura', 'notas-credito', 'puntos-emision', 'reportes', 'notas-venta', 'cotizaciones']
+  // Ordenar: Facturas primero, Notas de Crédito segundo, Puntos de Emisión tercero, luego el resto
+  const order = ['factura', 'notas-credito', 'puntos-emision', 'notas-venta', 'cotizaciones']
   children.sort((a: any, b: any) => {
     const aUrl = (a.url || '').toLowerCase()
     const bUrl = (b.url || '').toLowerCase()
