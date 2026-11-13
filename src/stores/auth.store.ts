@@ -93,6 +93,11 @@ export const useAuthStore = defineStore('auth', {
         localStorage.setItem('token', this.token)
         const theme = data.theme_color || this.tokenPayload?.theme_color || 'Blue_Theme'
         this.applyTheme(theme)
+        if (data.photo_url) {
+          localStorage.setItem('userPhoto', data.photo_url)
+        } else {
+          localStorage.removeItem('userPhoto')
+        }
       }
     },
 
@@ -174,6 +179,7 @@ export const useAuthStore = defineStore('auth', {
       this.token = null
       this.accessInfo = null
       localStorage.removeItem('token')
+      localStorage.removeItem('userPhoto')
       localStorage.removeItem('selectedCompany')
       localStorage.removeItem('selectedBranch')
     },

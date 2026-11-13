@@ -192,6 +192,8 @@ import AppFooter from '@/components/AppFooter.vue'
 import AppCustomizer from '@/components/AppCustomizer.vue'
 import { useAuthStore } from '@/stores/auth.store'
 
+import { resolveAvatarUrl } from '@/utils/avatar'
+
 const router = useRouter()
 const route = useRoute()
 const authStore = useAuthStore()
@@ -200,7 +202,7 @@ const customizerRef = ref<InstanceType<typeof AppCustomizer> | null>(null)
 const isMiniSidebar = ref(false)
 const mobileSidebarOpen = ref(false)
 const userName = ref('Usuario')
-const userPhoto = computed(() => authStore.tokenPayload?.photo_url || localStorage.getItem('userPhoto') || '/controller/images/profile/user-1.jpg')
+const userPhoto = computed(() => resolveAvatarUrl(authStore.tokenPayload?.photo_url || localStorage.getItem('userPhoto')))
 
 const openModules = reactive<Record<string, boolean>>({})
 

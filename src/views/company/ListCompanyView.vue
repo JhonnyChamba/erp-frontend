@@ -3,6 +3,7 @@ import { useBranchStore, useListCompanyUserStore } from '@/stores/ListCompanyUse
 import { useAuthStore } from '@/stores/auth.store'
 import { useThemeStore } from '@/stores/theme.store'
 import { getMyProfile, type MyProfile } from '@/services/auth.service'
+import { resolveAvatarUrl, handleAvatarError } from '@/utils/avatar'
 import { ref, onMounted, computed, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { toast } from '@/utils/toastr'
@@ -45,6 +46,9 @@ const fetchProfile = async () => {
   profileError.value = false
   try {
     profile.value = await getMyProfile()
+    if (profile.value?.photo_url) {
+      localStorage.setItem('userPhoto', profile.value.photo_url)
+    }
   } catch (error) {
     console.error('Error al obtener el perfil', error)
     profileError.value = true
@@ -55,20 +59,12 @@ const fetchProfile = async () => {
 
 const profileFullName = computed(() => profile.value?.full_name || userName.value)
 const profilePhoto = computed(() => {
-  return (
+  return resolveAvatarUrl(
     profile.value?.photo_url ||
     authStore.tokenPayload?.photo_url ||
-    localStorage.getItem('userPhoto') ||
-    '/controller/images/profile/user-1.jpg'
+    localStorage.getItem('userPhoto')
   )
 })
-
-const handleImageError = (e: Event) => {
-  const target = e.target as HTMLImageElement
-  if (target && !target.src.includes('/controller/images/profile/user-1.jpg')) {
-    target.src = '/controller/images/profile/user-1.jpg'
-  }
-}
 
 const profileRole = computed(() => profile.value?.role_name || (authStore.tokenPayload?.super_admin ? 'Super Admin' : 'Usuario'))
 const profileType = computed(() => {
@@ -331,7 +327,7 @@ onMounted(async () => {
             <div class="text-center mb-3">
               <img
                 :src="profilePhoto"
-                @error="handleImageError"
+                @error="handleAvatarError"
                 alt="Foto de perfil"
                 width="84"
                 height="84"

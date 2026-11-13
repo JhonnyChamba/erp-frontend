@@ -4,6 +4,7 @@ import { useAuthStore } from '@/stores/auth.store'
 import { useThemeStore } from '@/stores/theme.store'
 import { useRouter } from 'vue-router'
 import { api } from '@/services/axios'
+import { resolveAvatarUrl, handleAvatarError } from '@/utils/avatar'
 
 const authStore = useAuthStore()
 const themeStore = useThemeStore()
@@ -14,7 +15,12 @@ const emit = defineEmits(['toggle-sidebar', 'open-customizer'])
 const selectedCompany = ref<any>(null)
 const selectedBranch = ref<any>(null)
 const userName = ref('Usuario')
-const userPhoto = computed(() => authStore.tokenPayload?.photo_url || localStorage.getItem('userPhoto') || '/controller/images/profile/user-1.jpg')
+const userPhoto = computed(() => {
+  return resolveAvatarUrl(
+    authStore.tokenPayload?.photo_url ||
+    localStorage.getItem('userPhoto')
+  )
+})
 
 const activeRoleLabel = computed(() => {
   return authStore.accessInfo?.roleName || (authStore.tokenPayload?.super_admin ? 'Super Admin' : 'Admin')
@@ -48,6 +54,15 @@ onMounted(() => {
           nombre_comercial: data.trade_name || data.business_name || 'Deskounta',
         }
         localStorage.setItem('selectedCompany', JSON.stringify(selectedCompany.value))
+      }
+    }).catch(() => {})
+  }
+
+  // Sincronizar foto de perfil si no está en localStorage o para refrescar
+  if (!localStorage.getItem('userPhoto') || localStorage.getItem('userPhoto')?.includes('localhost')) {
+    api.get('/auth/me').then(({ data }: any) => {
+      if (data?.photo_url) {
+        localStorage.setItem('userPhoto', data.photo_url)
       }
     }).catch(() => {})
   }
@@ -212,6 +227,7 @@ const changeCompany = () => {
                 <div class="user-profile me-sm-2 me-1">
                   <img
                     :src="userPhoto"
+                    @error="handleAvatarError"
                     width="38"
                     height="38"
                     class="rounded-circle border border-primary border-2"

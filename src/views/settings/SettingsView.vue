@@ -60,6 +60,7 @@ import {
   uploadBranchLogo,
   uploadUserPhoto,
 } from '@/services/storage.service'
+import { resolveAvatarUrl, handleAvatarError } from '@/utils/avatar'
 import { useAuthStore } from '@/stores/auth.store'
 import { useThemeStore } from '@/stores/theme.store'
 
@@ -3498,7 +3499,7 @@ const submitSubscription = async () => {
                   <div class="p-3 rounded-3 border border-secondary-subtle bg-dark-subtle d-flex flex-wrap align-items-center justify-content-between gap-3">
                     <div class="d-flex align-items-center gap-3">
                       <div class="rounded-circle border border-primary border-2 bg-black d-flex align-items-center justify-content-center overflow-hidden" style="width: 72px; height: 72px;">
-                        <img :src="userPhotoPreview || '/controller/images/profile/user-1.jpg'" alt="Foto Usuario" style="width: 100%; height: 100%; object-fit: cover;" />
+                        <img :src="resolveAvatarUrl(userPhotoPreview || formUser.photo_url)" @error="handleAvatarError" alt="Foto Usuario" style="width: 100%; height: 100%; object-fit: cover;" />
                       </div>
                       <div>
                         <h6 class="text-white fw-bold mb-1">Fotografía / Avatar del Usuario</h6>
