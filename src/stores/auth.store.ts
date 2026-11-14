@@ -36,6 +36,9 @@ export interface UserCompanyAccessInfo {
   companyId: number
   isSuperAdmin: boolean
   isMultiCompany?: boolean
+  hasActiveSubscription?: boolean
+  subscriptionStatus?: 'active' | 'no_subscription' | 'expired'
+  subscriptionMessage?: string
   roleId: number | null
   roleCode: string | null
   roleName: string | null
@@ -167,13 +170,22 @@ export const useAuthStore = defineStore('auth', {
       const cleanTarget = fullPath.trim().toLowerCase()
       if (
         cleanTarget === '/' ||
-        cleanTarget.startsWith('/dashboard') ||
         cleanTarget.startsWith('/companies') ||
         cleanTarget.startsWith('/login') ||
         cleanTarget.startsWith('/configuracion-global')
       ) {
         return true
       }
+
+      // Si la empresa no tiene suscripción activa o expiró, bloquear acceso a cualquier ruta del ERP (incluido dashboard)
+      if (this.accessInfo && !this.accessInfo.hasActiveSubscription) {
+        return false
+      }
+
+      if (cleanTarget.startsWith('/dashboard')) {
+        return true
+      }
+
       if (this.accessInfo) {
         return this.accessInfo.allowedUrls.some((u) => {
           const cleanAllowed = (u || '').trim().toLowerCase()

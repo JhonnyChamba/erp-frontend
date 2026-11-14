@@ -208,7 +208,12 @@ router.beforeEach(async (to, from) => {
       authStore.accessInfo?.isSuperAdmin
     )
     if (!isSuper) {
-      return { path: '/dashboard' }
+      // Si la empresa activa NO tiene suscripción activa o expiró, permitir permanecer en /companies (evitar loop infinito con /dashboard)
+      if (authStore.accessInfo && !authStore.accessInfo.hasActiveSubscription) {
+        // Permitir quedarse en /companies
+      } else {
+        return { path: '/dashboard' }
+      }
     }
   }
 
@@ -225,8 +230,8 @@ router.beforeEach(async (to, from) => {
     }
   }
 
-  // Protección de permisos por URL según el rol en la empresa activa (no aplica a rutas del sistema global)
-  if (token && !isPublic && to.path !== '/dashboard' && to.path !== '/companies' && to.path !== '/configuracion-global') {
+  // Protección de acceso al ERP según la suscripción activa de la empresa (no aplica a /companies ni a /configuracion-global)
+  if (token && !isPublic && to.path !== '/companies' && to.path !== '/configuracion-global') {
     if (!authStore.accessInfo && !authStore.loadingAccess) {
       try {
         await authStore.fetchCompanyAccess()
@@ -234,9 +239,42 @@ router.beforeEach(async (to, from) => {
         console.error('Error cargando permisos en guardia de navegación:', err)
       }
     }
-    if (authStore.accessInfo && !authStore.canAccessUrl(to.fullPath)) {
+
+    // Si la empresa activa NO tiene suscripción activa o vigente: BLOQUEAR ACCESO AL ERP
+    if (authStore.accessInfo && !authStore.accessInfo.hasActiveSubscription) {
+      const isSuper = Boolean(
+        authStore.tokenPayload?.super_admin ||
+        authStore.tokenPayload?.developer ||
+        authStore.accessInfo?.isSuperAdmin
+      )
+      const isMulti = Boolean(
+        authStore.tokenPayload?.multi_company ||
+        authStore.accessInfo?.isMultiCompany
+      )
+      const msg = authStore.accessInfo.subscriptionStatus === 'expired'
+        ? 'La suscripción de la empresa ha expirado.'
+        : 'La empresa no cuenta con una suscripción activa.'
+
+      if (isSuper) {
+        toast.warning(`${msg} Asigna o renueva una suscripción desde la Consola Global para ingresar al ERP.`)
+        return { path: '/configuracion-global' }
+      } else if (isMulti) {
+        toast.warning(`${msg} Selecciona una empresa con suscripción activa o comunícate con el administrador.`)
+        return { path: '/companies' }
+      } else {
+        // Usuario de una sola empresa sin suscripción: limpiar sesión para no dejar estado inconsistente y volver al login
+        authStore.logout()
+        localStorage.removeItem('selectedCompany')
+        localStorage.removeItem('selectedBranch')
+        toast.error(`${msg} Por favor, comunícate con el administrador del sistema.`)
+        return { path: '/login' }
+      }
+    }
+
+    // Validación de permisos por URL según el rol
+    if (to.path !== '/dashboard' && authStore.accessInfo && !authStore.canAccessUrl(to.fullPath)) {
       console.warn(`[Guardia de Navegación] Acceso denegado a la ruta: ${to.fullPath}`)
-      return { path: '/dashboard' }
+      return { path: '/companies' }
     }
   }
 })

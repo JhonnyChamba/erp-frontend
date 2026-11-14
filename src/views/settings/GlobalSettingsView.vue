@@ -1600,9 +1600,22 @@ const submitUser = async () => {
 }
 
 // =================== GESTIÓN DE ROLES (CABECERA Y DETALLE DE MÓDULOS) ===================
+// Suscripciones activas y no vencidas de la empresa
+const companyActiveSubscriptions = computed(() => {
+  const now = new Date()
+  return subscriptions.value.filter((s) => {
+    if (s.enabled === false) return false
+    if (!s.end_date) return true
+    const end = new Date(s.end_date)
+    if (isNaN(end.getTime())) return true
+    end.setHours(23, 59, 59, 999)
+    return end >= now
+  })
+})
+
 // Conjunto reactivo de IDs de módulos y submódulos autorizados en la suscripción vigente de la empresa
 const companySubscribedModIds = computed<Set<number>>(() => {
-  const activeSubs = subscriptions.value.filter((s) => s.enabled !== false)
+  const activeSubs = companyActiveSubscriptions.value
   const set = new Set<number>()
   for (const s of activeSubs) {
     for (const mId of s.moduleIds || []) {
@@ -1613,7 +1626,7 @@ const companySubscribedModIds = computed<Set<number>>(() => {
 })
 
 const companySubscribedSubModIds = computed<Set<number>>(() => {
-  const activeSubs = subscriptions.value.filter((s) => s.enabled !== false)
+  const activeSubs = companyActiveSubscriptions.value
   const set = new Set<number>()
   for (const s of activeSubs) {
     for (const smId of s.subModuleIds || []) {
@@ -1625,31 +1638,31 @@ const companySubscribedSubModIds = computed<Set<number>>(() => {
 
 // Módulos Madre a los que tiene acceso la empresa según su suscripción vigente
 const companyAccessibleModules = computed(() => {
+  if (companyActiveSubscriptions.value.length === 0) {
+    return []
+  }
   const subscribedIds = companySubscribedModIds.value
   const activeSystemMods = modulesList.value.filter((m) => m.enabled !== false)
-  if (subscribedIds.size > 0) {
-    return activeSystemMods.filter((m) => subscribedIds.has(Number(m.id)))
-  }
-  return activeSystemMods
+  return activeSystemMods.filter((m) => subscribedIds.has(Number(m.id)))
 })
 
 // Submódulos Hijas a los que tiene acceso la empresa para un módulo padre dado
 const getCompanyAccessibleSubModules = (modId: number) => {
+  if (companyActiveSubscriptions.value.length === 0) {
+    return []
+  }
   const subscribedSubIds = companySubscribedSubModIds.value
   const childSubMods = allSubModulesList.value.filter(
     (sm) => Number(sm.moduleId) === Number(modId) && sm.enabled !== false
   )
-  if (subscribedSubIds.size > 0) {
-    return childSubMods.filter((sm) => subscribedSubIds.has(Number(sm.id)))
-  }
-  return childSubMods
+  return childSubMods.filter((sm) => subscribedSubIds.has(Number(sm.id)))
 }
 
 // Filtra los módulos de un rol para mostrar en la tabla SOLO los permitidos por la suscripción
 const getRoleSubscribedModuleIds = (role: RoleItem): number[] => {
   const roleMods = role.moduleIds || []
-  if (companySubscribedModIds.value.size === 0) {
-    return roleMods
+  if (companyActiveSubscriptions.value.length === 0) {
+    return []
   }
   return roleMods.filter((id) => companySubscribedModIds.value.has(Number(id)))
 }
@@ -1657,8 +1670,8 @@ const getRoleSubscribedModuleIds = (role: RoleItem): number[] => {
 // Cuenta de submódulos contratados que tiene el rol
 const getRoleSubscribedSubModuleCount = (role: RoleItem): number => {
   const roleSubMods = role.subModuleIds || []
-  if (companySubscribedSubModIds.value.size === 0) {
-    return roleSubMods.length
+  if (companyActiveSubscriptions.value.length === 0) {
+    return 0
   }
   return roleSubMods.filter((id) => companySubscribedSubModIds.value.has(Number(id))).length
 }
@@ -4628,13 +4641,13 @@ const submitSubscription = async () => {
 
                   <div v-else class="alert alert-warning mt-2 mb-0 py-2 fs-2">
                     <iconify-icon icon="solar:info-circle-line-duotone" class="me-1 align-middle fs-4"></iconify-icon>
-                    Esta empresa aún no tiene módulos habilitados en su suscripción o en el sistema.
+                    Esta empresa no cuenta con una suscripción activa o con módulos contratados. Asigne una suscripción vigente a la empresa para configurar los permisos de sus roles.
                   </div>
                 </div>
               </div>
               <div class="modal-footer d-flex justify-content-end gap-2 px-4 py-3 border-top border-dark-subtle">
                 <button type="button" class="btn btn-outline-secondary px-4 rounded-3" @click="showRoleModal = false">Cancelar</button>
-                <button type="submit" class="btn btn-primary px-4 rounded-3 fw-bold" :disabled="loading">
+                <button type="submit" class="btn btn-primary px-4 rounded-3 fw-bold" :disabled="loading || companyAccessibleModules.length === 0">
                   <span v-if="loading" class="spinner-grow spinner-grow-sm me-2" role="status" aria-hidden="true"></span>
                   <span>{{ loading ? 'Guardando...' : (isEditingRole ? 'Actualizar Rol y Detalle' : 'Guardar Rol y Detalle') }}</span>
                 </button>

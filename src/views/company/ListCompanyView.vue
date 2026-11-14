@@ -146,6 +146,23 @@ const selectCompany = async (company: Company) => {
   loadingCompanyId.value = company.id
 
   try {
+    // 1. Validar acceso y suscripción activa antes de continuar
+    const access = await authStore.fetchCompanyAccess(company.id)
+
+    if (!access?.hasActiveSubscription) {
+      const msg = access?.subscriptionStatus === 'expired'
+        ? `La suscripción de la empresa "${company.razon_social}" ha expirado.`
+        : `La empresa "${company.razon_social}" no cuenta con una suscripción activa.`
+
+      if (isSuperAdmin.value) {
+        toast.warning(`${msg} Por favor, asigna o renueva una suscripción desde la Consola Global para ingresar al ERP.`)
+      } else {
+        toast.warning(`${msg} Por favor, comunícate con el administrador del sistema.`)
+      }
+      return
+    }
+
+    // 2. Si tiene suscripción activa, continuar con la obtención de sucursales
     const response = await branchStore.fetchBranches({
       companyId: company.id,
       page: 1,
@@ -155,8 +172,7 @@ const selectCompany = async (company: Company) => {
     const branchList = response?.data || branchStore.branches || []
 
     if (branchList.length === 0) {
-      // Si no tiene sucursales, pasar directo al Dashboard
-      selectBranch(null)
+      await selectBranch(null)
       return
     }
 
@@ -170,9 +186,8 @@ const selectCompany = async (company: Company) => {
     // Si tiene varias sucursales, abrir modal para seleccionar
     showBranchesModal.value = true
   } catch (error) {
-    console.error('Error al obtener sucursales', error)
-    // En caso de error, permitir el acceso directo para no bloquear
-    selectBranch(null)
+    console.error('Error al verificar empresa:', error)
+    toast.error('Error al verificar el acceso a la empresa.')
   } finally {
     loadingCompanyId.value = null
   }
@@ -180,8 +195,22 @@ const selectCompany = async (company: Company) => {
 
 const selectBranch = async (branch: any) => {
   if (selectedCompany.value) {
+    // Re-verificar que la empresa tenga suscripción activa
+    if (!authStore.accessInfo?.hasActiveSubscription) {
+      const access = await authStore.fetchCompanyAccess(selectedCompany.value.id)
+      if (!access?.hasActiveSubscription) {
+        const msg = access?.subscriptionStatus === 'expired'
+          ? 'La suscripción de esta empresa ha expirado.'
+          : 'Esta empresa no cuenta con una suscripción activa.'
+        if (isSuperAdmin.value) {
+          toast.warning(`${msg} Asigna o renueva una suscripción desde la Consola Global para ingresar al ERP.`)
+        } else {
+          toast.warning(`${msg} Comunícate con el administrador del sistema.`)
+        }
+        return
+      }
+    }
     localStorage.setItem('selectedCompany', JSON.stringify(selectedCompany.value))
-    await authStore.fetchCompanyAccess(selectedCompany.value.id)
   }
   if (branch) {
     localStorage.setItem('selectedBranch', JSON.stringify(branch))
@@ -461,7 +490,8 @@ onMounted(async () => {
 
                 <div class="col-lg-4 col-md-6" v-for="company in companies" :key="company.id">
                   <div
-                    class="card border-top border-info alert-dismissible fade show alert p-0 card-hover rounded-4"
+                    class="card alert-dismissible fade show alert p-0 card-hover rounded-4"
+                    :class="(company as any).subscription?.hasActiveSubscription ? 'border-top border-info' : 'border-top border-danger border-2'"
                     :style="{
                       cursor: loadingCompanyId === company.id ? 'wait' : 'pointer',
                       opacity: loadingCompanyId && loadingCompanyId !== company.id ? '0.6' : '1'
@@ -471,7 +501,7 @@ onMounted(async () => {
                     <div class="card-body">
                       <div class="d-flex align-items-center justify-content-between">
                         <div>
-                          <div class="d-flex align-items-center gap-2 mb-1">
+                          <div class="d-flex align-items-center gap-2 mb-1 flex-wrap">
                             <h4 class="card-title fs-4 mb-0">{{ company.razon_social }}</h4>
                             <span
                               class="badge rounded-pill px-2 py-0 fs-1 d-inline-flex align-items-center gap-1"
@@ -479,6 +509,13 @@ onMounted(async () => {
                             >
                               <iconify-icon :icon="(company as any).sri_environment === '2' ? 'solar:shield-check-bold' : 'solar:test-tube-minimalistic-bold-duotone'"></iconify-icon>
                               {{ (company as any).sri_environment === '2' ? 'Producción' : 'Pruebas' }}
+                            </span>
+                            <span
+                              class="badge rounded-pill px-2 py-0 fs-1 d-inline-flex align-items-center gap-1"
+                              :class="(company as any).subscription?.hasActiveSubscription ? 'bg-success-subtle text-success border border-success-subtle' : 'bg-danger-subtle text-danger border border-danger-subtle'"
+                            >
+                              <iconify-icon :icon="(company as any).subscription?.hasActiveSubscription ? 'solar:shield-check-bold' : 'solar:danger-triangle-bold'"></iconify-icon>
+                              {{ (company as any).subscription?.hasActiveSubscription ? `Suscripción Activa (${(company as any).subscription.planName || 'Plan'})` : ((company as any).subscription?.status === 'expired' ? 'Suscripción Expirada' : 'Sin Suscripción') }}
                             </span>
                           </div>
                           <p class="card-subtitle">{{ company.ruc }}</p>

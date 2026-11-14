@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { useAuthStore } from '@/stores/auth.store'
 import { useThemeStore } from '@/stores/theme.store'
+import { useLoadingStore } from '@/stores/loading.store'
 import { getBranches } from '@/services/config.service'
 import { api } from '@/services/axios'
 import { ref, watch } from 'vue'
@@ -19,6 +20,7 @@ watch(errorMessage, (msg) => {
 
 const authStore = useAuthStore()
 const themeStore = useThemeStore()
+const loadingStore = useLoadingStore()
 const router = useRouter()
 
 const login = async () => {
@@ -28,57 +30,86 @@ const login = async () => {
   }
   loading.value = true
   errorMessage.value = ''
+  loadingStore.show('Iniciando sesión...')
+
   try {
     await authStore.login(email.value, password.value)
     const payload = authStore.tokenPayload
 
-    if (payload?.super_admin || payload?.developer || payload?.multi_company) {
-      router.push('/companies')
-    } else {
-      const assignedCompId = payload?.company_id || 1
-      try {
-        const { data: compData } = await api.get(`/company/${assignedCompId}`)
-        localStorage.setItem(
-          'selectedCompany',
-          JSON.stringify({
-            id: assignedCompId,
-            ruc: compData.ruc,
-            razon_social: compData.business_name || compData.trade_name || compData.description || 'Deskounta',
-            nombre_comercial: compData.trade_name || compData.business_name || 'Deskounta',
-            fiscal: {
-              sri_environment: compData.sri_environment || '1',
-            }
-          })
-        )
-      } catch {
-        localStorage.setItem(
-          'selectedCompany',
-          JSON.stringify({
-            id: assignedCompId,
-            razon_social: 'Deskounta',
-            nombre_comercial: 'Deskounta',
-          })
-        )
-      }
-      await authStore.fetchCompanyAccess(assignedCompId)
-      // Si la empresa solo tiene una sucursal, se inicia directamente en ella
-      localStorage.removeItem('selectedBranch')
-      try {
-        const res: any = await getBranches(assignedCompId, { onlyEnabled: true })
-        const list = Array.isArray(res?.data) ? res.data : Array.isArray(res) ? res : []
-        if (list.length === 1) localStorage.setItem('selectedBranch', JSON.stringify(list[0]))
-      } catch {
-        // sin sucursal seleccionada: se continúa al dashboard
-      }
-      toast.success('¡Bienvenido al sistema!', 'Sesión Iniciada')
-      router.push('/dashboard')
+    if (payload?.super_admin || payload?.developer) {
+      await router.push('/companies')
+      return
     }
+
+    if (payload?.multi_company) {
+      await router.push('/companies')
+      return
+    }
+
+    // Usuario regular o administrador de una única empresa
+    const assignedCompId = payload?.company_id || 1
+
+    // 1. Cargar datos de la empresa asignada
+    try {
+      const { data: compData } = await api.get(`/company/${assignedCompId}`)
+      localStorage.setItem(
+        'selectedCompany',
+        JSON.stringify({
+          id: assignedCompId,
+          ruc: compData.ruc,
+          razon_social: compData.business_name || compData.trade_name || compData.description || 'Deskounta',
+          nombre_comercial: compData.trade_name || compData.business_name || 'Deskounta',
+          fiscal: {
+            sri_environment: compData.sri_environment || '1',
+          }
+        })
+      )
+    } catch {
+      localStorage.setItem(
+        'selectedCompany',
+        JSON.stringify({
+          id: assignedCompId,
+          razon_social: 'Deskounta',
+          nombre_comercial: 'Deskounta',
+        })
+      )
+    }
+
+    // 2. Verificar suscripción y permisos de la empresa
+    const access = await authStore.fetchCompanyAccess(assignedCompId)
+
+    if (!access || !access.hasActiveSubscription) {
+      // Bloquear ingreso: la empresa no tiene suscripción activa o vigente
+      authStore.logout()
+      localStorage.removeItem('selectedCompany')
+      localStorage.removeItem('selectedBranch')
+
+      const isExpired = access?.subscriptionStatus === 'expired'
+      errorMessage.value = isExpired
+        ? 'La suscripción de la empresa ha expirado. Por favor, comunícate con el administrador para renovarla.'
+        : 'La empresa no cuenta con una suscripción activa. Por favor, comunícate con el administrador del sistema.'
+
+      return
+    }
+
+    // 3. Si tiene suscripción activa, continuar con sucursales e ingresar al dashboard
+    localStorage.removeItem('selectedBranch')
+    try {
+      const res: any = await getBranches(assignedCompId, { onlyEnabled: true })
+      const list = Array.isArray(res?.data) ? res.data : Array.isArray(res) ? res : []
+      if (list.length === 1) localStorage.setItem('selectedBranch', JSON.stringify(list[0]))
+    } catch {
+      // sin sucursal seleccionada: se continúa al dashboard
+    }
+    toast.success('¡Bienvenido al sistema!', 'Sesión Iniciada')
+    await router.push('/dashboard')
   } catch (error: any) {
     console.error('Error al iniciar sesión:', error)
     errorMessage.value =
       error.response?.data?.message || 'Credenciales incorrectas. Verifica tu correo y contraseña.'
   } finally {
     loading.value = false
+    loadingStore.hide()
   }
 }
 </script>

@@ -8,6 +8,12 @@ export interface CompanySummary {
 	nombre_comercial: string
 	sri_environment?: string
 	auto_send_sri?: boolean
+	subscription?: {
+		hasActiveSubscription: boolean
+		status: 'active' | 'no_subscription' | 'expired'
+		planName: string | null
+		endDate: string | null
+	}
 }
 
 export const useListCompanyUserStore = defineStore('listCompanyUser', {
@@ -43,6 +49,7 @@ export const useListCompanyUserStore = defineStore('listCompanyUser', {
 						nombre_comercial: comp.trade_name || comp.nombre_comercial || '',
 						sri_environment: String(comp.sri_environment ?? comp.fiscal?.sri_environment ?? '1'),
 						auto_send_sri: Boolean(comp.auto_send_sri ?? comp.fiscal?.auto_send_sri ?? false),
+						subscription: item.subscription || comp.subscription,
 					}
 				})
 
