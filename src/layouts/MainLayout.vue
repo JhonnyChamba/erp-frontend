@@ -82,7 +82,7 @@
               </template>
 
               <!-- MÓDULO DIRECTO REPORTES (SIN SUBMÓDULOS) -->
-              <li class="sidebar-item mb-1">
+              <li v-if="hasMenuModule('MOD-007') || hasMenuModule('reportes')" class="sidebar-item mb-1">
                 <router-link
                   to="/reportes"
                   class="sidebar-link info-hover-bg"
@@ -96,7 +96,7 @@
               </li>
 
               <!-- MÓDULO AGENDA & CITAS (SPA / SALÓN DE BELLEZA / ESTÉTICA) -->
-              <li class="sidebar-item mb-1">
+              <li v-if="hasMenuModule('MOD-009') || hasMenuModule('agenda') || hasMenuModule('citas')" class="sidebar-item mb-1">
                 <a
                   href="javascript:void(0)"
                   class="sidebar-link has-arrow primary-hover-bg"
@@ -150,7 +150,7 @@
               </li>
 
               <!-- MÓDULO TALENTO HUMANO / RECURSOS HUMANOS -->
-              <li class="sidebar-item mb-1">
+              <li v-if="hasMenuModule('MOD-008') || hasMenuModule('talento') || hasMenuModule('rrhh')" class="sidebar-item mb-1">
                 <a
                   href="javascript:void(0)"
                   class="sidebar-link has-arrow info-hover-bg"
@@ -313,6 +313,18 @@ const activeRoleLabel = computed(() => {
   }
   return 'Usuario'
 })
+
+const hasMenuModule = (codeOrPattern: string) => {
+  const codes = authStore.accessInfo?.moduleCodes || []
+  const menu = authStore.accessInfo?.menu || []
+  const target = codeOrPattern.toLowerCase()
+  if (codes.some((c) => c.toLowerCase() === target)) return true
+  return menu.some(
+    (m) =>
+      m.code.toLowerCase() === target ||
+      m.description?.toLowerCase().includes(target)
+  )
+}
 
 const operationalModules = computed(() => {
   const menu = authStore.accessInfo?.menu || []

@@ -129,8 +129,11 @@ export interface SubscriptionItem {
   planId: number
   companyId: number
   enabled?: boolean
+  deleted?: boolean
   moduleIds?: number[]
   subModuleIds?: number[]
+  plan?: PlanItem
+  created_at?: string
 }
 
 export interface ModuleItem {

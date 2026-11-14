@@ -144,49 +144,56 @@ export const useAuthStore = defineStore('auth', {
     },
 
     hasModuleAccess(code: string): boolean {
-      if (this.tokenPayload?.super_admin || this.tokenPayload?.developer || this.accessInfo?.isSuperAdmin) {
+      if (this.accessInfo) {
+        return this.accessInfo.moduleCodes.some((c) => c.toUpperCase() === code.toUpperCase())
+      }
+      if (this.tokenPayload?.super_admin || this.tokenPayload?.developer) {
         return true
       }
-      if (!this.accessInfo) return false
-      return this.accessInfo.moduleCodes.some((c) => c.toUpperCase() === code.toUpperCase())
+      return false
     },
 
     hasSubModuleAccess(code: string): boolean {
-      if (this.tokenPayload?.super_admin || this.tokenPayload?.developer || this.accessInfo?.isSuperAdmin) {
+      if (this.accessInfo) {
+        return this.accessInfo.subModuleCodes.some((c) => c.toUpperCase() === code.toUpperCase())
+      }
+      if (this.tokenPayload?.super_admin || this.tokenPayload?.developer) {
         return true
       }
-      if (!this.accessInfo) return false
-      return this.accessInfo.subModuleCodes.some((c) => c.toUpperCase() === code.toUpperCase())
+      return false
     },
 
     canAccessUrl(fullPath: string): boolean {
-      if (this.tokenPayload?.super_admin || this.tokenPayload?.developer || this.accessInfo?.isSuperAdmin) {
-        return true
-      }
-      if (!this.accessInfo) return true
       const cleanTarget = fullPath.trim().toLowerCase()
       if (
         cleanTarget === '/' ||
         cleanTarget.startsWith('/dashboard') ||
         cleanTarget.startsWith('/companies') ||
-        cleanTarget.startsWith('/login')
+        cleanTarget.startsWith('/login') ||
+        cleanTarget.startsWith('/configuracion-global')
       ) {
         return true
       }
-      return this.accessInfo.allowedUrls.some((u) => {
-        const cleanAllowed = (u || '').trim().toLowerCase()
-        if (!cleanAllowed) return false
-        const basePath = cleanAllowed.split('?')[0] || cleanAllowed
-        const targetBasePath = cleanTarget.split('?')[0] || cleanTarget
+      if (this.accessInfo) {
+        return this.accessInfo.allowedUrls.some((u) => {
+          const cleanAllowed = (u || '').trim().toLowerCase()
+          if (!cleanAllowed) return false
+          const basePath = cleanAllowed.split('?')[0] || cleanAllowed
+          const targetBasePath = cleanTarget.split('?')[0] || cleanTarget
 
-        // Si la URL permitida tiene parámetros query específicos (ej. /configuracion?tab=roles), comparamos exacto
-        if (cleanAllowed.includes('?')) {
-          return cleanTarget === cleanAllowed || cleanTarget.startsWith(cleanAllowed + '&')
-        }
+          // Si la URL permitida tiene parámetros query específicos (ej. /configuracion?tab=roles), comparamos exacto
+          if (cleanAllowed.includes('?')) {
+            return cleanTarget === cleanAllowed || cleanTarget.startsWith(cleanAllowed + '&')
+          }
 
-        // Si no tiene query, coincidencia exacta de ruta base o sub-ruta con barra diagonal
-        return targetBasePath === basePath || targetBasePath.startsWith(basePath + '/')
-      })
+          // Si no tiene query, coincidencia exacta de ruta base o sub-ruta con barra diagonal
+          return targetBasePath === basePath || targetBasePath.startsWith(basePath + '/')
+        })
+      }
+      if (this.tokenPayload?.super_admin || this.tokenPayload?.developer) {
+        return true
+      }
+      return true
     },
 
     logout() {

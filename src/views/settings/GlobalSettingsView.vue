@@ -249,6 +249,7 @@ const docTypes = ref<DocumentTypeItem[]>([])
 
 // Modales
 const showCompanyModal = ref(false)
+const showCompanySubscriptionModal = ref(false)
 const showUserModal = ref(false)
 const showRoleModal = ref(false)
 const showModuleModal = ref(false)
@@ -263,6 +264,7 @@ const showDocTypeModal = ref(false)
 const isFormOpen = computed(
   () =>
     showCompanyModal.value ||
+    showCompanySubscriptionModal.value ||
     showUserModal.value ||
     showRoleModal.value ||
     showModuleModal.value ||
@@ -589,15 +591,162 @@ const initialFormCompany = () => ({
 const formCompany = ref(initialFormCompany())
 const isEditingCompany = ref(false)
 const editingCompanyId = ref<number | null>(null)
-const companyFormTab = ref<'general' | 'fiscal' | 'firma' | 'correo'>('general')
+const companyFormTab = ref<'general' | 'fiscal' | 'firma' | 'correo' | 'suscripcion'>('general')
 
-const openCreateCompany = () => {
+const companyTabsList = computed(() => {
+  const tabs = [
+    { k: 'general', l: 'General' },
+    { k: 'fiscal', l: 'Datos SRI' },
+    { k: 'firma', l: 'Firma electrónica' },
+    { k: 'correo', l: 'Correo (SMTP)' },
+  ]
+  if (!isEditingCompany.value) {
+    tabs.push({ k: 'suscripcion', l: 'Suscripción SaaS *' })
+  }
+  return tabs
+})
+
+const todayStr = new Date().toISOString().slice(0, 10)
+const nextYearStr = new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10)
+
+const planSelectOptions = computed(() =>
+  plans.value
+    .filter((p) => p.enabled !== false)
+    .map((p) => ({
+      value: p.id,
+      label: `${p.description} - $${p.price} (${p.billing_cycle === 'monthly' ? 'Mensual' : p.billing_cycle === 'annual' ? 'Anual' : p.billing_cycle})`,
+    }))
+)
+
+const formCompanySubscription = ref({
+  planId: 1,
+  begin_date: todayStr,
+  end_date: nextYearStr,
+})
+
+// ==========================================
+// ESTADO Y MÉTODOS DE GESTIÓN DE SUSCRIPCIÓN POR EMPRESA (OPCIÓN APARTE)
+// ==========================================
+const selectedCompanyForSub = ref<CompanyItem | null>(null)
+const companySubscriptionsHistory = ref<SubscriptionItem[]>([])
+const loadingCompanySubscriptions = ref(false)
+const savingCompanySubscription = ref(false)
+const companySubscriptionTab = ref<'change' | 'history'>('change')
+
+const formManageCompanySub = ref({
+  planId: 1,
+  begin_date: todayStr,
+  end_date: nextYearStr,
+})
+
+const openManageCompanySubscription = async (comp: CompanyItem) => {
+  selectedCompanyForSub.value = comp
+  companySubscriptionTab.value = 'change'
+  loadingCompanySubscriptions.value = true
+
+  if (plans.value.length === 0) {
+    try {
+      const pRes = await getPlans({ page: 1, limit: 100 })
+      plans.value = Array.isArray(pRes?.data) ? pRes.data : Array.isArray(pRes) ? pRes : []
+    } catch {}
+  }
+
+  try {
+    const res = await getSubscriptions(comp.id, { page: 1, limit: 50 })
+    companySubscriptionsHistory.value = Array.isArray(res?.data) ? res.data : Array.isArray(res) ? res : []
+  } catch (err) {
+    companySubscriptionsHistory.value = []
+  } finally {
+    loadingCompanySubscriptions.value = false
+  }
+
+  const activeSub = companySubscriptionsHistory.value.find((s) => s.enabled !== false) || companySubscriptionsHistory.value[0]
+
+  formManageCompanySub.value = {
+    planId: activeSub?.planId || activeSub?.plan?.id || plans.value.find((p) => p.enabled !== false)?.id || plans.value[0]?.id || 1,
+    begin_date: activeSub?.begin_date ? String(activeSub.begin_date).slice(0, 10) : todayStr,
+    end_date: activeSub?.end_date ? String(activeSub.end_date).slice(0, 10) : nextYearStr,
+  }
+
+  showCompanySubscriptionModal.value = true
+}
+
+const submitManageCompanySubscription = async () => {
+  if (!selectedCompanyForSub.value) return
+  if (!formManageCompanySub.value.planId) {
+    toast.warning('Selecciona un plan de suscripción', 'Validación')
+    return
+  }
+
+  savingCompanySubscription.value = true
+  try {
+    if (modulesList.value.length === 0 || allSubModulesList.value.length === 0) {
+      try {
+        const [modsRes, subModsRes] = await Promise.all([
+          getModules({ page: 1, limit: 100 }),
+          getSubModules({ page: 1, limit: 200 }),
+        ])
+        modulesList.value = Array.isArray(modsRes?.data) ? modsRes.data : Array.isArray(modsRes) ? modsRes : []
+        allSubModulesList.value = Array.isArray(subModsRes?.data) ? subModsRes.data : Array.isArray(subModsRes) ? subModsRes : []
+      } catch (e) {}
+    }
+
+    await createSubscription({
+      companyId: selectedCompanyForSub.value.id,
+      planId: Number(formManageCompanySub.value.planId),
+      begin_date: formManageCompanySub.value.begin_date,
+      end_date: formManageCompanySub.value.end_date,
+    })
+
+    toast.success('Suscripción actualizada exitosamente. Los roles y accesos de la empresa han sido sincronizados.', 'Suscripción')
+
+    const res = await getSubscriptions(selectedCompanyForSub.value.id, { page: 1, limit: 50 })
+    companySubscriptionsHistory.value = Array.isArray(res?.data) ? res.data : Array.isArray(res) ? res : []
+
+    companySubscriptionTab.value = 'history'
+
+    delete rolesByCompany.value[selectedCompanyForSub.value.id]
+    if (selectedCompanyForSub.value.id === currentCompanyId.value) {
+      await authStore.fetchCompanyAccess(currentCompanyId.value)
+    }
+  } catch (err: any) {
+    toast.error(err?.response?.data?.message || err?.message || 'Error al cambiar la suscripción', 'Error')
+  } finally {
+    savingCompanySubscription.value = false
+  }
+}
+
+const openCreateCompany = async () => {
   isEditingCompany.value = false
   editingCompanyId.value = null
   companyLogoFile.value = null
   companyLogoPreview.value = ''
   formCompany.value = initialFormCompany()
   companyFormTab.value = 'general'
+
+  if (plans.value.length === 0) {
+    try {
+      const pRes = await getPlans({ page: 1, limit: 100 })
+      plans.value = Array.isArray(pRes?.data) ? pRes.data : Array.isArray(pRes) ? pRes : []
+    } catch {}
+  }
+  if (modulesList.value.length === 0 || allSubModulesList.value.length === 0) {
+    try {
+      const [modsRes, subModsRes] = await Promise.all([
+        getModules({ page: 1, limit: 100 }),
+        getSubModules({ page: 1, limit: 200 }),
+      ])
+      modulesList.value = Array.isArray(modsRes?.data) ? modsRes.data : Array.isArray(modsRes) ? modsRes : []
+      allSubModulesList.value = Array.isArray(subModsRes?.data) ? subModsRes.data : Array.isArray(subModsRes) ? subModsRes : []
+    } catch (e) {}
+  }
+
+  formCompanySubscription.value = {
+    planId: plans.value[0]?.id || 1,
+    begin_date: todayStr,
+    end_date: nextYearStr,
+  }
+
   showCompanyModal.value = true
 }
 
@@ -752,7 +901,7 @@ const onSuperAdminChange = () => {
     formUser.value.companyIds = []
     formUser.value.companyRolesMap = {}
   } else {
-    formUser.value.companyIds = [currentCompanyId.value]
+    formUser.value.companyIds = [formUser.value.companyId || currentCompanyId.value]
   }
 }
 
@@ -760,7 +909,7 @@ const onMultiCompanyChange = async () => {
   if (formUser.value.multi_company) {
     formUser.value.super_admin = false
     if (formUser.value.companyIds.length === 0) {
-      formUser.value.companyIds = [currentCompanyId.value]
+      formUser.value.companyIds = [formUser.value.companyId || currentCompanyId.value]
     }
     for (const cId of formUser.value.companyIds) {
       await ensureRolesForCompany(cId)
@@ -769,6 +918,18 @@ const onMultiCompanyChange = async () => {
         formUser.value.companyRolesMap[cId] = firstRole
       }
     }
+  }
+}
+
+const onUserCompanyChange = async (newVal: any) => {
+  const compId = Number(newVal)
+  if (!compId) return
+  formUser.value.companyId = compId
+  formUser.value.companyIds = [compId]
+  await ensureRolesForCompany(compId)
+  const availableRoles = rolesByCompany.value[compId] || []
+  if (formUser.value.roleId && !availableRoles.some((r) => r.id === formUser.value.roleId)) {
+    formUser.value.roleId = availableRoles[0]?.id ?? null
   }
 }
 
@@ -789,17 +950,22 @@ const openCreateUser = async () => {
   editingUserId.value = null
   userPhotoFile.value = null
   userPhotoPreview.value = ''
-  await Promise.all([
-    companies.value.length === 0
-      ? getCompanies({ page: 1, limit: 100 }).then((res) => {
-          companies.value = Array.isArray(res?.data) ? res.data : Array.isArray(res) ? res : []
-        }).catch(() => {})
-      : Promise.resolve(),
-    ensureRolesForCompany(currentCompanyId.value),
-  ])
-  const defaultRole = rolesByCompany.value[currentCompanyId.value]?.[0]?.id ?? null
+  if (companies.value.length === 0) {
+    try {
+      const res = await getCompanies({ page: 1, limit: 100 })
+      companies.value = Array.isArray(res?.data) ? res.data : Array.isArray(res) ? res : []
+    } catch (e) {}
+  }
+  const initialCompanyId = Number(
+    userFilterCompanyId.value ||
+    currentCompanyId.value ||
+    companies.value[0]?.id ||
+    1
+  )
+  await ensureRolesForCompany(initialCompanyId)
+  const defaultRole = rolesByCompany.value[initialCompanyId]?.[0]?.id ?? null
   formUser.value = {
-    companyId: currentCompanyId.value,
+    companyId: initialCompanyId,
     num_document: '',
     birth_date: '',
     name_user: '',
@@ -808,9 +974,9 @@ const openCreateUser = async () => {
     password: '',
     super_admin: false,
     multi_company: false,
-    companyIds: [currentCompanyId.value],
+    companyIds: [initialCompanyId],
     roleId: defaultRole,
-    companyRolesMap: { [currentCompanyId.value]: defaultRole },
+    companyRolesMap: { [initialCompanyId]: defaultRole },
     theme_color: 'Blue_Theme',
     photo_url: '',
   }
@@ -829,12 +995,22 @@ const openEditUser = async (user: UserItem) => {
     } catch (e) {}
   }
 
+  // Identificar la empresa del usuario
+  const userPrimaryCompanyId = Number(
+    (user as any).company_id ||
+    (user as any).companyId ||
+    (user.companyIds && user.companyIds.length > 0 ? user.companyIds[0] : null) ||
+    currentCompanyId.value ||
+    companies.value[0]?.id ||
+    1
+  )
+
   const targetCompanyIds =
     user.companyIds && user.companyIds.length > 0
       ? user.companyIds.map(Number)
-      : [currentCompanyId.value]
+      : [userPrimaryCompanyId]
 
-  const allCompToLoad = Array.from(new Set([currentCompanyId.value, ...targetCompanyIds]))
+  const allCompToLoad = Array.from(new Set([userPrimaryCompanyId, ...targetCompanyIds]))
   await Promise.all(allCompToLoad.map((cId) => ensureRolesForCompany(cId)))
 
   const roleMap: Record<number, number | null> = {}
@@ -846,15 +1022,21 @@ const openEditUser = async (user: UserItem) => {
   for (const cId of targetCompanyIds) {
     if (roleMap[cId] === undefined) {
       roleMap[cId] =
-        cId === currentCompanyId.value && user.roleId
+        cId === userPrimaryCompanyId && user.roleId
           ? Number(user.roleId)
           : rolesByCompany.value[cId]?.[0]?.id ?? null
     }
   }
 
   const isSuper = isCurrentUserSuperAdmin.value ? Boolean(user.super_admin || user.developer) : false
+  const existingRoleId = isSuper
+    ? null
+    : (user.roleId !== undefined && user.roleId !== null
+        ? Number(user.roleId)
+        : (roleMap[userPrimaryCompanyId] ?? null))
+
   formUser.value = {
-    companyId: currentCompanyId.value,
+    companyId: userPrimaryCompanyId,
     num_document: user.num_document || '',
     birth_date: user.birth_date ? String(user.birth_date).slice(0, 10) : '',
     name_user: user.name_user || '',
@@ -864,9 +1046,7 @@ const openEditUser = async (user: UserItem) => {
     super_admin: isSuper,
     multi_company: isSuper ? false : Boolean(user.multi_company),
     companyIds: isSuper ? [] : targetCompanyIds,
-    roleId: isSuper
-      ? null
-      : user.roleId ?? roleMap[currentCompanyId.value] ?? rolesByCompany.value[currentCompanyId.value]?.[0]?.id ?? null,
+    roleId: existingRoleId,
     companyRolesMap: isSuper ? {} : roleMap,
     theme_color: user.theme_color || 'Blue_Theme',
     photo_url: (user as any).photo_url || '',
@@ -908,9 +1088,6 @@ const formPlan = ref({
   max_users: 5,
   max_branches: 2,
 })
-
-const todayStr = new Date().toISOString().slice(0, 10)
-const nextYearStr = new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10)
 
 const formSubscription = ref({
   companyId: 1,
@@ -994,6 +1171,13 @@ const userCompanyFilterOptions = computed(() => [
   })),
 ])
 
+const userCompanySelectOptions = computed(() =>
+  companies.value.map((c) => ({
+    value: c.id,
+    label: `${c.trade_name || c.business_name} (${c.ruc ? 'RUC: ' + c.ruc : 'Sin RUC'})`,
+  }))
+)
+
 const filteredUsers = computed(() => {
   let list = users.value || []
   if (userSearch.value.trim()) {
@@ -1021,6 +1205,7 @@ watch(
     if (newTab && ['companies', 'branches', 'users', 'modules', 'subscriptions', 'taxes', 'document_types'].includes(newTab as string)) {
       activeTab.value = newTab as any
       showCompanyModal.value = false
+      showCompanySubscriptionModal.value = false
       showBranchModal.value = false
       showUserModal.value = false
       showRoleModal.value = false
@@ -1064,6 +1249,15 @@ const submitCompany = async () => {
       companyFormTab.value = 'firma'
       return
     }
+
+    if (!isEditingCompany.value) {
+      if (!formCompanySubscription.value.planId) {
+        errorMsg.value = 'Debes seleccionar un Plan de Suscripción para la nueva empresa.'
+        companyFormTab.value = 'suscripcion'
+        return
+      }
+    }
+
     const { has_certificate, has_smtp_password, ...rest } = f
     const payload: any = { ...rest }
     // No enviar vacíos de secretos para no sobrescribir los ya guardados
@@ -1079,7 +1273,21 @@ const submitCompany = async () => {
     } else {
       const created: any = await createCompany(payload)
       savedCompanyId = created?.id || created?.data?.id
-      successMsg.value = 'Empresa y rol Administrador creados exitosamente.'
+
+      if (savedCompanyId) {
+        try {
+          await createSubscription({
+            companyId: Number(savedCompanyId),
+            planId: Number(formCompanySubscription.value.planId),
+            begin_date: formCompanySubscription.value.begin_date,
+            end_date: formCompanySubscription.value.end_date,
+          })
+        } catch (subErr) {
+          console.error('Error al aprovisionar suscripción:', subErr)
+          toast.warning('Empresa creada, pero ocurrió un problema al asignar la suscripción.')
+        }
+      }
+      successMsg.value = 'Empresa, suscripción y roles creados y sincronizados exitosamente según el plan contratado.'
     }
 
     if (companyLogoFile.value && savedCompanyId) {
@@ -1289,9 +1497,14 @@ const submitUser = async () => {
   loading.value = true
   errorMsg.value = ''
   try {
-    formUser.value.companyId = currentCompanyId.value
     const isSuper = isCurrentUserSuperAdmin.value ? Boolean(formUser.value.super_admin) : false
     const isMulti = isSuper ? false : Boolean(formUser.value.multi_company)
+
+    const effectiveCompanyId = isSuper
+      ? Number(formUser.value.companyId || currentCompanyId.value || 1)
+      : isMulti
+      ? Number(formUser.value.companyIds[0] || formUser.value.companyId || currentCompanyId.value || 1)
+      : Number(formUser.value.companyId || currentCompanyId.value || 1)
 
     const companyRolesPayload = isSuper
       ? []
@@ -1304,7 +1517,7 @@ const submitUser = async () => {
         }))
       : [
           {
-            companyId: currentCompanyId.value,
+            companyId: effectiveCompanyId,
             roleId: formUser.value.roleId ? Number(formUser.value.roleId) : null,
           },
         ]
@@ -1312,13 +1525,13 @@ const submitUser = async () => {
     const effectiveRoleId = isSuper
       ? null
       : isMulti
-      ? formUser.value.companyRolesMap[currentCompanyId.value] ?? null
-      : formUser.value.roleId ?? null
+      ? (formUser.value.companyRolesMap[effectiveCompanyId] ?? null)
+      : (formUser.value.roleId ? Number(formUser.value.roleId) : null)
 
     let savedUserId = editingUserId.value
     if (isEditingUser.value && editingUserId.value) {
       const payload: any = {
-        companyId: currentCompanyId.value,
+        companyId: effectiveCompanyId,
         num_document: formUser.value.num_document,
         birth_date: formUser.value.birth_date || null,
         name_user: formUser.value.name_user,
@@ -1327,7 +1540,7 @@ const submitUser = async () => {
         super_admin: isSuper,
         developer: isSuper,
         multi_company: isMulti,
-        companyIds: isSuper ? [] : isMulti ? formUser.value.companyIds.map(Number) : [currentCompanyId.value],
+        companyIds: isSuper ? [] : isMulti ? formUser.value.companyIds.map(Number) : [effectiveCompanyId],
         roleId: effectiveRoleId,
         companyRoles: companyRolesPayload,
         theme_color: formUser.value.theme_color || 'Blue_Theme',
@@ -1344,7 +1557,7 @@ const submitUser = async () => {
       }
     } else {
       const createdUser: any = await createUser({
-        companyId: currentCompanyId.value,
+        companyId: effectiveCompanyId,
         num_document: formUser.value.num_document,
         birth_date: formUser.value.birth_date || null,
         name_user: formUser.value.name_user,
@@ -1354,7 +1567,7 @@ const submitUser = async () => {
         super_admin: isSuper,
         developer: isSuper,
         multi_company: isMulti,
-        companyIds: isSuper ? [] : isMulti ? formUser.value.companyIds.map(Number) : [currentCompanyId.value],
+        companyIds: isSuper ? [] : isMulti ? formUser.value.companyIds.map(Number) : [effectiveCompanyId],
         roleId: effectiveRoleId,
         companyRoles: companyRolesPayload,
         theme_color: formUser.value.theme_color || 'Blue_Theme',
@@ -2017,7 +2230,7 @@ const submitSubscription = async () => {
     <aside class="left-sidebar with-vertical d-flex flex-column justify-content-between">
       <div class="d-flex flex-column flex-grow-1" style="min-height: 0;">
         <div class="brand-logo flex-shrink-0 d-flex align-items-center p-3 border-bottom border-translucent">
-          <router-link to="/companies" class="text-nowrap logo-img d-flex align-items-center text-decoration-none">
+          <router-link to="/companies?cambiar=true" class="text-nowrap logo-img d-flex align-items-center text-decoration-none">
             <img src="/controller/images/logos/logo-dark.svg" class="dark-logo" alt="Deskounta Logo" height="34" />
             <img src="/controller/images/logos/logo-light.svg" class="light-logo" alt="Deskounta Logo" height="34" />
           </router-link>
@@ -2045,7 +2258,7 @@ const submitSubscription = async () => {
           <div class="d-flex flex-column gap-2 mt-4 pt-3 border-top border-secondary-subtle">
             <small class="text-secondary fw-bold text-uppercase fs-1 px-2">Acceso a Plataforma</small>
             <router-link
-              to="/companies"
+              to="/companies?cambiar=true"
               class="btn btn-outline-secondary rounded-pill w-100 py-2 d-inline-flex align-items-center justify-content-start px-3 gap-2 fw-semibold"
             >
               <iconify-icon icon="solar:buildings-2-line-duotone" class="fs-5 text-primary"></iconify-icon>
@@ -2099,7 +2312,7 @@ const submitSubscription = async () => {
             >
               <iconify-icon :icon="themeStore.themeMode === 'dark' ? 'solar:sun-bold-duotone' : 'solar:moon-bold-duotone'" class="fs-5 text-white"></iconify-icon>
             </button>
-            <router-link to="/companies" class="btn btn-outline-secondary btn-sm rounded-pill px-3 py-1 d-flex align-items-center gap-1">
+            <router-link to="/companies?cambiar=true" class="btn btn-outline-secondary btn-sm rounded-pill px-3 py-1 d-flex align-items-center gap-1">
               <iconify-icon icon="solar:arrow-left-line-duotone"></iconify-icon>
               <span>Volver a Empresas</span>
             </router-link>
@@ -2124,24 +2337,6 @@ const submitSubscription = async () => {
           <p class="text-secondary fs-3 mb-0">
             Administración centralizada de empresas, sucursales, usuarios de todo el sistema, catálogo maestro de módulos, planes SaaS, impuestos y tipos de documento.
           </p>
-        </div>
-
-        <!-- Botones de Navegación -->
-        <div class="d-flex align-items-center gap-2">
-          <router-link
-            to="/companies"
-            class="btn btn-outline-secondary rounded-pill px-3 py-2 d-flex align-items-center gap-2 fs-2"
-          >
-            <iconify-icon icon="solar:buildings-2-line-duotone" class="fs-4"></iconify-icon>
-            <span>Mis Empresas</span>
-          </router-link>
-          <router-link
-            to="/"
-            class="btn btn-primary rounded-pill px-3 py-2 d-flex align-items-center gap-2 fs-2"
-          >
-            <iconify-icon icon="solar:home-smile-line-duotone" class="fs-4"></iconify-icon>
-            <span>Ir al ERP</span>
-          </router-link>
         </div>
       </div>
 
@@ -2315,6 +2510,12 @@ const submitSubscription = async () => {
                       <a class="dropdown-item py-2" href="javascript:void(0)" @click="openEditCompany(comp)">
                         <iconify-icon icon="solar:pen-2-line-duotone" class="fs-5 text-warning"></iconify-icon>
                         <span>Editar Empresa</span>
+                      </a>
+                    </li>
+                    <li>
+                      <a class="dropdown-item py-2" href="javascript:void(0)" @click="openManageCompanySubscription(comp)">
+                        <iconify-icon icon="solar:card-recive-bold-duotone" class="fs-5 text-primary"></iconify-icon>
+                        <span>Cambiar Suscripción</span>
                       </a>
                     </li>
                   </ul>
@@ -3365,7 +3566,7 @@ const submitSubscription = async () => {
             </div>
             <form @submit.prevent="submitCompany">
               <ul class="nav nav-pills gap-2 px-4 pt-3">
-                <li class="nav-item" v-for="t in [{k:'general',l:'General'},{k:'fiscal',l:'Datos SRI'},{k:'firma',l:'Firma electrónica'},{k:'correo',l:'Correo (SMTP)'}]" :key="t.k">
+                <li class="nav-item" v-for="t in companyTabsList" :key="t.k">
                   <button type="button" class="nav-link rounded-pill px-4 py-2 fs-3 text-decoration-none" :class="companyFormTab === t.k ? 'active bg-primary text-white' : 'text-white-50'" @click="companyFormTab = t.k as any">{{ t.l }}</button>
                 </li>
               </ul>
@@ -3674,6 +3875,36 @@ const submitSubscription = async () => {
                     </div>
                   </div>
                 </div>
+
+                <!-- SUSCRIPCIÓN SAAS INICIAL (SOLO AL CREAR NUEVA EMPRESA) -->
+                <div v-if="!isEditingCompany" v-show="companyFormTab === 'suscripcion'" class="row g-3">
+                  <div class="col-12">
+                    <div class="alert alert-info py-3 d-flex align-items-center gap-2 mb-2">
+                      <iconify-icon icon="solar:shield-check-bold-duotone" class="fs-4 text-info flex-shrink-0"></iconify-icon>
+                      <span class="fs-2">
+                        Selecciona el <strong>Plan SaaS</strong> y la vigencia para la nueva empresa. El rol <strong>Administrador (ROL-001)</strong> se creará automáticamente con acceso completo a todos los módulos activos del sistema.
+                      </span>
+                    </div>
+                  </div>
+
+                  <div class="col-md-6">
+                    <label class="form-label text-secondary fs-2 fw-semibold">Plan SaaS Inicial *</label>
+                    <AppSelect2
+                      v-model="formCompanySubscription.planId"
+                      :options="planSelectOptions"
+                      placeholder="Selecciona un plan..."
+                      required
+                    />
+                  </div>
+                  <div class="col-md-3">
+                    <label class="form-label text-secondary fs-2 fw-semibold">Fecha de Inicio *</label>
+                    <input v-model="formCompanySubscription.begin_date" type="date" class="form-control bg-dark-subtle border-secondary-subtle text-white" required />
+                  </div>
+                  <div class="col-md-3">
+                    <label class="form-label text-secondary fs-2 fw-semibold">Fecha de Fin *</label>
+                    <input v-model="formCompanySubscription.end_date" type="date" class="form-control bg-dark-subtle border-secondary-subtle text-white" required />
+                  </div>
+                </div>
               </div>
               <div class="modal-footer d-flex justify-content-end gap-2 px-4 py-3 border-top border-dark-subtle">
                 <button type="button" class="btn btn-outline-secondary px-4 rounded-3" @click="showCompanyModal = false">Cancelar</button>
@@ -3686,6 +3917,169 @@ const submitSubscription = async () => {
           </div>
         </div>
       </div>
+
+    <!-- 1.1 FORMULARIO EN PÁGINA: GESTIONAR SUSCRIPCIÓN DE EMPRESA (OPCIÓN INDEPENDIENTE) -->
+    <div v-if="showCompanySubscriptionModal" id="form-page" class="form-page">
+      <div class="form-page-card form-page-card-lg">
+        <div class="card bg-navy-card border border-secondary-subtle rounded-4 shadow-sm">
+          <div class="modal-header d-flex justify-content-between align-items-center px-4 py-3 border-bottom border-dark-subtle">
+            <div class="d-flex align-items-center gap-2">
+              <span class="p-2 bg-primary-subtle text-primary rounded-3 d-inline-flex">
+                <iconify-icon icon="solar:card-recive-bold-duotone" class="fs-5"></iconify-icon>
+              </span>
+              <div>
+                <h5 class="fw-bold text-white mb-0">Gestión de Suscripción de Empresa</h5>
+                <small class="text-secondary">
+                  {{ selectedCompanyForSub?.business_name || selectedCompanyForSub?.trade_name }} · RUC: {{ selectedCompanyForSub?.ruc }}
+                </small>
+              </div>
+            </div>
+            <button type="button" class="btn btn-outline-secondary btn-sm rounded-3 d-flex align-items-center gap-1" @click="showCompanySubscriptionModal = false">
+              <iconify-icon icon="solar:alt-arrow-left-line-duotone" class="fs-5"></iconify-icon>
+              <span>Volver</span>
+            </button>
+          </div>
+
+          <!-- Pestañas: Cambiar Suscripción vs Histórico -->
+          <ul class="nav nav-pills gap-2 px-4 pt-3">
+            <li class="nav-item">
+              <button
+                type="button"
+                class="nav-link rounded-pill px-4 py-2 fs-3 text-decoration-none"
+                :class="companySubscriptionTab === 'change' ? 'active bg-primary text-white' : 'text-white-50'"
+                @click="companySubscriptionTab = 'change'"
+              >
+                Cambiar / Renovar Suscripción
+              </button>
+            </li>
+            <li class="nav-item">
+              <button
+                type="button"
+                class="nav-link rounded-pill px-4 py-2 fs-3 text-decoration-none d-flex align-items-center gap-2"
+                :class="companySubscriptionTab === 'history' ? 'active bg-primary text-white' : 'text-white-50'"
+                @click="companySubscriptionTab = 'history'"
+              >
+                <span>Historial de Suscripciones</span>
+                <span class="badge bg-dark text-white rounded-pill fs-1">{{ companySubscriptionsHistory.length }}</span>
+              </button>
+            </li>
+          </ul>
+
+          <!-- CUERPO: CAMBIAR / RENOVAR SUSCRIPCIÓN -->
+          <div v-show="companySubscriptionTab === 'change'">
+            <form @submit.prevent="submitManageCompanySubscription">
+              <div class="modal-body p-4">
+                <div class="alert alert-info py-2 d-flex align-items-center gap-2 mb-3">
+                  <iconify-icon icon="solar:info-circle-line-duotone" class="fs-4 text-info flex-shrink-0"></iconify-icon>
+                  <span class="fs-2">
+                    Al cambiar o renovar la suscripción, la suscripción anterior se archivará en el <strong>histórico de la empresa</strong> y todos los <strong>roles del sistema</strong> se sincronizarán con los módulos activos del plan seleccionado.
+                  </span>
+                </div>
+
+                <div class="row g-3">
+                  <div class="col-md-6">
+                    <label class="form-label text-secondary fs-2 fw-semibold">Plan SaaS a Asignar *</label>
+                    <AppSelect2
+                      v-model="formManageCompanySub.planId"
+                      :options="planSelectOptions"
+                      placeholder="Selecciona un plan..."
+                      required
+                    />
+                  </div>
+                  <div class="col-md-3">
+                    <label class="form-label text-secondary fs-2 fw-semibold">Fecha de Inicio *</label>
+                    <input v-model="formManageCompanySub.begin_date" type="date" class="form-control bg-dark-subtle border-secondary-subtle text-white" required />
+                  </div>
+                  <div class="col-md-3">
+                    <label class="form-label text-secondary fs-2 fw-semibold">Fecha de Fin *</label>
+                    <input v-model="formManageCompanySub.end_date" type="date" class="form-control bg-dark-subtle border-secondary-subtle text-white" required />
+                  </div>
+                </div>
+              </div>
+
+              <div class="modal-footer d-flex justify-content-end gap-2 px-4 py-3 border-top border-dark-subtle">
+                <button type="button" class="btn btn-outline-secondary px-4 rounded-3" @click="showCompanySubscriptionModal = false">Cancelar</button>
+                <button type="submit" class="btn btn-primary px-4 rounded-3 fw-bold" :disabled="savingCompanySubscription">
+                  <span v-if="savingCompanySubscription" class="spinner-grow spinner-grow-sm me-2" role="status" aria-hidden="true"></span>
+                  <span>{{ savingCompanySubscription ? 'Actualizando y Sincronizando...' : 'Guardar y Actualizar Roles' }}</span>
+                </button>
+              </div>
+            </form>
+          </div>
+
+          <!-- CUERPO: HISTORIAL DE SUSCRIPCIONES -->
+          <div v-show="companySubscriptionTab === 'history'" class="p-4">
+            <div v-if="loadingCompanySubscriptions" class="text-center py-4">
+              <div class="spinner-grow text-primary spinner-grow-sm me-2" role="status"></div>
+              <span class="text-secondary">Cargando historial de suscripciones...</span>
+            </div>
+
+            <div v-else-if="companySubscriptionsHistory.length === 0" class="text-center py-5 text-secondary">
+              <iconify-icon icon="solar:history-bold-duotone" class="fs-9 mb-2 opacity-50"></iconify-icon>
+              <p class="mb-0">No se encontraron registros previos de suscripción para esta empresa.</p>
+            </div>
+
+            <div v-else class="table-responsive">
+              <table class="table table-hover align-middle mb-0">
+                <thead class="table-primary">
+                  <tr>
+                    <th width="8%"># ID</th>
+                    <th width="25%">Plan SaaS</th>
+                    <th width="25%">Vigencia</th>
+                    <th width="15%">Estado</th>
+                    <th width="15%">Módulos</th>
+                    <th width="12%">Fecha Cambio</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr v-for="sub in companySubscriptionsHistory" :key="sub.id">
+                    <td>
+                      <span class="badge bg-dark-subtle text-white font-monospace">#{{ sub.id }}</span>
+                    </td>
+                    <td>
+                      <div class="fw-bold text-white">
+                        {{ sub.plan?.description || ('Plan #' + sub.planId) }}
+                      </div>
+                      <small class="text-secondary">
+                        ${{ sub.plan?.price || '0.00' }} ({{ sub.plan?.billing_cycle || 'mensual' }})
+                      </small>
+                    </td>
+                    <td class="text-white fs-2 font-monospace">
+                      <span>{{ sub.begin_date ? String(sub.begin_date).slice(0, 10) : '-' }}</span>
+                      <span class="text-secondary mx-1">➜</span>
+                      <span>{{ sub.end_date ? String(sub.end_date).slice(0, 10) : '-' }}</span>
+                    </td>
+                    <td>
+                      <span
+                        class="badge d-inline-flex align-items-center gap-1 px-2 py-1"
+                        :class="sub.enabled !== false ? 'bg-success-subtle text-success border border-success-subtle' : 'bg-secondary-subtle text-secondary border border-secondary-subtle'"
+                      >
+                        <iconify-icon :icon="sub.enabled !== false ? 'solar:check-circle-bold' : 'solar:history-line-duotone'"></iconify-icon>
+                        {{ sub.enabled !== false ? 'Vigente' : 'Histórica' }}
+                      </span>
+                    </td>
+                    <td>
+                      <span class="badge bg-primary-subtle text-primary border border-primary-subtle">
+                        {{ (sub.moduleIds || []).length }} módulos · {{ (sub.subModuleIds || []).length }} submódulos
+                      </span>
+                    </td>
+                    <td class="text-secondary fs-1 font-monospace">
+                      {{ sub.created_at ? new Date(sub.created_at).toLocaleString('es-EC') : '-' }}
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+
+            <div class="d-flex justify-content-end mt-4">
+              <button type="button" class="btn btn-outline-secondary px-4 rounded-3" @click="showCompanySubscriptionModal = false">
+                Cerrar
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
 
     <!-- 2. MODAL NUEVO / EDITAR USUARIO -->
       <div v-if="showUserModal" id="form-page" class="form-page">
@@ -3830,35 +4224,63 @@ const submitSubscription = async () => {
                     </span>
                   </div>
 
-                  <!-- CASO 2: SI NO ES SUPER ADMIN Y NO ES MULTI-EMPRESA -> SELECTOR DE ROL EN LA EMPRESA ACTIVA -->
+                  <!-- CASO 2: SI NO ES SUPER ADMIN Y NO ES MULTI-EMPRESA -> SELECTOR DE EMPRESA (SELECT2) Y ROL -->
                   <div v-else-if="!formUser.multi_company" class="p-3 bg-dark-subtle rounded border border-primary-subtle mb-3">
-                    <label class="form-label text-white fw-semibold d-flex align-items-center justify-content-between mb-2">
-                      <span class="d-flex align-items-center gap-2">
-                        <iconify-icon icon="solar:shield-user-line-duotone" class="text-primary fs-5"></iconify-icon>
-                        <span>Rol del Usuario en {{ selectedCompany?.razon_social || selectedCompany?.nombre_comercial || 'la Empresa Activa' }}</span>
-                      </span>
-                      <span class="badge bg-primary-subtle text-primary">Empresa #{{ currentCompanyId }}</span>
-                    </label>
-                    <select
-                      v-model="formUser.roleId"
-                      class="form-select bg-dark border-secondary-subtle text-white"
-                      required
-                    >
-                      <option :value="null" disabled>Selecciona un rol para esta empresa...</option>
-                      <option
-                        v-for="r in rolesByCompany[currentCompanyId] || []"
-                        :key="r.id"
-                        :value="r.id"
-                      >
-                        {{ r.code }} - {{ r.description }}
-                      </option>
-                    </select>
-                    <small
-                      v-if="(rolesByCompany[currentCompanyId] || []).length === 0"
-                      class="text-warning d-block mt-1 fs-1"
-                    >
-                      No hay roles registrados en esta empresa aún. Crea uno en la pestaña "Roles".
-                    </small>
+                    <div class="row g-3">
+                      <!-- SELECT2 EMPRESA A LA QUE PERTENECE -->
+                      <div class="col-md-6">
+                        <label class="form-label text-white fw-semibold d-flex align-items-center gap-2 mb-1">
+                          <iconify-icon icon="solar:buildings-2-bold-duotone" class="text-primary fs-5"></iconify-icon>
+                          <span>Empresa a la que Pertenece</span>
+                          <span class="text-danger">*</span>
+                        </label>
+                        <AppSelect2
+                          v-model="formUser.companyId"
+                          :options="userCompanySelectOptions"
+                          placeholder="Selecciona una empresa..."
+                          @change="onUserCompanyChange"
+                        />
+                        <small class="text-secondary d-block mt-1 fs-1">
+                          {{ isEditingUser ? 'Empresa asociada a este usuario' : 'Selecciona la empresa donde operará el usuario' }}
+                        </small>
+                      </div>
+
+                      <!-- SELECTOR DE ROL DE LA EMPRESA (NO OBLIGATORIO) -->
+                      <div class="col-md-6">
+                        <label class="form-label text-white fw-semibold d-flex align-items-center justify-content-between mb-1">
+                          <span class="d-flex align-items-center gap-2">
+                            <iconify-icon icon="solar:shield-user-line-duotone" class="text-primary fs-5"></iconify-icon>
+                            <span>Rol del Usuario</span>
+                          </span>
+                          <span class="badge bg-primary-subtle text-primary text-truncate" style="max-width: 140px;">
+                            {{ getCompanyNameById(formUser.companyId) }}
+                          </span>
+                        </label>
+                        <select
+                          v-model="formUser.roleId"
+                          class="form-select bg-dark border-secondary-subtle text-white"
+                          style="height: 40px;"
+                        >
+                          <option :value="null">Sin rol específico / Rol básico</option>
+                          <option
+                            v-for="r in rolesByCompany[formUser.companyId] || []"
+                            :key="r.id"
+                            :value="r.id"
+                          >
+                            {{ r.code }} - {{ r.description }}
+                          </option>
+                        </select>
+                        <small
+                          v-if="(rolesByCompany[formUser.companyId] || []).length === 0"
+                          class="text-warning d-block mt-1 fs-1"
+                        >
+                          Esta empresa no tiene roles registrados aún.
+                        </small>
+                        <small v-else class="text-secondary d-block mt-1 fs-1">
+                          Permisos del usuario en esta empresa
+                        </small>
+                      </div>
+                    </div>
                   </div>
 
                   <!-- CASO 3: SI ES MULTI-EMPRESA -> SELECCIÓN DE EMPRESAS Y ROL ESPECÍFICO POR CADA EMPRESA -->
@@ -3911,9 +4333,8 @@ const submitSubscription = async () => {
                             <select
                               v-model="formUser.companyRolesMap[company.id]"
                               class="form-select form-select-sm bg-dark border-primary text-white"
-                              required
                             >
-                              <option :value="null" disabled>Selecciona rol en {{ company.trade_name || company.business_name }}...</option>
+                              <option :value="null">Sin rol específico / Acceso básico</option>
                               <option
                                 v-for="r in rolesByCompany[company.id] || []"
                                 :key="r.id"

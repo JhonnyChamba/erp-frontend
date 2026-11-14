@@ -189,11 +189,12 @@ const getStoredCompany = (): any => {
 }
 const selectedCompany = ref<any>(getStoredCompany())
 const currentCompanyId = computed(() => {
+  // 🔥 En el ERP la empresa SIEMPRE se toma estrictamente del token de autenticación
+  const authCompId = Number(authStore.tokenPayload?.company_id || authStore.accessInfo?.companyId)
+  if (!Number.isNaN(authCompId) && authCompId > 0) return authCompId
   const cId = Number(selectedCompany.value?.companyId || selectedCompany.value?.company?.id || selectedCompany.value?.id)
   if (!Number.isNaN(cId) && cId > 0) return cId
-  const authCompId = Number(authStore.accessInfo?.companyId || authStore.tokenPayload?.company_id)
-  if (!Number.isNaN(authCompId) && authCompId > 0) return authCompId
-  return 4
+  return 1
 })
 const activeCompanyItem = computed(() => {
   return companies.value.find((c) => Number(c.id) === Number(currentCompanyId.value)) || companies.value[0] || null
@@ -818,7 +819,6 @@ const openEditUser = async (user: UserItem) => {
     }
   }
 
-  const isSuper = isCurrentUserSuperAdmin.value ? Boolean(user.super_admin || user.developer) : false
   formUser.value = {
     companyId: currentCompanyId.value,
     num_document: user.num_document || '',
@@ -827,13 +827,11 @@ const openEditUser = async (user: UserItem) => {
     last_name_user: user.last_name_user || '',
     email: user.email || '',
     password: '',
-    super_admin: isSuper,
-    multi_company: isSuper ? false : Boolean(user.multi_company),
-    companyIds: isSuper ? [] : targetCompanyIds,
-    roleId: isSuper
-      ? null
-      : user.roleId ?? roleMap[currentCompanyId.value] ?? rolesByCompany.value[currentCompanyId.value]?.[0]?.id ?? null,
-    companyRolesMap: isSuper ? {} : roleMap,
+    super_admin: false,
+    multi_company: false,
+    companyIds: [currentCompanyId.value],
+    roleId: user.roleId ?? roleMap[currentCompanyId.value] ?? rolesByCompany.value[currentCompanyId.value]?.[0]?.id ?? null,
+    companyRolesMap: roleMap,
     theme_color: user.theme_color || 'Blue_Theme',
     photo_url: (user as any).photo_url || '',
   }
@@ -1209,41 +1207,28 @@ const submitUser = async () => {
     const isSuper = isCurrentUserSuperAdmin.value ? Boolean(formUser.value.super_admin) : false
     const isMulti = isSuper ? false : Boolean(formUser.value.multi_company)
 
-    const companyRolesPayload = isSuper
-      ? []
-      : isMulti
-      ? formUser.value.companyIds.map((cId) => ({
-          companyId: Number(cId),
-          roleId: formUser.value.companyRolesMap[Number(cId)]
-            ? Number(formUser.value.companyRolesMap[Number(cId)])
-            : null,
-        }))
-      : [
-          {
-            companyId: currentCompanyId.value,
-            roleId: formUser.value.roleId ? Number(formUser.value.roleId) : null,
-          },
-        ]
-
-    const effectiveRoleId = isSuper
-      ? null
-      : isMulti
-      ? formUser.value.companyRolesMap[currentCompanyId.value] ?? null
-      : formUser.value.roleId ?? null
+    const effectiveCompanyId = currentCompanyId.value
+    const effectiveRoleId = formUser.value.roleId ? Number(formUser.value.roleId) : null
+    const companyRolesPayload = [
+      {
+        companyId: effectiveCompanyId,
+        roleId: effectiveRoleId,
+      },
+    ]
 
     let savedUserId = editingUserId.value
     if (isEditingUser.value && editingUserId.value) {
       const payload: any = {
-        companyId: currentCompanyId.value,
+        companyId: effectiveCompanyId,
         num_document: formUser.value.num_document,
         birth_date: formUser.value.birth_date || null,
         name_user: formUser.value.name_user,
         last_name_user: formUser.value.last_name_user,
         email: formUser.value.email,
-        super_admin: isSuper,
-        developer: isSuper,
-        multi_company: isMulti,
-        companyIds: isSuper ? [] : isMulti ? formUser.value.companyIds.map(Number) : [currentCompanyId.value],
+        super_admin: false,
+        developer: false,
+        multi_company: false,
+        companyIds: [effectiveCompanyId],
         roleId: effectiveRoleId,
         companyRoles: companyRolesPayload,
         theme_color: formUser.value.theme_color || 'Blue_Theme',
@@ -1260,17 +1245,17 @@ const submitUser = async () => {
       }
     } else {
       const createdUser: any = await createUser({
-        companyId: currentCompanyId.value,
+        companyId: effectiveCompanyId,
         num_document: formUser.value.num_document,
         birth_date: formUser.value.birth_date || null,
         name_user: formUser.value.name_user,
         last_name_user: formUser.value.last_name_user,
         email: formUser.value.email,
         password: formUser.value.password,
-        super_admin: isSuper,
-        developer: isSuper,
-        multi_company: isMulti,
-        companyIds: isSuper ? [] : isMulti ? formUser.value.companyIds.map(Number) : [currentCompanyId.value],
+        super_admin: false,
+        developer: false,
+        multi_company: false,
+        companyIds: [effectiveCompanyId],
         roleId: effectiveRoleId,
         companyRoles: companyRolesPayload,
         theme_color: formUser.value.theme_color || 'Blue_Theme',
@@ -1335,6 +1320,37 @@ const getCompanyAccessibleSubModules = (modId: number) => {
     return childSubMods.filter((sm) => subscribedSubModIds.has(Number(sm.id)))
   }
   return childSubMods
+}
+
+// Filtra los módulos de un rol para mostrar en la tabla SOLO los permitidos por la suscripción vigente
+const getRoleSubscribedModuleIds = (role: RoleItem): number[] => {
+  const roleMods = role.moduleIds || []
+  const activeSubs = subscriptions.value.filter((s) => s.enabled !== false)
+  const subscribedModIds = new Set<number>()
+  for (const s of activeSubs) {
+    for (const mId of s.moduleIds || []) {
+      subscribedModIds.add(Number(mId))
+    }
+  }
+  if (subscribedModIds.size === 0) {
+    return roleMods
+  }
+  return roleMods.filter((id) => subscribedModIds.has(Number(id)))
+}
+
+const getRoleSubscribedSubModuleCount = (role: RoleItem): number => {
+  const roleSubMods = role.subModuleIds || []
+  const activeSubs = subscriptions.value.filter((s) => s.enabled !== false)
+  const subscribedSubModIds = new Set<number>()
+  for (const s of activeSubs) {
+    for (const smId of s.subModuleIds || []) {
+      subscribedSubModIds.add(Number(smId))
+    }
+  }
+  if (subscribedSubModIds.size === 0) {
+    return roleSubMods.length
+  }
+  return roleSubMods.filter((id) => subscribedSubModIds.has(Number(id))).length
 }
 
 const toggleRoleModuleAccess = (modId: number, val: boolean) => {
@@ -1944,14 +1960,6 @@ const submitSubscription = async () => {
           <h5 class="fw-bold text-white mb-1">Datos de la Empresa Activa</h5>
           <small class="text-secondary">Configuración fiscal, firma electrónica (.p12), credenciales SMTP y logotipo institucional</small>
         </div>
-        <button
-          v-if="activeCompanyItem"
-          class="btn btn-primary rounded-pill px-4 d-flex align-items-center gap-2"
-          @click="openEditCompany(activeCompanyItem)"
-        >
-          <iconify-icon icon="solar:pen-2-line-duotone" class="fs-5"></iconify-icon>
-          <span>Editar Configuración de Empresa</span>
-        </button>
       </div>
 
       <div v-if="loading" class="text-center py-5">
@@ -2202,9 +2210,9 @@ const submitSubscription = async () => {
               <td><span class="badge bg-primary text-white fw-bold font-monospace">{{ role.code }}</span></td>
               <td class="text-white fw-semibold">{{ role.description }}</td>
               <td>
-                <div v-if="(role.moduleIds && role.moduleIds.length > 0) || (role.subModuleIds && role.subModuleIds.length > 0)" class="d-flex flex-wrap gap-1">
+                <div v-if="(getRoleSubscribedModuleIds(role).length > 0) || (getRoleSubscribedSubModuleCount(role) > 0)" class="d-flex flex-wrap gap-1">
                   <span
-                    v-for="modId in role.moduleIds"
+                    v-for="modId in getRoleSubscribedModuleIds(role)"
                     :key="'rm-' + modId"
                     class="badge bg-primary-subtle text-primary border border-primary-subtle d-inline-flex align-items-center gap-1"
                   >
@@ -2212,13 +2220,13 @@ const submitSubscription = async () => {
                     {{ getModuleNameById(modId) }}
                   </span>
                   <span
-                    v-if="role.subModuleIds && role.subModuleIds.length > 0"
+                    v-if="getRoleSubscribedSubModuleCount(role) > 0"
                     class="badge bg-info-subtle text-info border border-info-subtle"
                   >
-                    +{{ role.subModuleIds.length }} submódulo(s) activos
+                    +{{ getRoleSubscribedSubModuleCount(role) }} submódulo(s) activos
                   </span>
                 </div>
-                <span v-else class="text-secondary fs-2 fst-italic">Sin módulos en true</span>
+                <span v-else class="text-secondary fs-2 fst-italic">Sin módulos activos</span>
               </td>
               <td>
                 <span class="badge" :class="role.enabled !== false ? 'bg-success-subtle text-success' : 'bg-danger-subtle text-danger'">
@@ -2786,88 +2794,21 @@ const submitSubscription = async () => {
                   />
                 </div>
 
-                <!-- PRIVILEGIOS: SUPER ADMIN, MULTI-EMPRESA Y ROL POR EMPRESA -->
+                <!-- ASIGNACIÓN DE ROL EN LA EMPRESA ACTIVA (DEL TOKEN) -->
                 <div class="mb-3 pt-3 border-top border-dark-subtle">
-                  <label class="form-label text-white fw-semibold mb-2">Permisos, Empresas y Asignación de Rol</label>
-                  <div class="row g-2 mb-3">
-                    <!-- Switch Super Admin (Visible solo cuando el usuario logueado es Super Admin; deshabilitado si Multi-Empresa está activo) -->
-                    <div v-if="isCurrentUserSuperAdmin" :class="formUser.super_admin ? 'col-12' : 'col-md-6'">
-                      <div
-                        class="form-check form-switch bg-dark-subtle p-3 rounded border d-flex align-items-center justify-content-between"
-                        :class="[
-                          formUser.super_admin ? 'border-danger' : 'border-secondary-subtle',
-                          formUser.multi_company ? 'opacity-50' : ''
-                        ]"
-                      >
-                        <label class="form-check-label text-white ms-0 cursor-pointer" for="switchSuperAdmin">
-                          <div class="fw-bold d-flex align-items-center gap-1 text-danger">
-                            <iconify-icon icon="solar:shield-star-bold"></iconify-icon> Super Admin
-                          </div>
-                          <small class="text-secondary d-block fs-1">
-                            {{
-                              formUser.multi_company
-                                ? 'Desactivado porque el usuario es Multi-Empresa'
-                                : 'Acceso total a todas las empresas y módulos del sistema (no requiere rol)'
-                            }}
-                          </small>
-                        </label>
-                        <input
-                          v-model="formUser.super_admin"
-                          class="form-check-input fs-5 m-0 cursor-pointer"
-                          type="checkbox"
-                          id="switchSuperAdmin"
-                          :disabled="formUser.multi_company"
-                          @change="onSuperAdminChange"
-                        />
-                      </div>
-                    </div>
-
-                    <!-- Switch Multi Empresa (Desaparece si es Super Admin) -->
-                    <div v-if="!formUser.super_admin" :class="isCurrentUserSuperAdmin ? 'col-md-6' : 'col-12'">
-                      <div
-                        class="form-check form-switch bg-dark-subtle p-3 rounded border d-flex align-items-center justify-content-between"
-                        :class="formUser.multi_company ? 'border-warning' : 'border-secondary-subtle'"
-                      >
-                        <label class="form-check-label text-white ms-0 cursor-pointer" for="switchMultiCompany">
-                          <div class="fw-bold d-flex align-items-center gap-1 text-warning">
-                            <iconify-icon icon="solar:buildings-bold"></iconify-icon> Multi-Empresa
-                          </div>
-                          <small class="text-secondary d-block fs-1">Asignar varias empresas y un rol distinto en cada una</small>
-                        </label>
-                        <input
-                          v-model="formUser.multi_company"
-                          class="form-check-input fs-5 m-0 cursor-pointer"
-                          type="checkbox"
-                          id="switchMultiCompany"
-                          @change="onMultiCompanyChange"
-                        />
-                      </div>
-                    </div>
-                  </div>
-
-                  <!-- CASO 1: SI ES SUPER ADMIN -> AVISO DE ACCESO TOTAL -->
-                  <div v-if="formUser.super_admin" class="p-3 bg-danger-subtle text-danger rounded border border-danger-subtle mb-2 d-flex align-items-center gap-2">
-                    <iconify-icon icon="solar:shield-star-bold" class="fs-5 flex-shrink-0"></iconify-icon>
-                    <span class="fs-2">
-                      Al ser <strong>Super Admin</strong>, este usuario tiene acceso absoluto a todas las empresas, módulos y submódulos sin restricción de rol.
-                    </span>
-                  </div>
-
-                  <!-- CASO 2: SI NO ES SUPER ADMIN Y NO ES MULTI-EMPRESA -> SELECTOR DE ROL EN LA EMPRESA ACTIVA -->
-                  <div v-else-if="!formUser.multi_company" class="p-3 bg-dark-subtle rounded border border-primary-subtle mb-3">
+                  <div class="p-3 bg-dark-subtle rounded border border-primary-subtle mb-3">
                     <label class="form-label text-white fw-semibold d-flex align-items-center justify-content-between mb-2">
                       <span class="d-flex align-items-center gap-2">
                         <iconify-icon icon="solar:shield-user-line-duotone" class="text-primary fs-5"></iconify-icon>
-                        <span>Rol del Usuario en {{ selectedCompany?.razon_social || selectedCompany?.nombre_comercial || 'la Empresa Activa' }}</span>
+                        <span>Rol del Usuario en {{ selectedCompany?.razon_social || selectedCompany?.nombre_comercial || 'la Empresa' }}</span>
                       </span>
                       <span class="badge bg-primary-subtle text-primary">Empresa #{{ currentCompanyId }}</span>
                     </label>
                     <select
                       v-model="formUser.roleId"
                       class="form-select bg-dark border-secondary-subtle text-white"
-                      required
                     >
-                      <option :value="null" disabled>Selecciona un rol para esta empresa...</option>
+                      <option :value="null">Sin rol específico / Acceso básico</option>
                       <option
                         v-for="r in rolesByCompany[currentCompanyId] || []"
                         :key="r.id"
@@ -2882,79 +2823,9 @@ const submitSubscription = async () => {
                     >
                       No hay roles registrados en esta empresa aún. Crea uno en la pestaña "Roles".
                     </small>
-                  </div>
-
-                  <!-- CASO 3: SI ES MULTI-EMPRESA -> SELECCIÓN DE EMPRESAS Y ROL ESPECÍFICO POR CADA EMPRESA -->
-                  <div v-else class="p-3 bg-dark-subtle rounded border border-warning-subtle mb-3">
-                    <div class="d-flex align-items-center justify-content-between mb-2">
-                      <label class="form-label text-warning fw-semibold d-flex align-items-center gap-2 mb-0">
-                        <iconify-icon icon="solar:checklist-minimalistic-bold" class="fs-4"></iconify-icon>
-                        <span>Empresas Habilitadas y Rol por Empresa</span>
-                      </label>
-                      <span class="badge bg-warning-subtle text-warning border border-warning-subtle">
-                        {{ formUser.companyIds.length }} empresa(s) seleccionada(s)
-                      </span>
-                    </div>
-                    <p class="text-secondary fs-2 mb-2">
-                      Marca las empresas a las que tendrá acceso el usuario y elige qué rol desempeñará en cada una (Ej. Contable en una, Ventas en otra):
-                    </p>
-
-                    <div class="d-flex flex-column gap-2 overflow-y-auto pe-1" style="max-height: 240px;">
-                      <div
-                        v-for="company in companies"
-                        :key="company.id"
-                        class="p-2 rounded border transition-all"
-                        :class="
-                          formUser.companyIds.includes(company.id)
-                            ? 'bg-primary-subtle border-primary text-white'
-                            : 'bg-dark border-secondary-subtle text-secondary'
-                        "
-                      >
-                        <div class="row align-items-center g-2">
-                          <div class="col-md-6">
-                            <label class="d-flex align-items-center gap-2 cursor-pointer mb-0">
-                              <input
-                                type="checkbox"
-                                class="form-check-input m-0 cursor-pointer"
-                                :value="company.id"
-                                v-model="formUser.companyIds"
-                                @change="onToggleUserCompany(company.id)"
-                              />
-                              <div class="text-truncate">
-                                <span class="d-block fw-semibold text-truncate fs-2">
-                                  {{ company.business_name || company.trade_name }}
-                                </span>
-                                <small class="text-secondary font-monospace fs-1">RUC: {{ company.ruc }}</small>
-                              </div>
-                            </label>
-                          </div>
-
-                          <!-- Selector de Rol para esta empresa específica -->
-                          <div v-if="formUser.companyIds.includes(company.id)" class="col-md-6">
-                            <select
-                              v-model="formUser.companyRolesMap[company.id]"
-                              class="form-select form-select-sm bg-dark border-primary text-white"
-                              required
-                            >
-                              <option :value="null" disabled>Selecciona rol en {{ company.trade_name || company.business_name }}...</option>
-                              <option
-                                v-for="r in rolesByCompany[company.id] || []"
-                                :key="r.id"
-                                :value="r.id"
-                              >
-                                {{ r.code }} - {{ r.description }}
-                              </option>
-                            </select>
-                            <small
-                              v-if="(rolesByCompany[company.id] || []).length === 0"
-                              class="text-warning d-block fs-1 mt-1"
-                            >
-                              Esta empresa aún no tiene roles creados.
-                            </small>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
+                    <small v-else class="text-secondary d-block mt-1 fs-1">
+                      Asigna la matriz de permisos para las operaciones dentro de esta empresa.
+                    </small>
                   </div>
                 </div>
 

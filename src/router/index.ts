@@ -176,7 +176,7 @@ const router = createRouter({
 })
 
 // Guardia de navegación: Protección de rutas, verificación de expiración (15h) y control de retroceso
-router.beforeEach(async (to) => {
+router.beforeEach(async (to, from) => {
   const authStore = useAuthStore()
   const isPublic = to.meta.public
 
@@ -200,9 +200,16 @@ router.beforeEach(async (to) => {
     return { path: '/dashboard' }
   }
 
-  // Si ya tiene empresa seleccionada y está en el ERP, bloquear volver a /companies con el botón atrás del navegador
-  if (token && selectedCompany && to.path === '/companies' && to.query.cambiar !== 'true') {
-    return { path: '/dashboard' }
+  // Si ya tiene empresa seleccionada y está en el ERP, bloquear volver a /companies con el botón atrás del navegador a menos que sea explícito, venga de configuración global o sea Super Admin
+  if (token && selectedCompany && to.path === '/companies' && to.query.cambiar !== 'true' && from.path !== '/configuracion-global') {
+    const isSuper = Boolean(
+      authStore.tokenPayload?.super_admin ||
+      authStore.tokenPayload?.developer ||
+      authStore.accessInfo?.isSuperAdmin
+    )
+    if (!isSuper) {
+      return { path: '/dashboard' }
+    }
   }
 
   // Protección de acceso exclusivo para Super Admin
