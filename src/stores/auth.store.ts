@@ -11,6 +11,7 @@ export interface TokenPayload {
   multi_company: boolean
   company_id?: number
   theme_color?: string
+  theme_mode?: string
   photo_url?: string | null
   exp?: number
   iat?: number
@@ -93,11 +94,16 @@ export const useAuthStore = defineStore('auth', {
   },
 
   actions: {
-    applyTheme(themeName?: string) {
+    applyTheme(themeName?: string, themeMode?: string) {
       const theme = themeName || this.tokenPayload?.theme_color || localStorage.getItem('userTheme') || 'Blue_Theme'
+      const mode = themeMode || this.tokenPayload?.theme_mode || localStorage.getItem('app-theme') || 'dark'
+
       this.currentTheme = theme
       localStorage.setItem('userTheme', theme)
       document.documentElement.setAttribute('data-color-theme', theme)
+
+      localStorage.setItem('app-theme', mode)
+      document.documentElement.setAttribute('data-bs-theme', mode)
     },
 
     async login(email: string, password: string) {
@@ -109,7 +115,8 @@ export const useAuthStore = defineStore('auth', {
       if (this.token) {
         localStorage.setItem('token', this.token)
         const theme = data.theme_color || this.tokenPayload?.theme_color || 'Blue_Theme'
-        this.applyTheme(theme)
+        const mode = data.theme_mode || this.tokenPayload?.theme_mode || 'dark'
+        this.applyTheme(theme, mode)
         if (data.photo_url) {
           localStorage.setItem('userPhoto', data.photo_url)
         } else {

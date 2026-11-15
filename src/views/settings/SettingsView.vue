@@ -189,11 +189,19 @@ const getStoredCompany = (): any => {
 }
 const selectedCompany = ref<any>(getStoredCompany())
 const currentCompanyId = computed(() => {
-  // 🔥 En el ERP la empresa SIEMPRE se toma estrictamente del token de autenticación
-  const authCompId = Number(authStore.tokenPayload?.company_id || authStore.accessInfo?.companyId)
+  // 1. En el ERP, la empresa activa es prioritariamente la empresa seleccionada por el usuario (localStorage / selectedCompany)
+  const stored = selectedCompany.value || getStoredCompany()
+  const storedId = Number(stored?.id || stored?.companyId || stored?.company?.id)
+  if (!Number.isNaN(storedId) && storedId > 0) return storedId
+
+  // 2. Si el store tiene el accessInfo de la empresa activa
+  const accessCompId = Number(authStore.accessInfo?.companyId)
+  if (!Number.isNaN(accessCompId) && accessCompId > 0) return accessCompId
+
+  // 3. Fallback al token de autenticación (usuarios de empresa fija)
+  const authCompId = Number(authStore.tokenPayload?.company_id)
   if (!Number.isNaN(authCompId) && authCompId > 0) return authCompId
-  const cId = Number(selectedCompany.value?.companyId || selectedCompany.value?.company?.id || selectedCompany.value?.id)
-  if (!Number.isNaN(cId) && cId > 0) return cId
+
   return 1
 })
 const activeCompanyItem = computed(() => {
@@ -687,6 +695,7 @@ const formUser = ref({
   roleId: null as number | null,
   companyRolesMap: {} as Record<number, number | null>,
   theme_color: 'Blue_Theme',
+  theme_mode: 'dark',
   photo_url: '',
 })
 
@@ -779,6 +788,7 @@ const openCreateUser = async () => {
     roleId: defaultRole,
     companyRolesMap: { [currentCompanyId.value]: defaultRole },
     theme_color: 'Blue_Theme',
+    theme_mode: 'dark',
     photo_url: '',
   }
   showUserModal.value = true
@@ -833,6 +843,7 @@ const openEditUser = async (user: UserItem) => {
     roleId: user.roleId ?? roleMap[currentCompanyId.value] ?? rolesByCompany.value[currentCompanyId.value]?.[0]?.id ?? null,
     companyRolesMap: roleMap,
     theme_color: user.theme_color || 'Blue_Theme',
+    theme_mode: (user as any).theme_mode || 'dark',
     photo_url: (user as any).photo_url || '',
   }
   showUserModal.value = true
@@ -952,6 +963,16 @@ watch(
     }
   },
   { immediate: true }
+)
+
+watch(
+  () => authStore.accessInfo?.companyId,
+  (newCId) => {
+    if (newCId) {
+      selectedCompany.value = getStoredCompany()
+      loadCurrentTabData()
+    }
+  }
 )
 
 onMounted(async () => {
@@ -1232,6 +1253,7 @@ const submitUser = async () => {
         roleId: effectiveRoleId,
         companyRoles: companyRolesPayload,
         theme_color: formUser.value.theme_color || 'Blue_Theme',
+        theme_mode: formUser.value.theme_mode || 'dark',
       }
       if (formUser.value.password) {
         payload.password = formUser.value.password
@@ -1241,7 +1263,9 @@ const submitUser = async () => {
 
       // Si el usuario editado es el actual logueado, aplicar y persistir el tema inmediatamente
       if (authStore.tokenPayload?.user_id === editingUserId.value) {
-        authStore.applyTheme(formUser.value.theme_color)
+        authStore.applyTheme(formUser.value.theme_color, formUser.value.theme_mode)
+        themeStore.applyThemeMode((formUser.value.theme_mode || 'dark') as any, false)
+        themeStore.setThemeColor((formUser.value.theme_color || 'Blue_Theme') as any, false)
       }
     } else {
       const createdUser: any = await createUser({
@@ -1259,6 +1283,7 @@ const submitUser = async () => {
         roleId: effectiveRoleId,
         companyRoles: companyRolesPayload,
         theme_color: formUser.value.theme_color || 'Blue_Theme',
+        theme_mode: formUser.value.theme_mode || 'dark',
         photo_url: formUser.value.photo_url || '/controller/images/profile/user-1.jpg',
       })
       savedUserId = createdUser?.id || createdUser?.data?.id
@@ -1423,6 +1448,10 @@ const openCreateRole = async () => {
 }
 
 const openEditRole = async (role: RoleItem) => {
+  if (role.is_company_admin) {
+    toast.info('El rol Administrador predeterminado tiene acceso total automático a todos los módulos de la suscripción activa y no puede modificarse manualmente.', 'Rol Predeterminado')
+    return
+  }
   isEditingRole.value = true
   editingRoleId.value = role.id
   if (modulesList.value.length === 0 || allSubModulesList.value.length === 0) {
@@ -2136,10 +2165,16 @@ const submitSubscription = async () => {
                 </span>
               </td>
               <td>
-                <span class="badge d-inline-flex align-items-center gap-2 px-2 py-1 rounded-pill" :style="getThemeBadgeStyle(user.theme_color)">
-                  <span class="theme-mini-dot" :style="{ backgroundColor: getThemeColorHex(user.theme_color) }"></span>
-                  <span>{{ getThemeName(user.theme_color) }}</span>
-                </span>
+                <div class="d-flex flex-column gap-1">
+                  <span class="badge d-inline-flex align-items-center gap-2 px-2 py-1 rounded-pill" :style="getThemeBadgeStyle(user.theme_color)">
+                    <span class="theme-mini-dot" :style="{ backgroundColor: getThemeColorHex(user.theme_color) }"></span>
+                    <span>{{ getThemeName(user.theme_color) }}</span>
+                  </span>
+                  <span class="badge d-inline-flex align-items-center gap-1 px-2 py-0 fs-1" :class="user.theme_mode === 'light' ? 'bg-light text-dark border' : 'bg-dark text-white border border-secondary'">
+                    <iconify-icon :icon="user.theme_mode === 'light' ? 'solar:sun-2-line-duotone' : 'solar:moon-line-duotone'"></iconify-icon>
+                    <span>{{ user.theme_mode === 'light' ? 'Claro' : 'Oscuro' }}</span>
+                  </span>
+                </div>
               </td>
               <td>
                 <span class="badge" :class="user.enabled !== false ? 'bg-success-subtle text-success' : 'bg-danger-subtle text-danger'">
@@ -2217,7 +2252,19 @@ const submitSubscription = async () => {
             <tr v-for="role in roles" :key="role.id">
               <td><span class="badge bg-dark-subtle text-white">{{ role.id }}</span></td>
               <td><span class="badge bg-primary text-white fw-bold font-monospace">{{ role.code }}</span></td>
-              <td class="text-white fw-semibold">{{ role.description }}</td>
+              <td class="text-white fw-semibold">
+                <div class="d-flex align-items-center gap-2">
+                  <span>{{ role.description }}</span>
+                  <span
+                    v-if="role.is_company_admin"
+                    class="badge bg-primary-subtle text-primary border border-primary-subtle fs-1"
+                    title="Rol Administrador predeterminado de la empresa con acceso total automático"
+                  >
+                    <iconify-icon icon="solar:shield-star-line-duotone" class="align-middle me-1"></iconify-icon>
+                    Administrador Predeterminado
+                  </span>
+                </div>
+              </td>
               <td>
                 <div v-if="(getRoleSubscribedModuleIds(role).length > 0) || (getRoleSubscribedSubModuleCount(role) > 0)" class="d-flex flex-wrap gap-1">
                   <span
@@ -2255,11 +2302,17 @@ const submitSubscription = async () => {
                     <span>Acciones</span>
                   </button>
                   <ul class="dropdown-menu dropdown-menu-end shadow-lg py-1">
-                    <li>
+                    <li v-if="!role.is_company_admin">
                       <a class="dropdown-item py-2" href="javascript:void(0)" @click="openEditRole(role)">
                         <iconify-icon icon="solar:pen-2-line-duotone" class="fs-5 text-warning"></iconify-icon>
                         <span>Editar Permisos del Rol</span>
                       </a>
+                    </li>
+                    <li v-else>
+                      <span class="dropdown-item py-2 text-white-50 cursor-not-allowed" title="Acceso total automático según la suscripción activa. No modificable.">
+                        <iconify-icon icon="solar:lock-keyhole-line-duotone" class="fs-5 text-info"></iconify-icon>
+                        <span>Permisos Automáticos (Suscripción)</span>
+                      </span>
                     </li>
                   </ul>
                 </div>
@@ -2842,16 +2895,16 @@ const submitSubscription = async () => {
                 <div class="mb-3 pt-2 border-top border-dark-subtle">
                   <label class="form-label text-secondary fs-2 fw-semibold d-flex justify-content-between align-items-center mb-2">
                     <span class="fw-semibold text-adaptive-light">Modo de Apariencia</span>
-                    <span class="badge bg-info-subtle text-info border border-info-subtle px-2 py-1 fs-1">
-                      {{ themeStore.isDark ? 'Oscuro activo' : 'Claro activo' }}
+                    <span class="badge border px-2 py-1 fs-1" :class="formUser.theme_mode === 'dark' ? 'bg-dark text-white border-secondary' : 'bg-light text-dark border-secondary'">
+                      {{ formUser.theme_mode === 'dark' ? 'Modo Oscuro asignado' : 'Modo Claro asignado' }}
                     </span>
                   </label>
                   <div class="d-flex gap-2">
                     <button
                       type="button"
                       class="btn flex-fill d-flex align-items-center justify-content-center gap-2 py-2 rounded-3 border"
-                      :class="!themeStore.isDark ? 'btn-primary text-white shadow-sm' : 'btn-outline-secondary text-secondary'"
-                      @click="themeStore.applyThemeMode('light')"
+                      :class="formUser.theme_mode === 'light' ? 'btn-primary text-white shadow-sm' : 'btn-outline-secondary text-secondary'"
+                      @click="formUser.theme_mode = 'light'"
                     >
                       <iconify-icon icon="solar:sun-2-line-duotone" class="fs-5"></iconify-icon>
                       <span class="fw-semibold">Modo Claro</span>
@@ -2859,8 +2912,8 @@ const submitSubscription = async () => {
                     <button
                       type="button"
                       class="btn flex-fill d-flex align-items-center justify-content-center gap-2 py-2 rounded-3 border"
-                      :class="themeStore.isDark ? 'btn-primary text-white shadow-sm' : 'btn-outline-secondary text-secondary'"
-                      @click="themeStore.applyThemeMode('dark')"
+                      :class="formUser.theme_mode === 'dark' ? 'btn-primary text-white shadow-sm' : 'btn-outline-secondary text-secondary'"
+                      @click="formUser.theme_mode = 'dark'"
                     >
                       <iconify-icon icon="solar:moon-line-duotone" class="fs-5"></iconify-icon>
                       <span class="fw-semibold">Modo Oscuro</span>

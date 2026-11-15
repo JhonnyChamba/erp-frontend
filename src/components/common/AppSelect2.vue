@@ -13,6 +13,7 @@ const props = withDefaults(
   defineProps<{
     modelValue?: string | number | null
     options?: (Select2Option | string | number)[]
+    fetchOptions?: (query: string) => Promise<(Select2Option | string | number)[]>
     placeholder?: string
     searchPlaceholder?: string
     disabled?: boolean
@@ -24,6 +25,7 @@ const props = withDefaults(
   {
     modelValue: null,
     options: () => [],
+    fetchOptions: undefined,
     placeholder: 'Seleccionar...',
     searchPlaceholder: 'Buscar...',
     disabled: false,
@@ -47,9 +49,14 @@ const rootRef = ref<HTMLElement | null>(null)
 const searchInputRef = ref<HTMLInputElement | null>(null)
 const resultsListRef = ref<HTMLElement | null>(null)
 
-// Normalizar opciones
-const normalizedOptions = computed<Select2Option[]>(() => {
-  return props.options.map((opt) => {
+// Soporte para búsqueda remota / dinámica en base de datos
+const remoteOptions = ref<Select2Option[]>([])
+const isRemoteLoading = ref(false)
+const rememberedOption = ref<Select2Option | null>(null)
+let debounceTimer: any = null
+
+const normalize = (list: (Select2Option | string | number)[]): Select2Option[] => {
+  return (list || []).map((opt) => {
     if (typeof opt === 'object' && opt !== null) {
       return {
         value: opt.value,
@@ -64,13 +71,33 @@ const normalizedOptions = computed<Select2Option[]>(() => {
       disabled: false,
     }
   })
+}
+
+// Opciones base normalizadas
+const baseOptions = computed<Select2Option[]>(() => {
+  return normalize(props.options)
+})
+
+// Lista combinada de opciones
+const combinedOptions = computed<Select2Option[]>(() => {
+  if (props.fetchOptions) {
+    if (remoteOptions.value.length > 0) {
+      return remoteOptions.value
+    }
+    return baseOptions.value
+  }
+  return baseOptions.value
 })
 
 // Opciones filtradas por el buscador
 const filteredOptions = computed(() => {
+  // Si usa búsqueda remota en base de datos, el backend ya filtró
+  if (props.fetchOptions && remoteOptions.value.length > 0) {
+    return remoteOptions.value
+  }
   const query = searchQuery.value.trim().toLowerCase()
-  if (!query) return normalizedOptions.value
-  return normalizedOptions.value.filter((opt) => {
+  if (!query) return combinedOptions.value
+  return combinedOptions.value.filter((opt) => {
     const labelMatch = opt.label.toLowerCase().includes(query)
     const sublabelMatch = opt.sublabel ? opt.sublabel.toLowerCase().includes(query) : false
     const valMatch = opt.value !== null ? String(opt.value).toLowerCase().includes(query) : false
@@ -80,7 +107,45 @@ const filteredOptions = computed(() => {
 
 // Opción actualmente seleccionada
 const selectedOption = computed(() => {
-  return normalizedOptions.value.find((opt) => opt.value === props.modelValue) || null
+  return combinedOptions.value.find((opt) => opt.value === props.modelValue) || null
+})
+
+watch(
+  selectedOption,
+  (newVal) => {
+    if (newVal) rememberedOption.value = newVal
+  },
+  { immediate: true }
+)
+
+const currentSelectedOption = computed(() => {
+  return selectedOption.value || rememberedOption.value
+})
+
+// Ejecutar búsqueda remota en base de datos
+const fetchRemote = async (query: string) => {
+  if (!props.fetchOptions) return
+  isRemoteLoading.value = true
+  try {
+    const res = await props.fetchOptions(query)
+    remoteOptions.value = normalize(res || [])
+    if (highlightedIndex.value >= remoteOptions.value.length) {
+      highlightedIndex.value = remoteOptions.value.length > 0 ? 0 : -1
+    }
+  } catch (err) {
+    console.error('Error fetching select2 options from DB:', err)
+  } finally {
+    isRemoteLoading.value = false
+  }
+}
+
+// Vigilar cambios en el input del buscador para búsqueda en base de datos
+watch(searchQuery, (newVal) => {
+  if (!props.fetchOptions) return
+  if (debounceTimer) clearTimeout(debounceTimer)
+  debounceTimer = setTimeout(() => {
+    fetchRemote(newVal)
+  }, 250)
 })
 
 // Abrir / Cerrar dropdown
@@ -97,6 +162,12 @@ const openDropdown = () => {
   if (props.disabled) return
   isOpen.value = true
   searchQuery.value = ''
+  
+  // Si tiene fetchOptions, consultar la base de datos inmediatamente al abrir
+  if (props.fetchOptions) {
+    fetchRemote('')
+  }
+
   highlightedIndex.value = filteredOptions.value.findIndex((o) => o.value === props.modelValue)
   if (highlightedIndex.value === -1 && filteredOptions.value.length > 0) {
     highlightedIndex.value = 0
@@ -116,6 +187,7 @@ const closeDropdown = () => {
   isOpen.value = false
   searchQuery.value = ''
   highlightedIndex.value = -1
+  if (debounceTimer) clearTimeout(debounceTimer)
 }
 
 // Seleccionar opción
@@ -225,14 +297,14 @@ onBeforeUnmount(() => {
     >
       <span
         class="select2-rendered-text"
-        :class="{ 'is-placeholder': !selectedOption }"
+        :class="{ 'is-placeholder': !currentSelectedOption }"
       >
-        {{ selectedOption ? selectedOption.label : placeholder }}
+        {{ currentSelectedOption ? currentSelectedOption.label : placeholder }}
       </span>
 
       <!-- Botón Limpiar (si allowClear está activado y hay valor) -->
       <button
-        v-if="allowClear && selectedOption && !disabled"
+        v-if="allowClear && currentSelectedOption && !disabled"
         type="button"
         class="select2-clear-btn"
         @click="clearSelection"
@@ -250,7 +322,8 @@ onBeforeUnmount(() => {
       <!-- Buscador -->
       <div class="select2-search-container">
         <div class="select2-search-input-wrapper">
-          <iconify-icon icon="solar:magnifer-line-duotone" class="search-icon"></iconify-icon>
+          <iconify-icon v-if="!isRemoteLoading" icon="solar:magnifer-line-duotone" class="search-icon"></iconify-icon>
+          <iconify-icon v-else icon="line-md:loading-loop" class="search-icon text-primary"></iconify-icon>
           <input
             ref="searchInputRef"
             v-model="searchQuery"
@@ -265,7 +338,14 @@ onBeforeUnmount(() => {
       <!-- Lista de Opciones Filtradas -->
       <ul ref="resultsListRef" class="select2-results-list" role="listbox">
         <li
-          v-if="filteredOptions.length === 0"
+          v-if="isRemoteLoading && filteredOptions.length === 0"
+          class="select2-empty-message text-primary"
+        >
+          <iconify-icon icon="line-md:loading-loop" class="me-1"></iconify-icon>
+          Buscando en base de datos...
+        </li>
+        <li
+          v-else-if="filteredOptions.length === 0"
           class="select2-empty-message"
         >
           No se encontraron resultados

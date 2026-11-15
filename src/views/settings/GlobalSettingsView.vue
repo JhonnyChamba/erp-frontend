@@ -618,6 +618,41 @@ const planSelectOptions = computed(() =>
     }))
 )
 
+// Búsqueda dinámica en tiempo real directamente en la base de datos para Select2
+const fetchPlansOptions = async (query: string) => {
+  try {
+    const res = await getPlans({ search: query, page: 1, limit: 100 })
+    const fetched = Array.isArray(res?.data) ? res.data : Array.isArray(res) ? res : []
+    if (!query) {
+      plans.value = fetched
+    } else {
+      const map = new Map<number, PlanItem>()
+      for (const p of plans.value) map.set(p.id, p)
+      for (const p of fetched) map.set(p.id, p)
+      plans.value = Array.from(map.values())
+    }
+    return fetched
+      .filter((p: PlanItem) => p.enabled !== false)
+      .map((p: PlanItem) => ({
+        value: p.id,
+        label: `${p.description} - $${p.price} (${p.billing_cycle === 'monthly' ? 'Mensual' : p.billing_cycle === 'annual' ? 'Anual' : p.billing_cycle})`,
+      }))
+  } catch (err) {
+    console.error('Error buscando planes en base de datos:', err)
+    return planSelectOptions.value
+  }
+}
+
+// Al navegar a la pestaña de suscripción, recargar los planes directamente de la base de datos
+watch(companyFormTab, async (newTab) => {
+  if (newTab === 'suscripcion') {
+    try {
+      const pRes = await getPlans({ page: 1, limit: 100 })
+      plans.value = Array.isArray(pRes?.data) ? pRes.data : Array.isArray(pRes) ? pRes : []
+    } catch {}
+  }
+})
+
 const formCompanySubscription = ref({
   planId: 1,
   begin_date: todayStr,
@@ -644,12 +679,10 @@ const openManageCompanySubscription = async (comp: CompanyItem) => {
   companySubscriptionTab.value = 'change'
   loadingCompanySubscriptions.value = true
 
-  if (plans.value.length === 0) {
-    try {
-      const pRes = await getPlans({ page: 1, limit: 100 })
-      plans.value = Array.isArray(pRes?.data) ? pRes.data : Array.isArray(pRes) ? pRes : []
-    } catch {}
-  }
+  try {
+    const pRes = await getPlans({ page: 1, limit: 100 })
+    plans.value = Array.isArray(pRes?.data) ? pRes.data : Array.isArray(pRes) ? pRes : []
+  } catch {}
 
   try {
     const res = await getSubscriptions(comp.id, { page: 1, limit: 50 })
@@ -724,12 +757,10 @@ const openCreateCompany = async () => {
   formCompany.value = initialFormCompany()
   companyFormTab.value = 'general'
 
-  if (plans.value.length === 0) {
-    try {
-      const pRes = await getPlans({ page: 1, limit: 100 })
-      plans.value = Array.isArray(pRes?.data) ? pRes.data : Array.isArray(pRes) ? pRes : []
-    } catch {}
-  }
+  try {
+    const pRes = await getPlans({ page: 1, limit: 100 })
+    plans.value = Array.isArray(pRes?.data) ? pRes.data : Array.isArray(pRes) ? pRes : []
+  } catch {}
   if (modulesList.value.length === 0 || allSubModulesList.value.length === 0) {
     try {
       const [modsRes, subModsRes] = await Promise.all([
@@ -868,6 +899,7 @@ const formUser = ref({
   roleId: null as number | null,
   companyRolesMap: {} as Record<number, number | null>,
   theme_color: 'Blue_Theme',
+  theme_mode: 'dark',
   photo_url: '',
 })
 
@@ -978,6 +1010,7 @@ const openCreateUser = async () => {
     roleId: defaultRole,
     companyRolesMap: { [initialCompanyId]: defaultRole },
     theme_color: 'Blue_Theme',
+    theme_mode: 'dark',
     photo_url: '',
   }
   showUserModal.value = true
@@ -1049,6 +1082,7 @@ const openEditUser = async (user: UserItem) => {
     roleId: existingRoleId,
     companyRolesMap: isSuper ? {} : roleMap,
     theme_color: user.theme_color || 'Blue_Theme',
+    theme_mode: (user as any).theme_mode || 'dark',
     photo_url: (user as any).photo_url || '',
   }
   showUserModal.value = true
@@ -1087,6 +1121,7 @@ const formPlan = ref({
   description: '',
   max_users: 5,
   max_branches: 2,
+  moduleIds: [] as number[],
 })
 
 const formSubscription = ref({
@@ -1544,6 +1579,7 @@ const submitUser = async () => {
         roleId: effectiveRoleId,
         companyRoles: companyRolesPayload,
         theme_color: formUser.value.theme_color || 'Blue_Theme',
+        theme_mode: formUser.value.theme_mode || 'dark',
       }
       if (formUser.value.password) {
         payload.password = formUser.value.password
@@ -1553,7 +1589,9 @@ const submitUser = async () => {
 
       // Si el usuario editado es el actual logueado, aplicar y persistir el tema inmediatamente
       if (authStore.tokenPayload?.user_id === editingUserId.value) {
-        authStore.applyTheme(formUser.value.theme_color)
+        authStore.applyTheme(formUser.value.theme_color, formUser.value.theme_mode)
+        themeStore.applyThemeMode((formUser.value.theme_mode || 'dark') as any, false)
+        themeStore.setThemeColor((formUser.value.theme_color || 'Blue_Theme') as any, false)
       }
     } else {
       const createdUser: any = await createUser({
@@ -1571,6 +1609,7 @@ const submitUser = async () => {
         roleId: effectiveRoleId,
         companyRoles: companyRolesPayload,
         theme_color: formUser.value.theme_color || 'Blue_Theme',
+        theme_mode: formUser.value.theme_mode || 'dark',
         photo_url: formUser.value.photo_url || '/controller/images/profile/user-1.jpg',
       })
       savedUserId = createdUser?.id || createdUser?.data?.id
@@ -1761,6 +1800,10 @@ const openCreateRole = async () => {
 }
 
 const openEditRole = async (role: RoleItem) => {
+  if (role.is_company_admin) {
+    toast.info('El rol Administrador predeterminado tiene acceso total automático según la suscripción activa y no requiere edición manual.')
+    return
+  }
   isEditingRole.value = true
   editingRoleId.value = role.id
   const targetComp = selectedRoleCompanyId.value || currentCompanyId.value
@@ -2076,7 +2119,7 @@ const submitPlan = async () => {
     await createPlan(formPlan.value)
     successMsg.value = 'Plan SaaS registrado exitosamente.'
     showPlanModal.value = false
-    formPlan.value = { price: '29.99', billing_cycle: 'monthly', description: '', max_users: 5, max_branches: 2 }
+    formPlan.value = { price: '29.99', billing_cycle: 'monthly', description: '', max_users: 5, max_branches: 2, moduleIds: [] }
     await loadCurrentTabData()
   } catch (err: any) {
     errorMsg.value = err.response?.data?.message || 'Error al crear el plan'
@@ -2785,10 +2828,16 @@ const submitSubscription = async () => {
                 </span>
               </td>
               <td>
-                <span class="badge d-inline-flex align-items-center gap-2 px-2 py-1 rounded-pill" :style="getThemeBadgeStyle(user.theme_color)">
-                  <span class="theme-mini-dot" :style="{ backgroundColor: getThemeColorHex(user.theme_color) }"></span>
-                  <span>{{ getThemeName(user.theme_color) }}</span>
-                </span>
+                <div class="d-flex flex-column gap-1">
+                  <span class="badge d-inline-flex align-items-center gap-2 px-2 py-1 rounded-pill" :style="getThemeBadgeStyle(user.theme_color)">
+                    <span class="theme-mini-dot" :style="{ backgroundColor: getThemeColorHex(user.theme_color) }"></span>
+                    <span>{{ getThemeName(user.theme_color) }}</span>
+                  </span>
+                  <span class="badge d-inline-flex align-items-center gap-1 px-2 py-0 fs-1" :class="user.theme_mode === 'light' ? 'bg-light text-dark border' : 'bg-dark text-white border border-secondary'">
+                    <iconify-icon :icon="user.theme_mode === 'light' ? 'solar:sun-2-line-duotone' : 'solar:moon-line-duotone'"></iconify-icon>
+                    <span>{{ user.theme_mode === 'light' ? 'Claro' : 'Oscuro' }}</span>
+                  </span>
+                </div>
               </td>
               <td>
                 <span class="badge" :class="user.enabled !== false ? 'bg-success-subtle text-success' : 'bg-danger-subtle text-danger'">
@@ -3073,8 +3122,23 @@ const submitSubscription = async () => {
               <ul class="list-unstyled text-secondary fs-2 mb-3">
                 <li class="mb-1"><iconify-icon icon="solar:check-circle-line-duotone" class="text-success me-1"></iconify-icon> Hasta {{ plan.max_users }} usuarios</li>
                 <li class="mb-1"><iconify-icon icon="solar:check-circle-line-duotone" class="text-success me-1"></iconify-icon> Hasta {{ plan.max_branches }} sucursales</li>
-                <li><iconify-icon icon="solar:check-circle-line-duotone" class="text-success me-1"></iconify-icon> Facturación y compras</li>
               </ul>
+              <div class="mt-2 pt-2 border-top border-dark-subtle">
+                <div class="d-flex justify-content-between align-items-center mb-1">
+                  <small class="text-secondary fw-semibold">Módulos Incluidos:</small>
+                  <span class="badge bg-dark-subtle text-white fs-1">{{ (plan.moduleIds || []).length }}</span>
+                </div>
+                <div v-if="plan.moduleIds && plan.moduleIds.length > 0" class="d-flex flex-wrap gap-1">
+                  <span
+                    v-for="mId in plan.moduleIds"
+                    :key="'pm-' + mId"
+                    class="badge bg-primary-subtle text-primary border border-primary-subtle fs-1"
+                  >
+                    {{ getModuleNameById(mId) }}
+                  </span>
+                </div>
+                <span v-else class="text-secondary fs-1 fst-italic">Todos los módulos</span>
+              </div>
             </div>
           </div>
           <div v-if="plans.length === 0" class="col-12 text-center text-muted py-4">
@@ -3905,7 +3969,9 @@ const submitSubscription = async () => {
                     <AppSelect2
                       v-model="formCompanySubscription.planId"
                       :options="planSelectOptions"
+                      :fetch-options="fetchPlansOptions"
                       placeholder="Selecciona un plan..."
+                      search-placeholder="Buscar plan en base de datos..."
                       required
                     />
                   </div>
@@ -3995,7 +4061,9 @@ const submitSubscription = async () => {
                     <AppSelect2
                       v-model="formManageCompanySub.planId"
                       :options="planSelectOptions"
+                      :fetch-options="fetchPlansOptions"
                       placeholder="Selecciona un plan..."
+                      search-placeholder="Buscar plan en base de datos..."
                       required
                     />
                   </div>
@@ -4373,16 +4441,16 @@ const submitSubscription = async () => {
                 <div class="mb-3 pt-2 border-top border-dark-subtle">
                   <label class="form-label text-secondary fs-2 fw-semibold d-flex justify-content-between align-items-center mb-2">
                     <span class="fw-semibold text-adaptive-light">Modo de Apariencia</span>
-                    <span class="badge bg-info-subtle text-info border border-info-subtle px-2 py-1 fs-1">
-                      {{ themeStore.isDark ? 'Oscuro activo' : 'Claro activo' }}
+                    <span class="badge border px-2 py-1 fs-1" :class="formUser.theme_mode === 'dark' ? 'bg-dark text-white border-secondary' : 'bg-light text-dark border-secondary'">
+                      {{ formUser.theme_mode === 'dark' ? 'Modo Oscuro asignado' : 'Modo Claro asignado' }}
                     </span>
                   </label>
                   <div class="d-flex gap-2">
                     <button
                       type="button"
                       class="btn flex-fill d-flex align-items-center justify-content-center gap-2 py-2 rounded-3 border"
-                      :class="!themeStore.isDark ? 'btn-primary text-white shadow-sm' : 'btn-outline-secondary text-secondary'"
-                      @click="themeStore.applyThemeMode('light')"
+                      :class="formUser.theme_mode === 'light' ? 'btn-primary text-white shadow-sm' : 'btn-outline-secondary text-secondary'"
+                      @click="formUser.theme_mode = 'light'"
                     >
                       <iconify-icon icon="solar:sun-2-line-duotone" class="fs-5"></iconify-icon>
                       <span class="fw-semibold">Modo Claro</span>
@@ -4390,8 +4458,8 @@ const submitSubscription = async () => {
                     <button
                       type="button"
                       class="btn flex-fill d-flex align-items-center justify-content-center gap-2 py-2 rounded-3 border"
-                      :class="themeStore.isDark ? 'btn-primary text-white shadow-sm' : 'btn-outline-secondary text-secondary'"
-                      @click="themeStore.applyThemeMode('dark')"
+                      :class="formUser.theme_mode === 'dark' ? 'btn-primary text-white shadow-sm' : 'btn-outline-secondary text-secondary'"
+                      @click="formUser.theme_mode = 'dark'"
                     >
                       <iconify-icon icon="solar:moon-line-duotone" class="fs-5"></iconify-icon>
                       <span class="fw-semibold">Modo Oscuro</span>
@@ -4946,6 +5014,31 @@ const submitSubscription = async () => {
                     <label class="form-label text-secondary fs-2 fw-semibold">Máx. Sucursales</label>
                     <input v-model.number="formPlan.max_branches" type="number" class="form-control bg-dark-subtle border-secondary-subtle text-white" required />
                   </div>
+                </div>
+
+                <div class="mb-3">
+                  <label class="form-label text-secondary fs-2 fw-semibold d-flex justify-content-between align-items-center">
+                    <span>Módulos Incluidos en este Plan</span>
+                    <span class="badge bg-primary-subtle text-primary">{{ formPlan.moduleIds.length }} seleccionados</span>
+                  </label>
+                  <div class="row g-2 p-2 bg-dark-subtle rounded-3 border border-dark-subtle" style="max-height: 220px; overflow-y: auto;">
+                    <div v-for="mod in modulesList" :key="'p-mod-' + mod.id" class="col-md-6">
+                      <div class="form-check p-2 bg-navy-card rounded-2 d-flex align-items-center justify-content-between border border-secondary-subtle">
+                        <label class="form-check-label text-white fs-2 mb-0 d-flex align-items-center gap-2 cursor-pointer w-100" :for="'plan-m-' + mod.id">
+                          <iconify-icon :icon="mod.desc_icon || 'solar:widget-4-line-duotone'" class="text-primary fs-4"></iconify-icon>
+                          <span>{{ mod.description }}</span>
+                        </label>
+                        <input
+                          class="form-check-input ms-2"
+                          type="checkbox"
+                          :id="'plan-m-' + mod.id"
+                          :value="mod.id"
+                          v-model="formPlan.moduleIds"
+                        />
+                      </div>
+                    </div>
+                  </div>
+                  <small class="text-secondary mt-1 d-block">Si no seleccionas módulos específicos, el plan incluirá todos los módulos activos del sistema.</small>
                 </div>
               </div>
               <div class="modal-footer d-flex justify-content-end gap-2 px-4 py-3 border-top border-dark-subtle">

@@ -1,5 +1,7 @@
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
+import { jwtDecode } from 'jwt-decode'
+import { api } from '@/services/axios'
 
 export type ThemeMode = 'dark' | 'light'
 export type ContainerOption = 'boxed' | 'full'
@@ -29,15 +31,19 @@ export const useThemeStore = defineStore('theme', () => {
   const isDark = computed(() => themeMode.value === 'dark')
   const isFullContainer = computed(() => containerOption.value === 'full')
 
-  const applyThemeMode = (mode: ThemeMode) => {
+  const applyThemeMode = (mode: ThemeMode, persistToBackend: boolean = true) => {
     themeMode.value = mode
     localStorage.setItem('app-theme', mode)
     document.documentElement.setAttribute('data-bs-theme', mode)
+
+    if (persistToBackend && localStorage.getItem('token')) {
+      api.patch('/auth/theme', { theme_mode: mode }).catch(() => {})
+    }
   }
 
   const toggleTheme = () => {
     const nextMode: ThemeMode = themeMode.value === 'dark' ? 'light' : 'dark'
-    applyThemeMode(nextMode)
+    applyThemeMode(nextMode, true)
   }
 
   const setContainerOption = (option: ContainerOption) => {
@@ -51,10 +57,14 @@ export const useThemeStore = defineStore('theme', () => {
     setContainerOption(next)
   }
 
-  const setThemeColor = (color: ThemeColor) => {
+  const setThemeColor = (color: ThemeColor, persistToBackend: boolean = true) => {
     themeColor.value = color
     localStorage.setItem('userTheme', color)
     document.documentElement.setAttribute('data-color-theme', color)
+
+    if (persistToBackend && localStorage.getItem('token')) {
+      api.patch('/auth/theme', { theme_color: color }).catch(() => {})
+    }
   }
 
   const setCardStyle = (style: CardStyle) => {
@@ -64,16 +74,25 @@ export const useThemeStore = defineStore('theme', () => {
   }
 
   const initTheme = () => {
-    const savedMode = (localStorage.getItem('app-theme') as ThemeMode) || 'dark'
-    applyThemeMode(savedMode)
+    let savedMode = (localStorage.getItem('app-theme') as ThemeMode) || 'dark'
+    let savedColor = (localStorage.getItem('userTheme') as ThemeColor) || 'Blue_Theme'
+
+    const token = localStorage.getItem('token')
+    if (token) {
+      try {
+        const payload: any = jwtDecode(token)
+        if (payload?.theme_mode) savedMode = payload.theme_mode as ThemeMode
+        if (payload?.theme_color) savedColor = payload.theme_color as ThemeColor
+      } catch {}
+    }
+
+    applyThemeMode(savedMode, false)
 
     const savedContainer =
       (localStorage.getItem('app-container-layout') as ContainerOption) || 'full'
     setContainerOption(savedContainer)
 
-    const savedColor =
-      (localStorage.getItem('userTheme') as ThemeColor) || 'Blue_Theme'
-    setThemeColor(savedColor)
+    setThemeColor(savedColor, false)
 
     const savedCard =
       (localStorage.getItem('app-card-style') as CardStyle) || 'shadow'

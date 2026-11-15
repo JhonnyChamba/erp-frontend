@@ -90,6 +90,7 @@ export interface UserItem {
   enabled?: boolean
   created_at?: string
   theme_color?: string
+  theme_mode?: string
   birth_date?: string | null
   photo_url?: string | null
 }
@@ -110,6 +111,7 @@ export interface RoleItem {
   moduleIds?: number[]
   subModuleIds?: number[]
   details?: RoleAccessDetail[]
+  is_company_admin?: boolean
 }
 
 export interface PlanItem {
@@ -120,6 +122,7 @@ export interface PlanItem {
   max_users: number
   max_branches: number
   enabled?: boolean
+  moduleIds?: number[]
 }
 
 export interface SubscriptionItem {
@@ -207,6 +210,7 @@ export const createUser = async (payload: {
   roleId?: number | null
   companyRoles?: UserCompanyRoleItem[]
   theme_color?: string
+  theme_mode?: string
   birth_date?: string | null
   photo_url?: string | null
 }) => {
@@ -259,8 +263,12 @@ export const updateRole = async (
 }
 
 // PLANES
-export const getPlans = async (params: { page?: number; limit?: number } = {}) => {
-  const { data } = await api.get('/plans', { params: { page: params.page || 1, limit: params.limit || 20 } })
+export const getPlans = async (params: { page?: number; limit?: number; search?: string } = {}) => {
+  const queryParams: any = { page: params.page || 1, limit: params.limit || 50 }
+  if (params.search && params.search.trim()) {
+    queryParams.search = params.search.trim()
+  }
+  const { data } = await api.get('/plans', { params: queryParams })
   return data
 }
 
@@ -270,6 +278,7 @@ export const createPlan = async (payload: {
   description: string
   max_users: number
   max_branches: number
+  moduleIds?: number[]
 }) => {
   const { data } = await api.post('/plans/register', payload)
   return data
