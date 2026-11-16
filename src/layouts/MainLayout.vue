@@ -533,6 +533,9 @@ const isOpen = (moduleCode: string) => {
   if ((moduleCode === 'MOD-CITAS' || moduleCode === 'MOD-009' || moduleCode?.toLowerCase().includes('cita') || moduleCode?.toLowerCase().includes('agenda')) && route.path.toLowerCase().startsWith('/citas')) {
     return true
   }
+  if ((moduleCode === 'MOD-010' || moduleCode?.toLowerCase().includes('campeonato')) && route.path.toLowerCase().startsWith('/campeonato')) {
+    return true
+  }
   const found = (authStore.accessInfo?.menu || []).find((m) => m.code === moduleCode)
   if (found?.children?.some((sub) => isSubActive(sub.url))) {
     return true

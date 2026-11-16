@@ -41,6 +41,18 @@ const routes = [
         component: () => import('@/views/dashboard/DashboardView.vue')
       },
       {
+        path: 'campeonato',
+        name: 'campeonato',
+        component: () => import('@/views/campeonato/CampeonatoView.vue'),
+        meta: { requiresAuth: true }
+      },
+      {
+        path: 'campeonato/:sub',
+        name: 'campeonato-sub',
+        component: () => import('@/views/campeonato/CampeonatoView.vue'),
+        meta: { requiresAuth: true }
+      },
+      {
         path: 'reportes',
         name: 'reportes-hub',
         component: () => import('@/views/reports/ReportsHubView.vue')
