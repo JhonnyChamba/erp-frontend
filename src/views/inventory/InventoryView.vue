@@ -11,9 +11,23 @@
             {{ activeTabBadge.code }}
           </span>
         </div>
-        <h2 class="crud-title">Módulo de Inventario y Catálogo</h2>
+        <h2 class="crud-title">
+          {{
+            activeTab === 'categorias'
+              ? 'Categorías de Inventario'
+              : activeTab === 'bodegas'
+              ? 'Bodegas y Almacenes'
+              : activeTab === 'servicios'
+              ? 'Catálogo de Servicios'
+              : activeTab === 'subcontratacion'
+              ? 'Subcontratación y Mano de Obra'
+              : activeTab === 'kardex'
+              ? 'Kardex y Movimientos de Stock'
+              : 'Artículos y Productos'
+          }}
+        </h2>
         <p class="crud-subtitle">
-          Gestión independiente de artículos físicos, servicios propios y servicios de subcontratación / mano de obra.
+          Gestión de {{ activeTab }} para el control de catálogo y existencias de la empresa.
         </p>
       </div>
       <div class="crud-header-actions">
@@ -36,75 +50,6 @@
           <span>{{ createButtonLabel }}</span>
         </button>
       </div>
-    </div>
-
-    <!-- Main Tab Switcher -->
-    <div class="d-flex align-items-center gap-2 mt-3 mb-2 flex-wrap">
-      <button
-        type="button"
-        class="btn btn-sm rounded-pill px-3 py-1 fw-semibold d-inline-flex align-items-center gap-2"
-        :class="activeTab === 'categorias' ? 'btn-primary' : 'btn-outline-secondary'"
-        @click="switchTab('categorias')"
-      >
-        <iconify-icon icon="solar:tag-price-line-duotone" class="fs-4"></iconify-icon>
-        <span>Categorías</span>
-        <span class="badge bg-dark-subtle text-info ms-1">{{ categoriesList.length }}</span>
-      </button>
-
-      <button
-        type="button"
-        class="btn btn-sm rounded-pill px-3 py-1 fw-semibold d-inline-flex align-items-center gap-2"
-        :class="activeTab === 'bodegas' ? 'btn-primary' : 'btn-outline-secondary'"
-        @click="switchTab('bodegas')"
-      >
-        <iconify-icon icon="solar:home-smile-line-duotone" class="fs-4"></iconify-icon>
-        <span>Bodegas / Almacenes</span>
-        <span class="badge bg-dark-subtle text-info ms-1">{{ warehousesList.length }}</span>
-      </button>
-
-      <button
-        type="button"
-        class="btn btn-sm rounded-pill px-3 py-1 fw-semibold d-inline-flex align-items-center gap-2"
-        :class="activeTab === 'articulos' ? 'btn-primary' : 'btn-outline-secondary'"
-        @click="switchTab('articulos')"
-      >
-        <iconify-icon icon="solar:box-line-duotone" class="fs-4"></iconify-icon>
-        <span>Ítems / Artículos</span>
-        <span class="badge bg-dark-subtle text-info ms-1">{{ itemsList.length }}</span>
-      </button>
-
-      <button
-        type="button"
-        class="btn btn-sm rounded-pill px-3 py-1 fw-semibold d-inline-flex align-items-center gap-2"
-        :class="activeTab === 'servicios' ? 'btn-primary' : 'btn-outline-secondary'"
-        @click="switchTab('servicios')"
-      >
-        <iconify-icon icon="solar:settings-minimalistic-line-duotone" class="fs-4"></iconify-icon>
-        <span>Servicios</span>
-        <span class="badge bg-dark-subtle text-info ms-1">{{ servicesList.length }}</span>
-      </button>
-
-      <button
-        type="button"
-        class="btn btn-sm rounded-pill px-3 py-1 fw-semibold d-inline-flex align-items-center gap-2"
-        :class="activeTab === 'subcontratacion' ? 'btn-primary' : 'btn-outline-secondary'"
-        @click="switchTab('subcontratacion')"
-      >
-        <iconify-icon icon="solar:users-group-rounded-line-duotone" class="fs-4"></iconify-icon>
-        <span>Subcontratación / Mano de Obra</span>
-        <span class="badge bg-dark-subtle text-info ms-1">{{ subcontractsList.length }}</span>
-      </button>
-
-      <button
-        type="button"
-        class="btn btn-sm rounded-pill px-3 py-1 fw-semibold d-inline-flex align-items-center gap-2"
-        :class="activeTab === 'kardex' ? 'btn-primary' : 'btn-outline-secondary'"
-        @click="switchTab('kardex')"
-      >
-        <iconify-icon icon="solar:history-bold-duotone" class="fs-4"></iconify-icon>
-        <span>Kardex / Movimientos</span>
-        <span class="badge bg-dark-subtle text-info ms-1">{{ kardexMovements.length }}</span>
-      </button>
     </div>
 
     <!-- Search & Filters -->

@@ -583,9 +583,11 @@ const paymentLabel = (p: string) => {
           <span class="badge bg-primary-subtle text-primary border border-primary-subtle">MOD-004 · CONTACTOS</span>
           <span class="text-muted small">Terceros & Relaciones Comerciales</span>
         </div>
-        <h2 class="crud-title">Gestión de Contactos & Terceros</h2>
+        <h2 class="crud-title">
+          {{ activeTab === 'clientes' ? 'Directorio de Clientes' : activeTab === 'proveedores' ? 'Directorio de Proveedores' : 'Equipo de Vendedores' }}
+        </h2>
         <p class="crud-subtitle">
-          Administración centralizada de Clientes, Proveedores y Vendedores del sistema.
+          Administración de {{ activeTab }} registrados en la empresa.
         </p>
       </div>
 
@@ -599,50 +601,6 @@ const paymentLabel = (p: string) => {
           </span>
         </div>
       </div>
-    </div>
-
-    <!-- PESTAÑAS TIPO PILLS (SUB-MÓDULOS) -->
-    <div v-show="!isFormOpen" class="mb-4">
-      <ul class="nav nav-pills user-profile-tab border-top border-dark-subtle pt-3" role="tablist">
-        <!-- SUB-MODULO CLIENTES -->
-        <li class="nav-item me-2">
-          <button
-            class="nav-link rounded-pill px-4 py-2 d-flex align-items-center gap-2 fs-3 text-decoration-none"
-            :class="{ 'active bg-primary text-white': activeTab === 'clientes', 'text-white-50 hover-tab': activeTab !== 'clientes' }"
-            @click="switchTab('clientes')"
-          >
-            <iconify-icon icon="solar:user-circle-line-duotone" class="fs-5"></iconify-icon>
-            <span>Clientes</span>
-            <span class="badge bg-dark-subtle text-info ms-1">{{ customers.length }}</span>
-          </button>
-        </li>
-
-        <!-- SUB-MODULO PROVEEDORES -->
-        <li class="nav-item me-2">
-          <button
-            class="nav-link rounded-pill px-4 py-2 d-flex align-items-center gap-2 fs-3 text-decoration-none"
-            :class="{ 'active bg-primary text-white': activeTab === 'proveedores', 'text-white-50 hover-tab': activeTab !== 'proveedores' }"
-            @click="switchTab('proveedores')"
-          >
-            <iconify-icon icon="solar:box-minimalistic-line-duotone" class="fs-5"></iconify-icon>
-            <span>Proveedores</span>
-            <span class="badge bg-dark-subtle text-warning ms-1">{{ providers.length }}</span>
-          </button>
-        </li>
-
-        <!-- SUB-MODULO VENDEDORES -->
-        <li class="nav-item">
-          <button
-            class="nav-link rounded-pill px-4 py-2 d-flex align-items-center gap-2 fs-3 text-decoration-none"
-            :class="{ 'active bg-primary text-white': activeTab === 'vendedores', 'text-white-50 hover-tab': activeTab !== 'vendedores' }"
-            @click="switchTab('vendedores')"
-          >
-            <iconify-icon icon="solar:user-id-line-duotone" class="fs-5"></iconify-icon>
-            <span>Vendedores</span>
-            <span class="badge bg-dark-subtle text-success ms-1">{{ sellers.length }}</span>
-          </button>
-        </li>
-      </ul>
     </div>
 
     <!-- Indicadores KPIs de Contactos -->

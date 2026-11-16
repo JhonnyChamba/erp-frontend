@@ -1220,36 +1220,6 @@ watch(() => route.path, () => {
       </div>
     </div>
 
-    <!-- PESTAÑAS DE NAVEGACIÓN MÓDULO VENTAS (FACTURAS, NOTAS DE CRÉDITO, PUNTOS DE EMISIÓN) -->
-    <div class="d-flex align-items-center gap-2 mt-3 mb-1 flex-wrap">
-      <router-link
-        to="/ventas/facturas"
-        class="btn btn-sm rounded-pill px-3 py-1 fw-semibold d-inline-flex align-items-center gap-2"
-        :class="route.path.includes('factura') ? 'btn-primary' : 'btn-outline-secondary'"
-      >
-        <iconify-icon icon="solar:document-text-line-duotone" class="fs-4"></iconify-icon>
-        <span>Facturas</span>
-      </router-link>
-
-      <router-link
-        to="/ventas/notas-credito"
-        class="btn btn-sm rounded-pill px-3 py-1 fw-semibold d-inline-flex align-items-center gap-2"
-        :class="route.path.includes('notas-credito') ? 'btn-primary' : 'btn-outline-secondary'"
-      >
-        <iconify-icon icon="solar:bill-cross-line-duotone" class="fs-4"></iconify-icon>
-        <span>Notas de Crédito (SRI 04)</span>
-      </router-link>
-
-      <router-link
-        to="/ventas/puntos-emision"
-        class="btn btn-sm rounded-pill px-3 py-1 fw-semibold d-inline-flex align-items-center gap-2"
-        :class="route.path.includes('puntos-emision') ? 'btn-primary' : 'btn-outline-secondary'"
-      >
-        <iconify-icon icon="solar:printer-minimalistic-line-duotone" class="fs-4"></iconify-icon>
-        <span>Puntos de Emisión</span>
-      </router-link>
-    </div>
-
     <!-- Indicadores KPIs de Facturación -->
     <div v-if="isInvoiceSubmodule && !isFormOpen" class="crud-kpi-grid mt-3">
       <div class="crud-kpi-card">

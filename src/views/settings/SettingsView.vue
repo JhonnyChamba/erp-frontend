@@ -1948,10 +1948,12 @@ const submitSubscription = async () => {
             <span class="p-2 bg-primary-subtle text-primary rounded-3 d-inline-flex">
               <iconify-icon icon="solar:settings-line-duotone" class="fs-6"></iconify-icon>
             </span>
-            <h4 class="fw-bold text-white mb-0">Módulo de Configuración</h4>
+            <h4 class="fw-bold text-white mb-0">
+              {{ activeTab === 'companies' ? 'Configuración de la Empresa' : activeTab === 'users' ? 'Gestión de Usuarios' : 'Roles y Permisos' }}
+            </h4>
           </div>
           <p class="text-secondary fs-3 mb-0">
-            Administración de empresas, usuarios del sistema, roles de permisos y suscripciones SaaS.
+            Administración de {{ activeTab === 'companies' ? 'datos fiscales y certificado' : activeTab === 'users' ? 'usuarios con acceso' : 'perfiles de seguridad' }} de la empresa activa.
           </p>
         </div>
 
@@ -1966,44 +1968,6 @@ const submitSubscription = async () => {
           </div>
         </div>
       </div>
-
-      <!-- PESTAÑAS EXCLUSIVAS DE EMPRESA: EMPRESA, USUARIOS Y ROLES -->
-      <ul v-show="!isFormOpen" class="nav nav-pills user-profile-tab mt-4 border-top border-dark-subtle pt-3" role="tablist">
-        
-        <li v-if="canAccessTab('companies')" class="nav-item me-2">
-          <button
-            class="nav-link rounded-pill px-4 py-2 d-flex align-items-center gap-2 fs-3 text-decoration-none"
-            :class="{ 'active bg-primary text-white': activeTab === 'companies', 'text-white-50 hover-tab': activeTab !== 'companies' }"
-            @click="switchTab('companies')"
-          >
-            <iconify-icon icon="solar:buildings-3-line-duotone" class="fs-5"></iconify-icon>
-            <span>Empresa</span>
-          </button>
-        </li>
-
-        <li v-if="canAccessTab('users')" class="nav-item me-2">
-          <button
-            class="nav-link rounded-pill px-4 py-2 d-flex align-items-center gap-2 fs-3 text-decoration-none"
-            :class="{ 'active bg-primary text-white': activeTab === 'users', 'text-white-50 hover-tab': activeTab !== 'users' }"
-            @click="switchTab('users')"
-          >
-            <iconify-icon icon="solar:users-group-two-rounded-line-duotone" class="fs-5"></iconify-icon>
-            <span>Usuarios</span>
-          </button>
-        </li>
-
-        <li v-if="canAccessTab('roles')" class="nav-item me-2">
-          <button
-            class="nav-link rounded-pill px-4 py-2 d-flex align-items-center gap-2 fs-3 text-decoration-none"
-            :class="{ 'active bg-primary text-white': activeTab === 'roles', 'text-white-50 hover-tab': activeTab !== 'roles' }"
-            @click="switchTab('roles')"
-          >
-            <iconify-icon icon="solar:shield-check-line-duotone" class="fs-5"></iconify-icon>
-            <span>Roles</span>
-          </button>
-        </li>
-
-      </ul>
     </div>
 
     <!-- CONTENIDO DE LA PESTAÑA ACTIVA -->

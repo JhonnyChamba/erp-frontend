@@ -8,6 +8,7 @@
    1. Contenedor de Página y Encabezados
    -------------------------------------------------------------------------- */
 .crud-page,
+.campeonato-page,
 .emission-points-page,
 .credit-notes-page,
 .purchases-page,
@@ -415,7 +416,7 @@
    6. Reglas Específicas para MODO CLARO (data-bs-theme="light")
    Aplica uniformemente a .crud-page y a todos los módulos existentes
    -------------------------------------------------------------------------- */
-[data-bs-theme="light"] :is(.crud-page, .emission-points-page, .purchases-page, .credit-notes-page, .invoices-page, .contacts-page, .inventory-page, .settings-page) {
+[data-bs-theme="light"] :is(.crud-page, .campeonato-page, .emission-points-page, .purchases-page, .credit-notes-page, .invoices-page, .contacts-page, .inventory-page, .settings-page) {
   --bs-card-bg: #ffffff;
   --bs-heading-color: #111c2d;
   --bs-body-color: #2a3547;
@@ -424,37 +425,37 @@
 }
 
 /* Títulos y textos en modo claro */
-[data-bs-theme="light"] :is(.crud-page, .emission-points-page, .purchases-page, .credit-notes-page, .invoices-page, .contacts-page, .inventory-page, .settings-page) :is(.crud-title, h2, h3, h4, h5, h6, strong, .fw-bold.text-white) {
+[data-bs-theme="light"] :is(.crud-page, .campeonato-page, .emission-points-page, .purchases-page, .credit-notes-page, .invoices-page, .contacts-page, .inventory-page, .settings-page) :is(.crud-title, h2, h3, h4, h5, h6, strong, .fw-bold.text-white) {
   color: #111c2d !important;
 }
 
-[data-bs-theme="light"] :is(.crud-page, .emission-points-page, .purchases-page, .credit-notes-page, .invoices-page, .contacts-page, .inventory-page, .settings-page) :is(.crud-subtitle, .text-muted, .text-secondary, label, .form-label) {
+[data-bs-theme="light"] :is(.crud-page, .campeonato-page, .emission-points-page, .purchases-page, .credit-notes-page, .invoices-page, .contacts-page, .inventory-page, .settings-page) :is(.crud-subtitle, .text-muted, .text-secondary, label, .form-label) {
   color: #5a6a85 !important;
 }
 
 /* Tarjetas y Contenedores en modo claro */
-[data-bs-theme="light"] :is(.crud-page, .emission-points-page, .purchases-page, .credit-notes-page, .invoices-page, .contacts-page, .inventory-page, .settings-page) :is(.crud-kpi-card, .kpi-card, .crud-filters-card, .crud-table-card, .form-page-card, .table-card, .stat-card, .card.bg-dark-subtle, .card.bg-dark, .card.bg-navy-card) {
+[data-bs-theme="light"] :is(.crud-page, .campeonato-page, .emission-points-page, .purchases-page, .credit-notes-page, .invoices-page, .contacts-page, .inventory-page, .settings-page) :is(.crud-kpi-card, .kpi-card, .crud-filters-card, .crud-table-card, .form-page-card, .table-card, .stat-card, .card.bg-dark-subtle, .card.bg-dark, .card.bg-navy-card) {
   background: #ffffff !important;
   color: #2a3547 !important;
   border: 1px solid #e6ecf1 !important;
   box-shadow: 0 4px 20px rgba(0, 0, 0, 0.05) !important;
 }
 
-[data-bs-theme="light"] :is(.crud-page, .emission-points-page, .purchases-page, .credit-notes-page, .invoices-page, .contacts-page, .inventory-page, .settings-page) .form-page-header {
+[data-bs-theme="light"] :is(.crud-page, .campeonato-page, .emission-points-page, .purchases-page, .credit-notes-page, .invoices-page, .contacts-page, .inventory-page, .settings-page) .form-page-header {
   background-color: #f8fafc !important;
   border-bottom: 1px solid #e6ecf1 !important;
 }
 
-[data-bs-theme="light"] :is(.crud-page, .emission-points-page, .purchases-page, .credit-notes-page, .invoices-page, .contacts-page, .inventory-page, .settings-page) .form-page-footer {
+[data-bs-theme="light"] :is(.crud-page, .campeonato-page, .emission-points-page, .purchases-page, .credit-notes-page, .invoices-page, .contacts-page, .inventory-page, .settings-page) .form-page-footer {
   border-top: 1px solid #e6ecf1 !important;
 }
 
-[data-bs-theme="light"] :is(.crud-page, .emission-points-page, .purchases-page, .credit-notes-page, .invoices-page, .contacts-page, .inventory-page, .settings-page) :is(.crud-kpi-val, .kpi-val, .stat-val) {
+[data-bs-theme="light"] :is(.crud-page, .campeonato-page, .emission-points-page, .purchases-page, .credit-notes-page, .invoices-page, .contacts-page, .inventory-page, .settings-page) :is(.crud-kpi-val, .kpi-val, .stat-val) {
   color: #111c2d !important;
 }
 
 /* Campos de formulario en modo claro */
-[data-bs-theme="light"] :is(.crud-page, .emission-points-page, .purchases-page, .credit-notes-page, .invoices-page, .contacts-page, .inventory-page, .settings-page, .modal-card-custom, .crud-modal-card, .form-page-card) :is(input:not(.form-check-input), select, textarea, .form-control:not(.form-check-input), .form-select, .input-group-text) {
+[data-bs-theme="light"] :is(.crud-page, .campeonato-page, .emission-points-page, .purchases-page, .credit-notes-page, .invoices-page, .contacts-page, .inventory-page, .settings-page, .modal-card-custom, .crud-modal-card, .form-page-card) :is(input:not(.form-check-input), select, textarea, .form-control:not(.form-check-input), .form-select, .input-group-text) {
   background-color: #ffffff !important;
   color: #111c2d !important;
   border-color: #ced4da !important;
@@ -491,40 +492,40 @@
   background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='-4 -4 8 8'%3e%3ccircle r='3' fill='%23ffffff'/%3e%3c/svg%3e") !important;
 }
 
-[data-bs-theme="light"] :is(.crud-page, .emission-points-page, .purchases-page, .credit-notes-page, .invoices-page, .contacts-page, .inventory-page, .settings-page, .modal-card-custom, .crud-modal-card, .form-page-card) :is(input, textarea)::placeholder {
+[data-bs-theme="light"] :is(.crud-page, .campeonato-page, .emission-points-page, .purchases-page, .credit-notes-page, .invoices-page, .contacts-page, .inventory-page, .settings-page, .modal-card-custom, .crud-modal-card, .form-page-card) :is(input, textarea)::placeholder {
   color: #8a97ab !important;
 }
 
-[data-bs-theme="light"] :is(.crud-page, .emission-points-page, .purchases-page, .credit-notes-page, .invoices-page, .contacts-page, .inventory-page, .settings-page, .modal-card-custom, .crud-modal-card, .form-page-card) option {
+[data-bs-theme="light"] :is(.crud-page, .campeonato-page, .emission-points-page, .purchases-page, .credit-notes-page, .invoices-page, .contacts-page, .inventory-page, .settings-page, .modal-card-custom, .crud-modal-card, .form-page-card) option {
   background-color: #ffffff !important;
   color: #111c2d !important;
 }
 
 /* Tablas en modo claro: encabezado azul suave Spike y filas claras */
-[data-bs-theme="light"] :is(.crud-page, .emission-points-page, .purchases-page, .credit-notes-page, .invoices-page, .contacts-page, .inventory-page, .settings-page) table {
+[data-bs-theme="light"] :is(.crud-page, .campeonato-page, .emission-points-page, .purchases-page, .credit-notes-page, .invoices-page, .contacts-page, .inventory-page, .settings-page) table {
   color: #2a3547 !important;
 }
 
-[data-bs-theme="light"] :is(.crud-page, .emission-points-page, .purchases-page, .credit-notes-page, .invoices-page, .contacts-page, .inventory-page, .settings-page) table thead,
-[data-bs-theme="light"] :is(.crud-page, .emission-points-page, .purchases-page, .credit-notes-page, .invoices-page, .contacts-page, .inventory-page, .settings-page) table thead th,
-[data-bs-theme="light"] :is(.crud-page, .emission-points-page, .purchases-page, .credit-notes-page, .invoices-page, .contacts-page, .inventory-page, .settings-page) .crud-table th,
-[data-bs-theme="light"] :is(.crud-page, .emission-points-page, .purchases-page, .credit-notes-page, .invoices-page, .contacts-page, .inventory-page, .settings-page) .erp-table th {
+[data-bs-theme="light"] :is(.crud-page, .campeonato-page, .emission-points-page, .purchases-page, .credit-notes-page, .invoices-page, .contacts-page, .inventory-page, .settings-page) table thead,
+[data-bs-theme="light"] :is(.crud-page, .campeonato-page, .emission-points-page, .purchases-page, .credit-notes-page, .invoices-page, .contacts-page, .inventory-page, .settings-page) table thead th,
+[data-bs-theme="light"] :is(.crud-page, .campeonato-page, .emission-points-page, .purchases-page, .credit-notes-page, .invoices-page, .contacts-page, .inventory-page, .settings-page) .crud-table th,
+[data-bs-theme="light"] :is(.crud-page, .campeonato-page, .emission-points-page, .purchases-page, .credit-notes-page, .invoices-page, .contacts-page, .inventory-page, .settings-page) .erp-table th {
   background-color: #d9eaf9 !important;
   color: #0a4f8f !important;
   border-color: #bcd7ef !important;
 }
 
-[data-bs-theme="light"] :is(.crud-page, .emission-points-page, .purchases-page, .credit-notes-page, .invoices-page, .contacts-page, .inventory-page, .settings-page) table tbody td,
-[data-bs-theme="light"] :is(.crud-page, .emission-points-page, .purchases-page, .credit-notes-page, .invoices-page, .contacts-page, .inventory-page, .settings-page) .crud-table td,
-[data-bs-theme="light"] :is(.crud-page, .emission-points-page, .purchases-page, .credit-notes-page, .invoices-page, .contacts-page, .inventory-page, .settings-page) .erp-table td {
+[data-bs-theme="light"] :is(.crud-page, .campeonato-page, .emission-points-page, .purchases-page, .credit-notes-page, .invoices-page, .contacts-page, .inventory-page, .settings-page) table tbody td,
+[data-bs-theme="light"] :is(.crud-page, .campeonato-page, .emission-points-page, .purchases-page, .credit-notes-page, .invoices-page, .contacts-page, .inventory-page, .settings-page) .crud-table td,
+[data-bs-theme="light"] :is(.crud-page, .campeonato-page, .emission-points-page, .purchases-page, .credit-notes-page, .invoices-page, .contacts-page, .inventory-page, .settings-page) .erp-table td {
   color: #2a3547 !important;
   border-color: #e6ecf1 !important;
   background-color: transparent !important;
 }
 
-[data-bs-theme="light"] :is(.crud-page, .emission-points-page, .purchases-page, .credit-notes-page, .invoices-page, .contacts-page, .inventory-page, .settings-page) table tbody tr:hover,
-[data-bs-theme="light"] :is(.crud-page, .emission-points-page, .purchases-page, .credit-notes-page, .invoices-page, .contacts-page, .inventory-page, .settings-page) .crud-table tbody tr:hover,
-[data-bs-theme="light"] :is(.crud-page, .emission-points-page, .purchases-page, .credit-notes-page, .invoices-page, .contacts-page, .inventory-page, .settings-page) .erp-table tbody tr:hover {
+[data-bs-theme="light"] :is(.crud-page, .campeonato-page, .emission-points-page, .purchases-page, .credit-notes-page, .invoices-page, .contacts-page, .inventory-page, .settings-page) table tbody tr:hover,
+[data-bs-theme="light"] :is(.crud-page, .campeonato-page, .emission-points-page, .purchases-page, .credit-notes-page, .invoices-page, .contacts-page, .inventory-page, .settings-page) .crud-table tbody tr:hover,
+[data-bs-theme="light"] :is(.crud-page, .campeonato-page, .emission-points-page, .purchases-page, .credit-notes-page, .invoices-page, .contacts-page, .inventory-page, .settings-page) .erp-table tbody tr:hover {
   background-color: #f5f9fd !important;
 }
 
@@ -556,7 +557,7 @@
 }
 
 /* Textos blancos genéricos forzados que deben ser oscuros en modo claro */
-[data-bs-theme="light"] :is(.crud-page, .emission-points-page, .purchases-page, .credit-notes-page, .invoices-page, .contacts-page, .inventory-page, .settings-page, .modal-card-custom, .form-page-card) .text-white:not(.btn):not(.badge) {
+[data-bs-theme="light"] :is(.crud-page, .campeonato-page, .emission-points-page, .purchases-page, .credit-notes-page, .invoices-page, .contacts-page, .inventory-page, .settings-page, .modal-card-custom, .form-page-card) .text-white:not(.btn):not(.badge) {
   color: #111c2d !important;
 }
 

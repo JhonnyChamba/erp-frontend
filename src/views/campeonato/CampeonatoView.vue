@@ -1,154 +1,216 @@
 <template>
-  <div class="campeonato-page">
-    <!-- HEADER DE PÁGINA -->
-    <div class="card bg-info-subtle shadow-none position-relative overflow-hidden mb-4 border-0">
-      <div class="card-body px-4 py-3">
-        <div class="row align-items-center">
-          <div class="col-8">
-            <h4 class="fw-semibold mb-8 text-dark">Gestión de Campeonato</h4>
-            <nav aria-label="breadcrumb">
-              <ol class="breadcrumb mb-0">
-                <li class="breadcrumb-item"><router-link to="/" class="text-muted text-decoration-none">Inicio</router-link></li>
-                <li class="breadcrumb-item text-muted">Campeonato</li>
-                <li class="breadcrumb-item active text-primary" aria-current="page">{{ activeTabLabel }}</li>
-              </ol>
-            </nav>
-          </div>
-          <div class="col-4 text-end">
-            <button class="btn btn-primary d-inline-flex align-items-center gap-2" @click="openCreateModal">
-              <iconify-icon icon="solar:add-circle-bold" class="fs-5"></iconify-icon>
-              <span>Nuevo Registro</span>
-            </button>
-          </div>
+  <div class="crud-page invoices-page campeonato-page" :class="{ 'form-open': isFormOpen }">
+    <!-- ========================================== -->
+    <!-- 1. ENCABEZADO DEL SUBMÓDULO (ESTILO VENTAS) -->
+    <!-- ========================================== -->
+    <div class="crud-page-header keep-in-form">
+      <div>
+        <div class="d-flex align-items-center gap-2 mb-1">
+          <span class="badge bg-primary-subtle text-primary border border-primary-subtle font-monospace px-2 py-1 fs-2">
+            MOD-010 · CAMPEONATO
+          </span>
+          <span class="badge bg-info-subtle text-info border border-info-subtle font-monospace px-2 py-1 fs-2">
+            {{ activeTabLabel.toUpperCase() }}
+          </span>
         </div>
+        <h2 class="crud-title">{{ activeTabLabel }}</h2>
+        <p class="crud-subtitle">
+          Gestión y administración de {{ activeTabLabel.toLowerCase() }} en el torneo deportivo.
+        </p>
+      </div>
+
+      <div class="crud-header-actions">
+        <button class="btn btn-secondary d-flex align-items-center gap-2" @click="loadData" :disabled="loading">
+          <iconify-icon icon="solar:refresh-line-duotone" :class="{ 'spin-anim': loading }"></iconify-icon>
+          <span>Actualizar</span>
+        </button>
+        <button class="btn btn-primary d-flex align-items-center gap-2" @click="openCreateForm">
+          <iconify-icon icon="solar:add-circle-bold" class="fs-5"></iconify-icon>
+          <span>+ Nuevo {{ activeTabLabel }}</span>
+        </button>
       </div>
     </div>
 
-    <!-- PESTAÑAS DE NAVEGACIÓN DE RECURSOS -->
-    <div class="card mb-4 border-0 shadow-sm">
-      <div class="card-body p-2">
-        <div class="d-flex flex-wrap gap-2">
+    <!-- ========================================== -->
+    <!-- 2. FILTROS Y BÚSQUEDA (ESTILO FACTURAS)    -->
+    <!-- ========================================== -->
+    <div v-show="!isFormOpen" class="crud-filters-card mt-3">
+      <div class="d-flex flex-wrap align-items-center justify-content-between gap-3">
+        <div class="d-flex align-items-center gap-2 flex-grow-1" style="max-width: 420px;">
+          <div class="input-group">
+            <span class="input-group-text">
+              <iconify-icon icon="solar:magnifer-line-duotone"></iconify-icon>
+            </span>
+            <input
+              v-model="searchQuery"
+              type="text"
+              class="form-control"
+              :placeholder="'Buscar en ' + activeTabLabel + '...'"
+              @input="loadData()"
+            />
+          </div>
+        </div>
+
+        <div class="d-flex align-items-center gap-2">
           <button
-            v-for="tab in allowedTabs"
-            :key="tab.id"
-            class="btn btn-sm"
-            :class="activeTab === tab.id ? 'btn-primary' : 'btn-outline-secondary'"
-            @click="selectTab(tab.id)"
+            type="button"
+            class="btn btn-outline-secondary d-flex align-items-center gap-1 rounded-pill px-3"
+            :disabled="loading"
+            @click="loadData"
           >
-            {{ tab.label }}
+            <iconify-icon icon="solar:refresh-line-duotone" class="fs-4" :class="{ 'spin-anim': loading }"></iconify-icon>
+            <span>Refrescar</span>
           </button>
         </div>
       </div>
     </div>
 
-    <!-- FILTROS Y BÚSQUEDA -->
-    <div class="card mb-4 border-0 shadow-sm">
-      <div class="card-body p-3">
-        <div class="row g-3 align-items-center">
-          <div class="col-md-4">
-            <div class="input-group">
-              <span class="input-group-text bg-transparent border-end-0">
-                <iconify-icon icon="solar:magnifer-line-duotone" class="fs-5 text-muted"></iconify-icon>
-              </span>
-              <input
-                type="text"
-                v-model="searchQuery"
-                class="form-control border-start-0"
-                placeholder="Buscar registros..."
-                @input="loadData()"
-              />
-            </div>
-          </div>
-          <div class="col-md-8 text-end">
-            <button class="btn btn-light-secondary d-inline-flex align-items-center gap-1" @click="loadData">
-              <iconify-icon icon="solar:restart-bold" class="fs-5"></iconify-icon>
-              <span>Refrescar</span>
-            </button>
-          </div>
-        </div>
-      </div>
-    </div>
+    <!-- ========================================== -->
+    <!-- 3. TABLA PRINCIPAL DE DATOS (ESTILO VENTAS)-->
+    <!-- ========================================== -->
+    <div v-show="!isFormOpen" class="crud-table-card mt-3">
+      <div class="table-responsive">
+        <table class="crud-table">
+          <thead>
+            <tr>
+              <th scope="col" style="width: 70px;">#</th>
+              <th v-for="col in columns" :key="col.key" scope="col">{{ col.label }}</th>
+              <th scope="col" class="text-end" style="width: 140px;">Acciones</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr v-if="loading">
+              <td :colspan="columns.length + 2" class="text-center py-5">
+                <div class="d-flex align-items-center justify-content-center gap-2 mb-2">
+                  <div class="spinner-grow text-primary" role="status"><span class="visually-hidden">Cargando...</span></div>
+                  <div class="spinner-grow text-info" role="status"><span class="visually-hidden">Cargando...</span></div>
+                  <div class="spinner-grow text-secondary" role="status"><span class="visually-hidden">Cargando...</span></div>
+                </div>
+                <span class="text-secondary small">Cargando registros de {{ activeTabLabel }}...</span>
+              </td>
+            </tr>
 
-    <!-- TABLA DE DATOS -->
-    <div class="card border-0 shadow-sm">
-      <div class="card-body p-0">
-        <div v-if="loading" class="text-center py-5">
-          <div class="spinner-border text-primary" role="status"></div>
-          <p class="mt-2 text-muted">Cargando datos...</p>
-        </div>
+            <tr v-else-if="items.length === 0">
+              <td :colspan="columns.length + 2" class="text-center py-5 text-secondary">
+                <iconify-icon icon="solar:box-minimalistic-line-duotone" class="fs-8 text-secondary mb-2 d-block"></iconify-icon>
+                <p class="mb-1 fw-semibold text-body-emphasis">No se encontraron registros en {{ activeTabLabel }}</p>
+                <p class="mb-0 fs-2 text-muted">Haz clic en <strong>+ Nuevo {{ activeTabLabel }}</strong> para registrar el primero.</p>
+              </td>
+            </tr>
 
-        <div v-else-if="items.length === 0" class="text-center py-5">
-          <iconify-icon icon="solar:box-minimalistic-broken" class="display-5 text-muted mb-2"></iconify-icon>
-          <p class="text-muted mb-0">No se encontraron registros en {{ activeTabLabel }}</p>
-        </div>
-
-        <div v-else class="table-responsive">
-          <table class="table table-hover align-middle mb-0">
-            <thead class="table-light">
-              <tr>
-                <th scope="col" style="width: 80px;">#</th>
-                <th v-for="col in columns" :key="col.key" scope="col">{{ col.label }}</th>
-                <th scope="col" class="text-end" style="width: 120px;">Acciones</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr v-for="(item, idx) in items" :key="item.id || idx">
-                <td>{{ (page - 1) * limit + idx + 1 }}</td>
-                <td v-for="col in columns" :key="col.key">
-                  <span v-if="col.type === 'boolean'">
-                    <span class="badge" :class="item[col.key] ? 'bg-success-subtle text-success' : 'bg-danger-subtle text-danger'">
-                      {{ item[col.key] ? 'Activo' : 'Inactivo' }}
-                    </span>
+            <tr v-for="(item, idx) in items" :key="item.id || idx">
+              <td class="text-muted font-monospace">{{ (page - 1) * limit + idx + 1 }}</td>
+              <td v-for="col in columns" :key="col.key">
+                <span v-if="col.type === 'boolean'">
+                  <span
+                    class="badge font-monospace"
+                    :class="item[col.key] ? 'bg-success-subtle text-success border border-success-subtle' : 'bg-danger-subtle text-danger border border-danger-subtle'"
+                  >
+                    {{ item[col.key] ? 'Activo' : 'Inactivo' }}
                   </span>
-                  <span v-else-if="col.type === 'date'">
+                </span>
+                <span v-else-if="col.type === 'date'">
+                  <span class="badge bg-secondary-subtle text-secondary font-monospace">
                     {{ item[col.key] ? new Date(item[col.key]).toLocaleDateString() : '-' }}
                   </span>
-                  <span v-else>
-                    {{ getNestedValue(item, col.key) || '-' }}
-                  </span>
-                </td>
-                <td class="text-end">
-                  <div class="d-inline-flex gap-1">
-                    <button class="btn btn-sm btn-light-primary p-1" title="Editar" @click="openEditModal(item)">
-                      <iconify-icon icon="solar:pen-bold" class="fs-5"></iconify-icon>
-                    </button>
-                    <button class="btn btn-sm btn-light-danger p-1" title="Eliminar" @click="confirmDelete(item.id)">
-                      <iconify-icon icon="solar:trash-bin-trash-bold" class="fs-5"></iconify-icon>
-                    </button>
-                  </div>
-                </td>
-              </tr>
-            </tbody>
-          </table>
-        </div>
+                </span>
+                <span v-else class="text-body-emphasis fw-medium">
+                  {{ getNestedValue(item, col.key) || '-' }}
+                </span>
+              </td>
+              <td class="text-end">
+                <div class="dropdown">
+                  <button
+                    class="btn bg-secondary-subtle text-secondary btn-sm dropdown-toggle d-inline-flex align-items-center gap-1 fw-semibold"
+                    type="button"
+                    data-bs-toggle="dropdown"
+                    data-bs-popper-config='{"strategy":"fixed"}'
+                    aria-expanded="false"
+                  >
+                    <iconify-icon icon="solar:menu-dots-bold" class="fs-4"></iconify-icon>
+                    <span>Acciones</span>
+                  </button>
+                  <ul class="dropdown-menu dropdown-menu-end shadow-lg py-1">
+                    <!-- Editar -->
+                    <li>
+                      <a class="dropdown-item py-2 text-warning d-flex align-items-center gap-2" href="javascript:void(0)" @click="openEditForm(item)">
+                        <iconify-icon icon="solar:pen-new-square-line-duotone" class="fs-5 text-warning"></iconify-icon>
+                        <span>Editar</span>
+                      </a>
+                    </li>
 
-        <!-- PAGINACIÓN -->
-        <div v-if="totalPages > 1" class="d-flex justify-content-between align-items-center p-3 border-top">
-          <span class="text-muted small">Total: {{ total }} registros (Pág. {{ page }} de {{ totalPages }})</span>
-          <div class="btn-group">
-            <button class="btn btn-sm btn-outline-secondary" :disabled="page <= 1" @click="changePage(page - 1)">
-              Anterior
-            </button>
-            <button class="btn btn-sm btn-outline-secondary" :disabled="page >= totalPages" @click="changePage(page + 1)">
-              Siguiente
-            </button>
-          </div>
+                    <!-- Separador -->
+                    <li><hr class="dropdown-divider"></li>
+
+                    <!-- Eliminar -->
+                    <li>
+                      <a class="dropdown-item py-2 text-danger d-flex align-items-center gap-2" href="javascript:void(0)" @click="confirmDelete(item.id)">
+                        <iconify-icon icon="solar:trash-bin-trash-line-duotone" class="fs-5 text-danger"></iconify-icon>
+                        <span>Eliminar</span>
+                      </a>
+                    </li>
+                  </ul>
+                </div>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <!-- PAGINACIÓN -->
+      <div v-if="totalPages > 1" class="d-flex justify-content-between align-items-center p-3 border-top border-dark-subtle">
+        <span class="text-muted small">Total: {{ total }} registros (Pág. {{ page }} de {{ totalPages }})</span>
+        <div class="btn-group">
+          <button class="btn btn-sm btn-outline-secondary rounded-start-pill px-3" :disabled="page <= 1" @click="changePage(page - 1)">
+            Anterior
+          </button>
+          <button class="btn btn-sm btn-outline-secondary rounded-end-pill px-3" :disabled="page >= totalPages" @click="changePage(page + 1)">
+            Siguiente
+          </button>
         </div>
       </div>
     </div>
 
-    <!-- MODAL FORMULARIO (GENÉRICO PARA CRUD) -->
-    <div v-if="showModal" class="modal fade show d-block" tabindex="-1" style="background-color: rgba(0,0,0,0.5)">
-      <div class="modal-dialog modal-dialog-centered modal-lg">
-        <div class="modal-content border-0 shadow">
-          <div class="modal-header">
-            <h5 class="modal-title">{{ isEditing ? 'Editar ' + activeTabLabel : 'Nuevo ' + activeTabLabel }}</h5>
-            <button type="button" class="btn-close" @click="closeModal"></button>
+    <!-- ============================================================== -->
+    <!-- 4. FORMULARIO NORMAL EN PÁGINA (100% ANCHO, ESTILO FACTURACIÓN)-->
+    <!-- ============================================================== -->
+    <div v-if="isFormOpen" id="form-page" class="form-page">
+      <div class="form-page-card">
+        <!-- CABECERA DEL FORMULARIO -->
+        <div class="form-page-header">
+          <div>
+            <div class="d-flex align-items-center gap-2 mb-1">
+              <span class="badge bg-primary-subtle text-primary border border-primary-subtle px-2 py-1 fs-2 font-monospace">
+                MOD-010 · CAMPEONATO
+              </span>
+              <span class="badge bg-info-subtle text-info border border-info-subtle px-2 py-1 fs-2 font-monospace">
+                {{ isEditing ? 'MODIFICACIÓN' : 'REGISTRO' }}
+              </span>
+            </div>
+            <h3 class="crud-title mb-0">
+              {{ isEditing ? `Modificar ${activeTabLabel}` : `Nuevo ${activeTabLabel}` }}
+            </h3>
+            <p class="crud-subtitle">
+              Completa los campos requeridos para {{ isEditing ? 'actualizar' : 'crear' }} el registro en el sistema.
+            </p>
           </div>
-          <div class="modal-body">
-            <div class="row g-3">
+
+          <button
+            type="button"
+            class="btn btn-outline-secondary d-flex align-items-center gap-1 rounded-pill px-3"
+            @click="closeForm"
+          >
+            <iconify-icon icon="solar:alt-arrow-left-line-duotone" class="fs-4"></iconify-icon>
+            <span>Volver al Listado</span>
+          </button>
+        </div>
+
+        <!-- CUERPO DEL FORMULARIO -->
+        <form @submit.prevent="saveForm">
+          <div class="form-page-body">
+            <div class="row g-4">
               <div v-for="field in formFields" :key="field.key" :class="field.colClass || 'col-md-6'">
-                <label class="form-label fw-semibold">{{ field.label }}</label>
+                <label class="form-label text-secondary small fw-semibold">{{ field.label }}</label>
                 <input
                   v-if="field.type === 'text' || field.type === 'number' || field.type === 'date'"
                   :type="field.type"
@@ -164,19 +226,35 @@
                   <option v-for="opt in field.options" :key="opt.value" :value="opt.value">{{ opt.label }}</option>
                 </select>
                 <div v-else-if="field.type === 'boolean'" class="form-check form-switch mt-2">
-                  <input class="form-check-input" type="checkbox" v-model="formData[field.key]" />
-                  <label class="form-check-label">{{ formData[field.key] ? 'Activo' : 'Inactivo' }}</label>
+                  <input class="form-check-input" type="checkbox" v-model="formData[field.key]" :id="'field_' + field.key" />
+                  <label class="form-check-label text-body-emphasis fw-semibold small ms-2" :for="'field_' + field.key">
+                    {{ formData[field.key] ? 'Habilitado / Activo' : 'Deshabilitado / Inactivo' }}
+                  </label>
                 </div>
               </div>
             </div>
           </div>
-          <div class="modal-footer">
-            <button type="button" class="btn btn-secondary" @click="closeModal">Cancelar</button>
-            <button type="button" class="btn btn-primary" :disabled="saving" @click="saveForm">
-              {{ saving ? 'Guardando...' : 'Guardar' }}
+
+          <!-- PIE DE ACCIONES DEL FORMULARIO -->
+          <div class="form-page-footer">
+            <button
+              type="button"
+              class="btn btn-outline-secondary rounded-pill px-4"
+              @click="closeForm"
+            >
+              Cancelar
+            </button>
+            <button
+              type="submit"
+              class="btn btn-primary rounded-pill px-4 fw-semibold d-flex align-items-center gap-2"
+              :disabled="saving"
+            >
+              <span v-if="saving" class="spinner-grow spinner-grow-sm text-white" role="status" aria-hidden="true"></span>
+              <iconify-icon v-else icon="solar:check-circle-line-duotone" class="fs-4"></iconify-icon>
+              <span>{{ saving ? 'Guardando...' : (isEditing ? 'Guardar Cambios' : 'Registrar ' + activeTabLabel) }}</span>
             </button>
           </div>
-        </div>
+        </form>
       </div>
     </div>
   </div>
@@ -192,6 +270,7 @@ import { toast } from '@/utils/toastr';
 interface TabConfig {
   id: string;
   label: string;
+  icon?: string;
   api: any;
   columns: { key: string; label: string; type?: string }[];
   fields: { key: string; label: string; type: string; options?: { label: string; value: any }[]; colClass?: string; placeholder?: string }[];
@@ -201,6 +280,7 @@ const tabs: TabConfig[] = [
   {
     id: 'teams',
     label: 'Equipos',
+    icon: 'solar:shield-bold-duotone',
     api: CampeonatoApi.teams,
     columns: [
       { key: 'name', label: 'Nombre' },
@@ -224,6 +304,7 @@ const tabs: TabConfig[] = [
   {
     id: 'players',
     label: 'Jugadores',
+    icon: 'solar:users-group-two-rounded-bold-duotone',
     api: CampeonatoApi.players,
     columns: [
       { key: 'name', label: 'Nombres' },
@@ -245,6 +326,7 @@ const tabs: TabConfig[] = [
   {
     id: 'categories',
     label: 'Categorías',
+    icon: 'solar:medal-star-bold-duotone',
     api: CampeonatoApi.categories,
     columns: [
       { key: 'name', label: 'Nombre' },
@@ -274,6 +356,7 @@ const tabs: TabConfig[] = [
   {
     id: 'categoryEditions',
     label: 'Ediciones de Categoría',
+    icon: 'solar:calendar-date-bold-duotone',
     api: CampeonatoApi.categoryEditions,
     columns: [
       { key: 'name', label: 'Nombre Edición' },
@@ -305,6 +388,7 @@ const tabs: TabConfig[] = [
   {
     id: 'stages',
     label: 'Etapas / Fases',
+    icon: 'solar:cup-first-bold-duotone',
     api: CampeonatoApi.stages,
     columns: [
       { key: 'name', label: 'Nombre Etapa' },
@@ -332,6 +416,7 @@ const tabs: TabConfig[] = [
   {
     id: 'scenaries',
     label: 'Escenarios / Canchas',
+    icon: 'solar:map-point-wave-bold-duotone',
     api: CampeonatoApi.scenaries,
     columns: [
       { key: 'name', label: 'Nombre Cancha' },
@@ -360,6 +445,7 @@ const tabs: TabConfig[] = [
   {
     id: 'positions',
     label: 'Cargos / Roles',
+    icon: 'solar:user-id-bold-duotone',
     api: CampeonatoApi.positions,
     columns: [
       { key: 'name', label: 'Cargo' },
@@ -387,6 +473,7 @@ const tabs: TabConfig[] = [
   {
     id: 'demarcations',
     label: 'Demarcaciones',
+    icon: 'solar:running-bold-duotone',
     api: CampeonatoApi.demarcations,
     columns: [
       { key: 'name', label: 'Posición en Campo' },
@@ -415,6 +502,7 @@ const tabs: TabConfig[] = [
   {
     id: 'referees',
     label: 'Árbitros',
+    icon: 'solar:whistle-bold-duotone',
     api: CampeonatoApi.referees,
     columns: [
       { key: 'name', label: 'Nombres' },
@@ -435,6 +523,7 @@ const tabs: TabConfig[] = [
   {
     id: 'vocals',
     label: 'Vocales',
+    icon: 'solar:notes-bold-duotone',
     api: CampeonatoApi.vocals,
     columns: [
       { key: 'name', label: 'Nombres' },
@@ -454,6 +543,7 @@ const tabs: TabConfig[] = [
   {
     id: 'matches',
     label: 'Partidos',
+    icon: 'solar:football-bold-duotone',
     api: CampeonatoApi.matches,
     columns: [
       { key: 'localTeam.name', label: 'Local' },
@@ -477,6 +567,7 @@ const tabs: TabConfig[] = [
   {
     id: 'sanctions',
     label: 'Sanciones',
+    icon: 'solar:danger-triangle-bold-duotone',
     api: CampeonatoApi.sanctions,
     columns: [
       { key: 'player.name', label: 'Jugador' },
@@ -510,6 +601,7 @@ const tabs: TabConfig[] = [
   {
     id: 'payments',
     label: 'Pagos / Finanzas',
+    icon: 'solar:wallet-money-bold-duotone',
     api: CampeonatoApi.payments,
     columns: [
       { key: 'concept', label: 'Concepto' },
@@ -595,6 +687,7 @@ const totalPages = ref(1);
 const searchQuery = ref('');
 const loading = ref(false);
 
+const isFormOpen = ref(false);
 const showModal = ref(false);
 const isEditing = ref(false);
 const editingId = ref<string | null>(null);
@@ -602,6 +695,7 @@ const formData = ref<Record<string, any>>({});
 const saving = ref(false);
 
 const selectTab = (id: string) => {
+  closeForm();
   activeTab.value = id;
   page.value = 1;
   searchQuery.value = '';
@@ -637,26 +731,33 @@ const changePage = (p: number) => {
   loadData();
 };
 
-const openCreateModal = () => {
+const openCreateForm = () => {
   isEditing.value = false;
   editingId.value = null;
   formData.value = {};
+  isFormOpen.value = true;
   showModal.value = true;
 };
 
-const openEditModal = (item: any) => {
+const openEditForm = (item: any) => {
   isEditing.value = true;
   editingId.value = item.id;
   formData.value = { ...item };
+  isFormOpen.value = true;
   showModal.value = true;
 };
 
-const closeModal = () => {
+const closeForm = () => {
+  isFormOpen.value = false;
   showModal.value = false;
   formData.value = {};
   isEditing.value = false;
   editingId.value = null;
 };
+
+const openCreateModal = openCreateForm;
+const openEditModal = openEditForm;
+const closeModal = closeForm;
 
 const saveForm = async () => {
   try {
@@ -668,7 +769,7 @@ const saveForm = async () => {
       await currentTabConfig.value.api.create(formData.value);
       toast.success('Registro creado exitosamente');
     }
-    closeModal();
+    closeForm();
     loadData();
   } catch (err: any) {
     console.error(err);
@@ -759,6 +860,30 @@ watch(
 
 <style scoped>
 .campeonato-page {
-  padding-bottom: 2rem;
+  padding-bottom: 2.5rem;
+  animation: crudFadeIn 0.25s ease-in-out;
+}
+
+@keyframes crudFadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.crud-tabs-card {
+  background: var(--bs-card-bg, #111c2d);
+}
+
+.transition-all {
+  transition: all 0.2s ease-in-out;
+}
+
+.form-page {
+  animation: crudFadeIn 0.2s ease-in-out;
 }
 </style>
