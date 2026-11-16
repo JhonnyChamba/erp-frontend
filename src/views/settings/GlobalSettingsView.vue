@@ -14,6 +14,7 @@ import {
   updateRole,
   getPlans,
   createPlan,
+  updatePlan,
   getSubscriptions,
   createSubscription,
   updateSubscription,
@@ -255,7 +256,7 @@ const showRoleModal = ref(false)
 const showModuleModal = ref(false)
 const showSubModuleModal = ref(false)
 const showPlanModal = ref(false)
-const showSubscriptionModal = ref(false)
+const editingPlanId = ref<number | null>(null)
 const showBranchModal = ref(false)
 const showTaxModal = ref(false)
 const showDocTypeModal = ref(false)
@@ -270,7 +271,6 @@ const isFormOpen = computed(
     showModuleModal.value ||
     showSubModuleModal.value ||
     showPlanModal.value ||
-    showSubscriptionModal.value ||
     showBranchModal.value ||
     showTaxModal.value ||
     showDocTypeModal.value,
@@ -653,10 +653,18 @@ watch(companyFormTab, async (newTab) => {
   }
 })
 
-const formCompanySubscription = ref({
+const formCompanySubscription = ref<{
+  planId: number | null
+  begin_date: string
+  end_date: string
+  moduleIds: number[]
+  subModuleIds: number[]
+}>({
   planId: 1,
   begin_date: todayStr,
   end_date: nextYearStr,
+  moduleIds: [],
+  subModuleIds: [],
 })
 
 // ==========================================
@@ -668,11 +676,100 @@ const loadingCompanySubscriptions = ref(false)
 const savingCompanySubscription = ref(false)
 const companySubscriptionTab = ref<'change' | 'history'>('change')
 
-const formManageCompanySub = ref({
+const formManageCompanySub = ref<{
+  planId: number | null
+  begin_date: string
+  end_date: string
+  moduleIds: number[]
+  subModuleIds: number[]
+}>({
   planId: 1,
   begin_date: todayStr,
   end_date: nextYearStr,
+  moduleIds: [],
+  subModuleIds: [],
 })
+
+const selectedPlanForCompanySub = computed(() => {
+  return plans.value.find((p) => p.id === formCompanySubscription.value.planId) || null
+})
+
+const selectedPlanForManageCompanySub = computed(() => {
+  return plans.value.find((p) => p.id === formManageCompanySub.value.planId) || null
+})
+
+const getPlanSubModuleIdsForModule = (plan: PlanItem | null, modId: number) => {
+  if (!plan || !Array.isArray(plan.subModuleIds)) return []
+  return plan.subModuleIds.filter((smId) => {
+    const sm = allSubModulesList.value.find((item) => item.id === smId)
+    return sm && sm.moduleId === modId
+  })
+}
+
+const syncPlanModulesToSub = (targetSub: { planId: number | null; moduleIds: number[]; subModuleIds: number[] }) => {
+  if (!targetSub.planId) {
+    targetSub.moduleIds = []
+    targetSub.subModuleIds = []
+    return
+  }
+  const selectedPlan = plans.value.find((p) => p.id === targetSub.planId)
+  if (selectedPlan) {
+    targetSub.moduleIds = Array.isArray(selectedPlan.moduleIds) ? [...selectedPlan.moduleIds] : []
+    targetSub.subModuleIds = Array.isArray(selectedPlan.subModuleIds) ? [...selectedPlan.subModuleIds] : []
+  } else {
+    targetSub.moduleIds = []
+    targetSub.subModuleIds = []
+  }
+}
+
+const onPlanChangeCompanySub = (planId: number | null) => {
+  formCompanySubscription.value.planId = planId ? Number(planId) : null
+  syncPlanModulesToSub(formCompanySubscription.value)
+}
+
+const onPlanChangeManageCompanySub = (planId: number | null) => {
+  formManageCompanySub.value.planId = planId ? Number(planId) : null
+  syncPlanModulesToSub(formManageCompanySub.value)
+}
+
+const toggleModuleForTarget = (targetSub: { moduleIds: number[]; subModuleIds: number[] }, modId: number) => {
+  const idx = targetSub.moduleIds.indexOf(modId)
+  const childSubModIds = getSubModulesForModule(modId).map((sm) => sm.id)
+
+  if (idx >= 0) {
+    targetSub.moduleIds.splice(idx, 1)
+    targetSub.subModuleIds = targetSub.subModuleIds.filter((id) => !childSubModIds.includes(id))
+  } else {
+    targetSub.moduleIds.push(modId)
+    for (const smId of childSubModIds) {
+      if (!targetSub.subModuleIds.includes(smId)) {
+        targetSub.subModuleIds.push(smId)
+      }
+    }
+  }
+}
+
+const toggleSubModuleForTarget = (targetSub: { moduleIds: number[]; subModuleIds: number[] }, subMod: SubModuleItem) => {
+  const idx = targetSub.subModuleIds.indexOf(subMod.id)
+  if (idx >= 0) {
+    targetSub.subModuleIds.splice(idx, 1)
+  } else {
+    targetSub.subModuleIds.push(subMod.id)
+    if (subMod.moduleId && !targetSub.moduleIds.includes(subMod.moduleId)) {
+      targetSub.moduleIds.push(subMod.moduleId)
+    }
+  }
+}
+
+const selectAllForTarget = (targetSub: { moduleIds: number[]; subModuleIds: number[] }) => {
+  targetSub.moduleIds = modulesList.value.filter((m) => m.enabled !== false).map((m) => m.id)
+  targetSub.subModuleIds = allSubModulesList.value.filter((sm) => sm.enabled !== false).map((sm) => sm.id)
+}
+
+const clearAllForTarget = (targetSub: { moduleIds: number[]; subModuleIds: number[] }) => {
+  targetSub.moduleIds = []
+  targetSub.subModuleIds = []
+}
 
 const openManageCompanySubscription = async (comp: CompanyItem) => {
   selectedCompanyForSub.value = comp
@@ -684,6 +781,17 @@ const openManageCompanySubscription = async (comp: CompanyItem) => {
     plans.value = Array.isArray(pRes?.data) ? pRes.data : Array.isArray(pRes) ? pRes : []
   } catch {}
 
+  if (modulesList.value.length === 0 || allSubModulesList.value.length === 0) {
+    try {
+      const [modsRes, subModsRes] = await Promise.all([
+        getModules({ page: 1, limit: 100 }),
+        getSubModules({ page: 1, limit: 200 }),
+      ])
+      modulesList.value = Array.isArray(modsRes?.data) ? modsRes.data : Array.isArray(modsRes) ? modsRes : []
+      allSubModulesList.value = Array.isArray(subModsRes?.data) ? subModsRes.data : Array.isArray(subModsRes) ? subModsRes : []
+    } catch (e) {}
+  }
+
   try {
     const res = await getSubscriptions(comp.id, { page: 1, limit: 50 })
     companySubscriptionsHistory.value = Array.isArray(res?.data) ? res.data : Array.isArray(res) ? res : []
@@ -694,11 +802,22 @@ const openManageCompanySubscription = async (comp: CompanyItem) => {
   }
 
   const activeSub = companySubscriptionsHistory.value.find((s) => s.enabled !== false) || companySubscriptionsHistory.value[0]
+  const targetPlanId = activeSub?.planId || activeSub?.plan?.id || plans.value.find((p) => p.enabled !== false)?.id || plans.value[0]?.id || 1
 
   formManageCompanySub.value = {
-    planId: activeSub?.planId || activeSub?.plan?.id || plans.value.find((p) => p.enabled !== false)?.id || plans.value[0]?.id || 1,
+    planId: targetPlanId,
     begin_date: activeSub?.begin_date ? String(activeSub.begin_date).slice(0, 10) : todayStr,
     end_date: activeSub?.end_date ? String(activeSub.end_date).slice(0, 10) : nextYearStr,
+    moduleIds: Array.isArray(activeSub?.moduleIds) && activeSub.moduleIds.length > 0
+      ? activeSub.moduleIds.map(Number)
+      : [],
+    subModuleIds: Array.isArray(activeSub?.subModuleIds) && activeSub.subModuleIds.length > 0
+      ? activeSub.subModuleIds.map(Number)
+      : [],
+  }
+
+  if (formManageCompanySub.value.moduleIds.length === 0) {
+    syncPlanModulesToSub(formManageCompanySub.value)
   }
 
   showCompanySubscriptionModal.value = true
@@ -729,6 +848,8 @@ const submitManageCompanySubscription = async () => {
       planId: Number(formManageCompanySub.value.planId),
       begin_date: formManageCompanySub.value.begin_date,
       end_date: formManageCompanySub.value.end_date,
+      moduleIds: formManageCompanySub.value.moduleIds.map(Number),
+      subModuleIds: formManageCompanySub.value.subModuleIds.map(Number),
     })
 
     toast.success('Suscripción actualizada exitosamente. Los roles y accesos de la empresa han sido sincronizados.', 'Suscripción')
@@ -772,11 +893,15 @@ const openCreateCompany = async () => {
     } catch (e) {}
   }
 
+  const initPlanId = plans.value[0]?.id || 1
   formCompanySubscription.value = {
-    planId: plans.value[0]?.id || 1,
+    planId: initPlanId,
     begin_date: todayStr,
     end_date: nextYearStr,
+    moduleIds: [],
+    subModuleIds: [],
   }
+  syncPlanModulesToSub(formCompanySubscription.value)
 
   showCompanyModal.value = true
 }
@@ -1122,6 +1247,7 @@ const formPlan = ref({
   max_users: 5,
   max_branches: 2,
   moduleIds: [] as number[],
+  subModuleIds: [] as number[],
 })
 
 const formSubscription = ref({
@@ -1247,7 +1373,6 @@ watch(
       showModuleModal.value = false
       showSubModuleModal.value = false
       showPlanModal.value = false
-      showSubscriptionModal.value = false
       showTaxModal.value = false
       showDocTypeModal.value = false
       loadCurrentTabData()
@@ -1316,6 +1441,8 @@ const submitCompany = async () => {
             planId: Number(formCompanySubscription.value.planId),
             begin_date: formCompanySubscription.value.begin_date,
             end_date: formCompanySubscription.value.end_date,
+            moduleIds: formCompanySubscription.value.moduleIds.map(Number),
+            subModuleIds: formCompanySubscription.value.subModuleIds.map(Number),
           })
         } catch (subErr) {
           console.error('Error al aprovisionar suscripción:', subErr)
@@ -2111,18 +2238,127 @@ const submitSubModule = async () => {
   }
 }
 
-// =================== GUARDAR PLAN ===================
+// =================== GESTIÓN Y EDICIÓN DE PLANES SAAS ===================
+const getModuleIconById = (modId?: number) => {
+  if (!modId) return 'solar:widget-4-line-duotone'
+  const found = modulesList.value.find((m) => m.id === modId)
+  return found?.desc_icon || 'solar:widget-4-line-duotone'
+}
+
+const openCreatePlan = () => {
+  editingPlanId.value = null
+  formPlan.value = {
+    price: '29.99',
+    billing_cycle: 'monthly',
+    description: '',
+    max_users: 5,
+    max_branches: 2,
+    moduleIds: [],
+    subModuleIds: [],
+  }
+  showPlanModal.value = true
+}
+
+const openEditPlan = (plan: PlanItem) => {
+  editingPlanId.value = plan.id
+  formPlan.value = {
+    price: String(plan.price ?? '0'),
+    billing_cycle: plan.billing_cycle || 'monthly',
+    description: plan.description || '',
+    max_users: plan.max_users ?? 5,
+    max_branches: plan.max_branches ?? 2,
+    moduleIds: Array.isArray(plan.moduleIds) ? [...plan.moduleIds] : [],
+    subModuleIds: Array.isArray(plan.subModuleIds) ? [...plan.subModuleIds] : [],
+  }
+  showPlanModal.value = true
+}
+
+const togglePlanModule = (modId: number) => {
+  const idx = formPlan.value.moduleIds.indexOf(modId)
+  const childSubModIds = getSubModulesForModule(modId).map((sm) => sm.id)
+
+  if (idx >= 0) {
+    formPlan.value.moduleIds.splice(idx, 1)
+    formPlan.value.subModuleIds = formPlan.value.subModuleIds.filter((id) => !childSubModIds.includes(id))
+  } else {
+    formPlan.value.moduleIds.push(modId)
+    for (const smId of childSubModIds) {
+      if (!formPlan.value.subModuleIds.includes(smId)) {
+        formPlan.value.subModuleIds.push(smId)
+      }
+    }
+  }
+}
+
+const togglePlanSubModule = (subMod: SubModuleItem) => {
+  const idx = formPlan.value.subModuleIds.indexOf(subMod.id)
+  if (idx >= 0) {
+    formPlan.value.subModuleIds.splice(idx, 1)
+    if (subMod.moduleId) {
+      const remainingForParent = formPlan.value.subModuleIds.filter((smId) => {
+        const sm = allSubModulesList.value.find((item) => item.id === smId)
+        return sm && sm.moduleId === subMod.moduleId
+      })
+      if (remainingForParent.length === 0) {
+        formPlan.value.moduleIds = formPlan.value.moduleIds.filter((mId) => mId !== subMod.moduleId)
+      }
+    }
+  } else {
+    formPlan.value.subModuleIds.push(subMod.id)
+    if (subMod.moduleId && !formPlan.value.moduleIds.includes(subMod.moduleId)) {
+      formPlan.value.moduleIds.push(subMod.moduleId)
+    }
+  }
+}
+
+const toggleAllPlanModulesAndSubModules = (select: boolean) => {
+  if (select) {
+    formPlan.value.moduleIds = modulesList.value.filter((m) => m.enabled !== false).map((m) => m.id)
+    formPlan.value.subModuleIds = allSubModulesList.value.filter((sm) => sm.enabled !== false).map((sm) => sm.id)
+  } else {
+    formPlan.value.moduleIds = []
+    formPlan.value.subModuleIds = []
+  }
+}
+
 const submitPlan = async () => {
   loading.value = true
   errorMsg.value = ''
   try {
-    await createPlan(formPlan.value)
-    successMsg.value = 'Plan SaaS registrado exitosamente.'
+    const payload = {
+      price: formPlan.value.price,
+      billing_cycle: formPlan.value.billing_cycle,
+      description: formPlan.value.description,
+      max_users: Number(formPlan.value.max_users),
+      max_branches: Number(formPlan.value.max_branches),
+      moduleIds: formPlan.value.moduleIds.map(Number),
+      subModuleIds: formPlan.value.subModuleIds.map(Number),
+    }
+
+    if (editingPlanId.value) {
+      await updatePlan(editingPlanId.value, payload)
+      successMsg.value = 'Plan SaaS actualizado y sincronizado exitosamente.'
+      toast.success('Plan SaaS actualizado y sincronizado con empresas asociadas.')
+    } else {
+      await createPlan(payload)
+      successMsg.value = 'Plan SaaS registrado exitosamente.'
+      toast.success('Plan SaaS registrado exitosamente.')
+    }
     showPlanModal.value = false
-    formPlan.value = { price: '29.99', billing_cycle: 'monthly', description: '', max_users: 5, max_branches: 2, moduleIds: [] }
+    editingPlanId.value = null
+    formPlan.value = {
+      price: '29.99',
+      billing_cycle: 'monthly',
+      description: '',
+      max_users: 5,
+      max_branches: 2,
+      moduleIds: [],
+      subModuleIds: [],
+    }
     await loadCurrentTabData()
   } catch (err: any) {
-    errorMsg.value = err.response?.data?.message || 'Error al crear el plan'
+    errorMsg.value = err.response?.data?.message || (editingPlanId.value ? 'Error al actualizar el plan' : 'Error al crear el plan')
+    toast.error(errorMsg.value)
   } finally {
     loading.value = false
   }
@@ -2142,141 +2378,6 @@ const getSubModulesForModule = (modId: number) => {
 const getSubModuleNameById = (subModId: number) => {
   const found = allSubModulesList.value.find((sm) => sm.id === subModId)
   return found ? found.description : `Submódulo #${subModId}`
-}
-
-const toggleSubscriptionModule = (modId: number) => {
-  const idx = formSubscription.value.moduleIds.indexOf(modId)
-  const childSubModIds = getSubModulesForModule(modId).map((sm) => sm.id)
-
-  if (idx >= 0) {
-    // Desmarcar módulo y sus submódulos hijos
-    formSubscription.value.moduleIds.splice(idx, 1)
-    formSubscription.value.subModuleIds = formSubscription.value.subModuleIds.filter(
-      (id) => !childSubModIds.includes(id)
-    )
-  } else {
-    // Marcar módulo y todos sus submódulos hijos por defecto
-    formSubscription.value.moduleIds.push(modId)
-    for (const smId of childSubModIds) {
-      if (!formSubscription.value.subModuleIds.includes(smId)) {
-        formSubscription.value.subModuleIds.push(smId)
-      }
-    }
-  }
-}
-
-const toggleSubscriptionSubModule = (subMod: SubModuleItem) => {
-  const idx = formSubscription.value.subModuleIds.indexOf(subMod.id)
-  if (idx >= 0) {
-    formSubscription.value.subModuleIds.splice(idx, 1)
-  } else {
-    formSubscription.value.subModuleIds.push(subMod.id)
-    // Asegurar que el módulo padre quede habilitado si se marca un submódulo hijo
-    if (subMod.moduleId && !formSubscription.value.moduleIds.includes(subMod.moduleId)) {
-      formSubscription.value.moduleIds.push(subMod.moduleId)
-    }
-  }
-}
-
-const selectAllSubscriptionAccess = () => {
-  formSubscription.value.moduleIds = modulesList.value
-    .filter((m) => m.enabled !== false)
-    .map((m) => m.id)
-  formSubscription.value.subModuleIds = allSubModulesList.value
-    .filter((sm) => sm.enabled !== false)
-    .map((sm) => sm.id)
-}
-
-const clearAllSubscriptionAccess = () => {
-  formSubscription.value.moduleIds = []
-  formSubscription.value.subModuleIds = []
-}
-
-const openCreateSubscription = async () => {
-  isEditingSubscription.value = false
-  editingSubscriptionId.value = null
-  if (modulesList.value.length === 0 || allSubModulesList.value.length === 0) {
-    try {
-      const [modsRes, subModsRes] = await Promise.all([
-        getModules({ page: 1, limit: 100 }),
-        getSubModules({ page: 1, limit: 200 }),
-      ])
-      modulesList.value = Array.isArray(modsRes?.data) ? modsRes.data : Array.isArray(modsRes) ? modsRes : []
-      allSubModulesList.value = Array.isArray(subModsRes?.data) ? subModsRes.data : Array.isArray(subModsRes) ? subModsRes : []
-    } catch (e) {}
-  }
-  formSubscription.value = {
-    companyId: currentCompanyId.value,
-    planId: plans.value[0]?.id || 1,
-    begin_date: todayStr,
-    end_date: nextYearStr,
-    enabled: true,
-    moduleIds: modulesList.value.filter((m) => m.enabled !== false).map((m) => m.id),
-    subModuleIds: allSubModulesList.value.filter((sm) => sm.enabled !== false).map((sm) => sm.id),
-  }
-  showSubscriptionModal.value = true
-}
-
-const openEditSubscription = async (sub: SubscriptionItem) => {
-  isEditingSubscription.value = true
-  editingSubscriptionId.value = sub.id
-  if (modulesList.value.length === 0 || allSubModulesList.value.length === 0) {
-    try {
-      const [modsRes, subModsRes] = await Promise.all([
-        getModules({ page: 1, limit: 100 }),
-        getSubModules({ page: 1, limit: 200 }),
-      ])
-      modulesList.value = Array.isArray(modsRes?.data) ? modsRes.data : Array.isArray(modsRes) ? modsRes : []
-      allSubModulesList.value = Array.isArray(subModsRes?.data) ? subModsRes.data : Array.isArray(subModsRes) ? subModsRes : []
-    } catch (e) {}
-  }
-  formSubscription.value = {
-    companyId: currentCompanyId.value,
-    planId: sub.planId || plans.value[0]?.id || 1,
-    begin_date: sub.begin_date ? String(sub.begin_date).slice(0, 10) : todayStr,
-    end_date: sub.end_date ? String(sub.end_date).slice(0, 10) : nextYearStr,
-    enabled: sub.enabled !== false,
-    moduleIds: Array.isArray(sub.moduleIds) ? sub.moduleIds.map(Number) : [],
-    subModuleIds: Array.isArray(sub.subModuleIds) ? sub.subModuleIds.map(Number) : [],
-  }
-  showSubscriptionModal.value = true
-}
-
-const submitSubscription = async () => {
-  loading.value = true
-  errorMsg.value = ''
-  try {
-    formSubscription.value.companyId = currentCompanyId.value
-    if (isEditingSubscription.value && editingSubscriptionId.value) {
-      await updateSubscription(editingSubscriptionId.value, {
-        companyId: currentCompanyId.value,
-        planId: formSubscription.value.planId,
-        begin_date: formSubscription.value.begin_date,
-        end_date: formSubscription.value.end_date,
-        enabled: formSubscription.value.enabled,
-        moduleIds: formSubscription.value.moduleIds.map(Number),
-        subModuleIds: formSubscription.value.subModuleIds.map(Number),
-      })
-      successMsg.value = 'Suscripción actualizada y accesos sincronizados con el rol Administrador.'
-    } else {
-      await createSubscription({
-        companyId: currentCompanyId.value,
-        planId: formSubscription.value.planId,
-        begin_date: formSubscription.value.begin_date,
-        end_date: formSubscription.value.end_date,
-        moduleIds: formSubscription.value.moduleIds.map(Number),
-        subModuleIds: formSubscription.value.subModuleIds.map(Number),
-      })
-      successMsg.value = 'Suscripción creada y accesos asignados automáticamente al rol Administrador.'
-    }
-    delete rolesByCompany.value[currentCompanyId.value]
-    showSubscriptionModal.value = false
-    await Promise.all([loadCurrentTabData(), authStore.fetchCompanyAccess(currentCompanyId.value)])
-  } catch (err: any) {
-    errorMsg.value = err.response?.data?.message || 'Error al guardar la suscripción'
-  } finally {
-    loading.value = false
-  }
 }
 </script>
 
@@ -2450,7 +2551,7 @@ const submitSubscription = async () => {
             @click="switchTab('subscriptions')"
           >
             <iconify-icon icon="solar:card-line-duotone" class="fs-5"></iconify-icon>
-            <span>Planes & Suscripciones</span>
+            <span>Planes SaaS</span>
           </button>
         </li>
 
@@ -3105,7 +3206,7 @@ const submitSubscription = async () => {
             <h5 class="fw-bold text-white mb-1">Catálogo de Planes SaaS</h5>
             <small class="text-secondary">Planes configurados con límites de usuarios y sucursales</small>
           </div>
-          <button class="btn btn-primary rounded-pill px-4 d-flex align-items-center gap-2" @click="showPlanModal = true">
+          <button class="btn btn-primary rounded-pill px-4 d-flex align-items-center gap-2" @click="openCreatePlan">
             <iconify-icon icon="solar:add-circle-line-duotone" class="fs-5"></iconify-icon>
             <span>Crear Plan</span>
           </button>
@@ -3113,125 +3214,52 @@ const submitSubscription = async () => {
 
         <div class="row g-3">
           <div v-for="plan in plans" :key="plan.id" class="col-md-4">
-            <div class="card border border-dark-subtle p-3 rounded-4 bg-dark-subtle h-100">
-              <div class="d-flex justify-content-between align-items-start mb-2">
-                <h5 class="text-white fw-bold mb-0">{{ plan.description }}</h5>
-                <span class="badge bg-primary-subtle text-primary text-uppercase">{{ plan.billing_cycle }}</span>
+            <div class="card border border-dark-subtle p-3 rounded-4 bg-dark-subtle h-100 d-flex flex-column justify-content-between">
+              <div>
+                <div class="d-flex justify-content-between align-items-start mb-2">
+                  <h5 class="text-white fw-bold mb-0">{{ plan.description }}</h5>
+                  <span class="badge bg-primary-subtle text-primary text-uppercase">{{ plan.billing_cycle }}</span>
+                </div>
+                <h3 class="fw-bold text-white mb-3">${{ plan.price }} <span class="fs-2 text-secondary fw-normal">/ ciclo</span></h3>
+                <ul class="list-unstyled text-secondary fs-2 mb-3">
+                  <li class="mb-1"><iconify-icon icon="solar:check-circle-line-duotone" class="text-success me-1"></iconify-icon> Hasta {{ plan.max_users }} usuarios</li>
+                  <li class="mb-1"><iconify-icon icon="solar:check-circle-line-duotone" class="text-success me-1"></iconify-icon> Hasta {{ plan.max_branches }} sucursales</li>
+                </ul>
+                <div class="mt-2 pt-2 border-top border-dark-subtle">
+                  <div class="d-flex justify-content-between align-items-center mb-1">
+                    <small class="text-secondary fw-semibold">Funcionalidades:</small>
+                    <span class="badge bg-dark-subtle text-white fs-1">
+                      {{ (plan.moduleIds || []).length }} módulos · {{ (plan.subModuleIds || []).length }} submódulos
+                    </span>
+                  </div>
+                  <div v-if="plan.moduleIds && plan.moduleIds.length > 0" class="d-flex flex-wrap gap-1">
+                    <span
+                      v-for="mId in plan.moduleIds"
+                      :key="'pm-' + mId"
+                      class="badge bg-primary-subtle text-primary border border-primary-subtle fs-1"
+                    >
+                      {{ getModuleNameById(mId) }}
+                    </span>
+                  </div>
+                  <span v-else class="text-secondary fs-1 fst-italic">Todos los módulos</span>
+                </div>
               </div>
-              <h3 class="fw-bold text-white mb-3">${{ plan.price }} <span class="fs-2 text-secondary fw-normal">/ ciclo</span></h3>
-              <ul class="list-unstyled text-secondary fs-2 mb-3">
-                <li class="mb-1"><iconify-icon icon="solar:check-circle-line-duotone" class="text-success me-1"></iconify-icon> Hasta {{ plan.max_users }} usuarios</li>
-                <li class="mb-1"><iconify-icon icon="solar:check-circle-line-duotone" class="text-success me-1"></iconify-icon> Hasta {{ plan.max_branches }} sucursales</li>
-              </ul>
-              <div class="mt-2 pt-2 border-top border-dark-subtle">
-                <div class="d-flex justify-content-between align-items-center mb-1">
-                  <small class="text-secondary fw-semibold">Módulos Incluidos:</small>
-                  <span class="badge bg-dark-subtle text-white fs-1">{{ (plan.moduleIds || []).length }}</span>
-                </div>
-                <div v-if="plan.moduleIds && plan.moduleIds.length > 0" class="d-flex flex-wrap gap-1">
-                  <span
-                    v-for="mId in plan.moduleIds"
-                    :key="'pm-' + mId"
-                    class="badge bg-primary-subtle text-primary border border-primary-subtle fs-1"
-                  >
-                    {{ getModuleNameById(mId) }}
-                  </span>
-                </div>
-                <span v-else class="text-secondary fs-1 fst-italic">Todos los módulos</span>
+
+              <div class="mt-3 pt-3 border-top border-dark-subtle d-flex justify-content-end align-items-center">
+                <button
+                  type="button"
+                  class="btn btn-sm btn-outline-primary rounded-pill px-3 d-flex align-items-center gap-1 shadow-sm"
+                  @click="openEditPlan(plan)"
+                >
+                  <iconify-icon icon="solar:pen-new-square-line-duotone" class="fs-5"></iconify-icon>
+                  <span>Editar Plan</span>
+                </button>
               </div>
             </div>
           </div>
           <div v-if="plans.length === 0" class="col-12 text-center text-muted py-4">
             No hay planes registrados aún.
           </div>
-        </div>
-      </div>
-
-      <!-- SUBSECTION 2: SUSCRIPCIÓN ACTIVA DE LA EMPRESA -->
-      <div class="card rounded-4 border-0 shadow-sm p-4 bg-navy-card">
-        <div class="d-flex justify-content-between align-items-center mb-4">
-          <div>
-            <h5 class="fw-bold text-white mb-1">Suscripciones Activas</h5>
-            <small class="text-secondary">Vigencia, plan contratado y acceso a módulos/submódulos de la empresa activa</small>
-          </div>
-          <button class="btn btn-outline-primary rounded-pill px-4 d-flex align-items-center gap-2" @click="openCreateSubscription">
-            <iconify-icon icon="solar:card-recive-line-duotone" class="fs-5"></iconify-icon>
-            <span>Asignar Suscripción</span>
-          </button>
-        </div>
-
-        <div class="table-responsive">
-          <table class="table table-hover align-middle mb-0">
-            <thead class="table-primary">
-              <tr>
-                <th width="5%">#</th>
-                <th width="16%">Plan Contratado</th>
-                <th width="12%">Fecha Inicio</th>
-                <th width="12%">Fecha Fin</th>
-                <th width="37%">Módulos & Submódulos con Acceso</th>
-                <th width="10%">Estado</th>
-                <th width="8%" class="text-end">Acciones</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr v-for="sub in subscriptions" :key="sub.id">
-                <td><span class="badge bg-dark-subtle text-white">{{ sub.id }}</span></td>
-                <td><span class="badge bg-info text-dark fw-bold">{{ getPlanNameById(sub.planId) }}</span></td>
-                <td class="text-white">{{ new Date(sub.begin_date).toLocaleDateString() }}</td>
-                <td class="text-white">{{ new Date(sub.end_date).toLocaleDateString() }}</td>
-                <td>
-                  <div v-if="(sub.moduleIds && sub.moduleIds.length > 0) || (sub.subModuleIds && sub.subModuleIds.length > 0)" class="d-flex flex-wrap gap-1">
-                    <span
-                      v-for="modId in sub.moduleIds"
-                      :key="'m-' + modId"
-                      class="badge bg-primary-subtle text-primary border border-primary-subtle d-inline-flex align-items-center gap-1"
-                    >
-                      <iconify-icon icon="solar:widget-4-line-duotone"></iconify-icon>
-                      {{ getModuleNameById(modId) }}
-                    </span>
-                    <span
-                      v-if="sub.subModuleIds && sub.subModuleIds.length > 0"
-                      class="badge bg-info-subtle text-info border border-info-subtle"
-                      :title="sub.subModuleIds.map(getSubModuleNameById).join(', ')"
-                    >
-                      +{{ sub.subModuleIds.length }} submódulo(s)
-                    </span>
-                  </div>
-                  <span v-else class="text-secondary fs-2 fst-italic">Sin módulos asignados</span>
-                </td>
-                <td>
-                  <span class="badge" :class="sub.enabled !== false ? 'bg-success-subtle text-success' : 'bg-danger-subtle text-danger'">
-                    {{ sub.enabled !== false ? 'Vigente' : 'Expirada' }}
-                  </span>
-                </td>
-                <td class="text-end">
-                  <div class="dropdown">
-                    <button
-                      class="btn bg-secondary-subtle text-secondary btn-sm dropdown-toggle d-inline-flex align-items-center gap-1 fw-semibold"
-                      type="button"
-                      data-bs-toggle="dropdown"
-                      data-bs-popper-config='{"strategy":"fixed"}'
-                      aria-expanded="false"
-                    >
-                      <iconify-icon icon="solar:menu-dots-bold" class="fs-4"></iconify-icon>
-                      <span>Acciones</span>
-                    </button>
-                    <ul class="dropdown-menu dropdown-menu-end shadow-lg py-1">
-                      <li>
-                        <a class="dropdown-item py-2" href="javascript:void(0)" @click="openEditSubscription(sub)">
-                          <iconify-icon icon="solar:pen-2-line-duotone" class="fs-5 text-warning"></iconify-icon>
-                          <span>Editar Suscripción</span>
-                        </a>
-                      </li>
-                    </ul>
-                  </div>
-                </td>
-              </tr>
-              <tr v-if="subscriptions.length === 0">
-                <td colspan="7" class="text-center text-muted py-4">Esta empresa no tiene suscripciones registradas.</td>
-              </tr>
-            </tbody>
-          </table>
         </div>
       </div>
 
@@ -3973,6 +4001,7 @@ const submitSubscription = async () => {
                       placeholder="Selecciona un plan..."
                       search-placeholder="Buscar plan en base de datos..."
                       required
+                      @change="onPlanChangeCompanySub"
                     />
                   </div>
                   <div class="col-md-3">
@@ -3982,6 +4011,58 @@ const submitSubscription = async () => {
                   <div class="col-md-3">
                     <label class="form-label text-secondary fs-2 fw-semibold">Fecha de Fin *</label>
                     <input v-model="formCompanySubscription.end_date" type="date" class="form-control bg-dark-subtle border-secondary-subtle text-white" required />
+                  </div>
+
+                  <!-- VISOR DE MÓDULOS Y SUBMÓDULOS DEL PLAN SELECCIONADO -->
+                  <div class="col-12 mt-2 pt-3 border-top border-dark-subtle">
+                    <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
+                      <div>
+                        <label class="form-label text-white fw-semibold d-flex align-items-center gap-2 mb-0">
+                          <iconify-icon icon="solar:shield-check-bold-duotone" class="text-primary fs-5"></iconify-icon>
+                          <span>Módulos y Submódulos incluidos en el {{ selectedPlanForCompanySub?.description || 'Plan SaaS' }}</span>
+                        </label>
+                        <small class="text-secondary d-block fs-2">
+                          La empresa recibe automáticamente acceso a las funcionalidades configuradas en este plan.
+                        </small>
+                      </div>
+
+                      <span v-if="selectedPlanForCompanySub" class="badge bg-primary-subtle text-primary border border-primary-subtle fs-2">
+                        {{ (selectedPlanForCompanySub.moduleIds || []).length }} módulo(s) · {{ (selectedPlanForCompanySub.subModuleIds || []).length }} submódulo(s)
+                      </span>
+                    </div>
+
+                    <div v-if="selectedPlanForCompanySub && (selectedPlanForCompanySub.moduleIds || []).length > 0" class="row g-2 overflow-y-auto pe-1" style="max-height: 280px;">
+                      <div
+                        v-for="mId in (selectedPlanForCompanySub.moduleIds || [])"
+                        :key="'sub-prev-m-' + mId"
+                        class="col-md-6"
+                      >
+                        <div class="p-3 rounded-3 bg-dark-subtle border border-secondary-subtle h-100">
+                          <div class="d-flex align-items-center gap-2 mb-2">
+                            <iconify-icon :icon="getModuleIconById(mId)" class="fs-4 text-primary"></iconify-icon>
+                            <span class="fw-bold text-white fs-2">{{ getModuleNameById(mId) }}</span>
+                          </div>
+                          <div class="d-flex flex-wrap gap-1 ps-3">
+                            <span
+                              v-for="smId in getPlanSubModuleIdsForModule(selectedPlanForCompanySub, mId)"
+                              :key="'sub-prev-sm-' + smId"
+                              class="badge bg-navy-card text-white border border-secondary-subtle fs-1"
+                            >
+                              {{ getSubModuleNameById(smId) }}
+                            </span>
+                            <span
+                              v-if="getPlanSubModuleIdsForModule(selectedPlanForCompanySub, mId).length === 0"
+                              class="text-secondary fs-1 fst-italic"
+                            >
+                              Acceso a nivel de módulo
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                    <div v-else class="text-center text-muted py-4 bg-dark-subtle rounded-3 border border-secondary-subtle">
+                      {{ selectedPlanForCompanySub ? 'Este plan no tiene módulos específicos configurados.' : 'Selecciona un Plan SaaS para visualizar los módulos y submódulos que se asignarán.' }}
+                    </div>
                   </div>
                 </div>
               </div>
@@ -4065,6 +4146,7 @@ const submitSubscription = async () => {
                       placeholder="Selecciona un plan..."
                       search-placeholder="Buscar plan en base de datos..."
                       required
+                      @change="onPlanChangeManageCompanySub"
                     />
                   </div>
                   <div class="col-md-3">
@@ -4074,6 +4156,58 @@ const submitSubscription = async () => {
                   <div class="col-md-3">
                     <label class="form-label text-secondary fs-2 fw-semibold">Fecha de Fin *</label>
                     <input v-model="formManageCompanySub.end_date" type="date" class="form-control bg-dark-subtle border-secondary-subtle text-white" required />
+                  </div>
+
+                  <!-- VISOR DE MÓDULOS Y SUBMÓDULOS DEL PLAN SELECCIONADO -->
+                  <div class="col-12 mt-2 pt-3 border-top border-dark-subtle">
+                    <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
+                      <div>
+                        <label class="form-label text-white fw-semibold d-flex align-items-center gap-2 mb-0">
+                          <iconify-icon icon="solar:shield-check-bold-duotone" class="text-primary fs-5"></iconify-icon>
+                          <span>Módulos y Submódulos incluidos en el {{ selectedPlanForManageCompanySub?.description || 'Plan SaaS' }}</span>
+                        </label>
+                        <small class="text-secondary d-block fs-2">
+                          Al asignar o cambiar a este plan, la empresa y sus roles se actualizarán automáticamente con estos accesos.
+                        </small>
+                      </div>
+
+                      <span v-if="selectedPlanForManageCompanySub" class="badge bg-primary-subtle text-primary border border-primary-subtle fs-2">
+                        {{ (selectedPlanForManageCompanySub.moduleIds || []).length }} módulo(s) · {{ (selectedPlanForManageCompanySub.subModuleIds || []).length }} submódulo(s)
+                      </span>
+                    </div>
+
+                    <div v-if="selectedPlanForManageCompanySub && (selectedPlanForManageCompanySub.moduleIds || []).length > 0" class="row g-2 overflow-y-auto pe-1" style="max-height: 280px;">
+                      <div
+                        v-for="mId in (selectedPlanForManageCompanySub.moduleIds || [])"
+                        :key="'manage-prev-m-' + mId"
+                        class="col-md-6"
+                      >
+                        <div class="p-3 rounded-3 bg-dark-subtle border border-secondary-subtle h-100">
+                          <div class="d-flex align-items-center gap-2 mb-2">
+                            <iconify-icon :icon="getModuleIconById(mId)" class="fs-4 text-primary"></iconify-icon>
+                            <span class="fw-bold text-white fs-2">{{ getModuleNameById(mId) }}</span>
+                          </div>
+                          <div class="d-flex flex-wrap gap-1 ps-3">
+                            <span
+                              v-for="smId in getPlanSubModuleIdsForModule(selectedPlanForManageCompanySub, mId)"
+                              :key="'manage-prev-sm-' + smId"
+                              class="badge bg-navy-card text-white border border-secondary-subtle fs-1"
+                            >
+                              {{ getSubModuleNameById(smId) }}
+                            </span>
+                            <span
+                              v-if="getPlanSubModuleIdsForModule(selectedPlanForManageCompanySub, mId).length === 0"
+                              class="text-secondary fs-1 fst-italic"
+                            >
+                              Acceso a nivel de módulo
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                    <div v-else class="text-center text-muted py-4 bg-dark-subtle rounded-3 border border-secondary-subtle">
+                      {{ selectedPlanForManageCompanySub ? 'Este plan no tiene módulos específicos configurados.' : 'Selecciona un Plan SaaS para visualizar los módulos y submódulos que se asignarán.' }}
+                    </div>
                   </div>
                 </div>
               </div>
@@ -4971,16 +5105,16 @@ const submitSubscription = async () => {
         </div>
       </div>
 
-    <!-- 4. MODAL NUEVO PLAN -->
+    <!-- 4. MODAL NUEVO / EDITAR PLAN -->
       <div v-if="showPlanModal" id="form-page" class="form-page">
         <div class="form-page-card">
           <div class="card bg-navy-card border border-secondary-subtle rounded-4 shadow-sm">
             <div class="modal-header d-flex justify-content-between align-items-center px-4 py-3 border-bottom border-dark-subtle">
               <div class="d-flex align-items-center gap-2">
                 <span class="p-2 bg-primary-subtle text-primary rounded-3 d-inline-flex"><iconify-icon icon="solar:tag-price-line-duotone" class="fs-5"></iconify-icon></span>
-                <h5 class="fw-bold text-white mb-0">Crear Plan SaaS</h5>
+                <h5 class="fw-bold text-white mb-0">{{ editingPlanId ? 'Editar Plan SaaS' : 'Crear Plan SaaS' }}</h5>
               </div>
-              <button type="button" class="btn btn-outline-secondary btn-sm rounded-3 d-flex align-items-center gap-1" @click="showPlanModal = false">
+              <button type="button" class="btn btn-outline-secondary btn-sm rounded-3 d-flex align-items-center gap-1" @click="showPlanModal = false; editingPlanId = null">
                 <iconify-icon icon="solar:alt-arrow-left-line-duotone" class="fs-5"></iconify-icon>
                 <span>Volver</span>
               </button>
@@ -5017,225 +5151,75 @@ const submitSubscription = async () => {
                 </div>
 
                 <div class="mb-3">
-                  <label class="form-label text-secondary fs-2 fw-semibold d-flex justify-content-between align-items-center">
-                    <span>Módulos Incluidos en este Plan</span>
-                    <span class="badge bg-primary-subtle text-primary">{{ formPlan.moduleIds.length }} seleccionados</span>
-                  </label>
-                  <div class="row g-2 p-2 bg-dark-subtle rounded-3 border border-dark-subtle" style="max-height: 220px; overflow-y: auto;">
-                    <div v-for="mod in modulesList" :key="'p-mod-' + mod.id" class="col-md-6">
-                      <div class="form-check p-2 bg-navy-card rounded-2 d-flex align-items-center justify-content-between border border-secondary-subtle">
-                        <label class="form-check-label text-white fs-2 mb-0 d-flex align-items-center gap-2 cursor-pointer w-100" :for="'plan-m-' + mod.id">
-                          <iconify-icon :icon="mod.desc_icon || 'solar:widget-4-line-duotone'" class="text-primary fs-4"></iconify-icon>
-                          <span>{{ mod.description }}</span>
-                        </label>
-                        <input
-                          class="form-check-input ms-2"
-                          type="checkbox"
-                          :id="'plan-m-' + mod.id"
-                          :value="mod.id"
-                          v-model="formPlan.moduleIds"
-                        />
-                      </div>
-                    </div>
-                  </div>
-                  <small class="text-secondary mt-1 d-block">Si no seleccionas módulos específicos, el plan incluirá todos los módulos activos del sistema.</small>
-                </div>
-              </div>
-              <div class="modal-footer d-flex justify-content-end gap-2 px-4 py-3 border-top border-dark-subtle">
-                <button type="button" class="btn btn-outline-secondary px-4 rounded-3" @click="showPlanModal = false">Cancelar</button>
-                <button type="submit" class="btn btn-primary px-4 rounded-3 fw-bold" :disabled="loading">
-                  <span v-if="loading" class="spinner-grow spinner-grow-sm me-2" role="status" aria-hidden="true"></span>
-                  <span>{{ loading ? 'Guardando...' : 'Guardar Plan' }}</span>
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      </div>
-
-    <!-- 5. MODAL ASIGNAR / EDITAR SUSCRIPCIÓN Y ACCESO A MÓDULOS -->
-      <div v-if="showSubscriptionModal" id="form-page" class="form-page">
-        <div class="form-page-card form-page-card-lg">
-          <div class="card bg-navy-card border border-secondary-subtle rounded-4 shadow-sm">
-            <div class="modal-header d-flex justify-content-between align-items-center px-4 py-3 border-bottom border-dark-subtle">
-              <div class="d-flex align-items-center gap-2">
-                <span class="p-2 bg-primary-subtle text-primary rounded-3 d-inline-flex"><iconify-icon icon="solar:card-recive-line-duotone" class="fs-5"></iconify-icon></span>
-                <h5 class="fw-bold text-white mb-0">{{ isEditingSubscription ? 'Editar Suscripción y Módulos de Acceso' : 'Asignar Suscripción y Módulos a la Empresa' }}</h5>
-              </div>
-              <button type="button" class="btn btn-outline-secondary btn-sm rounded-3 d-flex align-items-center gap-1" @click="showSubscriptionModal = false">
-                <iconify-icon icon="solar:alt-arrow-left-line-duotone" class="fs-5"></iconify-icon>
-                <span>Volver</span>
-              </button>
-            </div>
-            <form @submit.prevent="submitSubscription">
-              <div class="modal-body p-4">
-                <div class="row">
-                  <div class="col-md-6 mb-3">
-                    <label class="form-label text-secondary fs-2 fw-semibold">Plan a Contratar</label>
-                    <select v-model.number="formSubscription.planId" class="form-select bg-dark-subtle border-secondary-subtle text-white" required>
-                      <option v-for="plan in plans" :key="plan.id" :value="plan.id">
-                        {{ plan.description }} - ${{ plan.price }} ({{ plan.billing_cycle }})
-                      </option>
-                    </select>
-                  </div>
-                  <div class="col-md-3 mb-3">
-                    <label class="form-label text-secondary fs-2 fw-semibold">Fecha de Inicio</label>
-                    <input v-model="formSubscription.begin_date" type="date" class="form-control bg-dark-subtle border-secondary-subtle text-white" required />
-                  </div>
-                  <div class="col-md-3 mb-3">
-                    <label class="form-label text-secondary fs-2 fw-semibold">Fecha de Fin</label>
-                    <input v-model="formSubscription.end_date" type="date" class="form-control bg-dark-subtle border-secondary-subtle text-white" required />
-                  </div>
-                </div>
-
-                <!-- SELECCIÓN DE MÓDULOS Y SUBMÓDULOS CON ACCESO -->
-                <div class="mt-2 pt-3 border-top border-dark-subtle">
-                  <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-2">
+                  <div class="d-flex justify-content-between align-items-center mb-2">
                     <div>
-                      <label class="form-label text-white fw-semibold d-flex align-items-center gap-2 mb-0">
-                        <iconify-icon icon="solar:widget-4-line-duotone" class="text-primary fs-5"></iconify-icon>
-                        <span>Módulos y Submódulos con Acceso Habilitado</span>
+                      <label class="form-label text-secondary fs-2 fw-semibold mb-0">
+                        Módulos y Submódulos Incluidos en este Plan
                       </label>
-                      <small class="text-secondary d-block fs-2">
-                        Marca los módulos principales y submódulos específicos a los que tendrá acceso esta empresa:
-                      </small>
+                      <small class="text-secondary d-block fs-1">Selecciona los módulos y submódulos específicos autorizados para este plan</small>
                     </div>
-
                     <div class="d-flex align-items-center gap-2">
-                      <span class="badge bg-primary-subtle text-primary border border-primary-subtle">
-                        {{ formSubscription.moduleIds.length }} módulo(s) · {{ formSubscription.subModuleIds.length }} submódulo(s)
+                      <span class="badge bg-primary-subtle text-primary">
+                        {{ formPlan.moduleIds.length }} módulo(s) · {{ formPlan.subModuleIds.length }} submódulo(s)
                       </span>
-                      <button
-                        type="button"
-                        class="btn btn-sm btn-outline-info rounded-pill px-2 py-1 fs-1"
-                        @click="selectAllSubscriptionAccess"
-                      >
-                        Marcar todo
-                      </button>
-                      <button
-                        type="button"
-                        class="btn btn-sm btn-outline-secondary rounded-pill px-2 py-1 fs-1"
-                        @click="clearAllSubscriptionAccess"
-                      >
-                        Limpiar
-                      </button>
+                      <button type="button" class="btn btn-xs btn-outline-primary py-0 px-2 rounded-pill fs-1" @click="toggleAllPlanModulesAndSubModules(true)">Marcar todo</button>
+                      <button type="button" class="btn btn-xs btn-outline-secondary py-0 px-2 rounded-pill fs-1" @click="toggleAllPlanModulesAndSubModules(false)">Limpiar</button>
                     </div>
                   </div>
 
-                  <!-- Árbol de Módulos y Submódulos -->
-                  <div
-                    v-if="modulesList.length > 0"
-                    class="d-flex flex-column gap-2 overflow-y-auto pe-1 mt-2"
-                    style="max-height: 300px;"
-                  >
-                    <div
-                      v-for="mod in modulesList.filter((m) => m.enabled !== false)"
-                      :key="mod.id"
-                      class="p-3 rounded-3 border transition-all"
-                      :class="
-                        formSubscription.moduleIds.includes(mod.id)
-                          ? 'bg-dark-subtle border-primary'
-                          : 'bg-dark border-secondary-subtle opacity-75'
-                      "
-                    >
-                      <!-- Cabecera del Módulo Principal -->
-                      <div class="d-flex justify-content-between align-items-center">
-                        <label class="d-flex align-items-center gap-2 cursor-pointer mb-0">
-                          <input
-                            type="checkbox"
-                            class="form-check-input m-0 fs-5 cursor-pointer"
-                            :checked="formSubscription.moduleIds.includes(mod.id)"
-                            @change="toggleSubscriptionModule(mod.id)"
-                          />
-                          <iconify-icon
-                            :icon="mod.desc_icon || 'solar:widget-4-line-duotone'"
-                            class="fs-5 text-primary ms-1"
-                          ></iconify-icon>
-                          <span class="fw-bold text-white">{{ mod.description }}</span>
-                          <span class="badge bg-dark text-secondary font-monospace fs-1">{{ mod.code }}</span>
-                        </label>
-
-                        <span class="badge bg-dark-subtle text-secondary fs-1">
-                          {{
-                            getSubModulesForModule(mod.id).filter((sm) =>
-                              formSubscription.subModuleIds.includes(sm.id)
-                            ).length
-                          }}
-                          / {{ getSubModulesForModule(mod.id).length }} submódulos
-                        </span>
-                      </div>
-
-                      <!-- Submódulos hijos del Módulo Principal -->
-                      <div
-                        v-if="getSubModulesForModule(mod.id).length > 0"
-                        class="row g-2 mt-2 ps-4 pt-2 border-top border-secondary-subtle"
-                      >
-                        <div
-                          v-for="subMod in getSubModulesForModule(mod.id)"
-                          :key="subMod.id"
-                          class="col-md-6"
-                        >
-                          <label
-                            class="d-flex align-items-center gap-2 p-2 rounded border cursor-pointer w-100 h-100"
-                            :class="
-                              formSubscription.subModuleIds.includes(subMod.id)
-                                ? 'bg-info-subtle border-info text-white'
-                                : 'bg-dark border-secondary-subtle text-secondary'
-                            "
-                          >
+                  <div class="p-2 bg-dark-subtle rounded-3 border border-dark-subtle" style="max-height: 380px; overflow-y: auto;">
+                    <div class="row g-3">
+                      <div v-for="mod in modulesList" :key="'p-tree-mod-' + mod.id" class="col-md-6">
+                        <div class="p-2 bg-navy-card rounded-3 border border-secondary-subtle h-100">
+                          <!-- Cabecera del módulo -->
+                          <div class="d-flex align-items-center justify-content-between pb-2 mb-2 border-bottom border-dark-subtle">
+                            <label class="form-check-label text-white fs-2 fw-bold mb-0 d-flex align-items-center gap-2 cursor-pointer w-100" :for="'plan-m-' + mod.id">
+                              <iconify-icon :icon="mod.desc_icon || 'solar:widget-4-line-duotone'" class="text-primary fs-4"></iconify-icon>
+                              <span>{{ mod.description }}</span>
+                            </label>
                             <input
+                              class="form-check-input ms-2"
                               type="checkbox"
-                              class="form-check-input m-0 cursor-pointer"
-                              :checked="formSubscription.subModuleIds.includes(subMod.id)"
-                              @change="toggleSubscriptionSubModule(subMod)"
+                              :id="'plan-m-' + mod.id"
+                              :checked="formPlan.moduleIds.includes(mod.id)"
+                              @change="togglePlanModule(mod.id)"
                             />
-                            <iconify-icon
-                              :icon="subMod.desc_icon || 'solar:round-alt-arrow-right-line-duotone'"
-                              class="fs-4 text-info"
-                            ></iconify-icon>
-                            <div class="text-truncate">
-                              <span class="d-block fw-semibold text-truncate fs-2">{{ subMod.description }}</span>
-                              <small class="text-secondary font-monospace fs-1">{{ subMod.url_desc }}</small>
+                          </div>
+
+                          <!-- Lista de submódulos del módulo -->
+                          <div v-if="getSubModulesForModule(mod.id).length > 0" class="d-flex flex-column gap-1 ps-2">
+                            <div
+                              v-for="subMod in getSubModulesForModule(mod.id)"
+                              :key="'plan-sm-' + subMod.id"
+                              class="d-flex align-items-center justify-content-between py-1 px-2 rounded bg-dark-subtle"
+                            >
+                              <label class="form-check-label text-secondary fs-1 mb-0 d-flex align-items-center gap-1 cursor-pointer w-100" :for="'plan-sm-cb-' + subMod.id">
+                                <iconify-icon :icon="subMod.desc_icon || 'solar:round-alt-arrow-right-line-duotone'" class="text-info fs-2"></iconify-icon>
+                                <span :class="{ 'text-white fw-semibold': formPlan.subModuleIds.includes(subMod.id) }">{{ subMod.description }}</span>
+                              </label>
+                              <input
+                                class="form-check-input m-0"
+                                type="checkbox"
+                                :id="'plan-sm-cb-' + subMod.id"
+                                :checked="formPlan.subModuleIds.includes(subMod.id)"
+                                @change="togglePlanSubModule(subMod)"
+                              />
                             </div>
-                          </label>
+                          </div>
+                          <div v-else class="text-secondary fs-1 fst-italic ps-2">
+                            Sin submódulos (Módulo directo)
+                          </div>
                         </div>
                       </div>
-                      <div v-else class="ps-4 mt-1">
-                        <small class="text-secondary fst-italic fs-1">
-                          Este módulo aún no tiene submódulos registrados.
-                        </small>
-                      </div>
                     </div>
                   </div>
-
-                  <div v-else class="alert alert-warning mt-2 mb-0 py-2 fs-2">
-                    <iconify-icon icon="solar:info-circle-line-duotone" class="me-1 align-middle fs-4"></iconify-icon>
-                    No hay módulos registrados aún. Ve a la pestaña <strong>"Módulos & Submódulos"</strong> para crearlos primero.
-                  </div>
-                </div>
-
-                <!-- Switch Vigencia (Solo en edición) -->
-                <div
-                  v-if="isEditingSubscription"
-                  class="form-check form-switch bg-dark-subtle p-3 rounded border border-secondary-subtle d-flex align-items-center justify-content-between mt-3"
-                >
-                  <label class="form-check-label text-white ms-0" for="switchSubscriptionEnabled">
-                    <div class="fw-bold">Estado de la Suscripción</div>
-                    <small class="text-secondary d-block fs-1">Marcar suscripción como vigente o expirada</small>
-                  </label>
-                  <input
-                    v-model="formSubscription.enabled"
-                    class="form-check-input fs-5 m-0"
-                    type="checkbox"
-                    id="switchSubscriptionEnabled"
-                  />
                 </div>
               </div>
               <div class="modal-footer d-flex justify-content-end gap-2 px-4 py-3 border-top border-dark-subtle">
-                <button type="button" class="btn btn-outline-secondary px-4 rounded-3" @click="showSubscriptionModal = false">Cancelar</button>
+                <button type="button" class="btn btn-outline-secondary px-4 rounded-3" @click="showPlanModal = false; editingPlanId = null">Cancelar</button>
                 <button type="submit" class="btn btn-primary px-4 rounded-3 fw-bold" :disabled="loading">
                   <span v-if="loading" class="spinner-grow spinner-grow-sm me-2" role="status" aria-hidden="true"></span>
-                  <span>{{ loading ? 'Guardando...' : (isEditingSubscription ? 'Guardar Cambios de Suscripción' : 'Activar Suscripción y Accesos') }}</span>
+                  <span>{{ loading ? 'Guardando...' : (editingPlanId ? 'Actualizar Plan' : 'Guardar Plan') }}</span>
                 </button>
               </div>
             </form>

@@ -935,7 +935,22 @@ const loadCurrentTabData = async () => {
   }
 }
 
+const canAccessTab = (tab: 'companies' | 'users' | 'roles') => {
+  return authStore.canAccessUrl(`/configuracion?tab=${tab}`)
+}
+
+const getDefaultAvailableTab = (): 'companies' | 'users' | 'roles' => {
+  if (canAccessTab('companies')) return 'companies'
+  if (canAccessTab('users')) return 'users'
+  if (canAccessTab('roles')) return 'roles'
+  return 'companies'
+}
+
 const switchTab = (tab: 'companies' | 'users' | 'roles') => {
+  if (!canAccessTab(tab)) {
+    toast.warning('No tienes permisos para acceder a esta pestaña.')
+    return
+  }
   activeTab.value = tab
   router.replace({ query: { ...route.query, tab } })
   loadCurrentTabData()
@@ -946,7 +961,11 @@ watch(
   () => route.query.tab,
   (newTab) => {
     if (newTab && ['companies', 'users', 'roles'].includes(newTab as string)) {
-      activeTab.value = newTab as any
+      if (canAccessTab(newTab as any)) {
+        activeTab.value = newTab as any
+      } else {
+        activeTab.value = getDefaultAvailableTab()
+      }
       showCompanyModal.value = false
       showUserModal.value = false
       showRoleModal.value = false
@@ -958,7 +977,7 @@ watch(
       showDocTypeModal.value = false
       loadCurrentTabData()
     } else if (!newTab) {
-      activeTab.value = 'companies'
+      activeTab.value = getDefaultAvailableTab()
       loadCurrentTabData()
     }
   },
@@ -1951,7 +1970,7 @@ const submitSubscription = async () => {
       <!-- PESTAÑAS EXCLUSIVAS DE EMPRESA: EMPRESA, USUARIOS Y ROLES -->
       <ul v-show="!isFormOpen" class="nav nav-pills user-profile-tab mt-4 border-top border-dark-subtle pt-3" role="tablist">
         
-        <li class="nav-item me-2">
+        <li v-if="canAccessTab('companies')" class="nav-item me-2">
           <button
             class="nav-link rounded-pill px-4 py-2 d-flex align-items-center gap-2 fs-3 text-decoration-none"
             :class="{ 'active bg-primary text-white': activeTab === 'companies', 'text-white-50 hover-tab': activeTab !== 'companies' }"
@@ -1962,7 +1981,7 @@ const submitSubscription = async () => {
           </button>
         </li>
 
-        <li class="nav-item me-2">
+        <li v-if="canAccessTab('users')" class="nav-item me-2">
           <button
             class="nav-link rounded-pill px-4 py-2 d-flex align-items-center gap-2 fs-3 text-decoration-none"
             :class="{ 'active bg-primary text-white': activeTab === 'users', 'text-white-50 hover-tab': activeTab !== 'users' }"
@@ -1973,7 +1992,7 @@ const submitSubscription = async () => {
           </button>
         </li>
 
-        <li class="nav-item me-2">
+        <li v-if="canAccessTab('roles')" class="nav-item me-2">
           <button
             class="nav-link rounded-pill px-4 py-2 d-flex align-items-center gap-2 fs-3 text-decoration-none"
             :class="{ 'active bg-primary text-white': activeTab === 'roles', 'text-white-50 hover-tab': activeTab !== 'roles' }"

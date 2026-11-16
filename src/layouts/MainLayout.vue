@@ -42,156 +42,59 @@
                   :key="mod.code"
                   class="sidebar-item mb-1"
                 >
-                  <a
-                    href="javascript:void(0)"
-                    class="sidebar-link has-arrow info-hover-bg"
-                    @click="toggleModule(mod.code)"
-                  >
-                    <span class="aside-icon p-2 bg-info-subtle rounded-1 text-info">
-                      <iconify-icon :icon="mod.icon || 'solar:widget-4-line-duotone'" class="fs-6"></iconify-icon>
-                    </span>
-                    <span class="hide-menu ps-1">{{ mod.description }}</span>
-                    <iconify-icon
-                      v-if="mod.children && mod.children.length > 0"
-                      :icon="isOpen(mod.code) ? 'solar:alt-arrow-up-line-duotone' : 'solar:alt-arrow-down-line-duotone'"
-                      class="fs-3 ms-auto text-muted arrow-toggle-icon"
-                    ></iconify-icon>
-                  </a>
-
-                  <ul
-                    v-if="mod.children && mod.children.length > 0"
-                    v-show="isOpen(mod.code)"
-                    class="list-unstyled ps-3 pt-1 mb-2 first-level"
-                  >
-                    <li
-                      v-for="sub in (isInventoryMod(mod) ? getInventorySubItems(mod) : (isPurchasesMod(mod) ? getPurchasesSubItems(mod) : (isSalesMod(mod) ? getSalesSubItems(mod) : mod.children)))"
-                      :key="sub.code"
-                      class="sidebar-item mb-1"
+                  <!-- CASO A: MÓDULO CON SUBMÓDULOS (ACORDEÓN) -->
+                  <template v-if="mod.children && mod.children.length > 0">
+                    <a
+                      href="javascript:void(0)"
+                      class="sidebar-link has-arrow info-hover-bg"
+                      @click="toggleModule(mod.code)"
                     >
-                      <router-link
-                        :to="sub.url"
-                        class="sidebar-sublink"
-                        :class="{ active: isSubActive(sub.url) }"
+                      <span class="aside-icon p-2 bg-info-subtle rounded-1 text-info">
+                        <iconify-icon :icon="mod.icon || 'solar:widget-4-line-duotone'" class="fs-6"></iconify-icon>
+                      </span>
+                      <span class="hide-menu ps-1">{{ mod.description }}</span>
+                      <iconify-icon
+                        :icon="isOpen(mod.code) ? 'solar:alt-arrow-up-line-duotone' : 'solar:alt-arrow-down-line-duotone'"
+                        class="fs-3 ms-auto text-muted arrow-toggle-icon"
+                      ></iconify-icon>
+                    </a>
+
+                    <ul
+                      v-show="isOpen(mod.code)"
+                      class="list-unstyled ps-3 pt-1 mb-2 first-level"
+                    >
+                      <li
+                        v-for="sub in (isInventoryMod(mod) ? getInventorySubItems(mod) : (isPurchasesMod(mod) ? getPurchasesSubItems(mod) : (isSalesMod(mod) ? getSalesSubItems(mod) : mod.children)))"
+                        :key="sub.code"
+                        class="sidebar-item mb-1"
                       >
-                        <span class="sidebar-icon"></span>
-                        <span class="hide-menu">{{ sub.description }}</span>
-                      </router-link>
-                    </li>
-                  </ul>
+                        <router-link
+                          :to="sub.url"
+                          class="sidebar-sublink"
+                          :class="{ active: isSubActive(sub.url) }"
+                        >
+                          <span class="sidebar-icon"></span>
+                          <span class="hide-menu">{{ sub.description }}</span>
+                        </router-link>
+                      </li>
+                    </ul>
+                  </template>
+
+                  <!-- CASO B: MÓDULO DIRECTO SIN SUBMÓDULOS (EJ. REPORTES) -->
+                  <template v-else>
+                    <router-link
+                      :to="getDirectModuleUrl(mod)"
+                      class="sidebar-link info-hover-bg"
+                      :class="{ active: route.path === getDirectModuleUrl(mod) || route.path.startsWith(getDirectModuleUrl(mod) + '/') }"
+                    >
+                      <span class="aside-icon p-2 bg-info-subtle rounded-1 text-info">
+                        <iconify-icon :icon="mod.icon || 'solar:chart-square-bold-duotone'" class="fs-6"></iconify-icon>
+                      </span>
+                      <span class="hide-menu ps-1">{{ mod.description }}</span>
+                    </router-link>
+                  </template>
                 </li>
               </template>
-
-              <!-- MÓDULO DIRECTO REPORTES (SIN SUBMÓDULOS) -->
-              <li v-if="hasMenuModule('MOD-007') || hasMenuModule('reportes')" class="sidebar-item mb-1">
-                <router-link
-                  to="/reportes"
-                  class="sidebar-link info-hover-bg"
-                  :class="{ active: route.path === '/reportes' || route.path.startsWith('/ventas/reportes') }"
-                >
-                  <span class="aside-icon p-2 bg-info-subtle rounded-1 text-info">
-                    <iconify-icon icon="solar:chart-square-bold-duotone" class="fs-6"></iconify-icon>
-                  </span>
-                  <span class="hide-menu ps-1">Reportes</span>
-                </router-link>
-              </li>
-
-              <!-- MÓDULO AGENDA & CITAS (SPA / SALÓN DE BELLEZA / ESTÉTICA) -->
-              <li v-if="hasMenuModule('MOD-009') || hasMenuModule('agenda') || hasMenuModule('citas')" class="sidebar-item mb-1">
-                <a
-                  href="javascript:void(0)"
-                  class="sidebar-link has-arrow primary-hover-bg"
-                  @click="toggleModule('MOD-CITAS')"
-                >
-                  <span class="aside-icon p-2 bg-primary-subtle rounded-1 text-primary">
-                    <iconify-icon icon="solar:calendar-date-bold-duotone" class="fs-6"></iconify-icon>
-                  </span>
-                  <span class="hide-menu ps-1">Agenda & Citas</span>
-                  <iconify-icon
-                    :icon="isOpen('MOD-CITAS') ? 'solar:alt-arrow-up-line-duotone' : 'solar:alt-arrow-down-line-duotone'"
-                    class="fs-3 ms-auto text-muted arrow-toggle-icon"
-                  ></iconify-icon>
-                </a>
-
-                <ul
-                  v-show="isOpen('MOD-CITAS')"
-                  class="list-unstyled ps-3 pt-1 mb-2 first-level"
-                >
-                  <li class="sidebar-item mb-1">
-                    <router-link
-                      to="/citas/calendario"
-                      class="sidebar-sublink"
-                      :class="{ active: isSubActive('/citas/calendario') }"
-                    >
-                      <span class="sidebar-icon"></span>
-                      <span class="hide-menu">Calendario de Citas</span>
-                    </router-link>
-                  </li>
-                  <li class="sidebar-item mb-1">
-                    <router-link
-                      to="/citas/ordenes"
-                      class="sidebar-sublink"
-                      :class="{ active: isSubActive('/citas/ordenes') }"
-                    >
-                      <span class="sidebar-icon"></span>
-                      <span class="hide-menu">Órdenes de Cita</span>
-                    </router-link>
-                  </li>
-                  <li class="sidebar-item mb-1">
-                    <router-link
-                      to="/citas/horarios"
-                      class="sidebar-sublink"
-                      :class="{ active: isSubActive('/citas/horarios') }"
-                    >
-                      <span class="sidebar-icon"></span>
-                      <span class="hide-menu">Horarios & Disponibilidad</span>
-                    </router-link>
-                  </li>
-                </ul>
-              </li>
-
-              <!-- MÓDULO TALENTO HUMANO / RECURSOS HUMANOS -->
-              <li v-if="hasMenuModule('MOD-008') || hasMenuModule('talento') || hasMenuModule('rrhh')" class="sidebar-item mb-1">
-                <a
-                  href="javascript:void(0)"
-                  class="sidebar-link has-arrow info-hover-bg"
-                  @click="toggleModule('MOD-HR')"
-                >
-                  <span class="aside-icon p-2 bg-pink-subtle rounded-1 text-pink">
-                    <iconify-icon icon="solar:users-group-two-rounded-bold-duotone" class="fs-6"></iconify-icon>
-                  </span>
-                  <span class="hide-menu ps-1">Talento Humano</span>
-                  <iconify-icon
-                    :icon="isOpen('MOD-HR') ? 'solar:alt-arrow-up-line-duotone' : 'solar:alt-arrow-down-line-duotone'"
-                    class="fs-3 ms-auto text-muted arrow-toggle-icon"
-                  ></iconify-icon>
-                </a>
-
-                <ul
-                  v-show="isOpen('MOD-HR')"
-                  class="list-unstyled ps-3 pt-1 mb-2 first-level"
-                >
-                  <li class="sidebar-item mb-1">
-                    <router-link
-                      to="/talento-humano/empleados"
-                      class="sidebar-sublink"
-                      :class="{ active: isSubActive('/talento-humano/empleados') || isSubActive('/rrhh/empleados') }"
-                    >
-                      <span class="sidebar-icon"></span>
-                      <span class="hide-menu">Registro de Empleados</span>
-                    </router-link>
-                  </li>
-                  <li class="sidebar-item mb-1">
-                    <router-link
-                      to="/talento-humano/categorias"
-                      class="sidebar-sublink"
-                      :class="{ active: isSubActive('/talento-humano/categorias') || isSubActive('/rrhh/categorias') }"
-                    >
-                      <span class="sidebar-icon"></span>
-                      <span class="hide-menu">Configuración de Categorías</span>
-                    </router-link>
-                  </li>
-                </ul>
-              </li>
 
               <!-- MÓDULOS DE SISTEMA / CONFIGURACIÓN DINÁMICOS -->
               <template v-if="systemModules.length > 0">
@@ -215,19 +118,19 @@
                     </span>
                     <span class="hide-menu ps-1">{{ mod.description }}</span>
                     <iconify-icon
-                      v-if="getConfigSubItems(mod).length > 0"
+                      v-if="mod.children && mod.children.length > 0"
                       :icon="isOpen(mod.code) ? 'solar:alt-arrow-up-line-duotone' : 'solar:alt-arrow-down-line-duotone'"
                       class="fs-3 ms-auto text-muted arrow-toggle-icon"
                     ></iconify-icon>
                   </a>
 
                   <ul
-                    v-if="getConfigSubItems(mod).length > 0"
+                    v-if="mod.children && mod.children.length > 0"
                     v-show="isOpen(mod.code)"
                     class="list-unstyled ps-3 pt-1 mb-2 first-level"
                   >
                     <li
-                      v-for="sub in getConfigSubItems(mod)"
+                      v-for="sub in mod.children"
                       :key="sub.code"
                       class="sidebar-item mb-1"
                     >
@@ -314,49 +217,39 @@ const activeRoleLabel = computed(() => {
   return 'Usuario'
 })
 
-const hasMenuModule = (codeOrPattern: string) => {
-  const codes = authStore.accessInfo?.moduleCodes || []
-  const menu = authStore.accessInfo?.menu || []
-  const target = codeOrPattern.toLowerCase()
-  if (codes.some((c) => c.toLowerCase() === target)) return true
-  return menu.some(
-    (m) =>
-      m.code.toLowerCase() === target ||
-      m.description?.toLowerCase().includes(target)
-  )
-}
-
 const operationalModules = computed(() => {
   const menu = authStore.accessInfo?.menu || []
   return menu.filter((m) => {
+    // MOD-006 (Configuración) pertenece a la sección Sistema
     if (m.code === 'MOD-006' || m.description?.toLowerCase().includes('configuraci')) {
       return false
     }
-    if (m.code === 'MOD-008' || m.description?.toLowerCase().includes('talento') || m.description?.toLowerCase().includes('rrhh')) {
-      return false
+    // Módulos con submódulos
+    if (m.children && m.children.length > 0) {
+      if (isInventoryMod(m)) return getInventorySubItems(m).length > 0
+      if (isPurchasesMod(m)) return getPurchasesSubItems(m).length > 0
+      if (isSalesMod(m)) return getSalesSubItems(m).length > 0
+      return true
     }
-    if (m.code === 'MOD-009' || m.description?.toLowerCase().includes('cita') || m.description?.toLowerCase().includes('agenda')) {
-      return false
-    }
-    if (isInventoryMod(m)) {
-      return getInventorySubItems(m).length > 0
-    }
-    if (isPurchasesMod(m)) {
-      return getPurchasesSubItems(m).length > 0
-    }
-    if (isSalesMod(m)) {
-      return getSalesSubItems(m).length > 0
-    }
-    return Boolean(m.children && m.children.length > 0)
+    // Módulo directo sin submódulos en BD (ej. MOD-007 Reportes)
+    return m.code === 'MOD-007' || Boolean((m as any).url)
   })
 })
+
+const getDirectModuleUrl = (mod: any): string => {
+  if (mod.code === 'MOD-007' || mod.description?.toLowerCase().includes('reporte')) {
+    return '/reportes'
+  }
+  return mod.url || (mod.children && mod.children[0]?.url) || '/dashboard'
+}
 
 const systemModules = computed(() => {
   const menu = authStore.accessInfo?.menu || []
   return menu.filter(
     (m) =>
       (m.code === 'MOD-006' || m.description?.toLowerCase().includes('configuraci')) &&
-      getConfigSubItems(m).length > 0
+      m.children &&
+      m.children.length > 0
   )
 })
 
@@ -394,33 +287,7 @@ const isSubActive = (subUrl: string) => {
   return true
 }
 
-const getConfigSubItems = (mod: any) => {
-  const children = [...(mod?.children || [])]
-  if (children.length === 0) return []
 
-  const isSuper = Boolean(authStore.tokenPayload?.super_admin || authStore.accessInfo?.isSuperAdmin)
-
-  // Lista canónica de los 3 submódulos exclusivos de Configuración de Empresa
-  const canonicalItems = [
-    { id: 17, code: 'SUB-017', description: 'Empresa', url: '/configuracion?tab=companies' },
-    { id: 18, code: 'SUB-018', description: 'Usuarios', url: '/configuracion?tab=users' },
-    { id: 19, code: 'SUB-019', description: 'Roles', url: '/configuracion?tab=roles' },
-  ]
-
-  if (isSuper) {
-    return canonicalItems
-  }
-
-  // Filtrar solo los ítems canónicos que fueron efectivamente autorizados para este rol
-  return canonicalItems.filter((item) => {
-    return children.some(
-      (c: any) =>
-        c.code === item.code ||
-        c.description?.toLowerCase().trim() === item.description.toLowerCase().trim() ||
-        (c.url && item.url && c.url.toLowerCase().includes(item.url.split('?')[1]?.toLowerCase()))
-    )
-  })
-}
 
 // Submódulos independientes de Inventario: formatear y ordenar únicamente los autorizados para el rol
 const getInventorySubItems = (mod: any) => {
