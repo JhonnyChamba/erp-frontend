@@ -593,17 +593,16 @@ const isEditingCompany = ref(false)
 const editingCompanyId = ref<number | null>(null)
 const companyFormTab = ref<'general' | 'fiscal' | 'firma' | 'correo' | 'suscripcion'>('general')
 
+const editingCompanyActiveSubscriptionId = ref<number | null>(null)
+
 const companyTabsList = computed(() => {
-  const tabs = [
+  return [
     { k: 'general', l: 'General' },
     { k: 'fiscal', l: 'Datos SRI' },
     { k: 'firma', l: 'Firma electrónica' },
     { k: 'correo', l: 'Correo (SMTP)' },
+    { k: 'suscripcion', l: isEditingCompany.value ? 'Suscripción SaaS' : 'Suscripción SaaS *' },
   ]
-  if (!isEditingCompany.value) {
-    tabs.push({ k: 'suscripcion', l: 'Suscripción SaaS *' })
-  }
-  return tabs
 })
 
 const todayStr = new Date().toISOString().slice(0, 10)
@@ -906,12 +905,13 @@ const openCreateCompany = async () => {
   showCompanyModal.value = true
 }
 
-const openEditCompany = (comp: CompanyItem) => {
+const openEditCompany = async (comp: CompanyItem) => {
   const f = comp.fiscal || {}
   isEditingCompany.value = true
   editingCompanyId.value = comp.id
   companyLogoFile.value = null
   companyLogoPreview.value = comp.logo_url || f.logo_url || ''
+  editingCompanyActiveSubscriptionId.value = null
   formCompany.value = {
     ...initialFormCompany(),
     ruc: comp.ruc,
@@ -941,6 +941,36 @@ const openEditCompany = (comp: CompanyItem) => {
   }
   companyFormTab.value = 'general'
   showCompanyModal.value = true
+
+  // Cargar la suscripción activa de la empresa para visualizar su plan y módulos o permitir cambiarlo
+  try {
+    const subRes = await getSubscriptions(comp.id)
+    const subs = Array.isArray(subRes?.data) ? subRes.data : Array.isArray(subRes) ? subRes : []
+    const activeSub = subs.find((s: any) => s.enabled !== false && !s.deleted)
+    if (activeSub) {
+      editingCompanyActiveSubscriptionId.value = activeSub.id
+      const pId = activeSub.plan?.id || (activeSub as any).plan_id || activeSub.planId
+      formCompanySubscription.value = {
+        planId: pId ? Number(pId) : null,
+        begin_date: activeSub.begin_date ? activeSub.begin_date.slice(0, 10) : todayStr,
+        end_date: activeSub.end_date ? activeSub.end_date.slice(0, 10) : nextYearStr,
+        moduleIds: Array.isArray(activeSub.moduleIds) ? [...activeSub.moduleIds] : [],
+        subModuleIds: Array.isArray(activeSub.subModuleIds) ? [...activeSub.subModuleIds] : [],
+      }
+      syncPlanModulesToSub(formCompanySubscription.value)
+    } else {
+      formCompanySubscription.value = {
+        planId: plans.value[0]?.id || 1,
+        begin_date: todayStr,
+        end_date: nextYearStr,
+        moduleIds: [],
+        subModuleIds: [],
+      }
+      syncPlanModulesToSub(formCompanySubscription.value)
+    }
+  } catch (err) {
+    console.warn('No se pudo precargar la suscripción de la empresa:', err)
+  }
 }
 
 // Lee el archivo .p12 y lo convierte a base64 (se envía al backend, que lo guarda)
@@ -1429,7 +1459,36 @@ const submitCompany = async () => {
     let savedCompanyId = editingCompanyId.value
     if (isEditingCompany.value && editingCompanyId.value) {
       await updateCompany(editingCompanyId.value, payload)
-      successMsg.value = 'Empresa actualizada exitosamente.'
+
+      if (formCompanySubscription.value.planId) {
+        try {
+          if (editingCompanyActiveSubscriptionId.value) {
+            await updateSubscription(editingCompanyActiveSubscriptionId.value, {
+              companyId: Number(editingCompanyId.value),
+              planId: Number(formCompanySubscription.value.planId),
+              begin_date: formCompanySubscription.value.begin_date,
+              end_date: formCompanySubscription.value.end_date,
+              moduleIds: formCompanySubscription.value.moduleIds.map(Number),
+              subModuleIds: formCompanySubscription.value.subModuleIds.map(Number),
+              enabled: true,
+            })
+          } else {
+            await createSubscription({
+              companyId: Number(editingCompanyId.value),
+              planId: Number(formCompanySubscription.value.planId),
+              begin_date: formCompanySubscription.value.begin_date,
+              end_date: formCompanySubscription.value.end_date,
+              moduleIds: formCompanySubscription.value.moduleIds.map(Number),
+              subModuleIds: formCompanySubscription.value.subModuleIds.map(Number),
+            })
+          }
+        } catch (subErr) {
+          console.error('Error al sincronizar suscripción de la empresa:', subErr)
+          toast.warning('Empresa actualizada, pero ocurrió un problema al sincronizar la suscripción.')
+        }
+      }
+
+      successMsg.value = 'Empresa y suscripción actualizadas y sincronizadas exitosamente.'
     } else {
       const created: any = await createCompany(payload)
       savedCompanyId = created?.id || created?.data?.id
@@ -3981,19 +4040,21 @@ const getSubModuleNameById = (subModId: number) => {
                   </div>
                 </div>
 
-                <!-- SUSCRIPCIÓN SAAS INICIAL (SOLO AL CREAR NUEVA EMPRESA) -->
-                <div v-if="!isEditingCompany" v-show="companyFormTab === 'suscripcion'" class="row g-3">
+                <!-- SUSCRIPCIÓN SAAS (AL CREAR O EDITAR EMPRESA) -->
+                <div v-show="companyFormTab === 'suscripcion'" class="row g-3">
                   <div class="col-12">
                     <div class="alert alert-info py-3 d-flex align-items-center gap-2 mb-2">
                       <iconify-icon icon="solar:shield-check-bold-duotone" class="fs-4 text-info flex-shrink-0"></iconify-icon>
                       <span class="fs-2">
-                        Selecciona el <strong>Plan SaaS</strong> y la vigencia para la nueva empresa. El rol <strong>Administrador (ROL-001)</strong> se creará automáticamente con acceso completo a todos los módulos activos del sistema.
+                        {{ isEditingCompany
+                           ? 'Puedes consultar o cambiar el Plan SaaS asignado a la empresa. Si cambias de plan, los módulos y roles se actualizarán y sincronizarán automáticamente.'
+                           : 'Selecciona el Plan SaaS y la vigencia para la nueva empresa. El rol Administrador (ROL-001) se creará automáticamente con acceso completo a los módulos de dicho plan.' }}
                       </span>
                     </div>
                   </div>
 
                   <div class="col-md-6">
-                    <label class="form-label text-secondary fs-2 fw-semibold">Plan SaaS Inicial *</label>
+                    <label class="form-label text-secondary fs-2 fw-semibold">{{ isEditingCompany ? 'Plan SaaS Asignado *' : 'Plan SaaS Inicial *' }}</label>
                     <AppSelect2
                       v-model="formCompanySubscription.planId"
                       :options="planSelectOptions"
