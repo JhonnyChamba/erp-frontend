@@ -72,6 +72,7 @@
                           :to="sub.url"
                           class="sidebar-sublink"
                           :class="{ active: isSubActive(sub.url) }"
+                          @click="mobileSidebarOpen = false"
                         >
                           <span class="sidebar-icon"></span>
                           <span class="hide-menu">{{ sub.description }}</span>
@@ -86,6 +87,7 @@
                       :to="getDirectModuleUrl(mod)"
                       class="sidebar-link info-hover-bg"
                       :class="{ active: route.path === getDirectModuleUrl(mod) || route.path.startsWith(getDirectModuleUrl(mod) + '/') }"
+                      @click="mobileSidebarOpen = false"
                     >
                       <span class="aside-icon p-2 bg-info-subtle rounded-1 text-info">
                         <iconify-icon :icon="mod.icon || 'solar:chart-square-bold-duotone'" class="fs-6"></iconify-icon>
@@ -138,6 +140,7 @@
                         :to="sub.url"
                         class="sidebar-sublink"
                         :class="{ active: isSubActive(sub.url) }"
+                        @click="mobileSidebarOpen = false"
                       >
                         <span class="sidebar-icon"></span>
                         <span class="hide-menu">{{ sub.description }}</span>
@@ -415,7 +418,9 @@ const toggleModule = (moduleCode: string) => {
 }
 
 const handlePopState = () => {
-  window.history.pushState(null, '', window.location.href)
+  if (mobileSidebarOpen.value) {
+    mobileSidebarOpen.value = false
+  }
 }
 
 const handleResize = () => {
@@ -436,27 +441,19 @@ onMounted(async () => {
   handleResize()
   window.addEventListener('resize', handleResize)
   await authStore.fetchCompanyAccess()
-  window.history.pushState(null, '', window.location.href)
   window.addEventListener('popstate', handlePopState)
 })
 
 watch(
   () => route.fullPath,
   () => {
+    mobileSidebarOpen.value = false
     const menu = authStore.accessInfo?.menu || []
     for (const mod of menu) {
       if (mod.children?.some((sub) => isSubActive(sub.url))) {
         openModules[mod.code] = true
       }
     }
-  }
-)
-
-// Cerrar automáticamente el menú móvil al navegar
-watch(
-  () => route.path,
-  () => {
-    mobileSidebarOpen.value = false
   }
 )
 

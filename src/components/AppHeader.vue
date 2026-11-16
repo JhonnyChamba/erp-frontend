@@ -284,6 +284,23 @@ const changeCompany = () => {
                 <span class="d-block fw-bold fs-3" style="color: var(--bs-text-title);">{{ userName }}</span>
                 <small class="text-muted">{{ activeRoleLabel }}</small>
               </div>
+
+              <!-- Contexto de empresa en vista móvil -->
+              <div class="d-md-none px-3 py-2 border-bottom" style="border-color: var(--bs-border-color) !important;">
+                <small class="text-muted d-block">Empresa activa</small>
+                <span class="d-block fw-bold fs-3 text-truncate" style="color: var(--bs-text-title); max-width: 220px;">{{ companyLabel }}</span>
+                <small class="text-info d-block">{{ branchLabel }}</small>
+                <small class="text-muted d-block mb-1">Ambiente: {{ isProduction ? 'Producción' : 'Pruebas' }}</small>
+                <button
+                  v-if="authStore.canSwitchCompany"
+                  type="button"
+                  class="btn btn-sm btn-outline-primary rounded-pill mt-1 w-100 d-flex align-items-center justify-content-center gap-1"
+                  @click="changeCompany"
+                >
+                  <iconify-icon icon="solar:buildings-3-line-duotone"></iconify-icon>
+                  <span>Cambiar Empresa</span>
+                </button>
+              </div>
               <router-link
                 v-if="isSuperAdmin"
                 to="/configuracion-global"

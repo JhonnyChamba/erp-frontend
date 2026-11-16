@@ -2438,18 +2438,30 @@ const getSubModuleNameById = (subModId: number) => {
   const found = allSubModulesList.value.find((sm) => sm.id === subModId)
   return found ? found.description : `Submódulo #${subModId}`
 }
+
+const mobileSidebarOpen = ref(false)
 </script>
 
 <template>
-  <div id="main-wrapper" class="d-flex">
+  <div id="main-wrapper" class="d-flex" :class="{ 'show-sidebar': mobileSidebarOpen }">
+    <!-- TELÓN OSCURO DE FONDO EN MÓVIL (BACKDROP) -->
+    <div
+      v-if="mobileSidebarOpen"
+      class="dark-transparent"
+      @click="mobileSidebarOpen = false"
+    ></div>
+
     <!-- Sidebar Propio de Super Admin (Estilo Listado de Empresas) -->
     <aside class="left-sidebar with-vertical d-flex flex-column justify-content-between">
       <div class="d-flex flex-column flex-grow-1" style="min-height: 0;">
-        <div class="brand-logo flex-shrink-0 d-flex align-items-center p-3 border-bottom border-translucent">
+        <div class="brand-logo flex-shrink-0 d-flex align-items-center justify-content-between p-3 border-bottom border-translucent">
           <router-link to="/companies?cambiar=true" class="text-nowrap logo-img d-flex align-items-center text-decoration-none">
             <img src="/controller/images/logos/logo-dark.svg" class="dark-logo" alt="Deskounta Logo" height="34" />
             <img src="/controller/images/logos/logo-light.svg" class="light-logo" alt="Deskounta Logo" height="34" />
           </router-link>
+          <button class="btn btn-link text-body p-0 d-xl-none" @click="mobileSidebarOpen = false" title="Cerrar panel">
+            <iconify-icon icon="solar:close-circle-line-duotone" class="fs-6"></iconify-icon>
+          </button>
         </div>
 
         <!-- Perfil Super Admin -->
@@ -2510,6 +2522,15 @@ const getSubModuleNameById = (subModId: number) => {
         <!-- Barra Superior Flotante -->
         <div class="card rounded-4 border-0 shadow-sm p-3 mb-4 bg-navy-card d-flex flex-row justify-content-between align-items-center">
           <div class="d-flex align-items-center gap-2">
+            <button
+              type="button"
+              class="btn btn-sm btn-outline-light d-xl-none p-1 d-flex align-items-center justify-content-center me-1"
+              @click="mobileSidebarOpen = !mobileSidebarOpen"
+              title="Abrir panel lateral"
+              style="width: 34px; height: 34px;"
+            >
+              <iconify-icon icon="solar:hamburger-menu-linear" class="fs-5 text-white"></iconify-icon>
+            </button>
             <span class="p-2 bg-primary-subtle text-primary rounded-3 d-inline-flex">
               <iconify-icon icon="solar:shield-user-bold-duotone" class="fs-6"></iconify-icon>
             </span>
