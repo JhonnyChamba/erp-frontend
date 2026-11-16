@@ -138,6 +138,11 @@ export const useAuthStore = defineStore('auth', {
         }
       }
 
+      // Si la empresa solicitada es diferente a la almacenada en el estado actual, limpiar inmediatamente para evitar mezclar caché
+      if (this.accessInfo && Number(this.accessInfo.companyId) !== Number(targetCompanyId)) {
+        this.accessInfo = null
+      }
+
       this.loadingAccess = true
       try {
         const { data } = await api.get<UserCompanyAccessInfo>('/auth/access', {
@@ -147,6 +152,7 @@ export const useAuthStore = defineStore('auth', {
         return data
       } catch (err) {
         console.error('Error al cargar permisos de la empresa activa:', err)
+        this.accessInfo = null
         return null
       } finally {
         this.loadingAccess = false
@@ -157,18 +163,12 @@ export const useAuthStore = defineStore('auth', {
       if (this.accessInfo) {
         return this.accessInfo.moduleCodes.some((c) => c.toUpperCase() === code.toUpperCase())
       }
-      if (this.tokenPayload?.super_admin || this.tokenPayload?.developer) {
-        return true
-      }
       return false
     },
 
     hasSubModuleAccess(code: string): boolean {
       if (this.accessInfo) {
         return this.accessInfo.subModuleCodes.some((c) => c.toUpperCase() === code.toUpperCase())
-      }
-      if (this.tokenPayload?.super_admin || this.tokenPayload?.developer) {
-        return true
       }
       return false
     },
@@ -194,6 +194,42 @@ export const useAuthStore = defineStore('auth', {
       }
 
       if (this.accessInfo) {
+        // Validación específica para /configuracion y sus pestañas
+        if (cleanTarget === '/configuracion' || cleanTarget.startsWith('/configuracion?')) {
+          const tabParam = new URLSearchParams(cleanTarget.split('?')[1] || '').get('tab')
+          if (!tabParam) {
+            return this.accessInfo.allowedUrls.some((u) => u.toLowerCase().startsWith('/configuracion'))
+          }
+          return this.accessInfo.allowedUrls.some((u) => {
+            const uLower = u.toLowerCase()
+            return uLower.includes(`tab=${tabParam.toLowerCase()}`)
+          })
+        }
+
+        // Validación específica para /inventario y sus pestañas
+        if (cleanTarget === '/inventario' || cleanTarget.startsWith('/inventario?')) {
+          const tabParam = new URLSearchParams(cleanTarget.split('?')[1] || '').get('tab')
+          if (!tabParam) {
+            return this.accessInfo.allowedUrls.some((u) => u.toLowerCase().startsWith('/inventario'))
+          }
+          return this.accessInfo.allowedUrls.some((u) => {
+            const uLower = u.toLowerCase()
+            return uLower.includes(`tab=${tabParam.toLowerCase()}`)
+          })
+        }
+
+        // Validación específica para /contactos y sus pestañas
+        if (cleanTarget === '/contactos' || cleanTarget.startsWith('/contactos?')) {
+          const tabParam = new URLSearchParams(cleanTarget.split('?')[1] || '').get('tab')
+          if (!tabParam) {
+            return this.accessInfo.allowedUrls.some((u) => u.toLowerCase().startsWith('/contactos'))
+          }
+          return this.accessInfo.allowedUrls.some((u) => {
+            const uLower = u.toLowerCase()
+            return uLower.includes(`tab=${tabParam.toLowerCase()}`)
+          })
+        }
+
         return this.accessInfo.allowedUrls.some((u) => {
           const cleanAllowed = (u || '').trim().toLowerCase()
           if (!cleanAllowed) return false
@@ -209,10 +245,7 @@ export const useAuthStore = defineStore('auth', {
           return targetBasePath === basePath || targetBasePath.startsWith(basePath + '/')
         })
       }
-      if (this.tokenPayload?.super_admin || this.tokenPayload?.developer) {
-        return true
-      }
-      return true
+      return false
     },
 
     logout() {

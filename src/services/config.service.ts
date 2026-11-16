@@ -123,6 +123,7 @@ export interface PlanItem {
   max_branches: number
   enabled?: boolean
   moduleIds?: number[]
+  subModuleIds?: number[]
 }
 
 export interface SubscriptionItem {
@@ -279,8 +280,26 @@ export const createPlan = async (payload: {
   max_users: number
   max_branches: number
   moduleIds?: number[]
+  subModuleIds?: number[]
 }) => {
   const { data } = await api.post('/plans/register', payload)
+  return data
+}
+
+export const updatePlan = async (
+  id: number,
+  payload: {
+    price?: string
+    billing_cycle?: string
+    description?: string
+    max_users?: number
+    max_branches?: number
+    enabled?: boolean
+    moduleIds?: number[]
+    subModuleIds?: number[]
+  }
+) => {
+  const { data } = await api.patch(`/plans/${id}`, payload)
   return data
 }
 

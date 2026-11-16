@@ -158,6 +158,15 @@ const routes = [
         redirect: '/talento-humano/empleados'
       },
       {
+        path: 'servicio-tecnico',
+        name: 'servicio-tecnico',
+        component: () => import('@/views/technical-service/WorkOrdersView.vue')
+      },
+      {
+        path: 'servicio-tecnico/ordenes',
+        redirect: '/servicio-tecnico'
+      },
+      {
         path: ':moduleSlug/:subSlug',
         name: 'dynamic-submodule',
         component: () => import('@/views/sales/InvoiceView.vue')
@@ -274,7 +283,8 @@ router.beforeEach(async (to, from) => {
     // Validación de permisos por URL según el rol
     if (to.path !== '/dashboard' && authStore.accessInfo && !authStore.canAccessUrl(to.fullPath)) {
       console.warn(`[Guardia de Navegación] Acceso denegado a la ruta: ${to.fullPath}`)
-      return { path: '/companies' }
+      toast.warning('No tienes permisos en esta empresa para acceder a esta sección.')
+      return { path: '/dashboard' }
     }
   }
 })
