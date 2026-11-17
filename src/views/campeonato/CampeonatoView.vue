@@ -132,46 +132,91 @@
                 </select>
               </div>
 
-              <!-- Días de Juego -->
+              <!-- Días de Juego y Horarios por Día -->
               <div class="col-12">
-                <div class="d-flex align-items-center justify-content-between mb-2 flex-wrap gap-2">
-                  <label class="form-label fw-semibold small text-secondary mb-0">Días Habilitados para Jugar</label>
+                <div class="d-flex align-items-center justify-content-between mb-3 flex-wrap gap-2">
+                  <div>
+                    <label class="form-label fw-bold small text-body-emphasis mb-0">Días y Horarios Específicos por Día de Juego</label>
+                    <p class="text-muted small mb-0">Personaliza la hora del primer y último partido independientemente para cada día (ej. viernes nocturno, sábados y domingos diurnos).</p>
+                  </div>
                   <div class="btn-group btn-group-sm">
-                    <button type="button" class="btn btn-outline-secondary" @click="setQuickDays('weekends')">Fines de Semana</button>
+                    <button type="button" class="btn btn-outline-secondary" @click="setQuickDays('weekend_fri')">Vie, Sáb y Dom</button>
+                    <button type="button" class="btn btn-outline-secondary" @click="setQuickDays('weekend_std')">Sáb y Dom</button>
                     <button type="button" class="btn btn-outline-secondary" @click="setQuickDays('weekdays')">Entre Semana</button>
                     <button type="button" class="btn btn-outline-secondary" @click="setQuickDays('all')">Todos</button>
+                    <button type="button" class="btn btn-outline-secondary text-danger" @click="setQuickDays('none')">Desactivar</button>
                   </div>
                 </div>
 
-                <div class="d-flex flex-wrap gap-2">
-                  <button
+                <!-- Lista de Días con Horario Individual -->
+                <div class="d-flex flex-column gap-2 mb-3">
+                  <div
                     v-for="day in weekDaysList"
                     :key="day.key"
-                    type="button"
-                    class="btn rounded-pill px-3 py-1-5 d-flex align-items-center gap-1 fw-semibold fs-2"
-                    :class="scheduleConfig.gameDays.includes(day.key) ? 'btn-primary text-white shadow-sm' : 'btn-outline-secondary text-secondary'"
-                    @click="toggleGameDay(day.key)"
+                    class="card p-3 border rounded-3 transition-all"
+                    :class="scheduleConfig.dailySchedules[day.key]?.enabled ? 'bg-body border-primary-subtle shadow-sm' : 'bg-body-tertiary opacity-75'"
                   >
-                    <iconify-icon :icon="scheduleConfig.gameDays.includes(day.key) ? 'solar:check-circle-bold' : 'solar:circle-linear'"></iconify-icon>
-                    <span>{{ day.label }}</span>
-                  </button>
-                </div>
-              </div>
+                    <div v-if="scheduleConfig.dailySchedules[day.key]" class="d-flex align-items-center justify-content-between flex-wrap gap-3">
+                      <!-- Switch y Nombre del Día -->
+                      <div class="d-flex align-items-center gap-2" style="min-width: 170px;">
+                        <div class="form-check form-switch mb-0">
+                          <input
+                            class="form-check-input cursor-pointer"
+                            type="checkbox"
+                            :id="'switch_day_' + day.key"
+                            v-model="scheduleConfig.dailySchedules[day.key]!.enabled"
+                          />
+                        </div>
+                        <label :for="'switch_day_' + day.key" class="form-check-label fw-bold mb-0 cursor-pointer text-body-emphasis">
+                          {{ day.label }}
+                        </label>
+                        <span
+                          class="badge ms-1 font-monospace"
+                          :class="scheduleConfig.dailySchedules[day.key]!.enabled ? 'bg-success-subtle text-success' : 'bg-secondary-subtle text-secondary'"
+                        >
+                          {{ scheduleConfig.dailySchedules[day.key]!.enabled ? 'Activo' : 'Inactivo' }}
+                        </span>
+                      </div>
 
-              <!-- Horas de la Jornada -->
-              <div class="col-md-6">
-                <label class="form-label fw-semibold small text-secondary">Hora Inicio Primer Partido</label>
-                <div class="input-group">
-                  <span class="input-group-text"><iconify-icon icon="solar:sunrise-bold-duotone"></iconify-icon></span>
-                  <input type="time" v-model="scheduleConfig.startTime" class="form-control" required />
-                </div>
-              </div>
+                      <!-- Inputs de Horas (Solo si el día está habilitado) -->
+                      <div v-if="scheduleConfig.dailySchedules[day.key]!.enabled" class="d-flex align-items-center gap-3 flex-wrap flex-grow-1 justify-content-md-end">
+                        <div class="d-flex align-items-center gap-1">
+                          <span class="small text-muted fw-semibold" style="white-space: nowrap;">1er Partido:</span>
+                          <div class="input-group input-group-sm" style="width: 135px;">
+                            <span class="input-group-text"><iconify-icon icon="solar:sunrise-bold-duotone"></iconify-icon></span>
+                            <input
+                              type="time"
+                              v-model="scheduleConfig.dailySchedules[day.key]!.startTime"
+                              class="form-control"
+                              required
+                            />
+                          </div>
+                        </div>
 
-              <div class="col-md-6">
-                <label class="form-label fw-semibold small text-secondary">Hora Límite Último Partido</label>
-                <div class="input-group">
-                  <span class="input-group-text"><iconify-icon icon="solar:sunset-bold-duotone"></iconify-icon></span>
-                  <input type="time" v-model="scheduleConfig.endTime" class="form-control" required />
+                        <div class="d-flex align-items-center gap-1">
+                          <span class="small text-muted fw-semibold" style="white-space: nowrap;">Último Partido:</span>
+                          <div class="input-group input-group-sm" style="width: 135px;">
+                            <span class="input-group-text"><iconify-icon icon="solar:sunset-bold-duotone"></iconify-icon></span>
+                            <input
+                              type="time"
+                              v-model="scheduleConfig.dailySchedules[day.key]!.endTime"
+                              class="form-control"
+                              required
+                            />
+                          </div>
+                        </div>
+
+                        <div class="badge bg-primary-subtle text-primary border border-primary-subtle py-1-5 px-2 font-monospace">
+                          {{ getDayCalculation(day.key).hours }}h disp. · {{ getDayCalculation(day.key).matchesPerCourt }} partidos / cancha
+                        </div>
+                      </div>
+
+                      <!-- Mensaje de Día Desactivado -->
+                      <div v-else class="text-muted small fst-italic">
+                        Sin partidos programados para este día.
+                      </div>
+                    </div>
+                  </div>
                 </div>
               </div>
 
@@ -242,41 +287,63 @@
           <div>
             <div class="d-flex align-items-center gap-2 mb-3">
               <iconify-icon icon="solar:calculator-minimalistic-bold-duotone" class="fs-3 text-info"></iconify-icon>
-              <h5 class="fw-bold mb-0 text-body-emphasis">Capacidad y Simulación</h5>
+              <h5 class="fw-bold mb-0 text-body-emphasis">Capacidad y Simulación Semanal</h5>
             </div>
 
             <div class="card p-3 mb-3 border-0 bg-primary-subtle text-primary rounded-3">
               <div class="d-flex justify-content-between align-items-center mb-1">
-                <span class="small fw-semibold">Jornada Disponible</span>
-                <span class="fw-bold font-monospace">{{ scheduleCalculation.totalHoursPerDay }} horas / día</span>
+                <span class="small fw-semibold">Horas Disponibles Semanales</span>
+                <span class="fw-bold font-monospace">{{ scheduleCalculation.totalHoursWeek }} horas / sem</span>
               </div>
               <div class="d-flex justify-content-between align-items-center mb-1">
                 <span class="small fw-semibold">Franja x Partido</span>
                 <span class="fw-bold font-monospace">{{ scheduleCalculation.slotMinutes }} min ({{ scheduleConfig.matchDurationMinutes }}m + {{ scheduleConfig.intervalMinutes }}m)</span>
               </div>
+              <div class="d-flex justify-content-between align-items-center mb-1">
+                <span class="small fw-semibold">Días con Jornada Activa</span>
+                <span class="badge bg-primary text-white font-monospace">{{ scheduleCalculation.activeDaysCount }} de 7 días</span>
+              </div>
               <div class="d-flex justify-content-between align-items-center">
-                <span class="small fw-semibold">Días Activos</span>
-                <span class="badge bg-primary text-white font-monospace">{{ scheduleCalculation.activeDaysCount }} días / sem</span>
+                <span class="small fw-semibold">Canchas Habilitadas</span>
+                <span class="badge bg-info text-white font-monospace">{{ scheduleCalculation.courtsCount }} cancha(s)</span>
               </div>
             </div>
 
             <div class="row g-2 text-center mb-3">
-              <div class="col-6">
+              <div class="col-12">
                 <div class="p-3 border rounded-3 bg-body">
-                  <span class="text-muted small d-block mb-1">Partidos x Cancha / Día</span>
-                  <h3 class="fw-bold text-success mb-0 font-monospace">{{ scheduleCalculation.matchesPerCourtPerDay }}</h3>
+                  <span class="text-muted small d-block mb-1">Capacidad Total de Partidos x Semana</span>
+                  <h2 class="fw-bold text-primary mb-0 font-monospace">{{ scheduleCalculation.totalMatchesPerWeek }} <small class="fs-6 text-muted fw-normal">partidos / sem</small></h2>
                 </div>
               </div>
-              <div class="col-6">
-                <div class="p-3 border rounded-3 bg-body">
-                  <span class="text-muted small d-block mb-1">Total x Semana</span>
-                  <h3 class="fw-bold text-primary mb-0 font-monospace">{{ scheduleCalculation.totalMatchesPerWeek }}</h3>
+            </div>
+
+            <!-- Desglose por Día Activo -->
+            <div class="mb-3">
+              <label class="form-label small fw-bold text-body-emphasis mb-2">Desglose Diario de Capacidad:</label>
+              <div v-if="scheduleCalculation.breakdown.length === 0" class="text-muted small p-2 border rounded bg-body">
+                No hay días habilitados. Activa al menos un día para calcular la capacidad deportiva.
+              </div>
+              <div v-else class="d-flex flex-column gap-1">
+                <div
+                  v-for="item in scheduleCalculation.breakdown"
+                  :key="item.key"
+                  class="d-flex align-items-center justify-content-between p-2 border rounded bg-body small"
+                >
+                  <div class="d-flex align-items-center gap-2">
+                    <span class="fw-bold text-body-emphasis" style="min-width: 75px;">{{ item.label }}</span>
+                    <span class="badge bg-secondary-subtle text-secondary font-monospace">{{ item.startTime }} - {{ item.endTime }}</span>
+                  </div>
+                  <div class="text-end">
+                    <span class="fw-bold text-success font-monospace">{{ item.matchesPerCourt }} part. x cancha</span>
+                    <span class="text-muted ms-1">({{ item.matchesAllCourts }} tot.)</span>
+                  </div>
                 </div>
               </div>
             </div>
 
             <p class="text-muted small mb-0">
-              💡 <strong>Regla deportiva:</strong> Estos parámetros son utilizados automáticamente por el <strong>Generador de Fixture</strong> para programar los encuentros sin solapamiento de canchas y respetando los intervalos de descanso.
+              💡 <strong>Regla deportiva:</strong> Cada día tiene su propio horario independiente. El <strong>Generador de Fixture</strong> y la asignación de árbitros y vocales respetarán estos rangos exactos por cada día de la semana.
             </p>
           </div>
 
@@ -467,7 +534,26 @@
                   >
                     <iconify-icon icon="solar:shield-bold-duotone" class="fs-5 text-secondary"></iconify-icon>
                   </div>
-                  <span class="text-body-emphasis fw-bold">{{ item.name }}</span>
+                  <div class="d-flex align-items-center gap-2">
+                    <span class="text-body-emphasis fw-bold">{{ item.name }}</span>
+                    <div v-if="item.color1 || item.color2 || item.colorAlternate" class="d-inline-flex align-items-center gap-1" title="Colores del club">
+                      <span
+                        v-if="item.color1"
+                        class="rounded-circle border shadow-xs"
+                        :style="{ backgroundColor: item.color1, width: '12px', height: '12px', display: 'inline-block' }"
+                      ></span>
+                      <span
+                        v-if="item.color2"
+                        class="rounded-circle border shadow-xs"
+                        :style="{ backgroundColor: item.color2, width: '12px', height: '12px', display: 'inline-block' }"
+                      ></span>
+                      <span
+                        v-if="item.colorAlternate"
+                        class="rounded-circle border shadow-xs"
+                        :style="{ backgroundColor: item.colorAlternate, width: '12px', height: '12px', display: 'inline-block' }"
+                      ></span>
+                    </div>
+                  </div>
                 </div>
 
                 <!-- Nombre de Jugador con Foto Oficial -->
@@ -601,6 +687,43 @@
                   </span>
                 </span>
 
+                <!-- Detalle de Categorías en Ediciones de Torneo -->
+                <span v-else-if="activeTab === 'categoryEditions' && col.key === 'categoriesDetail'">
+                  <div v-if="item.categoriesDetail && item.categoriesDetail.length" class="d-flex flex-wrap gap-1">
+                    <span
+                      v-for="det in item.categoriesDetail"
+                      :key="det.id || det.categoryId"
+                      class="badge bg-primary-subtle text-primary border border-primary-subtle px-2 py-1"
+                      :title="'Inicio: ' + (det.startDate ? new Date(det.startDate).toLocaleDateString() : 'N/A') + ' | Fin: ' + (det.endDate ? new Date(det.endDate).toLocaleDateString() : 'N/A')"
+                    >
+                      ⚽ {{ det.categoryDescription || det.category?.name || 'Categoría' }}
+                      <span v-if="det.registrationFee" class="text-success ms-1 fw-bold">(${{ Number(det.registrationFee).toFixed(2) }})</span>
+                    </span>
+                  </div>
+                  <span v-else-if="item.category?.name" class="badge bg-secondary-subtle text-secondary px-2 py-1">
+                    {{ item.category.name }}
+                  </span>
+                  <span v-else class="text-muted small">Sin categorías en detalle</span>
+                </span>
+
+                <!-- Estado en Ediciones de Torneo -->
+                <span v-else-if="activeTab === 'categoryEditions' && col.key === 'status'">
+                  <span class="badge bg-success-subtle text-success border border-success-subtle font-monospace px-2 py-1">
+                    🟢 {{ item.status === 'IN_PROGRESS' || !item.status ? 'Activo / En Curso' : item.status }}
+                  </span>
+                </span>
+
+                <!-- Clasificación de Futbolistas -->
+                <span v-else-if="col.key === 'playerClassification.description'">
+                  <span
+                    v-if="item.playerClassification?.description"
+                    class="badge bg-info-subtle text-info border border-info-subtle font-monospace px-2 py-1"
+                  >
+                    🏷️ {{ item.playerClassification.description }}
+                  </span>
+                  <span v-else class="text-muted small">Sin clasificar</span>
+                </span>
+
                 <!-- Badge para Código de Carnet -->
                 <span v-else-if="col.key === 'carnetCode'">
                   <span class="badge bg-secondary-subtle text-body-emphasis font-monospace border">
@@ -653,6 +776,12 @@
                     <li v-if="activeTab === 'playerRegistrations'"><hr class="dropdown-divider"></li>
 
                     <!-- Acciones directas desde la fila de Equipos -->
+                    <li v-if="activeTab === 'teams'">
+                      <a class="dropdown-item py-2 text-warning d-flex align-items-center gap-2" href="javascript:void(0)" @click="openTeamManagementModal(item)">
+                        <iconify-icon icon="solar:users-group-rounded-bold-duotone" class="fs-5 text-warning"></iconify-icon>
+                        <span>Directorio del Club</span>
+                      </a>
+                    </li>
                     <li v-if="activeTab === 'teams'">
                       <a class="dropdown-item py-2 text-primary d-flex align-items-center gap-2" href="javascript:void(0)" @click="openTeamCategoryHistory(item)">
                         <iconify-icon icon="solar:history-bold-duotone" class="fs-5 text-primary"></iconify-icon>
@@ -807,6 +936,29 @@
               </div>
             </div>
 
+            <!-- TARJETA DE ACCESO RÁPIDO AL DIRECTORIO DEL CLUB -->
+            <div v-if="activeTab === 'teams' && isEditing && formData.id" class="card p-3 mb-4 border rounded-3 bg-body-tertiary">
+              <div class="d-flex align-items-center justify-content-between flex-wrap gap-2">
+                <div class="d-flex align-items-center gap-3">
+                  <div class="rounded-circle bg-warning-subtle text-warning d-flex align-items-center justify-content-center" style="width: 48px; height: 48px;">
+                    <iconify-icon icon="solar:users-group-rounded-bold-duotone" class="fs-2"></iconify-icon>
+                  </div>
+                  <div>
+                    <h6 class="fw-bold mb-1 text-body-emphasis">Directorio y Representantes del Club</h6>
+                    <p class="text-muted small mb-0">Administra a los directivos registrados para {{ formData.name }}: Presidente, Vicepresidente, Vocales, etc.</p>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  class="btn btn-warning text-dark rounded-pill px-4 fw-semibold d-inline-flex align-items-center gap-2 shadow-sm"
+                  @click="openTeamManagementModal(formData)"
+                >
+                  <iconify-icon icon="solar:users-group-two-rounded-bold" class="fs-5"></iconify-icon>
+                  <span>Directorio del Club</span>
+                </button>
+              </div>
+            </div>
+
             <!-- SECCIÓN ESPECIAL: CARGA DE FOTO PARA JUGADORES -->
             <div v-if="activeTab === 'players'" class="card p-3 mb-4 border rounded-3 bg-body-tertiary">
               <div class="d-flex align-items-center gap-3 flex-wrap">
@@ -898,6 +1050,38 @@
                   class="form-control"
                   :placeholder="field.placeholder || ''"
                 />
+                <!-- Selector de Color con Hexadecimal y Vista Previa Interactiva -->
+                <div v-else-if="field.type === 'color'" class="input-group">
+                  <span class="input-group-text p-1 bg-body-tertiary">
+                    <input
+                      type="color"
+                      :value="isValidHex(formData[field.key]) ? formData[field.key] : '#1E40AF'"
+                      @input="(e: any) => formData[field.key] = e.target.value.toUpperCase()"
+                      class="form-control form-control-color border-0 p-0 cursor-pointer"
+                      style="width: 34px; height: 32px; border-radius: 6px;"
+                      :title="'Elegir paleta para ' + field.label"
+                    />
+                  </span>
+                  <input
+                    type="text"
+                    v-model="formData[field.key]"
+                    class="form-control font-monospace text-uppercase"
+                    :placeholder="field.placeholder || '#000000'"
+                    maxlength="7"
+                    @input="(e: any) => { if (e.target.value && !e.target.value.startsWith('#')) formData[field.key] = '#' + e.target.value }"
+                  />
+                  <span
+                    class="input-group-text px-3"
+                    :style="{
+                      backgroundColor: isValidHex(formData[field.key]) ? formData[field.key] : 'transparent',
+                      color: getContrastColor(formData[field.key]),
+                      borderColor: 'var(--bs-border-color)'
+                    }"
+                    title="Muestra del color seleccionado"
+                  >
+                    <iconify-icon icon="solar:paint-roller-bold" class="fs-5"></iconify-icon>
+                  </span>
+                </div>
                 <AppSelect2
                   v-else-if="field.type === 'select'"
                   v-model="formData[field.key]"
@@ -911,6 +1095,163 @@
                     {{ formData[field.key] ? 'Habilitado / Activo' : 'Deshabilitado / Inactivo' }}
                   </label>
                 </div>
+              </div>
+            </div>
+
+            <!-- ======================================================== -->
+            <!-- SECCIÓN MAESTRO-DETALLE: CATEGORÍAS DE LA EDICIÓN        -->
+            <!-- ======================================================== -->
+            <div v-if="activeTab === 'categoryEditions'" class="card p-3 mt-4 border rounded-3 bg-body-tertiary">
+              <div class="d-flex align-items-center justify-content-between mb-3 flex-wrap gap-2">
+                <div>
+                  <h6 class="fw-bold mb-1 text-body-emphasis d-flex align-items-center gap-2">
+                    <iconify-icon icon="solar:widget-add-bold-duotone" class="fs-4 text-primary"></iconify-icon>
+                    <span>Detalle de Categorías del Torneo (Edición de Torneo Detalle Categorías)</span>
+                  </h6>
+                  <p class="text-muted small mb-0">
+                    Agrega las categorías que competirán en esta edición, con sus fechas oficiales y costo de inscripción.
+                  </p>
+                </div>
+                <span class="badge bg-primary-subtle text-primary border border-primary-subtle px-3 py-2 fw-semibold">
+                  {{ editionCategoriesDetail.length }} Categoría(s) Agregada(s)
+                </span>
+              </div>
+
+              <!-- Mini-formulario para agregar categoría al detalle -->
+              <div class="card p-3 mb-3 border border-secondary-subtle rounded-3 bg-body">
+                <div class="row g-3 align-items-end">
+                  <div class="col-md-3">
+                    <label class="form-label text-secondary small fw-semibold">Categoría <span class="text-danger">*</span></label>
+                    <select v-model="editionDetailInput.categoryId" class="form-select">
+                      <option value="" disabled>Seleccione una categoría...</option>
+                      <option v-for="cat in categoriesList" :key="cat.id" :value="cat.id">
+                        {{ cat.name }} ({{ cat.gender === 'MALE' ? 'Varones' : cat.gender === 'FEMALE' ? 'Mujeres' : 'Mixto' }})
+                      </option>
+                    </select>
+                  </div>
+                  <div class="col-md-2">
+                    <label class="form-label text-secondary small fw-semibold">Fecha de Inicio</label>
+                    <input type="date" v-model="editionDetailInput.startDate" class="form-control" />
+                  </div>
+                  <div class="col-md-2">
+                    <label class="form-label text-secondary small fw-semibold">Fecha Fin</label>
+                    <input type="date" v-model="editionDetailInput.endDate" class="form-control" />
+                  </div>
+                  <div class="col-md-2">
+                    <label class="form-label text-secondary small fw-semibold">Costo Inscripción ($)</label>
+                    <input
+                      type="number"
+                      step="0.01"
+                      min="0"
+                      v-model.number="editionDetailInput.registrationFee"
+                      class="form-control"
+                      placeholder="0.00"
+                    />
+                  </div>
+                  <div class="col-md-3">
+                    <label class="form-label text-secondary small fw-semibold">Máx. Jugadores Inscritos <span class="text-danger">*</span></label>
+                    <input
+                      type="number"
+                      min="1"
+                      v-model.number="editionDetailInput.maxPlayers"
+                      class="form-control font-monospace"
+                      placeholder="Ej. 30"
+                      required
+                    />
+                  </div>
+                  <div class="col-12 text-end">
+                    <button
+                      type="button"
+                      class="btn btn-primary rounded-pill px-4 d-inline-flex align-items-center gap-2"
+                      @click="addCategoryToEditionDetail"
+                    >
+                      <iconify-icon icon="solar:add-circle-bold" class="fs-5"></iconify-icon>
+                      <span>Agregar Categoría al Detalle</span>
+                    </button>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Tabla interactiva con el detalle de categorías -->
+              <div class="table-responsive border rounded-3 bg-body">
+                <table class="table table-hover align-middle mb-0">
+                  <thead class="table-light">
+                    <tr>
+                      <th style="width: 45px;">#</th>
+                      <th>Categoría</th>
+                      <th>Fechas Inicio / Fin</th>
+                      <th>Costo Inscripción</th>
+                      <th>Máximo Jugadores</th>
+                      <th>Clasificaciones de Futbolistas</th>
+                      <th class="text-end" style="width: 70px;">Acción</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr v-for="(item, idx) in editionCategoriesDetail" :key="idx">
+                      <td class="fw-bold text-muted">{{ idx + 1 }}</td>
+                      <td>
+                        <span class="fw-bold text-body-emphasis d-block">
+                          🏆 {{ item.categoryDescription || getCategoryNameById(item.categoryId) }}
+                        </span>
+                        <small class="text-muted font-monospace">ID: {{ item.categoryId?.substring(0, 8) }}...</small>
+                      </td>
+                      <td>
+                        <div class="small font-monospace">
+                          <span class="d-block text-secondary">🟢 Inicio: {{ item.startDate || 'No def.' }}</span>
+                          <span class="d-block text-muted">🔴 Fin: {{ item.endDate || 'No def.' }}</span>
+                        </div>
+                      </td>
+                      <td>
+                        <span class="badge bg-success-subtle text-success border border-success-subtle fw-bold font-monospace">
+                          ${{ Number(item.registrationFee || 0).toFixed(2) }}
+                        </span>
+                      </td>
+                      <td>
+                        <span class="badge bg-primary-subtle text-primary border border-primary-subtle font-monospace px-2 py-1 fs-3">
+                          👥 Máx. {{ item.maxPlayers || 25 }} inscritos
+                        </span>
+                      </td>
+                      <td>
+                        <div class="d-flex flex-column gap-1">
+                          <button
+                            type="button"
+                            class="btn btn-sm rounded-pill px-3 py-1 d-inline-flex align-items-center gap-1 w-auto"
+                            :class="item.classifications && item.classifications.length ? 'btn-outline-primary' : 'btn-outline-secondary'"
+                            @click="openCategoryClassificationsModal(item, idx)"
+                          >
+                            <iconify-icon icon="solar:user-check-bold-duotone" class="fs-5"></iconify-icon>
+                            <span>{{ item.classifications && item.classifications.length ? (item.classifications.length + ' Clasif. Asignadas (' + getSumClassifications(item) + '/' + (item.maxPlayers || 25) + ')') : '+ Configurar Clasificaciones' }}</span>
+                          </button>
+                          <div v-if="item.classifications && item.classifications.length" class="d-flex flex-wrap gap-1 mt-1">
+                            <span
+                              v-for="(c, cidx) in item.classifications"
+                              :key="cidx"
+                              class="badge bg-secondary-subtle text-secondary font-monospace px-2 py-1"
+                            >
+                              {{ c.playerClassification?.description || getPlayerClassificationDescById(c.playerClassificationId) }}: <strong>{{ c.maxPlayers }}</strong>
+                            </span>
+                          </div>
+                        </div>
+                      </td>
+                      <td class="text-end">
+                        <button
+                          type="button"
+                          class="btn btn-sm btn-outline-danger rounded-circle p-1"
+                          @click="removeCategoryFromEditionDetail(idx)"
+                          title="Quitar categoría de esta edición"
+                        >
+                          <iconify-icon icon="solar:trash-bin-trash-line-duotone" class="fs-5"></iconify-icon>
+                        </button>
+                      </td>
+                    </tr>
+                    <tr v-if="editionCategoriesDetail.length === 0">
+                      <td colspan="7" class="text-center py-4 text-muted">
+                        <iconify-icon icon="solar:info-circle-line-duotone" class="fs-3 d-block mb-1 text-secondary"></iconify-icon>
+                        Aún no se han agregado categorías al detalle de esta edición de torneo.
+                      </td>
+                    </tr>
+                  </tbody>
+                </table>
               </div>
             </div>
           </div>
@@ -1326,6 +1667,223 @@
     </div>
 
     <!-- ========================================================= -->
+    <!-- MODAL: DIRECTORIO DEL EQUIPO / CLUB                       -->
+    <!-- ========================================================= -->
+    <Teleport to="body">
+      <div
+        v-if="showTeamManagementModal && selectedTeamForManagement"
+        class="modal fade show d-block"
+        tabindex="-1"
+        style="background: rgba(0, 0, 0, 0.75); z-index: 2050;"
+        role="dialog"
+        aria-modal="true"
+      >
+      <div class="modal-dialog modal-xl modal-dialog-centered modal-dialog-scrollable">
+        <div class="modal-content border-0 shadow-lg">
+          <div class="modal-header bg-dark text-white">
+            <div class="d-flex align-items-center gap-3">
+              <img
+                v-if="selectedTeamForManagement.logo"
+                :src="selectedTeamForManagement.logo"
+                class="rounded-circle border border-2 border-white shadow-sm"
+                style="width: 38px; height: 38px; object-fit: cover;"
+              />
+              <div
+                v-else
+                class="rounded-circle bg-secondary d-flex align-items-center justify-content-center"
+                style="width: 38px; height: 38px;"
+              >
+                <iconify-icon icon="solar:shield-bold-duotone" class="fs-4 text-white"></iconify-icon>
+              </div>
+              <div>
+                <h5 class="modal-title fw-bold text-white mb-0">
+                  Directorio del Club · {{ selectedTeamForManagement.name }}
+                </h5>
+                <small class="text-white-50">Cargos oficiales del directorio del club deportivo</small>
+              </div>
+            </div>
+            <button type="button" class="btn-close btn-close-white" @click="showTeamManagementModal = false"></button>
+          </div>
+
+          <div class="modal-body p-4">
+            <!-- Formulario para agregar directivo -->
+            <div class="card p-3 mb-4 border rounded-3 bg-body-tertiary">
+              <h6 class="fw-bold mb-3 text-body-emphasis d-flex align-items-center gap-2">
+                <iconify-icon icon="solar:user-plus-bold" class="fs-4 text-warning"></iconify-icon>
+                <span>Registrar Directivo en el Club</span>
+              </h6>
+              <form @submit.prevent="saveTeamManagementRecord">
+                <div class="row g-3">
+                  <!-- Select2 quemado con los cargos oficiales -->
+                  <div class="col-md-4">
+                    <label class="form-label text-secondary small fw-semibold">Cargo Oficial <span class="text-danger">*</span></label>
+                    <select v-model="formTeamManagement.roleTitle" class="form-select" required>
+                      <option value="Presidente">Presidente</option>
+                      <option value="Vicepresidente">Vicepresidente</option>
+                      <option value="Secretario/a">Secretario/a</option>
+                      <option value="Vocal 1">Vocal 1</option>
+                      <option value="Vocal 2">Vocal 2</option>
+                      <option value="Vocal 3">Vocal 3</option>
+                      <option value="Vocal 4">Vocal 4</option>
+                    </select>
+                  </div>
+                  <div class="col-md-4">
+                    <label class="form-label text-secondary small fw-semibold">Nombres <span class="text-danger">*</span></label>
+                    <input
+                      type="text"
+                      v-model="formTeamManagement.name"
+                      class="form-control"
+                      placeholder="Ej. Juan Carlos"
+                      required
+                    />
+                  </div>
+                  <div class="col-md-4">
+                    <label class="form-label text-secondary small fw-semibold">Apellidos <span class="text-danger">*</span></label>
+                    <input
+                      type="text"
+                      v-model="formTeamManagement.lastName"
+                      class="form-control"
+                      placeholder="Ej. Pérez Gómez"
+                      required
+                    />
+                  </div>
+                  <div class="col-md-4">
+                    <label class="form-label text-secondary small fw-semibold">Cédula / Identificación <span class="text-danger">*</span></label>
+                    <input
+                      type="text"
+                      v-model="formTeamManagement.identification"
+                      class="form-control font-monospace"
+                      placeholder="1712345678"
+                      required
+                    />
+                  </div>
+                  <div class="col-md-4">
+                    <label class="form-label text-secondary small fw-semibold">Teléfono / Celular</label>
+                    <input
+                      type="text"
+                      v-model="formTeamManagement.cellphone"
+                      class="form-control"
+                      placeholder="0991234567"
+                    />
+                  </div>
+                  <div class="col-md-4">
+                    <label class="form-label text-secondary small fw-semibold">Correo Electrónico</label>
+                    <input
+                      type="email"
+                      v-model="formTeamManagement.email"
+                      class="form-control"
+                      placeholder="directivo@correo.com"
+                    />
+                  </div>
+                  <div class="col-12 text-end mt-3">
+                    <button
+                      type="submit"
+                      class="btn btn-warning text-dark fw-semibold rounded-pill px-4 d-inline-flex align-items-center gap-2"
+                      :disabled="savingTeamManagement"
+                    >
+                      <span v-if="savingTeamManagement" class="spinner-grow spinner-grow-sm" role="status"></span>
+                      <iconify-icon v-else icon="solar:check-circle-bold" class="fs-5"></iconify-icon>
+                      <span>{{ savingTeamManagement ? 'Registrando...' : 'Registrar en Directorio' }}</span>
+                    </button>
+                  </div>
+                </div>
+              </form>
+            </div>
+
+            <!-- Tabla de directivos ya registrados en este club -->
+            <div class="card border rounded-3 bg-body">
+              <div class="card-header bg-body-tertiary d-flex align-items-center justify-content-between py-2 px-3">
+                <span class="fw-bold small text-body-emphasis">Directivos Registrados ({{ teamManagementList.length }})</span>
+                <button
+                  type="button"
+                  class="btn btn-sm btn-outline-secondary rounded-pill px-2 py-0 d-flex align-items-center gap-1"
+                  @click="loadTeamManagement(selectedTeamForManagement.id)"
+                  :disabled="loadingTeamManagement"
+                >
+                  <iconify-icon icon="solar:refresh-line-duotone" :class="{ 'spin': loadingTeamManagement }"></iconify-icon>
+                  <span>Refrescar</span>
+                </button>
+              </div>
+              <div class="table-responsive">
+                <table class="table table-hover align-middle mb-0">
+                  <thead class="table-light">
+                    <tr>
+                      <th style="width: 50px;">#</th>
+                      <th>Cargo</th>
+                      <th>Nombre Completo</th>
+                      <th>Identificación</th>
+                      <th>Contacto</th>
+                      <th class="text-end" style="width: 90px;">Acciones</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr v-for="(tm, idx) in teamManagementList" :key="tm.id">
+                      <td class="fw-bold text-muted">{{ idx + 1 }}</td>
+                      <td>
+                        <span
+                          class="badge font-monospace px-2 py-1"
+                          :class="getRoleBadgeClass(tm.roleTitle)"
+                        >
+                          🎖️ {{ tm.roleTitle || tm.position?.name || 'Directivo' }}
+                        </span>
+                      </td>
+                      <td class="fw-bold text-body-emphasis">
+                        {{ tm.name }} {{ tm.lastName }}
+                      </td>
+                      <td class="font-monospace small">
+                        {{ tm.identification }}
+                      </td>
+                      <td>
+                        <div class="small">
+                          <span v-if="tm.cellphone" class="d-block text-secondary">
+                            📞 {{ tm.cellphone }}
+                          </span>
+                          <span v-if="tm.email" class="d-block text-muted">
+                            ✉️ {{ tm.email }}
+                          </span>
+                          <span v-if="!tm.cellphone && !tm.email" class="text-muted">-</span>
+                        </div>
+                      </td>
+                      <td class="text-end">
+                        <button
+                          type="button"
+                          class="btn btn-sm btn-outline-danger rounded-circle p-1"
+                          @click="deleteTeamManagementRecord(tm.id)"
+                          title="Eliminar del directorio"
+                        >
+                          <iconify-icon icon="solar:trash-bin-trash-line-duotone" class="fs-5"></iconify-icon>
+                        </button>
+                      </td>
+                    </tr>
+                    <tr v-if="teamManagementList.length === 0 && !loadingTeamManagement">
+                      <td colspan="6" class="text-center py-4 text-muted">
+                        <iconify-icon icon="solar:users-group-two-rounded-bold-duotone" class="fs-2 text-secondary d-block mb-1"></iconify-icon>
+                        No hay directivos registrados aún para este club.
+                      </td>
+                    </tr>
+                    <tr v-if="loadingTeamManagement">
+                      <td colspan="6" class="text-center py-4 text-muted">
+                        <span class="spinner-border spinner-border-sm text-primary me-2"></span>
+                        Cargando directorio...
+                      </td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+
+            <div class="modal-footer bg-body-tertiary">
+              <button type="button" class="btn btn-secondary rounded-pill px-4" @click="showTeamManagementModal = false">
+                Cerrar
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </Teleport>
+
+    <!-- ========================================================= -->
     <!-- 6. MODAL: TRANSFERENCIA DE JUGADOR                       -->
     <!-- ========================================================= -->
     <div
@@ -1558,13 +2116,233 @@
         </div>
       </div>
     </div>
+
+    <!-- ===================================================================== -->
+    <!-- MODAL: CLASIFICACIÓN DE FUTBOLISTAS POR CATEGORÍA DE LA EDICIÓN DE TORNEO -->
+    <!-- ===================================================================== -->
+    <Teleport to="body">
+      <div
+        v-if="showCategoryClassificationsModal && selectedCategoryForClassifications"
+        class="modal fade show d-block"
+        tabindex="-1"
+        style="background: rgba(0, 0, 0, 0.75); z-index: 2050;"
+        role="dialog"
+        aria-modal="true"
+      >
+        <div class="modal-dialog modal-lg modal-dialog-centered modal-dialog-scrollable">
+          <div class="modal-content border-0 shadow-lg">
+            <div class="modal-header bg-primary text-white">
+              <h5 class="modal-title fw-bold text-white d-flex align-items-center gap-2">
+                <iconify-icon icon="solar:user-check-bold-duotone" class="fs-4"></iconify-icon>
+                <span>Clasificación de Futbolistas · Categoría: {{ selectedCategoryForClassifications.categoryDescription || getCategoryNameById(selectedCategoryForClassifications.categoryId) }}</span>
+              </h5>
+              <button type="button" class="btn-close btn-close-white" @click="showCategoryClassificationsModal = false"></button>
+            </div>
+            <div class="modal-body p-4">
+              <!-- Barra de progreso y resumen de cupos -->
+              <div class="card p-3 mb-4 border rounded-3 bg-body-tertiary">
+                <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-2">
+                  <div>
+                    <h6 class="fw-bold mb-0 text-body-emphasis">Distribución del Límite de Jugadores por Equipo</h6>
+                    <small class="text-muted">
+                      Máximo de jugadores inscritos en esta categoría: <strong>{{ selectedCategoryForClassifications.maxPlayers || 25 }} futbolistas</strong>
+                    </small>
+                  </div>
+                  <div class="d-flex align-items-center gap-2">
+                    <span class="badge bg-primary fs-3 font-monospace">
+                      {{ currentCategoryClassificationsTotal }} asignados
+                    </span>
+                    <span
+                      class="badge font-monospace fs-3"
+                      :class="(selectedCategoryForClassifications.maxPlayers || 25) - currentCategoryClassificationsTotal >= 0 ? 'bg-success' : 'bg-danger'"
+                    >
+                      {{ (selectedCategoryForClassifications.maxPlayers || 25) - currentCategoryClassificationsTotal }} libres
+                    </span>
+                  </div>
+                </div>
+
+                <!-- Indicador visual -->
+                <div class="progress" style="height: 10px;">
+                  <div
+                    class="progress-bar"
+                    :class="currentCategoryClassificationsTotal > (selectedCategoryForClassifications.maxPlayers || 25) ? 'bg-danger' : 'bg-primary'"
+                    role="progressbar"
+                    :style="{ width: Math.min(100, (currentCategoryClassificationsTotal / (selectedCategoryForClassifications.maxPlayers || 25)) * 100) + '%' }"
+                  ></div>
+                </div>
+
+                <!-- Alerta si la suma supera el máximo -->
+                <div v-if="currentCategoryClassificationsTotal > (selectedCategoryForClassifications.maxPlayers || 25)" class="alert alert-danger d-flex align-items-center gap-2 mt-3 py-2 mb-0">
+                  <iconify-icon icon="solar:danger-triangle-bold" class="fs-4 text-danger"></iconify-icon>
+                  <small class="mb-0">
+                    <strong>¡Atención!</strong> La suma de las clasificaciones ({{ currentCategoryClassificationsTotal }}) no puede superar el máximo de jugadores inscritos ({{ selectedCategoryForClassifications.maxPlayers || 25 }}).
+                  </small>
+                </div>
+              </div>
+
+              <!-- Formulario para agregar una clasificación a la categoría -->
+              <form @submit.prevent="addCategoryClassificationRecord" class="card p-3 mb-4 border rounded-3 bg-body">
+                <h6 class="fw-bold mb-3 text-body-emphasis d-flex align-items-center gap-2">
+                  <iconify-icon icon="solar:add-circle-bold" class="fs-4 text-primary"></iconify-icon>
+                  <span>Asignar Clasificación y Cupo a la Categoría</span>
+                </h6>
+                <div class="row g-3 align-items-end">
+                  <div :class="isExprofessionalSelected || isJuvenileSelected ? 'col-md-5' : 'col-md-6'">
+                    <label class="form-label small fw-semibold text-secondary">Clasificación de Futbolista <span class="text-danger">*</span></label>
+                    <select v-model="formCategoryClassification.playerClassificationId" class="form-select form-select-sm" required>
+                      <option value="" disabled>Seleccione una clasificación...</option>
+                      <option
+                        v-for="pc in availableClassificationsForCurrentCategory"
+                        :key="pc.id"
+                        :value="pc.id"
+                      >
+                        {{ pc.description }} {{ pc.code ? '(' + pc.code + ')' : '' }}
+                      </option>
+                    </select>
+                  </div>
+
+                  <div :class="isExprofessionalSelected || isJuvenileSelected ? 'col-md-3' : 'col-md-4'">
+                    <label class="form-label small fw-semibold text-secondary">Cupo Máximo x Equipo <span class="text-danger">*</span></label>
+                    <div class="input-group input-group-sm">
+                      <input
+                        type="number"
+                        v-model.number="formCategoryClassification.maxPlayers"
+                        class="form-control font-monospace"
+                        min="1"
+                        placeholder="Ej. 10"
+                        required
+                      />
+                      <span class="input-group-text">jugadores</span>
+                    </div>
+                  </div>
+
+                  <!-- Campo adicional para Exprofesional: Cantidad máxima de meses de inactividad en el fútbol profesional -->
+                  <div v-if="isExprofessionalSelected" class="col-md-4">
+                    <label class="form-label small fw-semibold text-warning d-flex align-items-center gap-1">
+                      <iconify-icon icon="solar:clock-circle-bold"></iconify-icon>
+                      <span>Inactividad Fútbol Profesional <span class="text-danger">*</span></span>
+                    </label>
+                    <div class="input-group input-group-sm">
+                      <input
+                        type="number"
+                        v-model.number="formCategoryClassification.maxInactivityMonths"
+                        class="form-control font-monospace"
+                        min="1"
+                        placeholder="Ej. 12"
+                        required
+                      />
+                      <span class="input-group-text">meses máx.</span>
+                    </div>
+                  </div>
+
+                  <!-- Campo extra para Juvenil: Cantidad máxima de meses -->
+                  <div v-if="isJuvenileSelected" class="col-md-4">
+                    <label class="form-label small fw-semibold text-info d-flex align-items-center gap-1">
+                      <iconify-icon icon="solar:calendar-bold"></iconify-icon>
+                      <span>Cantidad Máxima de Meses <span class="text-danger">*</span></span>
+                    </label>
+                    <div class="input-group input-group-sm">
+                      <input
+                        type="number"
+                        v-model.number="formCategoryClassification.maxMonths"
+                        class="form-control font-monospace"
+                        min="1"
+                        placeholder="Ej. 240"
+                        required
+                      />
+                      <span class="input-group-text">meses</span>
+                    </div>
+                  </div>
+
+                  <div :class="isExprofessionalSelected || isJuvenileSelected ? 'col-md-12 text-end' : 'col-md-2'">
+                    <button
+                      type="submit"
+                      class="btn btn-primary btn-sm rounded-pill fw-semibold px-4 d-inline-flex align-items-center justify-content-center gap-1"
+                      :class="{ 'w-100': !isExprofessionalSelected && !isJuvenileSelected }"
+                    >
+                      <iconify-icon icon="solar:check-circle-bold" class="fs-5"></iconify-icon>
+                      <span>Asignar</span>
+                    </button>
+                  </div>
+                </div>
+              </form>
+
+              <!-- Tabla de clasificaciones configuradas para esta categoría -->
+              <div class="table-responsive border rounded-3">
+                <table class="table table-sm table-hover mb-0 align-middle">
+                  <thead class="table-light">
+                    <tr>
+                      <th class="ps-3">Clasificación</th>
+                      <th class="text-center">Código</th>
+                      <th class="text-center">Cantidad Máxima x Equipo</th>
+                      <th class="text-center">Condición / Parámetro Especial</th>
+                      <th class="text-end pe-3">Acciones</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr v-if="!selectedCategoryForClassifications.classifications || selectedCategoryForClassifications.classifications.length === 0">
+                      <td colspan="5" class="text-center py-4 text-muted">
+                        No hay clasificaciones específicas configuradas para esta categoría. El registro de jugadores se regirá únicamente por el límite de jugadores inscritos ({{ selectedCategoryForClassifications.maxPlayers || 25 }}).
+                      </td>
+                    </tr>
+                    <tr v-for="(item, idx) in (selectedCategoryForClassifications.classifications || [])" :key="idx">
+                      <td class="ps-3">
+                        <span class="fw-bold text-body-emphasis">
+                          🏷️ {{ item.playerClassification?.description || getPlayerClassificationDescById(item.playerClassificationId) }}
+                        </span>
+                      </td>
+                      <td class="text-center">
+                        <span class="badge bg-secondary-subtle text-secondary font-monospace">
+                          {{ item.playerClassification?.code || getPlayerClassificationCodeById(item.playerClassificationId) || '-' }}
+                        </span>
+                      </td>
+                      <td class="text-center">
+                        <span class="badge bg-primary-subtle text-primary border border-primary-subtle font-monospace px-3 py-1 fs-3">
+                          👥 Máx. {{ item.maxPlayers }} jugadores
+                        </span>
+                      </td>
+                      <td class="text-center">
+                        <span v-if="item.maxInactivityMonths" class="badge bg-warning-subtle text-warning border border-warning-subtle font-monospace px-2 py-1">
+                          ⏱️ Inactividad: máx. {{ item.maxInactivityMonths }} meses
+                        </span>
+                        <span v-else-if="item.maxMonths" class="badge bg-info-subtle text-info border border-info-subtle font-monospace px-2 py-1">
+                          📅 Límite: máx. {{ item.maxMonths }} meses
+                        </span>
+                        <span v-else class="text-muted small">
+                          -
+                        </span>
+                      </td>
+                      <td class="text-end pe-3">
+                        <button
+                          type="button"
+                          class="btn btn-outline-danger btn-sm rounded-pill px-2 py-1"
+                          @click="removeCategoryClassificationRecord(Number(idx))"
+                          title="Eliminar clasificación de esta categoría"
+                        >
+                          <iconify-icon icon="solar:trash-bin-trash-bold" class="fs-5"></iconify-icon>
+                        </button>
+                      </td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+            <div class="modal-footer bg-light">
+              <button type="button" class="btn btn-primary rounded-pill px-4 fw-semibold" @click="showCategoryClassificationsModal = false">
+                Listo / Aceptar
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </Teleport>
   </div>
 </template>
 
 <script setup lang="ts">
 import { ref, computed, onMounted, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
-import { CampeonatoApi, uploadTeamLogo, uploadPlayerPhoto } from '@/services/campeonato.service';
+import { CampeonatoApi, uploadTeamLogo, uploadPlayerPhoto, TeamManagementsService, type TeamManagementItem } from '@/services/campeonato.service';
 import { useAuthStore } from '@/stores/auth.store';
 import { toast } from '@/utils/toastr';
 import AppSelect2 from '@/components/common/AppSelect2.vue';
@@ -1599,9 +2377,9 @@ const tabs: TabConfig[] = [
       { key: 'acronyms', label: 'Siglas', type: 'text', colClass: 'col-md-4' },
       { key: 'city', label: 'Ciudad', type: 'text', colClass: 'col-md-4' },
       { key: 'neighborhood', label: 'Barrio / Sector', type: 'text', colClass: 'col-md-4' },
-      { key: 'color1', label: 'Color Principal', type: 'text', colClass: 'col-md-4', placeholder: '#FFFFFF' },
-      { key: 'color2', label: 'Color Secundario', type: 'text', colClass: 'col-md-4' },
-      { key: 'colorAlternate', label: 'Uniforme Alterno', type: 'text', colClass: 'col-md-4', placeholder: '#000000' },
+      { key: 'color1', label: 'Color Principal', type: 'color', colClass: 'col-md-4', placeholder: '#FFFFFF' },
+      { key: 'color2', label: 'Color Secundario', type: 'color', colClass: 'col-md-4', placeholder: '#000000' },
+      { key: 'colorAlternate', label: 'Uniforme Alterno', type: 'color', colClass: 'col-md-4', placeholder: '#1E40AF' },
       { key: 'dateOfFoundation', label: 'Fecha de Fundación', type: 'date', colClass: 'col-md-4' },
       { key: 'email', label: 'Correo Oficial del Club', type: 'text', colClass: 'col-md-4' },
       { key: 'representativePhone', label: 'Teléfono Rep.', type: 'text', colClass: 'col-md-4' },
@@ -1618,6 +2396,7 @@ const tabs: TabConfig[] = [
       { key: 'lastName', label: 'Apellidos' },
       { key: 'identification', label: 'Identificación' },
       { key: 'demarcation.name', label: 'Demarcación' },
+      { key: 'playerClassification.description', label: 'Clasificación' },
       { key: 'passOwnerType', label: 'Dueño del Pase' },
       { key: 'currentTeam.name', label: 'Club Actual' },
       { key: 'medicalClearanceExpiry', label: 'Ficha Médica', type: 'date' },
@@ -1630,6 +2409,7 @@ const tabs: TabConfig[] = [
       { key: 'isForeigner', label: '¿Es Extranjero? (Permite Pasaporte)', type: 'boolean', colClass: 'col-md-4' },
       { key: 'birthDate', label: 'Fecha de Nacimiento', type: 'date', colClass: 'col-md-4' },
       { key: 'demarcationId', label: 'Posición / Demarcación en Campo', type: 'select', colClass: 'col-md-6', options: [] },
+      { key: 'playerClassificationId', label: 'Clasificación de Futbolista (Predeterminada)', type: 'select', colClass: 'col-md-6', options: [] },
       { key: 'jerseyNumber', label: 'Dorsal habitual', type: 'number', colClass: 'col-md-3' },
       {
         key: 'dominantFoot',
@@ -1698,34 +2478,17 @@ const tabs: TabConfig[] = [
   },
   {
     id: 'categoryEditions',
-    label: 'Ediciones de Categoría',
+    label: 'Ediciones de Torneo',
     icon: 'solar:calendar-date-bold-duotone',
     api: CampeonatoApi.categoryEditions,
     columns: [
-      { key: 'name', label: 'Nombre Edición' },
-      { key: 'category.name', label: 'Categoría' },
+      { key: 'name', label: 'Nombre / Descripción Edición' },
+      { key: 'categoriesDetail', label: 'Categorías (Detalle)' },
       { key: 'status', label: 'Estado' },
-      { key: 'startDate', label: 'Fecha Inicio', type: 'date' },
-      { key: 'endDate', label: 'Fecha Fin', type: 'date' },
     ],
     fields: [
-      { key: 'name', label: 'Nombre de Edición', type: 'text', colClass: 'col-md-6' },
-      { key: 'categoryId', label: 'ID Categoría', type: 'text', colClass: 'col-md-6' },
-      { key: 'startDate', label: 'Fecha Inicio', type: 'date', colClass: 'col-md-6' },
-      { key: 'endDate', label: 'Fecha Fin', type: 'date', colClass: 'col-md-6' },
-      {
-        key: 'status',
-        label: 'Estado',
-        type: 'select',
-        options: [
-          { label: 'Pendiente', value: 'PENDING' },
-          { label: 'En Curso', value: 'IN_PROGRESS' },
-          { label: 'Completada', value: 'COMPLETED' },
-          { label: 'Cancelada', value: 'CANCELLED' },
-        ],
-        colClass: 'col-md-6',
-      },
-      { key: 'registrationFee', label: 'Costo Inscripción', type: 'number', colClass: 'col-md-6' },
+      { key: 'name', label: 'Nombre / Descripción de la Edición', type: 'text', colClass: 'col-md-8', placeholder: 'Ej. Campeonato Oficial 2026' },
+      { key: 'description', label: 'Observaciones Adicionales', type: 'text', colClass: 'col-md-4', placeholder: 'Detalles u observaciones...' },
     ],
   },
   {
@@ -1741,8 +2504,8 @@ const tabs: TabConfig[] = [
     ],
     fields: [
       { key: 'name', label: 'Nombre Etapa', type: 'text', colClass: 'col-md-6' },
-      { key: 'categoryEditionId', label: 'ID Edición Categoría', type: 'text', colClass: 'col-md-6' },
-      { key: 'stageOrder', label: 'Orden de Etapa', type: 'number', colClass: 'col-md-4' },
+      { key: 'categoryEditionId', label: 'Edición de Categoría', type: 'select', colClass: 'col-md-6', options: [] },
+      { key: 'stageOrder', label: 'Orden de Etapa', type: 'number', colClass: 'col-md-6' },
       {
         key: 'format',
         label: 'Formato',
@@ -1752,7 +2515,7 @@ const tabs: TabConfig[] = [
           { label: 'Eliminación Directa', value: 'DIRECT_ELIMINATION' },
           { label: 'Doble Eliminación', value: 'DOUBLE_ELIMINATION' },
         ],
-        colClass: 'col-md-8',
+        colClass: 'col-md-6',
       },
     ],
   },
@@ -1839,6 +2602,7 @@ const tabs: TabConfig[] = [
       { key: 'carnetCode', label: 'Carnet #' },
       { key: 'player.name', label: 'Jugador' },
       { key: 'teamRegistration.team.name', label: 'Equipo' },
+      { key: 'playerClassification.description', label: 'Clasificación' },
       { key: 'jerseyNumber', label: 'Dorsal' },
       { key: 'isCaptain', label: 'Capitán', type: 'boolean' },
       { key: 'status', label: 'Estado Carnet' },
@@ -1846,8 +2610,9 @@ const tabs: TabConfig[] = [
     fields: [
       { key: 'teamRegistrationId', label: 'Inscripción de Equipo (Torneo)', type: 'select', colClass: 'col-md-6', options: [] },
       { key: 'playerId', label: 'Jugador', type: 'select', colClass: 'col-md-6', options: [] },
-      { key: 'jerseyNumber', label: 'Número de Dorsal / Camiseta', type: 'number', colClass: 'col-md-4' },
-      { key: 'carnetCode', label: 'Código de Carnet', type: 'text', colClass: 'col-md-4' },
+      { key: 'playerClassificationId', label: 'Clasificación de Futbolista', type: 'select', colClass: 'col-md-6', options: [] },
+      { key: 'jerseyNumber', label: 'Número de Dorsal / Camiseta', type: 'number', colClass: 'col-md-3' },
+      { key: 'carnetCode', label: 'Código de Carnet', type: 'text', colClass: 'col-md-3' },
       {
         key: 'status',
         label: 'Estado de Habilitación',
@@ -1858,9 +2623,9 @@ const tabs: TabConfig[] = [
           { label: 'Suspendido', value: 'SUSPENDED' },
           { label: 'Transferido', value: 'TRANSFERRED' },
         ],
-        colClass: 'col-md-4',
+        colClass: 'col-md-6',
       },
-      { key: 'isCaptain', label: 'Es Capitán del Equipo', type: 'boolean', colClass: 'col-md-12' },
+      { key: 'isCaptain', label: 'Es Capitán del Equipo', type: 'boolean', colClass: 'col-md-6' },
     ],
   },
   {
@@ -2087,6 +2852,23 @@ const tabs: TabConfig[] = [
     columns: [],
     fields: [],
   },
+  {
+    id: 'playerClassifications',
+    label: 'Clasificación de Futbolistas',
+    icon: 'solar:user-check-bold-duotone',
+    api: CampeonatoApi.playerClassifications,
+    columns: [
+      { key: 'description', label: 'Descripción / Nombre' },
+      { key: 'code', label: 'Código' },
+      { key: 'observation', label: 'Observación' },
+      { key: 'isActive', label: 'Estado', type: 'boolean' },
+    ],
+    fields: [
+      { key: 'description', label: 'Descripción o Nombre de Clasificación', type: 'text', colClass: 'col-md-8', placeholder: 'Ej. Foráneo, Juvenil, Nativo, Extranjero, Sub-20' },
+      { key: 'code', label: 'Código Abreviado', type: 'text', colClass: 'col-md-4', placeholder: 'Ej. FOR, JUV, NAT, EXT' },
+      { key: 'observation', label: 'Observación', type: 'text', colClass: 'col-md-12', placeholder: 'Notas u observaciones de la clasificación...' },
+    ],
+  },
 ];
 
 const route = useRoute();
@@ -2108,6 +2890,7 @@ const isConfigSection = computed(() => {
     'vocals',
     'demarcations',
     'positions',
+    'playerClassifications',
   ];
   return cfgList.includes(activeTab.value);
 });
@@ -2122,6 +2905,7 @@ const configSubTabsList = [
   { id: 'stages', label: 'Etapas y Fases', icon: 'solar:cup-first-bold-duotone' },
   { id: 'scenaries', label: 'Canchas (Escenarios)', icon: 'solar:map-point-wave-bold-duotone' },
   { id: 'schedules', label: 'Días y Horarios', icon: 'solar:clock-circle-bold-duotone' },
+  { id: 'playerClassifications', label: 'Clasificación Futbolistas', icon: 'solar:user-check-bold-duotone' },
   { id: 'referees', label: 'Árbitros', icon: 'solar:whistle-bold-duotone' },
   { id: 'vocals', label: 'Vocales', icon: 'solar:notes-bold-duotone' },
   { id: 'demarcations', label: 'Demarcaciones', icon: 'solar:running-bold-duotone' },
@@ -2145,17 +2929,40 @@ const switchConfigSubTab = (subId: string) => {
 
 // Estado y cálculo para Días y Horarios de Juego
 const savingSchedule = ref(false);
-const scheduleConfig = ref({
+
+type WeekDayKey = 'MON' | 'TUE' | 'WED' | 'THU' | 'FRI' | 'SAT' | 'SUN';
+
+interface DayScheduleItem {
+  enabled: boolean;
+  startTime: string;
+  endTime: string;
+}
+
+const defaultDailySchedules = (): Record<WeekDayKey, DayScheduleItem> => ({
+  MON: { enabled: false, startTime: '18:00', endTime: '22:00' },
+  TUE: { enabled: false, startTime: '18:00', endTime: '22:00' },
+  WED: { enabled: false, startTime: '18:00', endTime: '22:00' },
+  THU: { enabled: false, startTime: '18:00', endTime: '22:00' },
+  FRI: { enabled: true, startTime: '19:00', endTime: '21:00' }, // Ejemplo: viernes 7pm a 9pm
+  SAT: { enabled: true, startTime: '08:00', endTime: '22:00' }, // Ejemplo: sábado 8am a 10pm
+  SUN: { enabled: true, startTime: '08:00', endTime: '16:00' }, // Ejemplo: domingo 8am a 4pm
+});
+
+const scheduleConfig = ref<{
+  editionId: string;
+  dailySchedules: Record<WeekDayKey, DayScheduleItem>;
+  matchDurationMinutes: number;
+  intervalMinutes: number;
+  selectedScenaryIds: string[];
+}>({
   editionId: '',
-  gameDays: ['SAT', 'SUN'],
-  startTime: '08:00',
-  endTime: '18:00',
+  dailySchedules: defaultDailySchedules(),
   matchDurationMinutes: 60,
   intervalMinutes: 10,
   selectedScenaryIds: [] as string[],
 });
 
-const weekDaysList = [
+const weekDaysList: Array<{ key: WeekDayKey; label: string }> = [
   { key: 'MON', label: 'Lunes' },
   { key: 'TUE', label: 'Martes' },
   { key: 'WED', label: 'Miércoles' },
@@ -2165,53 +2972,123 @@ const weekDaysList = [
   { key: 'SUN', label: 'Domingo' },
 ];
 
-const toggleGameDay = (dayKey: string) => {
-  const idx = scheduleConfig.value.gameDays.indexOf(dayKey);
-  if (idx > -1) {
-    if (scheduleConfig.value.gameDays.length > 1) {
-      scheduleConfig.value.gameDays.splice(idx, 1);
-    } else {
-      toast.warning('Debe haber al menos un día habilitado para jugar');
+const setQuickDays = (mode: 'weekend_fri' | 'weekend_std' | 'weekdays' | 'all' | 'none') => {
+  const current = scheduleConfig.value.dailySchedules;
+  weekDaysList.forEach((d) => {
+    const item = current[d.key];
+    if (!item) return;
+    if (mode === 'weekend_fri') {
+      item.enabled = ['FRI', 'SAT', 'SUN'].includes(d.key);
+      if (d.key === 'FRI') {
+        item.startTime = '19:00';
+        item.endTime = '21:00';
+      } else if (d.key === 'SAT') {
+        item.startTime = '08:00';
+        item.endTime = '22:00';
+      } else if (d.key === 'SUN') {
+        item.startTime = '08:00';
+        item.endTime = '16:00';
+      }
+    } else if (mode === 'weekend_std') {
+      item.enabled = ['SAT', 'SUN'].includes(d.key);
+      if (d.key === 'SAT') {
+        item.startTime = '08:00';
+        item.endTime = '22:00';
+      } else if (d.key === 'SUN') {
+        item.startTime = '08:00';
+        item.endTime = '16:00';
+      }
+    } else if (mode === 'weekdays') {
+      item.enabled = ['MON', 'TUE', 'WED', 'THU', 'FRI'].includes(d.key);
+      item.startTime = '18:00';
+      item.endTime = '22:00';
+    } else if (mode === 'all') {
+      item.enabled = true;
+    } else if (mode === 'none') {
+      item.enabled = false;
     }
-  } else {
-    scheduleConfig.value.gameDays.push(dayKey);
-  }
+  });
 };
 
-const setQuickDays = (mode: 'weekends' | 'weekdays' | 'all') => {
-  if (mode === 'weekends') {
-    scheduleConfig.value.gameDays = ['SAT', 'SUN'];
-  } else if (mode === 'weekdays') {
-    scheduleConfig.value.gameDays = ['MON', 'TUE', 'WED', 'THU', 'FRI'];
-  } else {
-    scheduleConfig.value.gameDays = ['MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT', 'SUN'];
+const getDayCalculation = (dayKey: WeekDayKey | string) => {
+  const dayConf = scheduleConfig.value.dailySchedules[dayKey as WeekDayKey];
+  if (!dayConf || !dayConf.enabled) {
+    return { minutes: 0, hours: '0.0', matchesPerCourt: 0 };
   }
+  const partsStart = (dayConf.startTime || '08:00').split(':');
+  const startMins = Number(partsStart[0] ?? 8) * 60 + Number(partsStart[1] ?? 0);
+
+  const partsEnd = (dayConf.endTime || '20:00').split(':');
+  const endMins = Number(partsEnd[0] ?? 20) * 60 + Number(partsEnd[1] ?? 0);
+
+  const totalMinutes = Math.max(0, endMins - startMins);
+  const hours = (totalMinutes / 60).toFixed(1);
+
+  const slotMinutes =
+    (Number(scheduleConfig.value.matchDurationMinutes) || 60) +
+    (Number(scheduleConfig.value.intervalMinutes) || 0);
+
+  const matchesPerCourt = slotMinutes > 0 ? Math.floor(totalMinutes / slotMinutes) : 0;
+
+  return {
+    minutes: totalMinutes,
+    hours,
+    matchesPerCourt,
+  };
 };
 
 const scheduleCalculation = computed(() => {
-  const partsStart = (scheduleConfig.value.startTime || '08:00').split(':');
-  const startH = Number(partsStart[0] ?? 8);
-  const startM = Number(partsStart[1] ?? 0);
+  const slotMinutes =
+    (Number(scheduleConfig.value.matchDurationMinutes) || 60) +
+    (Number(scheduleConfig.value.intervalMinutes) || 0);
 
-  const partsEnd = (scheduleConfig.value.endTime || '18:00').split(':');
-  const endH = Number(partsEnd[0] ?? 18);
-  const endM = Number(partsEnd[1] ?? 0);
+  const courtsCount =
+    scheduleConfig.value.selectedScenaryIds.length || (scenariesList.value.length || 1);
 
-  const totalMinutes = Math.max(0, (endH * 60 + endM) - (startH * 60 + startM));
-  const totalHoursPerDay = (totalMinutes / 60).toFixed(1);
+  let totalMinutesWeek = 0;
+  let activeDaysCount = 0;
+  let totalMatchesPerWeek = 0;
 
-  const slotMinutes = (Number(scheduleConfig.value.matchDurationMinutes) || 60) + (Number(scheduleConfig.value.intervalMinutes) || 0);
-  const matchesPerCourtPerDay = slotMinutes > 0 ? Math.floor(totalMinutes / slotMinutes) : 0;
-  const activeDaysCount = scheduleConfig.value.gameDays.length;
-  const courtsCount = scheduleConfig.value.selectedScenaryIds.length || (scenariesList.value.length || 1);
-  const totalMatchesPerWeek = matchesPerCourtPerDay * courtsCount * activeDaysCount;
+  const breakdown: Array<{
+    key: string;
+    label: string;
+    startTime: string;
+    endTime: string;
+    hours: string;
+    matchesPerCourt: number;
+    matchesAllCourts: number;
+  }> = [];
+
+  for (const day of weekDaysList) {
+    const dayConf = scheduleConfig.value.dailySchedules[day.key];
+    if (dayConf && dayConf.enabled) {
+      activeDaysCount++;
+      const calc = getDayCalculation(day.key);
+      totalMinutesWeek += calc.minutes;
+      const dayMatchesAllCourts = calc.matchesPerCourt * courtsCount;
+      totalMatchesPerWeek += dayMatchesAllCourts;
+
+      breakdown.push({
+        key: day.key,
+        label: day.label,
+        startTime: dayConf.startTime,
+        endTime: dayConf.endTime,
+        hours: calc.hours,
+        matchesPerCourt: calc.matchesPerCourt,
+        matchesAllCourts: dayMatchesAllCourts,
+      });
+    }
+  }
+
+  const totalHoursWeek = (totalMinutesWeek / 60).toFixed(1);
 
   return {
-    totalHoursPerDay,
     slotMinutes,
     activeDaysCount,
-    matchesPerCourtPerDay,
+    courtsCount,
+    totalHoursWeek,
     totalMatchesPerWeek,
+    breakdown,
   };
 });
 
@@ -2220,7 +3097,7 @@ const saveScheduleConfig = () => {
   try {
     const companyId = getActiveCompanyId();
     localStorage.setItem(`deskounta_camp_schedules_${companyId}`, JSON.stringify(scheduleConfig.value));
-    toast.success('Horarios y configuración de juego guardados exitosamente');
+    toast.success('Horarios específicos por día guardados exitosamente');
   } catch {
     toast.error('Error al guardar la configuración de horarios');
   } finally {
@@ -2234,7 +3111,37 @@ const loadScheduleConfig = () => {
     const raw = localStorage.getItem(`deskounta_camp_schedules_${companyId}`);
     if (raw) {
       const parsed = JSON.parse(raw);
-      scheduleConfig.value = { ...scheduleConfig.value, ...parsed };
+      if (parsed.dailySchedules) {
+        // Asegurar que todos los días existan
+        scheduleConfig.value.dailySchedules = {
+          ...defaultDailySchedules(),
+          ...parsed.dailySchedules,
+        };
+      } else if (parsed.gameDays && Array.isArray(parsed.gameDays)) {
+        // Migración de formato legado
+        const migrated = defaultDailySchedules();
+        weekDaysList.forEach((d) => {
+          migrated[d.key] = {
+            enabled: parsed.gameDays.includes(d.key),
+            startTime: parsed.startTime || '08:00',
+            endTime: parsed.endTime || '18:00',
+          };
+        });
+        scheduleConfig.value.dailySchedules = migrated;
+      }
+
+      if (parsed.matchDurationMinutes) {
+        scheduleConfig.value.matchDurationMinutes = parsed.matchDurationMinutes;
+      }
+      if (parsed.intervalMinutes !== undefined) {
+        scheduleConfig.value.intervalMinutes = parsed.intervalMinutes;
+      }
+      if (parsed.selectedScenaryIds && Array.isArray(parsed.selectedScenaryIds)) {
+        scheduleConfig.value.selectedScenaryIds = parsed.selectedScenaryIds;
+      }
+      if (parsed.editionId) {
+        scheduleConfig.value.editionId = parsed.editionId;
+      }
     }
     if (scheduleConfig.value.selectedScenaryIds.length === 0 && scenariesList.value.length > 0) {
       scheduleConfig.value.selectedScenaryIds = scenariesList.value.map((s) => s.id);
@@ -2242,7 +3149,9 @@ const loadScheduleConfig = () => {
     if (!scheduleConfig.value.editionId && categoryEditionsList.value.length > 0) {
       scheduleConfig.value.editionId = categoryEditionsList.value[0].id;
     }
-  } catch {}
+  } catch (err) {
+    console.error('Error cargando configuración de horarios:', err);
+  }
 };
 
 const applyScheduleToFixture = async () => {
@@ -2273,6 +3182,7 @@ const tabToSubCode: Record<string, string> = {
   demarcations: 'SUB-CAMP-015',
   schedules: 'SUB-CAMP-016',
   standings: 'SUB-CAMP-017',
+  playerClassifications: 'SUB-CAMP-019',
 };
 
 // Filtrar las pestañas según los permisos / submódulos activos de la empresa
@@ -2334,8 +3244,10 @@ const saving = ref(false);
 const selectedStageId = ref('');
 const stagesList = ref<any[]>([]);
 const teamsList = ref<any[]>([]);
+const categoriesList = ref<any[]>([]);
 const scenariesList = ref<any[]>([]);
 const demarcationsList = ref<any[]>([]);
+const playerClassificationsList = ref<any[]>([]);
 const playersList = ref<any[]>([]);
 const categoryEditionsList = ref<any[]>([]);
 const teamRegistrationsList = ref<any[]>([]);
@@ -2343,6 +3255,395 @@ const standingsList = ref<any[]>([]);
 const topScorersList = ref<any[]>([]);
 const loadingStandings = ref(false);
 const uploadingImage = ref(false);
+
+// ==========================================
+// EDICIÓN DE TORNEO DETALLE CATEGORÍAS
+// ==========================================
+const editionCategoriesDetail = ref<Array<{
+  id?: string;
+  categoryId: string;
+  categoryDescription?: string;
+  startDate?: string;
+  endDate?: string;
+  registrationFee?: number;
+  maxPlayers?: number;
+  classifications?: Array<{
+    id?: string;
+    playerClassificationId: string;
+    playerClassification?: any;
+    maxPlayers: number;
+  }>;
+}>>([]);
+
+const editionDetailInput = ref({
+  categoryId: '',
+  startDate: '',
+  endDate: '',
+  registrationFee: 0,
+  maxPlayers: 25,
+});
+
+const getCategoryNameById = (catId: string) => {
+  const found = categoriesList.value.find((c: any) => c.id === catId);
+  return found ? found.name : 'Categoría';
+};
+
+const addCategoryToEditionDetail = () => {
+  if (!editionDetailInput.value.categoryId) {
+    toast.warning('Debe seleccionar una categoría');
+    return;
+  }
+  const catName = getCategoryNameById(editionDetailInput.value.categoryId);
+  const exists = editionCategoriesDetail.value.some((c) => c.categoryId === editionDetailInput.value.categoryId);
+  if (exists) {
+    toast.warning(`La categoría "${catName}" ya se encuentra agregada al detalle`);
+    return;
+  }
+  const maxPl = Number(editionDetailInput.value.maxPlayers) > 0 ? Number(editionDetailInput.value.maxPlayers) : 25;
+  editionCategoriesDetail.value.push({
+    categoryId: editionDetailInput.value.categoryId,
+    categoryDescription: catName,
+    startDate: editionDetailInput.value.startDate || undefined,
+    endDate: editionDetailInput.value.endDate || undefined,
+    registrationFee: Number(editionDetailInput.value.registrationFee) || 0,
+    maxPlayers: maxPl,
+    classifications: [],
+  });
+  editionDetailInput.value = {
+    categoryId: '',
+    startDate: '',
+    endDate: '',
+    registrationFee: 0,
+    maxPlayers: 25,
+  };
+  toast.success(`Categoría "${catName}" agregada al detalle`);
+};
+
+const removeCategoryFromEditionDetail = (index: number) => {
+  editionCategoriesDetail.value.splice(index, 1);
+};
+
+// ==========================================
+// DIRECTORIO DEL EQUIPO / CLUB
+// ==========================================
+const showTeamManagementModal = ref(false);
+const selectedTeamForManagement = ref<any>(null);
+const teamManagementList = ref<TeamManagementItem[]>([]);
+const loadingTeamManagement = ref(false);
+const savingTeamManagement = ref(false);
+const formTeamManagement = ref({
+  roleTitle: 'Presidente',
+  name: '',
+  lastName: '',
+  identification: '',
+  cellphone: '',
+  email: '',
+});
+
+const openTeamManagementModal = (team: any) => {
+  selectedTeamForManagement.value = team;
+  showTeamManagementModal.value = true;
+  formTeamManagement.value = {
+    roleTitle: 'Presidente',
+    name: '',
+    lastName: '',
+    identification: '',
+    cellphone: '',
+    email: '',
+  };
+  loadTeamManagement(team.id);
+};
+
+const loadTeamManagement = async (teamId: string) => {
+  try {
+    loadingTeamManagement.value = true;
+    const res = await TeamManagementsService.listByTeam(teamId);
+    teamManagementList.value = res.data || [];
+  } catch (err: any) {
+    console.error(err);
+    toast.error('Error al cargar directivos del equipo');
+  } finally {
+    loadingTeamManagement.value = false;
+  }
+};
+
+const saveTeamManagementRecord = async () => {
+  if (!selectedTeamForManagement.value?.id) return;
+  try {
+    savingTeamManagement.value = true;
+    await TeamManagementsService.create({
+      teamId: selectedTeamForManagement.value.id,
+      roleTitle: formTeamManagement.value.roleTitle,
+      name: formTeamManagement.value.name,
+      lastName: formTeamManagement.value.lastName,
+      identification: formTeamManagement.value.identification,
+      cellphone: formTeamManagement.value.cellphone || undefined,
+      email: formTeamManagement.value.email || undefined,
+      isActive: true,
+    });
+    toast.success(`Directivo (${formTeamManagement.value.roleTitle}) registrado correctamente`);
+    formTeamManagement.value = {
+      roleTitle: 'Vocal 1',
+      name: '',
+      lastName: '',
+      identification: '',
+      cellphone: '',
+      email: '',
+    };
+    await loadTeamManagement(selectedTeamForManagement.value.id);
+  } catch (err: any) {
+    console.error(err);
+    toast.error(err?.response?.data?.message || 'Error al guardar directivo');
+  } finally {
+    savingTeamManagement.value = false;
+  }
+};
+
+const deleteTeamManagementRecord = async (id: string) => {
+  if (!confirm('¿Estás seguro de eliminar este directivo del club?')) return;
+  try {
+    await TeamManagementsService.delete(id);
+    toast.success('Directivo eliminado del directorio');
+    if (selectedTeamForManagement.value?.id) {
+      await loadTeamManagement(selectedTeamForManagement.value.id);
+    }
+  } catch (err: any) {
+    console.error(err);
+    toast.error('Error al eliminar directivo');
+  }
+};
+
+const getRoleBadgeClass = (role?: string) => {
+  switch (role) {
+    case 'Presidente':
+      return 'bg-warning-subtle text-warning border border-warning-subtle fw-bold';
+    case 'Vicepresidente':
+      return 'bg-info-subtle text-info border border-info-subtle fw-bold';
+    case 'Secretario/a':
+      return 'bg-primary-subtle text-primary border border-primary-subtle fw-semibold';
+    default:
+      return 'bg-secondary-subtle text-secondary border border-secondary-subtle';
+  }
+};
+
+// =========================================================================
+// CLASIFICACIONES DE FUTBOLISTAS POR CATEGORÍA EN EDICIÓN DE TORNEO
+// =========================================================================
+const showCategoryClassificationsModal = ref(false);
+const selectedCategoryForClassifications = ref<any>(null);
+const selectedCategoryIndex = ref<number>(-1);
+const formCategoryClassification = ref({
+  playerClassificationId: '',
+  maxPlayers: 5,
+  maxInactivityMonths: null as number | null,
+  maxMonths: null as number | null,
+});
+
+const isExprofessionalSelected = computed(() => {
+  if (!formCategoryClassification.value.playerClassificationId) return false;
+  const pc = playerClassificationsList.value.find(
+    (c) => c.id === formCategoryClassification.value.playerClassificationId,
+  );
+  if (!pc) return false;
+  const desc = (pc.description || '').toLowerCase();
+  const code = (pc.code || '').toUpperCase();
+  return (
+    code === 'EXPRO' ||
+    desc.includes('exprofesional') ||
+    desc.includes('ex-profesional') ||
+    desc.includes('profesional')
+  );
+});
+
+const isJuvenileSelected = computed(() => {
+  if (!formCategoryClassification.value.playerClassificationId) return false;
+  const pc = playerClassificationsList.value.find(
+    (c) => c.id === formCategoryClassification.value.playerClassificationId,
+  );
+  if (!pc) return false;
+  const desc = (pc.description || '').toLowerCase();
+  const code = (pc.code || '').toUpperCase();
+  return code === 'JUV' || desc.includes('juvenil');
+});
+
+watch(
+  () => formCategoryClassification.value.playerClassificationId,
+  () => {
+    formCategoryClassification.value.maxInactivityMonths = null;
+    formCategoryClassification.value.maxMonths = null;
+  },
+);
+
+const openCategoryClassificationsModal = (item: any, idx: number) => {
+  selectedCategoryForClassifications.value = item;
+  selectedCategoryIndex.value = idx;
+  if (!item.classifications) {
+    item.classifications = [];
+  }
+  formCategoryClassification.value = {
+    playerClassificationId: '',
+    maxPlayers: 5,
+    maxInactivityMonths: null,
+    maxMonths: null,
+  };
+  showCategoryClassificationsModal.value = true;
+};
+
+const currentCategoryClassificationsTotal = computed(() => {
+  if (!selectedCategoryForClassifications.value?.classifications) return 0;
+  return selectedCategoryForClassifications.value.classifications.reduce(
+    (acc: number, c: any) => acc + (Number(c.maxPlayers) || 0),
+    0,
+  );
+});
+
+const availableClassificationsForCurrentCategory = computed(() => {
+  const existingIds = (selectedCategoryForClassifications.value?.classifications || []).map(
+    (c: any) => c.playerClassificationId,
+  );
+  return playerClassificationsList.value.filter(
+    (pc) => !existingIds.includes(pc.id) && pc.isActive,
+  );
+});
+
+const addCategoryClassificationRecord = () => {
+  if (!formCategoryClassification.value.playerClassificationId) {
+    toast.warning('Seleccione una clasificación');
+    return;
+  }
+  const maxLimit = Number(selectedCategoryForClassifications.value.maxPlayers) || 25;
+  const newMax = Number(formCategoryClassification.value.maxPlayers) || 0;
+  if (newMax <= 0) {
+    toast.warning('El cupo máximo debe ser mayor a 0');
+    return;
+  }
+
+  // Validación de meses de inactividad para Exprofesional
+  if (isExprofessionalSelected.value) {
+    const inact = Number(formCategoryClassification.value.maxInactivityMonths);
+    if (!inact || inact <= 0) {
+      toast.warning('Ingrese la cantidad máxima de meses de inactividad en el fútbol profesional');
+      return;
+    }
+  }
+
+  // Validación de cantidad máxima de meses para Juvenil
+  if (isJuvenileSelected.value) {
+    const jMonths = Number(formCategoryClassification.value.maxMonths);
+    if (!jMonths || jMonths <= 0) {
+      toast.warning('Ingrese la cantidad máxima de meses permitida para la categoría juvenil');
+      return;
+    }
+  }
+
+  const currentTotal = currentCategoryClassificationsTotal.value;
+  if (currentTotal + newMax > maxLimit) {
+    toast.error(
+      `La suma de las clasificaciones (${currentTotal + newMax}) no puede superar el máximo de jugadores inscritos (${maxLimit}) de esta categoría.`,
+    );
+    return;
+  }
+
+  const pcObj = playerClassificationsList.value.find(
+    (pc) => pc.id === formCategoryClassification.value.playerClassificationId,
+  );
+
+  selectedCategoryForClassifications.value.classifications.push({
+    playerClassificationId: formCategoryClassification.value.playerClassificationId,
+    playerClassification: pcObj,
+    maxPlayers: newMax,
+    maxInactivityMonths: isExprofessionalSelected.value
+      ? Number(formCategoryClassification.value.maxInactivityMonths) || null
+      : null,
+    maxMonths: isJuvenileSelected.value
+      ? Number(formCategoryClassification.value.maxMonths) || null
+      : null,
+  });
+
+  formCategoryClassification.value.playerClassificationId = '';
+  formCategoryClassification.value.maxPlayers = 5;
+  formCategoryClassification.value.maxInactivityMonths = null;
+  formCategoryClassification.value.maxMonths = null;
+  toast.success('Clasificación asignada a la categoría');
+};
+
+const removeCategoryClassificationRecord = (idx: number) => {
+  if (selectedCategoryForClassifications.value?.classifications) {
+    selectedCategoryForClassifications.value.classifications.splice(idx, 1);
+  }
+};
+
+const getSumClassifications = (item: any) => {
+  if (!item.classifications || !item.classifications.length) return 0;
+  return item.classifications.reduce((sum: number, c: any) => sum + (Number(c.maxPlayers) || 0), 0);
+};
+
+const getPlayerClassificationDescById = (id: string) => {
+  const found = playerClassificationsList.value.find((pc) => pc.id === id);
+  return found ? found.description : 'Clasificación';
+};
+
+const getPlayerClassificationCodeById = (id: string) => {
+  const found = playerClassificationsList.value.find((pc) => pc.id === id);
+  return found ? found.code : '';
+};
+
+const updatePlayerRegistrationClassifications = async (teamRegId: string) => {
+  const prTab = tabs.find((t) => t.id === 'playerRegistrations');
+  const classField = prTab?.fields.find((f) => f.key === 'playerClassificationId');
+  if (!classField) return;
+
+  if (!teamRegId) {
+    classField.options = playerClassificationsList.value.map((pc) => ({
+      label: `${pc.description} (${pc.code || 'Clasificación'})`,
+      value: pc.id,
+    }));
+    return;
+  }
+
+  const reg = teamRegistrationsList.value.find((r) => r.id === teamRegId);
+  if (!reg || !reg.categoryEditionId) {
+    classField.options = playerClassificationsList.value.map((pc) => ({
+      label: `${pc.description} (${pc.code || 'Clasificación'})`,
+      value: pc.id,
+    }));
+    return;
+  }
+
+  const edition = categoryEditionsList.value.find((e) => e.id === reg.categoryEditionId);
+  const detail = edition?.categoriesDetail?.[0];
+
+  if (detail?.classifications && detail.classifications.length > 0) {
+    try {
+      const teamPlayersRes = await CampeonatoApi.playerRegistrations.list({ teamRegistrationId: teamRegId, limit: 100 });
+      const teamPlayers = teamPlayersRes.data.data || [];
+
+      classField.options = detail.classifications.map((sc: any) => {
+        const pc = sc.playerClassification || playerClassificationsList.value.find((p) => p.id === sc.playerClassificationId);
+        const used = teamPlayers.filter((tp: any) => tp.playerClassificationId === sc.playerClassificationId).length;
+        const free = Math.max(0, sc.maxPlayers - used);
+        const cupoInfo = free <= 0 ? ' [AGOTADO: 0 cupos]' : ` [Quedan ${free} de ${sc.maxPlayers} cupos]`;
+        return {
+          label: `${pc?.description || 'Clasificación'}${cupoInfo}`,
+          value: sc.playerClassificationId,
+        };
+      });
+    } catch {
+      classField.options = detail.classifications.map((sc: any) => {
+        const pc = sc.playerClassification || playerClassificationsList.value.find((p) => p.id === sc.playerClassificationId);
+        return {
+          label: `${pc?.description || 'Clasificación'} [Máx. ${sc.maxPlayers} cupos]`,
+          value: sc.playerClassificationId,
+        };
+      });
+    }
+  } else {
+    classField.options = playerClassificationsList.value.map((pc) => ({
+      label: `${pc.description} (${pc.code || 'General'})`,
+      value: pc.id,
+    }));
+  }
+};
 
 // Estado para Generador de Fixture Automático
 const showFixtureModal = ref(false);
@@ -2362,11 +3663,28 @@ const showCarnetModal = ref(false);
 const selectedCarnet = ref<any>(null);
 
 const populateFieldOptions = () => {
-  // Opciones para Jugadores (Demarcación)
+  // Opciones para Jugadores (Demarcación y Clasificación)
   const plTab = tabs.find((t) => t.id === 'players');
   const demField = plTab?.fields.find((f) => f.key === 'demarcationId');
   if (demField) {
     demField.options = demarcationsList.value.map((d) => ({ label: `${d.name} (${d.zone || d.code})`, value: d.id }));
+  }
+  const plClassField = plTab?.fields.find((f) => f.key === 'playerClassificationId');
+  if (plClassField) {
+    plClassField.options = playerClassificationsList.value.map((pc) => ({
+      label: `${pc.description} ${pc.code ? '(' + pc.code + ')' : ''}`,
+      value: pc.id,
+    }));
+  }
+
+  // Opciones para Etapas (Edición)
+  const stTab = tabs.find((t) => t.id === 'stages');
+  const stEdField = stTab?.fields.find((f) => f.key === 'categoryEditionId');
+  if (stEdField) {
+    stEdField.options = categoryEditionsList.value.map((e) => ({
+      label: `${e.name} - ${e.category?.name || 'Categoría'}`,
+      value: e.id,
+    }));
   }
 
   // Opciones para Inscripción de Equipos (Equipos y Ediciones)
@@ -2380,13 +3698,20 @@ const populateFieldOptions = () => {
     edField.options = categoryEditionsList.value.map((e) => ({ label: `${e.name} - ${e.category?.name || 'Categoría'}`, value: e.id }));
   }
 
-  // Opciones para Inscripción y Carnets (Inscripción de equipo y Jugadores)
+  // Opciones para Inscripción y Carnets (Inscripción de equipo, Jugadores y Clasificación base)
   const prTab = tabs.find((t) => t.id === 'playerRegistrations');
   const regField = prTab?.fields.find((f) => f.key === 'teamRegistrationId');
   if (regField) {
     regField.options = teamRegistrationsList.value.map((r) => ({
       label: `${r.team?.name || 'Equipo'} - ${r.categoryEdition?.name || 'Edición'}`,
       value: r.id,
+    }));
+  }
+  const prClassField = prTab?.fields.find((f) => f.key === 'playerClassificationId');
+  if (prClassField) {
+    prClassField.options = playerClassificationsList.value.map((pc) => ({
+      label: `${pc.description} ${pc.code ? '(' + pc.code + ')' : ''}`,
+      value: pc.id,
     }));
   }
   const playerField = prTab?.fields.find((f) => f.key === 'playerId');
@@ -2406,7 +3731,7 @@ const populateFieldOptions = () => {
 
 const loadAuxiliaryTournamentData = async () => {
   try {
-    const [stRes, tmRes, scRes, dmRes, plRes, edRes, trRes] = await Promise.all([
+    const [stRes, tmRes, scRes, dmRes, plRes, edRes, trRes, pcRes, catRes] = await Promise.all([
       CampeonatoApi.stages.list({ limit: 100 }).catch(() => ({ data: { data: [] } })),
       CampeonatoApi.teams.list({ limit: 100 }).catch(() => ({ data: { data: [] } })),
       CampeonatoApi.scenaries.list({ limit: 100 }).catch(() => ({ data: { data: [] } })),
@@ -2414,6 +3739,8 @@ const loadAuxiliaryTournamentData = async () => {
       CampeonatoApi.players.list({ limit: 200 }).catch(() => ({ data: { data: [] } })),
       CampeonatoApi.categoryEditions.list({ limit: 100 }).catch(() => ({ data: { data: [] } })),
       CampeonatoApi.teamRegistrations.list({ limit: 100 }).catch(() => ({ data: { data: [] } })),
+      CampeonatoApi.playerClassifications.list({ limit: 100 }).catch(() => ({ data: { data: [] } })),
+      CampeonatoApi.categories.list({ limit: 100 }).catch(() => ({ data: { data: [] } })),
     ]);
     stagesList.value = stRes.data.data || [];
     teamsList.value = tmRes.data.data || [];
@@ -2422,6 +3749,8 @@ const loadAuxiliaryTournamentData = async () => {
     playersList.value = plRes.data.data || [];
     categoryEditionsList.value = edRes.data.data || [];
     teamRegistrationsList.value = trRes.data.data || [];
+    playerClassificationsList.value = pcRes.data.data || [];
+    categoriesList.value = catRes.data.data || [];
     populateFieldOptions();
   } catch (err) {
     console.error('Error cargando datos auxiliares de campeonato:', err);
@@ -2628,6 +3957,24 @@ const openCarnetModal = (item: any) => {
 
 const printCarnet = () => {
   window.print();
+};
+
+// Utilidades de color y hexadecimal
+const isValidHex = (hex?: string) => {
+  return typeof hex === 'string' && /^#([0-9A-Fa-f]{3}|[0-9A-Fa-f]{6})$/.test(hex.trim());
+};
+
+const getContrastColor = (hexColor?: string) => {
+  if (!isValidHex(hexColor)) return '#333333';
+  let hex = hexColor!.trim().replace('#', '');
+  if (hex.length === 3) {
+    hex = hex.split('').map((c) => c + c).join('');
+  }
+  const r = parseInt(hex.substring(0, 2), 16);
+  const g = parseInt(hex.substring(2, 4), 16);
+  const b = parseInt(hex.substring(4, 6), 16);
+  const yiq = (r * 299 + g * 587 + b * 114) / 1000;
+  return yiq >= 128 ? '#000000' : '#FFFFFF';
 };
 
 // ==========================================
@@ -2886,6 +4233,13 @@ const openCreateForm = () => {
   isEditing.value = false;
   editingId.value = null;
   formData.value = {};
+  if (activeTab.value === 'categoryEditions') {
+    formData.value = { status: 'IN_PROGRESS' };
+    editionCategoriesDetail.value = [];
+    editionDetailInput.value = { categoryId: '', startDate: '', endDate: '', registrationFee: 0, maxPlayers: 25 };
+  } else if (activeTab.value === 'playerClassifications') {
+    formData.value = { isActive: true };
+  }
   isFormOpen.value = true;
   showModal.value = true;
   loadAuxiliaryTournamentData();
@@ -2895,9 +4249,17 @@ const openEditForm = (item: any) => {
   isEditing.value = true;
   editingId.value = item.id;
   formData.value = { ...item };
+  if (activeTab.value === 'categoryEditions') {
+    formData.value.status = formData.value.status || 'IN_PROGRESS';
+    editionCategoriesDetail.value = item.categoriesDetail ? JSON.parse(JSON.stringify(item.categoriesDetail)) : [];
+    editionDetailInput.value = { categoryId: '', startDate: '', endDate: '', registrationFee: 0, maxPlayers: 25 };
+  }
   isFormOpen.value = true;
   showModal.value = true;
   loadAuxiliaryTournamentData();
+  if (activeTab.value === 'playerRegistrations' && item.teamRegistrationId) {
+    updatePlayerRegistrationClassifications(item.teamRegistrationId);
+  }
 };
 
 const closeForm = () => {
@@ -2906,6 +4268,8 @@ const closeForm = () => {
   formData.value = {};
   isEditing.value = false;
   editingId.value = null;
+  editionCategoriesDetail.value = [];
+  editionDetailInput.value = { categoryId: '', startDate: '', endDate: '', registrationFee: 0, maxPlayers: 25 };
 };
 
 const openCreateModal = openCreateForm;
@@ -2915,6 +4279,32 @@ const closeModal = closeForm;
 const saveForm = async () => {
   try {
     saving.value = true;
+    if (activeTab.value === 'categoryEditions') {
+      for (const d of editionCategoriesDetail.value) {
+        const maxL = Number(d.maxPlayers) > 0 ? Number(d.maxPlayers) : 25;
+        const sumC = (d.classifications || []).reduce((acc: number, c: any) => acc + (Number(c.maxPlayers) || 0), 0);
+        if (sumC > maxL) {
+          toast.error(`La suma de las clasificaciones (${sumC}) para "${d.categoryDescription || 'Categoría'}" supera el máximo de jugadores (${maxL}).`);
+          saving.value = false;
+          return;
+        }
+      }
+      formData.value.status = 'IN_PROGRESS';
+      formData.value.categoriesDetail = editionCategoriesDetail.value.map((d) => ({
+        categoryId: d.categoryId,
+        categoryDescription: d.categoryDescription || getCategoryNameById(d.categoryId),
+        startDate: d.startDate || undefined,
+        endDate: d.endDate || undefined,
+        registrationFee: Number(d.registrationFee) || 0,
+        maxPlayers: Number(d.maxPlayers) > 0 ? Number(d.maxPlayers) : 25,
+        classifications: (d.classifications || []).map((c: any) => ({
+          playerClassificationId: c.playerClassificationId,
+          maxPlayers: Number(c.maxPlayers) || 0,
+        })),
+      }));
+    } else if (activeTab.value === 'playerClassifications' && formData.value.isActive === undefined) {
+      formData.value.isActive = true;
+    }
     if (isEditing.value && editingId.value) {
       await currentTabConfig.value.api.update(editingId.value, formData.value);
       toast.success('Registro actualizado exitosamente');
@@ -2988,6 +4378,10 @@ const slugToTab: Record<string, string> = {
   posiciones: 'standings',
   'tabla-posiciones': 'standings',
   standings: 'standings',
+  clasificaciones: 'playerClassifications',
+  'clasificacion-futbolistas': 'playerClassifications',
+  playerClassifications: 'playerClassifications',
+  'player-classifications': 'playerClassifications',
 };
 
 const resolveTabFromRoute = (): string => {
@@ -3017,6 +4411,15 @@ const resolveTabFromRoute = (): string => {
   if (allowedTabs.value.length > 0) return allowedTabs.value[0]!.id;
   return 'teams';
 };
+
+watch(
+  () => formData.value.teamRegistrationId,
+  (newTeamRegId) => {
+    if (activeTab.value === 'playerRegistrations' && isFormOpen.value) {
+      updatePlayerRegistrationClassifications(newTeamRegId);
+    }
+  }
+);
 
 onMounted(async () => {
   activeTab.value = resolveTabFromRoute();

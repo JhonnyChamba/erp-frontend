@@ -50,6 +50,8 @@ export interface PlayerItem {
   tournamentId?: string;
   demarcationId?: string;
   demarcation?: DemarcationItem;
+  playerClassificationId?: string;
+  playerClassification?: PlayerClassificationItem;
   name: string;
   lastName: string;
   identification: string;
@@ -85,11 +87,36 @@ export interface CategoryItem {
   updatedAt?: string;
 }
 
+export interface EditionCategoryClassificationItem {
+  id?: string;
+  categoryDetailId?: string;
+  playerClassificationId: string;
+  playerClassification?: PlayerClassificationItem;
+  maxPlayers: number;
+}
+
+export interface EditionCategoryDetailItem {
+  id?: string;
+  companyId?: number;
+  tournamentId?: string;
+  editionId?: string;
+  categoryId: string;
+  category?: CategoryItem;
+  categoryDescription?: string;
+  startDate?: string;
+  endDate?: string;
+  registrationFee?: number;
+  maxPlayers?: number;
+  classifications?: EditionCategoryClassificationItem[];
+  createdAt?: string;
+  updatedAt?: string;
+}
+
 export interface CategoryEditionItem {
   id: string;
   companyId?: number;
   tournamentId?: string;
-  categoryId: string;
+  categoryId?: string;
   category?: CategoryItem;
   name: string;
   description?: string;
@@ -104,6 +131,7 @@ export interface CategoryEditionItem {
   pointsWin: number;
   pointsDraw: number;
   pointsLoss: number;
+  categoriesDetail?: EditionCategoryDetailItem[];
   createdAt: string;
   updatedAt?: string;
 }
@@ -126,8 +154,20 @@ export interface StageItem {
   intersectionType: 'PREVIOUS_RANKING' | 'RANDOM_DRAW' | 'FIXED_BRACKET';
   predefinedCrosses?: any;
   matchDurationMinutes: number;
+  maxPlayersPerTeam?: number;
   allowExtraTime: boolean;
   allowPenalties: boolean;
+  createdAt: string;
+  updatedAt?: string;
+}
+
+export interface PlayerClassificationItem {
+  id: string;
+  companyId?: number;
+  description: string;
+  code?: string;
+  observation?: string;
+  isActive: boolean;
   createdAt: string;
   updatedAt?: string;
 }
@@ -171,6 +211,10 @@ export interface PlayerRegistrationItem {
   teamRegistration?: TeamRegistrationItem;
   playerId: string;
   player?: PlayerItem;
+  stageId?: string;
+  stage?: StageItem;
+  playerClassificationId?: string;
+  playerClassification?: PlayerClassificationItem;
   jerseyNumber: number;
   carnetCode?: string;
   status: 'ELIGIBLE' | 'INELIGIBLE' | 'SUSPENDED' | 'TRANSFERRED';
@@ -257,6 +301,10 @@ export interface MatchLineupItem {
   team?: TeamItem;
   playerId: string;
   player?: PlayerItem;
+  stageId?: string;
+  stage?: StageItem;
+  playerClassificationId?: string;
+  playerClassification?: PlayerClassificationItem;
   jerseyNumber: number;
   isStarter: boolean;
   isCaptain: boolean;
@@ -342,8 +390,9 @@ export interface TeamManagementItem {
   id: string;
   companyId?: number;
   tournamentId?: string;
-  positionId: string;
+  positionId?: string;
   position?: PositionItem;
+  roleTitle?: string;
   teamId: string;
   team?: TeamItem;
   playerId?: string;
@@ -389,8 +438,26 @@ export const TeamsService = createCrudService<TeamItem>('teams');
 export const PlayersService = createCrudService<PlayerItem>('players');
 export const CategoriesService = createCrudService<CategoryItem>('categories');
 export const CategoryEditionsService = createCrudService<CategoryEditionItem>('category-editions');
-export const StagesService = createCrudService<StageItem>('stages');
+export const StagesService = {
+  ...createCrudService<StageItem>('stages'),
+  listClassifications: (stageId: string, companyId?: number) =>
+    api.get<{
+      stageId: string;
+      stageName: string;
+      maxPlayersPerTeam?: number;
+      totalDistributed: number;
+      remainingSlots: number | null;
+      data: any[];
+    }>(`/campeonato/stages/${stageId}/classifications`, withCompany(companyId)),
+  addClassification: (stageId: string, data: { playerClassificationId: string; maxPlayers: number }, companyId?: number) =>
+    api.post<any>(`/campeonato/stages/${stageId}/classifications`, data, withCompany(companyId)),
+  updateClassification: (classificationId: string, data: { maxPlayers: number }, companyId?: number) =>
+    api.put<any>(`/campeonato/stages/classifications/${classificationId}`, data, withCompany(companyId)),
+  removeClassification: (classificationId: string, companyId?: number) =>
+    api.delete<any>(`/campeonato/stages/classifications/${classificationId}`, withCompany(companyId)),
+};
 export const ScenariesService = createCrudService<ScenaryItem>('scenaries');
+export const PlayerClassificationsService = createCrudService<PlayerClassificationItem>('player-classifications');
 export const TeamRegistrationsService = createCrudService<TeamRegistrationItem>('team-registrations');
 export const PlayerRegistrationsService = createCrudService<PlayerRegistrationItem>('player-registrations');
 export const RefereesService = createCrudService<RefereeItem>('referees');
@@ -413,7 +480,11 @@ export const MatchEventsService = createCrudService<MatchEventItem>('match-event
 export const SanctionsService = createCrudService<SanctionItem>('sanctions');
 export const PaymentsService = createCrudService<PaymentItem>('payments');
 export const TournamentCommitteesService = createCrudService<TournamentCommitteeItem>('committees');
-export const TeamManagementsService = createCrudService<TeamManagementItem>('team-managements');
+export const TeamManagementsService = {
+  ...createCrudService<TeamManagementItem>('team-managements'),
+  listByTeam: (teamId: string, companyId?: number) =>
+    api.get<TeamManagementItem[]>(`/campeonato/team-managements/by-team/${teamId}`, withCompany(companyId)),
+};
 
 export const uploadTeamLogo = async (file: File, companyId?: number): Promise<string> => {
   const formData = new FormData();
@@ -475,4 +546,5 @@ export const CampeonatoApi = {
   teamManagements: TeamManagementsService,
   teamCategoryHistory: TeamCategoryHistoryService,
   playerTransfers: PlayerTransfersService,
+  playerClassifications: PlayerClassificationsService,
 };
