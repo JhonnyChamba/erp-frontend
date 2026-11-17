@@ -1025,7 +1025,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue';
+import { ref, computed, onMounted, onUnmounted } from 'vue';
 import AppSelect2, { type Select2Option } from '@/components/common/AppSelect2.vue';
 import { toast } from '@/utils/toastr';
 import { useAuthStore } from '@/stores/auth.store';
@@ -1699,9 +1699,18 @@ const formatStatusLabel = (status: string) => {
   }
 };
 
+const closeWorkOrderForm = () => {
+  isFormOpen.value = false;
+};
+
 onMounted(() => {
   loadOrders();
   loadAuxiliaryData();
+  window.addEventListener('deskounta:reset-view', closeWorkOrderForm);
+});
+
+onUnmounted(() => {
+  window.removeEventListener('deskounta:reset-view', closeWorkOrderForm);
 });
 </script>
 

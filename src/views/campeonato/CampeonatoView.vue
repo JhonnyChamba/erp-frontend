@@ -42,11 +42,11 @@
           <span>Tabla de Posiciones</span>
         </button>
 
-        <button v-if="activeTab !== 'schedules'" class="btn btn-secondary d-flex align-items-center gap-2" @click="loadData" :disabled="loading">
+        <button class="btn btn-secondary d-flex align-items-center gap-2" @click="activeTab === 'schedules' ? loadScheduleConfig() : loadData()" :disabled="loading">
           <iconify-icon icon="solar:refresh-line-duotone" :class="{ 'spin-anim': loading }"></iconify-icon>
           <span>Actualizar</span>
         </button>
-        <button v-if="activeTab !== 'standings' && activeTab !== 'schedules'" class="btn btn-primary d-flex align-items-center gap-2" @click="openCreateForm">
+        <button v-if="activeTab !== 'standings'" class="btn btn-primary d-flex align-items-center gap-2" @click="activeTab === 'schedules' ? openCreateSchedule() : openCreateForm()">
           <iconify-icon icon="solar:add-circle-bold" class="fs-5"></iconify-icon>
           <span>+ Nuevo {{ activeTabLabel }}</span>
         </button>
@@ -73,7 +73,7 @@
     <!-- ========================================== -->
     <!-- 2. FILTROS Y BÚSQUEDA (ESTILO FACTURAS)    -->
     <!-- ========================================== -->
-    <div v-show="!isFormOpen && activeTab !== 'schedules' && activeTab !== 'standings'" class="crud-filters-card">
+    <div v-show="!isFormOpen && activeTab !== 'standings'" class="crud-filters-card">
       <div class="d-flex flex-wrap align-items-center justify-content-between gap-3">
         <div class="d-flex align-items-center gap-2 flex-grow-1" style="max-width: 420px;">
           <div class="input-group">
@@ -85,7 +85,7 @@
               type="text"
               class="form-control"
               :placeholder="'Buscar en ' + activeTabLabel + '...'"
-              @input="loadData()"
+              @input="activeTab === 'schedules' ? null : loadData()"
             />
           </div>
         </div>
@@ -95,7 +95,7 @@
             type="button"
             class="btn btn-outline-secondary d-flex align-items-center gap-1 rounded-pill px-3"
             :disabled="loading"
-            @click="loadData"
+            @click="activeTab === 'schedules' ? loadScheduleConfig() : loadData()"
           >
             <iconify-icon icon="solar:refresh-line-duotone" class="fs-4" :class="{ 'spin-anim': loading }"></iconify-icon>
             <span>Refrescar</span>
@@ -104,267 +104,141 @@
       </div>
     </div>
 
-    <!-- ========================================== -->
-    <!-- 2.5 SECCIÓN DE DÍAS Y HORARIOS DE JUEGO    -->
-    <!-- ========================================== -->
-    <div v-if="!isFormOpen && activeTab === 'schedules'" class="row g-3">
-      <!-- Formulario de Configuración de Horarios -->
-      <div class="col-lg-7">
-        <div class="crud-table-card p-4">
-          <div class="d-flex align-items-center gap-2 mb-3">
-            <iconify-icon icon="solar:clock-circle-bold-duotone" class="fs-3 text-primary"></iconify-icon>
-            <div>
-              <h5 class="fw-bold mb-0 text-body-emphasis">Reglamento de Días y Horarios de Juego</h5>
-              <p class="text-muted small mb-0">Define los días de la semana y los horarios habilitados para la disputa de partidos.</p>
-            </div>
-          </div>
+    <!-- ============================================================== -->
+    <!-- 2.5 LISTADO DE REGLAMENTOS DE DÍAS Y HORARIOS (ESTILO VENTAS)   -->
+    <!-- ============================================================== -->
+    <div v-if="!isFormOpen && activeTab === 'schedules'" class="crud-table-card">
+      <div class="table-responsive">
+        <table class="crud-table">
+          <thead>
+            <tr>
+              <th scope="col" style="width: 70px;">#</th>
+              <th scope="col">Edición del Campeonato</th>
+              <th scope="col">Canchas Asignadas</th>
+              <th scope="col">Días Habilitados</th>
+              <th scope="col">Tiempos Oficiales</th>
+              <th scope="col">Capacidad Semanal</th>
+              <th scope="col" class="text-center">Estado</th>
+              <th scope="col" class="text-end" style="width: 140px;">Acciones</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr v-if="schedulesListFiltered.length === 0">
+              <td colspan="8" class="text-center py-5 text-secondary">
+                <iconify-icon icon="solar:clock-circle-bold-duotone" class="fs-8 text-secondary mb-2 d-block"></iconify-icon>
+                <p class="mb-1 fw-semibold text-body-emphasis">No se encontraron reglamentos de días y horarios configurados</p>
+                <p class="mb-0 fs-2 text-muted">Haz clic en <strong>+ Nuevo {{ activeTabLabel }}</strong> para registrar la programación de una edición.</p>
+              </td>
+            </tr>
 
-          <form @submit.prevent="saveScheduleConfig">
-            <div class="row g-3">
-              <!-- Selección de Edición -->
-              <div class="col-12">
-                <label class="form-label fw-semibold small text-secondary">Edición del Campeonato</label>
-                <select v-model="scheduleConfig.editionId" class="form-select">
-                  <option value="" disabled>Seleccione una edición...</option>
-                  <option v-for="ed in categoryEditionsList" :key="ed.id" :value="ed.id">
-                    {{ ed.name }} ({{ ed.category?.name || 'Categoría' }})
-                  </option>
-                </select>
-              </div>
-
-              <!-- Días de Juego y Horarios por Día -->
-              <div class="col-12">
-                <div class="d-flex align-items-center justify-content-between mb-3 flex-wrap gap-2">
+            <tr v-for="(item, idx) in schedulesListFiltered" :key="item.editionId || idx">
+              <td class="text-muted font-monospace">{{ idx + 1 }}</td>
+              <td>
+                <div class="d-flex align-items-center gap-2">
+                  <div class="p-2 rounded-3 bg-primary-subtle text-primary">
+                    <iconify-icon icon="solar:cup-first-bold" class="fs-4"></iconify-icon>
+                  </div>
                   <div>
-                    <label class="form-label fw-bold small text-body-emphasis mb-0">Días y Horarios Específicos por Día de Juego</label>
-                    <p class="text-muted small mb-0">Personaliza la hora del primer y último partido independientemente para cada día (ej. viernes nocturno, sábados y domingos diurnos).</p>
-                  </div>
-                  <div class="btn-group btn-group-sm">
-                    <button type="button" class="btn btn-outline-secondary" @click="setQuickDays('weekend_fri')">Vie, Sáb y Dom</button>
-                    <button type="button" class="btn btn-outline-secondary" @click="setQuickDays('weekend_std')">Sáb y Dom</button>
-                    <button type="button" class="btn btn-outline-secondary" @click="setQuickDays('weekdays')">Entre Semana</button>
-                    <button type="button" class="btn btn-outline-secondary" @click="setQuickDays('all')">Todos</button>
-                    <button type="button" class="btn btn-outline-secondary text-danger" @click="setQuickDays('none')">Desactivar</button>
+                    <span class="fw-bold text-body-emphasis d-block">{{ item.editionName }}</span>
+                    <small class="text-muted">{{ item.categoryName }}</small>
                   </div>
                 </div>
-
-                <!-- Lista de Días con Horario Individual -->
-                <div class="d-flex flex-column gap-2 mb-3">
-                  <div
-                    v-for="day in weekDaysList"
-                    :key="day.key"
-                    class="card p-3 border rounded-3 transition-all"
-                    :class="scheduleConfig.dailySchedules[day.key]?.enabled ? 'bg-body border-primary-subtle shadow-sm' : 'bg-body-tertiary opacity-75'"
+              </td>
+              <td>
+                <div class="d-flex flex-wrap gap-1">
+                  <span
+                    v-for="cName in item.courtNames"
+                    :key="cName"
+                    class="badge bg-secondary-subtle text-secondary small"
                   >
-                    <div v-if="scheduleConfig.dailySchedules[day.key]" class="d-flex align-items-center justify-content-between flex-wrap gap-3">
-                      <!-- Switch y Nombre del Día -->
-                      <div class="d-flex align-items-center gap-2" style="min-width: 170px;">
-                        <div class="form-check form-switch mb-0">
-                          <input
-                            class="form-check-input cursor-pointer"
-                            type="checkbox"
-                            :id="'switch_day_' + day.key"
-                            v-model="scheduleConfig.dailySchedules[day.key]!.enabled"
-                          />
-                        </div>
-                        <label :for="'switch_day_' + day.key" class="form-check-label fw-bold mb-0 cursor-pointer text-body-emphasis">
-                          {{ day.label }}
-                        </label>
-                        <span
-                          class="badge ms-1 font-monospace"
-                          :class="scheduleConfig.dailySchedules[day.key]!.enabled ? 'bg-success-subtle text-success' : 'bg-secondary-subtle text-secondary'"
-                        >
-                          {{ scheduleConfig.dailySchedules[day.key]!.enabled ? 'Activo' : 'Inactivo' }}
-                        </span>
-                      </div>
-
-                      <!-- Inputs de Horas (Solo si el día está habilitado) -->
-                      <div v-if="scheduleConfig.dailySchedules[day.key]!.enabled" class="d-flex align-items-center gap-3 flex-wrap flex-grow-1 justify-content-md-end">
-                        <div class="d-flex align-items-center gap-1">
-                          <span class="small text-muted fw-semibold" style="white-space: nowrap;">1er Partido:</span>
-                          <div class="input-group input-group-sm" style="width: 135px;">
-                            <span class="input-group-text"><iconify-icon icon="solar:sunrise-bold-duotone"></iconify-icon></span>
-                            <input
-                              type="time"
-                              v-model="scheduleConfig.dailySchedules[day.key]!.startTime"
-                              class="form-control"
-                              required
-                            />
-                          </div>
-                        </div>
-
-                        <div class="d-flex align-items-center gap-1">
-                          <span class="small text-muted fw-semibold" style="white-space: nowrap;">Último Partido:</span>
-                          <div class="input-group input-group-sm" style="width: 135px;">
-                            <span class="input-group-text"><iconify-icon icon="solar:sunset-bold-duotone"></iconify-icon></span>
-                            <input
-                              type="time"
-                              v-model="scheduleConfig.dailySchedules[day.key]!.endTime"
-                              class="form-control"
-                              required
-                            />
-                          </div>
-                        </div>
-
-                        <div class="badge bg-primary-subtle text-primary border border-primary-subtle py-1-5 px-2 font-monospace">
-                          {{ getDayCalculation(day.key).hours }}h disp. · {{ getDayCalculation(day.key).matchesPerCourt }} partidos / cancha
-                        </div>
-                      </div>
-
-                      <!-- Mensaje de Día Desactivado -->
-                      <div v-else class="text-muted small fst-italic">
-                        Sin partidos programados para este día.
-                      </div>
-                    </div>
-                  </div>
+                    📍 {{ cName }}
+                  </span>
+                  <span v-if="item.courtNames.length === 0" class="text-muted small">Sin canchas activas</span>
                 </div>
-              </div>
-
-              <!-- Tiempos Reglamentarios -->
-              <div class="col-md-6">
-                <label class="form-label fw-semibold small text-secondary">Duración Partido (Minutos)</label>
-                <div class="input-group">
-                  <span class="input-group-text"><iconify-icon icon="solar:stopwatch-play-bold-duotone"></iconify-icon></span>
-                  <input type="number" v-model.number="scheduleConfig.matchDurationMinutes" class="form-control" min="30" max="120" step="5" required />
-                  <span class="input-group-text">min</span>
+              </td>
+              <td>
+                <div class="d-flex flex-wrap gap-1">
+                  <span
+                    v-for="d in item.activeDayLabels"
+                    :key="d"
+                    class="badge bg-success-subtle text-success small font-monospace"
+                  >
+                    {{ d }}
+                  </span>
+                  <span v-if="item.activeDayLabels.length === 0" class="text-muted small">Sin días activos</span>
                 </div>
-              </div>
-
-              <div class="col-md-6">
-                <label class="form-label fw-semibold small text-secondary">Descanso / Entretiempo entre Partidos</label>
-                <div class="input-group">
-                  <span class="input-group-text"><iconify-icon icon="solar:hourglass-line-duotone"></iconify-icon></span>
-                  <input type="number" v-model.number="scheduleConfig.intervalMinutes" class="form-control" min="0" max="60" step="5" required />
-                  <span class="input-group-text">min</span>
+              </td>
+              <td>
+                <span class="badge bg-info-subtle text-info font-monospace">
+                  ⏱️ {{ item.slotMinutes }} min ({{ item.matchDuration }}m + {{ item.intervalMinutes }}m)
+                </span>
+              </td>
+              <td>
+                <span class="badge bg-primary text-white font-monospace px-2 py-1">
+                  ⚽ {{ item.totalMatchesWeek }} part. / sem
+                </span>
+              </td>
+              <td class="text-center">
+                <span class="badge bg-success-subtle text-success border border-success-subtle px-2 py-1">
+                  Activo
+                </span>
+              </td>
+              <td class="text-end">
+                <div class="dropdown">
+                  <button
+                    class="btn bg-secondary-subtle text-secondary btn-sm dropdown-toggle d-inline-flex align-items-center gap-1"
+                    type="button"
+                    data-bs-toggle="dropdown"
+                    aria-expanded="false"
+                  >
+                    <iconify-icon icon="solar:menu-dots-bold"></iconify-icon>
+                    <span>Acciones</span>
+                  </button>
+                  <ul class="dropdown-menu dropdown-menu-end shadow-sm">
+                    <li>
+                      <button
+                        class="dropdown-item d-flex align-items-center gap-2"
+                        type="button"
+                        @click="openEditSchedule(item)"
+                      >
+                        <iconify-icon icon="solar:pen-bold" class="text-primary fs-5"></iconify-icon>
+                        <span>Editar Horarios</span>
+                      </button>
+                    </li>
+                    <li>
+                      <button
+                        class="dropdown-item d-flex align-items-center gap-2"
+                        type="button"
+                        @click="applyScheduleFromItem(item)"
+                      >
+                        <iconify-icon icon="solar:calendar-add-bold" class="text-info fs-5"></iconify-icon>
+                        <span>Aplicar al Fixture</span>
+                      </button>
+                    </li>
+                    <li><hr class="dropdown-divider" /></li>
+                    <li>
+                      <button
+                        class="dropdown-item d-flex align-items-center gap-2 text-danger"
+                        type="button"
+                        @click="deleteSchedule(item)"
+                      >
+                        <iconify-icon icon="solar:trash-bin-trash-bold" class="fs-5"></iconify-icon>
+                        <span>Eliminar Horarios</span>
+                      </button>
+                    </li>
+                  </ul>
                 </div>
-              </div>
-
-              <!-- Canchas Disponibles -->
-              <div class="col-12 mt-3">
-                <label class="form-label fw-semibold small text-secondary mb-2">Canchas Habilitadas para esta Programación</label>
-                <div class="border rounded p-3 bg-body-tertiary">
-                  <div v-if="scenariesList.length === 0" class="text-muted small">
-                    No hay canchas registradas aún. Agrega una cancha en la pestaña de <strong>Canchas (Escenarios)</strong>.
-                  </div>
-                  <div v-else class="row g-2">
-                    <div v-for="sc in scenariesList" :key="sc.id" class="col-md-6">
-                      <div class="form-check">
-                        <input
-                          class="form-check-input"
-                          type="checkbox"
-                          :value="sc.id"
-                          :id="'sc_sched_' + sc.id"
-                          v-model="scheduleConfig.selectedScenaryIds"
-                        />
-                        <label class="form-check-label small fw-semibold text-body-emphasis" :for="'sc_sched_' + sc.id">
-                          {{ sc.name }} <span class="badge bg-secondary-subtle text-secondary ms-1">{{ sc.surfaceType || 'Cancha' }}</span>
-                        </label>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              <!-- Botones de Acción -->
-              <div class="col-12 d-flex align-items-center justify-content-end gap-2 mt-4 pt-3 border-top">
-                <button
-                  type="submit"
-                  class="btn btn-primary rounded-pill px-4 fw-semibold d-flex align-items-center gap-2"
-                  :disabled="savingSchedule"
-                >
-                  <iconify-icon icon="solar:diskette-bold-duotone" class="fs-5"></iconify-icon>
-                  <span>{{ savingSchedule ? 'Guardando...' : 'Guardar Horarios' }}</span>
-                </button>
-              </div>
-            </div>
-          </form>
-        </div>
-      </div>
-
-      <!-- Tarjeta Resumen y Capacidad Deportiva -->
-      <div class="col-lg-5">
-        <div class="card p-4 border rounded-4 bg-body-tertiary h-100 d-flex flex-column justify-content-between">
-          <div>
-            <div class="d-flex align-items-center gap-2 mb-3">
-              <iconify-icon icon="solar:calculator-minimalistic-bold-duotone" class="fs-3 text-info"></iconify-icon>
-              <h5 class="fw-bold mb-0 text-body-emphasis">Capacidad y Simulación Semanal</h5>
-            </div>
-
-            <div class="card p-3 mb-3 border-0 bg-primary-subtle text-primary rounded-3">
-              <div class="d-flex justify-content-between align-items-center mb-1">
-                <span class="small fw-semibold">Horas Disponibles Semanales</span>
-                <span class="fw-bold font-monospace">{{ scheduleCalculation.totalHoursWeek }} horas / sem</span>
-              </div>
-              <div class="d-flex justify-content-between align-items-center mb-1">
-                <span class="small fw-semibold">Franja x Partido</span>
-                <span class="fw-bold font-monospace">{{ scheduleCalculation.slotMinutes }} min ({{ scheduleConfig.matchDurationMinutes }}m + {{ scheduleConfig.intervalMinutes }}m)</span>
-              </div>
-              <div class="d-flex justify-content-between align-items-center mb-1">
-                <span class="small fw-semibold">Días con Jornada Activa</span>
-                <span class="badge bg-primary text-white font-monospace">{{ scheduleCalculation.activeDaysCount }} de 7 días</span>
-              </div>
-              <div class="d-flex justify-content-between align-items-center">
-                <span class="small fw-semibold">Canchas Habilitadas</span>
-                <span class="badge bg-info text-white font-monospace">{{ scheduleCalculation.courtsCount }} cancha(s)</span>
-              </div>
-            </div>
-
-            <div class="row g-2 text-center mb-3">
-              <div class="col-12">
-                <div class="p-3 border rounded-3 bg-body">
-                  <span class="text-muted small d-block mb-1">Capacidad Total de Partidos x Semana</span>
-                  <h2 class="fw-bold text-primary mb-0 font-monospace">{{ scheduleCalculation.totalMatchesPerWeek }} <small class="fs-6 text-muted fw-normal">partidos / sem</small></h2>
-                </div>
-              </div>
-            </div>
-
-            <!-- Desglose por Día Activo -->
-            <div class="mb-3">
-              <label class="form-label small fw-bold text-body-emphasis mb-2">Desglose Diario de Capacidad:</label>
-              <div v-if="scheduleCalculation.breakdown.length === 0" class="text-muted small p-2 border rounded bg-body">
-                No hay días habilitados. Activa al menos un día para calcular la capacidad deportiva.
-              </div>
-              <div v-else class="d-flex flex-column gap-1">
-                <div
-                  v-for="item in scheduleCalculation.breakdown"
-                  :key="item.key"
-                  class="d-flex align-items-center justify-content-between p-2 border rounded bg-body small"
-                >
-                  <div class="d-flex align-items-center gap-2">
-                    <span class="fw-bold text-body-emphasis" style="min-width: 75px;">{{ item.label }}</span>
-                    <span class="badge bg-secondary-subtle text-secondary font-monospace">{{ item.startTime }} - {{ item.endTime }}</span>
-                  </div>
-                  <div class="text-end">
-                    <span class="fw-bold text-success font-monospace">{{ item.matchesPerCourt }} part. x cancha</span>
-                    <span class="text-muted ms-1">({{ item.matchesAllCourts }} tot.)</span>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            <p class="text-muted small mb-0">
-              💡 <strong>Regla deportiva:</strong> Cada día tiene su propio horario independiente. El <strong>Generador de Fixture</strong> y la asignación de árbitros y vocales respetarán estos rangos exactos por cada día de la semana.
-            </p>
-          </div>
-
-          <div class="pt-3 border-top mt-3">
-            <button
-              type="button"
-              class="btn btn-outline-info w-100 rounded-pill py-2 fw-semibold d-flex align-items-center justify-content-center gap-2"
-              @click="applyScheduleToFixture"
-            >
-              <iconify-icon icon="solar:calendar-add-bold" class="fs-5"></iconify-icon>
-              <span>Aplicar al Generador de Fixture</span>
-            </button>
-          </div>
-        </div>
+              </td>
+            </tr>
+          </tbody>
+        </table>
       </div>
     </div>
 
     <!-- ========================================== -->
     <!-- 3. TABLA DE POSICIONES Y GOLEADORES        -->
     <!-- ========================================== -->
-    <div v-if="!isFormOpen && activeTab === 'standings'" class="row g-3">
+    <div v-else-if="!isFormOpen && activeTab === 'standings'" class="row g-3">
       <!-- Tabla de Clasificación -->
       <div class="col-lg-8">
         <div class="crud-table-card p-3">
@@ -556,6 +430,31 @@
                   </div>
                 </div>
 
+                <!-- Código Secuencial de Jugador -->
+                <span v-else-if="activeTab === 'players' && col.key === 'code'">
+                  <span class="badge bg-secondary-subtle text-body-emphasis font-monospace border px-2 py-1">
+                    🏷️ {{ item.code || '-' }}
+                  </span>
+                </span>
+
+                <!-- Edad de Jugador (Años y Meses) -->
+                <span v-else-if="activeTab === 'players' && col.key === 'ageDisplay'">
+                  <span
+                    v-if="item.ageYears !== undefined && item.ageYears !== null"
+                    class="badge bg-info-subtle text-info border border-info-subtle font-monospace px-2 py-1"
+                    :title="'Edad calculada: ' + item.ageYears + ' años (' + item.ageMonths + ' meses)'"
+                  >
+                    🎂 {{ item.ageYears }} años <span class="opacity-75">({{ item.ageMonths }}m)</span>
+                  </span>
+                  <span
+                    v-else-if="item.birthDate && calculatePlayerAgeDirect(item.birthDate)"
+                    class="badge bg-info-subtle text-info border border-info-subtle font-monospace px-2 py-1"
+                  >
+                    🎂 {{ calculatePlayerAgeDirect(item.birthDate)?.years }} años <span class="opacity-75">({{ calculatePlayerAgeDirect(item.birthDate)?.months }}m)</span>
+                  </span>
+                  <span v-else class="text-muted small">-</span>
+                </span>
+
                 <!-- Nombre de Jugador con Foto Oficial -->
                 <div v-else-if="activeTab === 'players' && col.key === 'name'" class="d-flex align-items-center gap-2">
                   <img
@@ -617,6 +516,82 @@
                   />
                   <iconify-icon v-else icon="solar:shield-bold-duotone" class="fs-5 text-secondary"></iconify-icon>
                   <span class="text-body-emphasis fw-medium">{{ item.teamRegistration?.team?.name || item.teamRegistration?.team?.shortName || '-' }}</span>
+                </div>
+
+                <!-- Transferencias de Jugadores: Futbolista con Foto -->
+                <div v-else-if="activeTab === 'playerTransfers' && col.key === 'player.name'" class="d-flex align-items-center gap-2">
+                  <img
+                    v-if="item.player?.photo"
+                    :src="item.player.photo"
+                    class="rounded-circle shadow-sm border border-warning-subtle"
+                    style="width: 28px; height: 28px; object-fit: cover;"
+                  />
+                  <div
+                    v-else
+                    class="rounded-circle bg-warning-subtle text-warning d-flex align-items-center justify-content-center"
+                    style="width: 28px; height: 28px;"
+                  >
+                    <iconify-icon icon="solar:user-bold-duotone" class="fs-5 text-warning"></iconify-icon>
+                  </div>
+                  <div>
+                    <span class="text-body-emphasis fw-semibold d-block">{{ item.player?.first_name || item.player?.name }} {{ item.player?.last_name || item.player?.lastName }}</span>
+                    <small class="text-muted font-monospace fs-1">{{ item.player?.id_card || item.player?.identification || item.player?.code }}</small>
+                  </div>
+                </div>
+
+                <!-- Transferencias: Club Origen -->
+                <div v-else-if="activeTab === 'playerTransfers' && col.key === 'originTeam.name'" class="d-flex align-items-center gap-2">
+                  <iconify-icon icon="solar:shield-bold-duotone" class="fs-5 text-secondary"></iconify-icon>
+                  <span class="text-body-emphasis fw-medium">{{ item.originTeam?.name || item.origin_team?.name || item.originTeam?.shortName || 'Pase Propio / Libre' }}</span>
+                </div>
+
+                <!-- Transferencias: Club Destino -->
+                <div v-else-if="activeTab === 'playerTransfers' && col.key === 'destinationTeam.name'" class="d-flex align-items-center gap-2">
+                  <iconify-icon icon="solar:shield-bold-duotone" class="fs-5 text-success"></iconify-icon>
+                  <span class="text-success fw-bold">{{ item.destinationTeam?.name || item.destination_team?.name || item.destinationTeam?.shortName || '-' }}</span>
+                </div>
+
+                <!-- Transferencias: Edición -->
+                <span v-else-if="activeTab === 'playerTransfers' && col.key === 'edition.name'">
+                  <span class="badge bg-secondary-subtle text-secondary font-monospace px-2 py-1">
+                    🏆 {{ item.edition?.name || '-' }}
+                  </span>
+                </span>
+
+                <!-- Transferencias: Estado -->
+                <span v-else-if="activeTab === 'playerTransfers' && col.key === 'status'">
+                  <span v-if="item.status === 'PENDING_APPROVAL'" class="badge bg-warning-subtle text-warning border border-warning-subtle font-monospace px-2 py-1">
+                    ⏳ Pendiente Firmas
+                  </span>
+                  <span v-else-if="item.status === 'APPROVED'" class="badge bg-info-subtle text-info border border-info-subtle font-monospace px-2 py-1">
+                    ✅ Aprobada (Lista)
+                  </span>
+                  <span v-else-if="item.status === 'EXECUTED'" class="badge bg-success-subtle text-success border border-success-subtle font-monospace px-2 py-1">
+                    🟢 Pase Ejecutado
+                  </span>
+                  <span v-else-if="item.status === 'REJECTED'" class="badge bg-danger-subtle text-danger border border-danger-subtle font-monospace px-2 py-1">
+                    ❌ Rechazada
+                  </span>
+                  <span v-else class="badge bg-secondary-subtle text-secondary font-monospace px-2 py-1">
+                    {{ item.status }}
+                  </span>
+                </span>
+
+                <!-- Transferencias: Resumen de Aprobaciones -->
+                <div v-else-if="activeTab === 'playerTransfers' && col.key === 'approvalsSummary'" class="d-flex flex-wrap gap-1">
+                  <span 
+                    v-for="app in (item.approvals || [])" 
+                    :key="app.id || app.role"
+                    class="badge px-2 py-1"
+                    :class="app.status === 'APPROVED' ? 'bg-success-subtle text-success border border-success-subtle' : (app.status === 'REJECTED' ? 'bg-danger-subtle text-danger border border-danger-subtle' : 'bg-warning-subtle text-warning border border-warning-subtle')"
+                    :title="`${app.role}: ${app.status} ${app.notes ? '(' + app.notes + ')' : ''}`"
+                  >
+                    {{ app.role === 'ORIGIN_TEAM' ? 'Origen' : (app.role === 'DESTINATION_TEAM' ? 'Destino' : 'Liga') }}: 
+                    {{ app.status === 'APPROVED' ? '✓' : (app.status === 'REJECTED' ? '✗' : '...') }}
+                  </span>
+                  <span v-if="!item.approvals || item.approvals.length === 0" class="text-muted small">
+                    Sin firmas requeridas
+                  </span>
                 </div>
 
                 <!-- Categoría Actual en Equipos -->
@@ -706,6 +681,32 @@
                   <span v-else class="text-muted small">Sin categorías en detalle</span>
                 </span>
 
+                <!-- Modalidad de Identificación en Ediciones de Torneo -->
+                <span v-else-if="activeTab === 'categoryEditions' && col.key === 'identifyByPlayerCode'">
+                  <span
+                    v-if="item.identifyByPlayerCode"
+                    class="badge bg-info-subtle text-info border border-info-subtle font-monospace px-2 py-1 d-inline-flex align-items-center gap-1"
+                  >
+                    <iconify-icon icon="solar:user-id-bold-duotone" class="fs-6"></iconify-icon>
+                    <span>Por Código (JUG-XXXXX)</span>
+                  </span>
+                  <span
+                    v-else
+                    class="badge bg-secondary-subtle text-body-secondary font-monospace border px-2 py-1 d-inline-flex align-items-center gap-1"
+                  >
+                    <iconify-icon icon="solar:t-shirt-bold-duotone" class="fs-6"></iconify-icon>
+                    <span>Por Dorsal (Camiseta)</span>
+                  </span>
+                </span>
+
+                <!-- Gremio / Núcleo en Árbitros -->
+                <span v-else-if="activeTab === 'referees' && col.key === 'guild.description'">
+                  <span v-if="item.guild?.description" class="badge bg-primary-subtle text-primary border border-primary-subtle px-2 py-1">
+                    🏛️ {{ item.guild.description }} <span v-if="item.guild.acronyms">({{ item.guild.acronyms }})</span>
+                  </span>
+                  <span v-else class="text-muted small">Independiente</span>
+                </span>
+
                 <!-- Estado en Ediciones de Torneo -->
                 <span v-else-if="activeTab === 'categoryEditions' && col.key === 'status'">
                   <span class="badge bg-success-subtle text-success border border-success-subtle font-monospace px-2 py-1">
@@ -766,14 +767,50 @@
                     <span>Acciones</span>
                   </button>
                   <ul class="dropdown-menu dropdown-menu-end shadow-lg py-1">
-                    <!-- Ver Carnet QR si es inscripción de jugador -->
+                    <!-- Acciones para Transferencias de Jugadores -->
+                    <li v-if="activeTab === 'playerTransfers'">
+                      <a class="dropdown-item py-2 text-warning d-flex align-items-center gap-2" href="javascript:void(0)" @click="openTransferDetail(item)">
+                        <iconify-icon icon="solar:document-text-bold-duotone" class="fs-5 text-warning"></iconify-icon>
+                        <span>Ver Expediente / Firmas</span>
+                      </a>
+                    </li>
+                    <li v-if="activeTab === 'playerTransfers'">
+                      <a class="dropdown-item py-2 text-primary d-flex align-items-center gap-2" href="javascript:void(0)" @click="openSportsHistory(item.playerId || item.player?.id)">
+                        <iconify-icon icon="solar:history-bold-duotone" class="fs-5 text-primary"></iconify-icon>
+                        <span>Historial Deportivo</span>
+                      </a>
+                    </li>
+                    <li v-if="activeTab === 'playerTransfers'"><hr class="dropdown-divider"></li>
+
+                    <!-- Ver Carnet QR y Ficha si es inscripción de jugador -->
                     <li v-if="activeTab === 'playerRegistrations'">
                       <a class="dropdown-item py-2 text-info d-flex align-items-center gap-2" href="javascript:void(0)" @click="openCarnetModal(item)">
                         <iconify-icon icon="solar:card-2-bold-duotone" class="fs-5 text-info"></iconify-icon>
                         <span>Ver Carnet (QR)</span>
                       </a>
                     </li>
+                    <li v-if="activeTab === 'playerRegistrations'">
+                      <a class="dropdown-item py-2 text-info d-flex align-items-center gap-2" href="javascript:void(0)" @click="openRosterForTeamReg(item.teamRegistrationId)">
+                        <iconify-icon icon="solar:clipboard-list-bold-duotone" class="fs-5 text-info"></iconify-icon>
+                        <span>Ver Plantilla del Club</span>
+                      </a>
+                    </li>
+                    <li v-if="activeTab === 'playerRegistrations'">
+                      <a class="dropdown-item py-2 text-primary d-flex align-items-center gap-2" href="javascript:void(0)" @click="openSportsHistory(item.playerId || item.player?.id)">
+                        <iconify-icon icon="solar:history-bold-duotone" class="fs-5 text-primary"></iconify-icon>
+                        <span>Historial Deportivo</span>
+                      </a>
+                    </li>
                     <li v-if="activeTab === 'playerRegistrations'"><hr class="dropdown-divider"></li>
+
+                    <!-- Reglas de Pases en Ediciones de Torneo -->
+                    <li v-if="activeTab === 'categoryEditions'">
+                      <a class="dropdown-item py-2 text-warning d-flex align-items-center gap-2" href="javascript:void(0)" @click="openTransferConfig(item)">
+                        <iconify-icon icon="solar:settings-bold-duotone" class="fs-5 text-warning"></iconify-icon>
+                        <span>Reglas de Inscripción y Pases</span>
+                      </a>
+                    </li>
+                    <li v-if="activeTab === 'categoryEditions'"><hr class="dropdown-divider"></li>
 
                     <!-- Acciones directas desde la fila de Equipos -->
                     <li v-if="activeTab === 'teams'">
@@ -1002,54 +1039,456 @@
               </div>
             </div>
 
-            <!-- SECCIÓN: TITULARIDAD DEL PASE Y CLUB PARA JUGADORES -->
+            <!-- SECCIÓN: CONSULTA EN PADRÓN GLOBAL DE FUTBOLISTAS -->
             <div v-if="activeTab === 'players'" class="card p-3 mb-4 border rounded-3 bg-body-tertiary">
-              <h6 class="fw-bold mb-1 text-body-emphasis d-flex align-items-center gap-2">
-                <iconify-icon icon="solar:transfer-horizontal-bold-duotone" class="fs-4 text-info"></iconify-icon>
-                <span>Titularidad del Pase y Club Actual</span>
-              </h6>
+              <div class="d-flex align-items-center justify-content-between flex-wrap gap-2 mb-2">
+                <div class="d-flex align-items-center gap-2">
+                  <iconify-icon icon="solar:user-id-bold-duotone" class="fs-4 text-primary"></iconify-icon>
+                  <h6 class="fw-bold mb-0 text-body-emphasis">Consulta y Vinculación en Padrón Global de Futbolistas</h6>
+                </div>
+                <span class="badge bg-primary-subtle text-primary border border-primary-subtle font-monospace px-2 py-1">
+                  PADRÓN GLOBAL
+                </span>
+              </div>
               <p class="text-muted small mb-3">
-                Gestiona los derechos federativos y la titularidad del pase deportivo del jugador.
+                Ingresa la cédula o identificación del futbolista. Si ya existe en la base general, sus datos se cargarán automáticamente para asociarlo a tu liga.
               </p>
-              <div class="row g-3">
-                <div class="col-md-4">
-                  <label class="form-label text-secondary small fw-semibold">Propiedad del Pase</label>
-                  <select v-model="formData.passOwnerType" class="form-select">
-                    <option value="PLAYER">👤 Pase Propio (Jugador Libre)</option>
-                    <option value="TEAM">🛡️ Club / Equipo es Dueño del Pase</option>
-                  </select>
+              <div class="row g-2 align-items-center">
+                <div class="col-md-5">
+                  <div class="input-group">
+                    <span class="input-group-text bg-body-secondary">
+                      <iconify-icon icon="solar:card-2-bold-duotone" class="text-secondary"></iconify-icon>
+                    </span>
+                    <input
+                      type="text"
+                      v-model="formData.identification"
+                      class="form-control font-monospace"
+                      placeholder="Cédula / DNI del futbolista..."
+                      @keyup.enter="searchGlobalPlayer"
+                    />
+                    <button
+                      type="button"
+                      class="btn btn-primary d-inline-flex align-items-center gap-1 px-3"
+                      @click="searchGlobalPlayer"
+                      :disabled="searchingGlobalPlayer || !formData.identification"
+                    >
+                      <span v-if="searchingGlobalPlayer" class="spinner-border spinner-border-sm me-1" role="status"></span>
+                      <iconify-icon v-else icon="solar:magnifer-bold" class="fs-5"></iconify-icon>
+                      <span>Consultar</span>
+                    </button>
+                  </div>
                 </div>
-                <div v-if="formData.passOwnerType === 'TEAM'" class="col-md-4">
-                  <label class="form-label text-secondary small fw-semibold">Club Dueño de los Derechos</label>
-                  <AppSelect2
-                    v-model="formData.passOwnerTeamId"
-                    :fetch-options="fetchTeamsOptions"
-                    placeholder="Buscar club dueño del pase..."
-                    search-placeholder="Buscar club en BD..."
-                  />
-                </div>
-                <div :class="formData.passOwnerType === 'TEAM' ? 'col-md-4' : 'col-md-8'">
-                  <label class="form-label text-secondary small fw-semibold">Club en el que Juega Actualmente</label>
-                  <AppSelect2
-                    v-model="formData.currentTeamId"
-                    :fetch-options="fetchTeamsOptions"
-                    placeholder="Buscar club actual del jugador..."
-                    search-placeholder="Buscar club en BD..."
-                  />
+
+                <div class="col-md-7">
+                  <!-- Banner cuando fue encontrado en el padrón global -->
+                  <div v-if="globalPlayerFound" class="alert alert-success py-2 px-3 mb-0 rounded-3 border-0 bg-success-subtle text-success-emphasis d-flex align-items-center gap-2">
+                    <iconify-icon icon="solar:check-circle-bold" class="fs-4 text-success"></iconify-icon>
+                    <span class="small">
+                      <strong>✓ Futbolista encontrado:</strong> {{ formData.name }} {{ formData.lastName }} (Código: <code>{{ formData.code || 'JUG-GLOBAL' }}</code>). Al guardar se vinculará a tu liga.
+                    </span>
+                  </div>
+
+                  <!-- Banner cuando no existe (nuevo futbolista) -->
+                  <div v-else-if="globalPlayerSearched && !globalPlayerFound" class="alert alert-info py-2 px-3 mb-0 rounded-3 border-0 bg-info-subtle text-info-emphasis d-flex align-items-center gap-2">
+                    <iconify-icon icon="solar:info-circle-bold" class="fs-4 text-info"></iconify-icon>
+                    <span class="small">
+                      <strong>Nuevo futbolista:</strong> El número ingresado no registra en el padrón global. Completa sus datos; se creará con código secuencial automático.
+                    </span>
+                  </div>
+
+                  <!-- Mensaje inicial -->
+                  <div v-else class="text-muted small">
+                    Digita la cédula y presiona <strong>Consultar</strong> o Enter para verificar coincidencias.
+                  </div>
                 </div>
               </div>
             </div>
 
-            <div class="row g-4">
+            <!-- SECCIÓN: CONSULTA EN PADRÓN GLOBAL DE ÁRBITROS -->
+            <div v-if="activeTab === 'referees'" class="card p-3 mb-4 border rounded-3 bg-body-tertiary">
+              <div class="d-flex align-items-center justify-content-between flex-wrap gap-2 mb-2">
+                <div class="d-flex align-items-center gap-2">
+                  <iconify-icon icon="solar:whistle-bold-duotone" class="fs-4 text-primary"></iconify-icon>
+                  <h6 class="fw-bold mb-0 text-body-emphasis">Consulta y Vinculación en Padrón Global de Árbitros</h6>
+                </div>
+                <span class="badge bg-primary-subtle text-primary border border-primary-subtle font-monospace px-2 py-1">
+                  PADRÓN GLOBAL
+                </span>
+              </div>
+              <p class="text-muted small mb-3">
+                Ingresa el número de documento del árbitro. Si ya existe en la base general, sus datos se cargarán automáticamente para asociarlo a tu liga.
+              </p>
+              <div class="row g-2 align-items-center">
+                <div class="col-md-5">
+                  <div class="input-group">
+                    <span class="input-group-text bg-body-secondary">
+                      <iconify-icon icon="solar:card-2-bold-duotone" class="text-secondary"></iconify-icon>
+                    </span>
+                    <input
+                      type="text"
+                      v-model="formData.identification"
+                      class="form-control font-monospace"
+                      placeholder="Cédula / Documento del árbitro..."
+                      @keyup.enter="searchGlobalReferee"
+                    />
+                    <button
+                      type="button"
+                      class="btn btn-primary d-inline-flex align-items-center gap-1 px-3"
+                      @click="searchGlobalReferee"
+                      :disabled="searchingGlobalReferee || !formData.identification"
+                    >
+                      <span v-if="searchingGlobalReferee" class="spinner-border spinner-border-sm me-1" role="status"></span>
+                      <iconify-icon v-else icon="solar:magnifer-bold" class="fs-5"></iconify-icon>
+                      <span>Consultar</span>
+                    </button>
+                  </div>
+                </div>
+
+                <div class="col-md-7">
+                  <!-- Banner cuando fue localizado en el padrón global -->
+                  <div v-if="globalRefereeFound" class="alert alert-success py-2 px-3 mb-0 rounded-3 border-0 bg-success-subtle text-success-emphasis d-flex align-items-center gap-2">
+                    <iconify-icon icon="solar:check-circle-bold" class="fs-4 text-success"></iconify-icon>
+                    <span class="small">
+                      <strong>✓ Árbitro localizado:</strong> {{ formData.name }} {{ formData.lastName }}. Al guardar se vinculará a tu liga.
+                    </span>
+                  </div>
+
+                  <!-- Banner cuando no existe (nuevo árbitro) -->
+                  <div v-else-if="globalRefereeSearched && !globalRefereeFound" class="alert alert-info py-2 px-3 mb-0 rounded-3 border-0 bg-info-subtle text-info-emphasis d-flex align-items-center gap-2">
+                    <iconify-icon icon="solar:info-circle-bold" class="fs-4 text-info"></iconify-icon>
+                    <span class="small">
+                      <strong>Nuevo árbitro:</strong> No figura en el padrón global. Completa sus datos; se registrará globalmente y se vinculará a tu liga.
+                    </span>
+                  </div>
+
+                  <!-- Mensaje inicial -->
+                  <div v-else class="text-muted small">
+                    Digita el número de documento y presiona <strong>Consultar</strong> o Enter para verificar coincidencias.
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- ======================================================== -->
+            <!-- FORMULARIO DE DÍAS Y HORARIOS DE JUEGO (PANTALLA COMPLETA)-->
+            <!-- ======================================================== -->
+            <div v-if="activeTab === 'schedules'" class="row g-3">
+              <!-- Formulario de Configuración de Horarios (Columna 7) -->
+              <div class="col-lg-7">
+                <div class="card p-4 border rounded-3 bg-body-tertiary">
+                  <div class="d-flex align-items-center gap-2 mb-3">
+                    <iconify-icon icon="solar:clock-circle-bold-duotone" class="fs-3 text-primary"></iconify-icon>
+                    <div>
+                      <h5 class="fw-bold mb-0 text-body-emphasis">Reglamento de Días y Horarios de Juego</h5>
+                      <p class="text-muted small mb-0">Define los días de la semana y los horarios habilitados para la disputa de partidos por cancha.</p>
+                    </div>
+                  </div>
+
+                  <div class="row g-3">
+                    <!-- Selección de Edición -->
+                    <div class="col-12">
+                      <label class="form-label fw-semibold small text-secondary">Edición del Campeonato *</label>
+                      <select v-model="scheduleConfig.editionId" class="form-select" @change="syncEditionTimes" required>
+                        <option value="" disabled>Seleccione una edición...</option>
+                        <option v-for="ed in categoryEditionsList" :key="ed.id" :value="ed.id">
+                          {{ ed.name }} ({{ ed.category?.name || 'Categoría' }})
+                        </option>
+                      </select>
+                    </div>
+
+                    <!-- Tiempos Oficiales Automáticos de la Edición -->
+                    <div class="col-12" v-if="scheduleConfig.editionId">
+                      <div class="alert alert-info py-2 px-3 d-flex align-items-center justify-content-between flex-wrap gap-2 mb-0 border-0 bg-info-subtle text-info-emphasis rounded-3">
+                        <div class="d-flex align-items-center gap-2">
+                          <iconify-icon icon="solar:stopwatch-play-bold-duotone" class="fs-4 text-primary"></iconify-icon>
+                          <span class="small">
+                            Tiempos oficiales de la edición: <strong>{{ scheduleConfig.matchDurationMinutes }} min</strong> de juego + <strong>{{ scheduleConfig.intervalMinutes }} min</strong> de descanso/espera
+                          </span>
+                        </div>
+                        <span class="badge bg-primary text-white font-monospace">
+                          Franja: {{ scheduleConfig.matchDurationMinutes + scheduleConfig.intervalMinutes }} min / partido
+                        </span>
+                      </div>
+                    </div>
+
+                    <!-- Selector de Canchas para Configurar por Cancha -->
+                    <div class="col-12">
+                      <div class="d-flex align-items-center justify-content-between mb-2 flex-wrap gap-2">
+                        <label class="form-label fw-bold small text-body-emphasis mb-0 d-flex align-items-center gap-1">
+                          <iconify-icon icon="solar:map-point-wave-bold-duotone" class="text-primary fs-5"></iconify-icon>
+                          <span>Canchas Habilitadas (Selecciona para configurar sus días)</span>
+                        </label>
+                        <span class="text-muted small">Cada cancha tiene su propia programación independiente</span>
+                      </div>
+
+                      <div v-if="availableScenariesForEdition.length === 0" class="alert alert-warning small p-2 mb-0">
+                        No hay canchas registradas o asignadas a esta edición. Puedes agregarlas en la pestaña de <strong>Canchas (Escenarios)</strong>.
+                      </div>
+
+                      <div v-else class="d-flex align-items-center gap-2 flex-wrap p-2 border rounded-3 bg-body">
+                        <button
+                          v-for="sc in availableScenariesForEdition"
+                          :key="sc.id"
+                          type="button"
+                          class="btn btn-sm rounded-pill d-flex align-items-center gap-2 transition-all"
+                          :class="selectedCourtId === sc.id ? 'btn-primary shadow-sm text-white' : 'btn-outline-secondary'"
+                          @click="selectCourtToConfigure(sc.id)"
+                        >
+                          <iconify-icon icon="solar:shield-check-bold-duotone" class="fs-5"></iconify-icon>
+                          <span class="fw-semibold">{{ sc.name }}</span>
+                          <span
+                            class="badge rounded-pill font-monospace"
+                            :class="selectedCourtId === sc.id ? 'bg-white text-primary' : (getCourtActiveDaysCount(sc.id) > 0 ? 'bg-success-subtle text-success' : 'bg-secondary-subtle text-secondary')"
+                          >
+                            {{ getCourtActiveDaysCount(sc.id) }} día(s) activo(s)
+                          </span>
+                        </button>
+                      </div>
+                    </div>
+
+                    <!-- Días de Juego y Horarios por Día para la Cancha Seleccionada -->
+                    <div class="col-12" v-if="selectedCourtId">
+                      <div class="d-flex align-items-center justify-content-between mb-3 flex-wrap gap-2">
+                        <div>
+                          <label class="form-label fw-bold small text-body-emphasis mb-0">
+                            Días y Horarios para: <span class="text-primary">{{ currentCourtName }}</span>
+                          </label>
+                          <p class="text-muted small mb-0">Define la hora del primer y último partido para esta cancha específica.</p>
+                        </div>
+                        <div class="btn-group btn-group-sm">
+                          <button type="button" class="btn btn-outline-secondary" @click="setQuickDays('sunday_only')">Solo Domingo</button>
+                          <button type="button" class="btn btn-outline-secondary" @click="setQuickDays('weekend_std')">Sáb y Dom</button>
+                          <button type="button" class="btn btn-outline-secondary" @click="setQuickDays('weekend_fri')">Vie, Sáb y Dom</button>
+                          <button type="button" class="btn btn-outline-secondary" @click="setQuickDays('weekdays')">Entre Semana</button>
+                          <button type="button" class="btn btn-outline-secondary" @click="setQuickDays('all')">Todos</button>
+                          <button type="button" class="btn btn-outline-secondary text-danger" @click="setQuickDays('none')">Desactivar</button>
+                        </div>
+                      </div>
+
+                      <!-- Lista de Días con Horario Individual -->
+                      <div class="d-flex flex-column gap-2 mb-3">
+                        <div
+                          v-for="day in weekDaysList"
+                          :key="day.key"
+                          class="card p-3 border rounded-3 transition-all"
+                          :class="activeCourtDailySchedules[day.key]?.enabled ? 'bg-body border-primary-subtle shadow-sm' : 'bg-body-tertiary opacity-75'"
+                        >
+                          <div v-if="activeCourtDailySchedules[day.key]" class="d-flex align-items-center justify-content-between flex-wrap gap-3">
+                            <!-- Switch y Nombre del Día -->
+                            <div class="d-flex align-items-center gap-2" style="min-width: 170px;">
+                              <div class="form-check form-switch mb-0">
+                                <input
+                                  class="form-check-input cursor-pointer"
+                                  type="checkbox"
+                                  :id="'switch_day_form_' + day.key"
+                                  v-model="activeCourtDailySchedules[day.key]!.enabled"
+                                />
+                              </div>
+                              <label :for="'switch_day_form_' + day.key" class="form-check-label fw-bold mb-0 cursor-pointer text-body-emphasis">
+                                {{ day.label }}
+                              </label>
+                              <span
+                                class="badge ms-1 font-monospace"
+                                :class="activeCourtDailySchedules[day.key]!.enabled ? 'bg-success-subtle text-success' : 'bg-secondary-subtle text-secondary'"
+                              >
+                                {{ activeCourtDailySchedules[day.key]!.enabled ? 'Activo' : 'Inactivo' }}
+                              </span>
+                            </div>
+
+                            <!-- Inputs de Horas (Solo si el día está habilitado) -->
+                            <div v-if="activeCourtDailySchedules[day.key]!.enabled" class="d-flex align-items-center gap-3 flex-wrap flex-grow-1 justify-content-md-end">
+                              <div class="d-flex align-items-center gap-1">
+                                <span class="small text-muted fw-semibold" style="white-space: nowrap;">1er Partido:</span>
+                                <div class="input-group input-group-sm" style="width: 135px;">
+                                  <span class="input-group-text"><iconify-icon icon="solar:sunrise-bold-duotone"></iconify-icon></span>
+                                  <input
+                                    type="time"
+                                    v-model="activeCourtDailySchedules[day.key]!.startTime"
+                                    class="form-control"
+                                    required
+                                  />
+                                </div>
+                              </div>
+
+                              <div class="d-flex align-items-center gap-1">
+                                <span class="small text-muted fw-semibold" style="white-space: nowrap;">Último Partido:</span>
+                                <div class="input-group input-group-sm" style="width: 135px;">
+                                  <span class="input-group-text"><iconify-icon icon="solar:sunset-bold-duotone"></iconify-icon></span>
+                                  <input
+                                    type="time"
+                                    v-model="activeCourtDailySchedules[day.key]!.endTime"
+                                    class="form-control"
+                                    required
+                                  />
+                                </div>
+                              </div>
+
+                              <div class="badge bg-primary-subtle text-primary border border-primary-subtle py-1-5 px-2 font-monospace">
+                                {{ getDayCalculation(day.key).hours }}h disp. · {{ getDayCalculation(day.key).matchesPerCourt }} partidos / cancha
+                              </div>
+                            </div>
+
+                            <!-- Mensaje de Día Desactivado -->
+                            <div v-else class="text-muted small fst-italic">
+                              Sin partidos programados para esta cancha el día {{ day.label }}.
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Tarjeta Resumen y Capacidad Deportiva (Columna 5) -->
+              <div class="col-lg-5">
+                <div class="card p-4 border rounded-3 bg-body-tertiary h-100 d-flex flex-column justify-content-between">
+                  <div>
+                    <div class="d-flex align-items-center gap-2 mb-3">
+                      <iconify-icon icon="solar:calculator-minimalistic-bold-duotone" class="fs-3 text-info"></iconify-icon>
+                      <h5 class="fw-bold mb-0 text-body-emphasis">Capacidad y Simulación Semanal</h5>
+                    </div>
+
+                    <div class="card p-3 mb-3 border-0 bg-primary-subtle text-primary rounded-3">
+                      <div class="d-flex justify-content-between align-items-center mb-1">
+                        <span class="small fw-semibold">Horas Disponibles Semanales</span>
+                        <span class="fw-bold font-monospace">{{ scheduleCalculation.totalHoursWeek }} horas / sem</span>
+                      </div>
+                      <div class="d-flex justify-content-between align-items-center mb-1">
+                        <span class="small fw-semibold">Franja x Partido (Reglamento)</span>
+                        <span class="fw-bold font-monospace">{{ scheduleCalculation.slotMinutes }} min ({{ scheduleConfig.matchDurationMinutes }}m + {{ scheduleConfig.intervalMinutes }}m)</span>
+                      </div>
+                      <div class="d-flex justify-content-between align-items-center mb-1">
+                        <span class="small fw-semibold">Días con Jornada Activa</span>
+                        <span class="badge bg-primary text-white font-monospace">{{ scheduleCalculation.activeDaysCount }} de 7 días</span>
+                      </div>
+                      <div class="d-flex justify-content-between align-items-center">
+                        <span class="small fw-semibold">Canchas Programadas</span>
+                        <span class="badge bg-info text-white font-monospace">{{ scheduleCalculation.courtsCount }} cancha(s)</span>
+                      </div>
+                    </div>
+
+                    <div class="row g-2 text-center mb-3">
+                      <div class="col-12">
+                        <div class="p-3 border rounded-3 bg-body">
+                          <span class="text-muted small d-block mb-1">Capacidad Total de Partidos x Semana</span>
+                          <h2 class="fw-bold text-primary mb-0 font-monospace">{{ scheduleCalculation.totalMatchesPerWeek }} <small class="fs-6 text-muted fw-normal">partidos / sem</small></h2>
+                        </div>
+                      </div>
+                    </div>
+
+                    <!-- Desglose por Cancha y Días Habilitados -->
+                    <div class="mb-3">
+                      <label class="form-label small fw-bold text-body-emphasis mb-2">Desglose por Cancha y Días Habilitados:</label>
+                      <div v-if="scheduleCalculation.courtBreakdowns.length === 0" class="text-muted small p-2 border rounded bg-body">
+                        No hay canchas con días activos aún. Selecciona una cancha a la izquierda y habilita sus días de juego.
+                      </div>
+                      <div v-else class="d-flex flex-column gap-2" style="max-height: 380px; overflow-y: auto;">
+                        <div
+                          v-for="cb in scheduleCalculation.courtBreakdowns"
+                          :key="cb.courtId"
+                          class="card p-2 border rounded bg-body shadow-none"
+                        >
+                          <div class="d-flex align-items-center justify-content-between border-bottom pb-1 mb-1">
+                            <span class="fw-bold text-primary small d-flex align-items-center gap-1">
+                              <iconify-icon icon="solar:map-point-wave-bold-duotone"></iconify-icon>
+                              {{ cb.courtName }}
+                            </span>
+                            <span class="badge bg-success-subtle text-success font-monospace small">
+                              {{ cb.totalMatches }} part. / sem
+                            </span>
+                          </div>
+                          <div class="d-flex flex-column gap-1">
+                            <div
+                              v-for="d in cb.days"
+                              :key="d.key"
+                              class="d-flex align-items-center justify-content-between small text-muted px-1"
+                            >
+                              <span><strong>{{ d.label }}</strong> ({{ d.startTime }} - {{ d.endTime }})</span>
+                              <span class="font-monospace text-body-emphasis">{{ d.matches }} part.</span>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+
+                    <p class="text-muted small mb-0">
+                      💡 <strong>Regla deportiva:</strong> Cada día tiene su propio horario independiente. El <strong>Generador de Fixture</strong> y la asignación de árbitros y vocales respetarán estos rangos exactos por cada día de la semana.
+                    </p>
+                  </div>
+
+                  <div class="pt-3 border-top mt-3">
+                    <button
+                      type="button"
+                      class="btn btn-outline-info w-100 rounded-pill py-2 fw-semibold d-flex align-items-center justify-content-center gap-2"
+                      @click="applyScheduleToFixture"
+                    >
+                      <iconify-icon icon="solar:calendar-add-bold" class="fs-5"></iconify-icon>
+                      <span>Aplicar al Generador de Fixture</span>
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- TARJETA INFORMATIVA DE TRANSFERENCIA: DETECCIÓN AUTOMÁTICA DEL CLUB DE ORIGEN -->
+            <div v-if="activeTab === 'playerTransfers'" class="card p-3 mb-4 border rounded-3 bg-body-tertiary">
+              <div class="d-flex align-items-center gap-2 mb-2">
+                <iconify-icon icon="solar:shield-check-bold-duotone" class="fs-4 text-warning"></iconify-icon>
+                <h6 class="fw-bold mb-0 text-body-emphasis">Detección Automática de Club de Origen</h6>
+              </div>
+              <div v-if="checkingOriginRegistration" class="text-muted small py-2">
+                <span class="spinner-border spinner-border-sm me-2"></span>
+                Verificando inscripción activa del jugador en este torneo...
+              </div>
+              <div v-else-if="detectedOriginRegistration" class="alert alert-info py-2 px-3 mb-0 rounded-3 border-0 bg-info-subtle text-info-emphasis d-flex align-items-center justify-content-between flex-wrap gap-2">
+                <div>
+                  <span class="fw-bold">Club de Origen Identificado:</span>
+                  <span class="badge bg-primary text-white ms-2 px-2 py-1">
+                    🛡️ {{ detectedOriginRegistration.teamRegistration?.team?.name || 'Club de Origen' }}
+                  </span>
+                  <span class="small ms-2 text-muted">
+                    (Dorsal: {{ detectedOriginRegistration.jerseyNumber || 'S/N' }} · Clasificación: {{ detectedOriginRegistration.playerClassification?.description || 'General' }})
+                  </span>
+                </div>
+                <span class="badge bg-success-subtle text-success border border-success-subtle font-monospace">
+                  ✓ Inscripción Activa Detectada
+                </span>
+              </div>
+              <div v-else-if="formData.player_id && formData.edition_id" class="alert alert-warning py-2 px-3 mb-0 rounded-3 border-0 bg-warning-subtle text-warning-emphasis small">
+                <iconify-icon icon="solar:info-circle-bold" class="me-1"></iconify-icon>
+                El jugador seleccionado no registra una inscripción previa en este campeonato. Se tramitará como transferencia de jugador libre o incorporación inicial.
+              </div>
+              <div v-else class="text-muted small">
+                Selecciona la <strong>Edición del Campeonato</strong> y el <strong>Futbolista</strong>. El sistema identificará automáticamente su club de origen e historial sin permitir selecciones arbitrarias.
+              </div>
+            </div>
+
+            <div v-if="activeTab !== 'schedules'" class="row g-4">
               <div v-for="field in formFields" :key="field.key" :class="field.colClass || 'col-md-6'">
-                <label class="form-label text-secondary small fw-semibold">{{ field.label }}</label>
+                <label class="form-label text-secondary small fw-semibold">
+                  {{ field.label }}
+                  <span v-if="field.readonly || field.disabled" class="badge bg-secondary-subtle text-secondary ms-1 fw-normal font-monospace" style="font-size: 0.68rem;">(Calculado)</span>
+                </label>
                 <input
                   v-if="field.type === 'text' || field.type === 'number' || field.type === 'date'"
                   :type="field.type"
                   v-model="formData[field.key]"
                   class="form-control"
+                  :class="{ 'bg-body-secondary text-secondary cursor-not-allowed': field.readonly || field.disabled }"
                   :placeholder="field.placeholder || ''"
+                  :readonly="field.readonly"
+                  :disabled="field.disabled || field.readonly"
                 />
+                <!-- Alerta reactiva de cálculo de edad para Jugadores -->
+                <div v-if="activeTab === 'players' && field.key === 'birthDate' && computedPlayerAge" class="mt-2">
+                  <div class="alert alert-info py-2 px-3 d-flex align-items-center gap-2 mb-0 border-0 bg-info-subtle text-info-emphasis rounded-3">
+                    <iconify-icon icon="solar:cake-bold-duotone" class="fs-4 text-info"></iconify-icon>
+                    <span class="small">
+                      Edad calculada: <strong>{{ computedPlayerAge.years }} años</strong> (en meses: <strong>{{ computedPlayerAge.months }} meses</strong> acumulados)
+                    </span>
+                  </div>
+                </div>
                 <!-- Selector de Color con Hexadecimal y Vista Previa Interactiva -->
                 <div v-else-if="field.type === 'color'" class="input-group">
                   <span class="input-group-text p-1 bg-body-tertiary">
@@ -1082,6 +1521,13 @@
                     <iconify-icon icon="solar:paint-roller-bold" class="fs-5"></iconify-icon>
                   </span>
                 </div>
+                <textarea
+                  v-else-if="field.type === 'textarea'"
+                  v-model="formData[field.key]"
+                  class="form-control"
+                  rows="3"
+                  :placeholder="field.placeholder || ''"
+                ></textarea>
                 <AppSelect2
                   v-else-if="field.type === 'select'"
                   v-model="formData[field.key]"
@@ -1098,156 +1544,451 @@
               </div>
             </div>
 
+            <!-- Estado para Clasificación de Futbolistas: Activo por defecto al crear, editable al modificar -->
+            <div v-if="activeTab === 'playerClassifications'" class="mt-3">
+              <div v-if="isEditing" class="form-check form-switch">
+                <input class="form-check-input" type="checkbox" v-model="formData.isActive" id="pc_is_active_edit" />
+                <label class="form-check-label text-body-emphasis fw-semibold small ms-2" for="pc_is_active_edit">
+                  {{ formData.isActive ? 'Clasificación Habilitada / Activa' : 'Clasificación Deshabilitada / Inactiva' }}
+                </label>
+              </div>
+              <div v-else class="badge bg-success-subtle text-success border border-success-subtle px-3 py-2 fw-semibold">
+                ✓ Clasificación Habilitada / Activa por Defecto
+              </div>
+            </div>
+
+            <!-- ======================================================== -->
+            <!-- SECCIÓN: MAPA INTERACTIVO Y UBICACIÓN PARA ESCENARIOS     -->
+            <!-- ======================================================== -->
+            <div v-if="activeTab === 'scenaries'" class="card p-3 mt-4 border rounded-3 bg-body-tertiary">
+              <div class="d-flex align-items-center justify-content-between mb-3 flex-wrap gap-2">
+                <div class="d-flex align-items-center gap-2">
+                  <iconify-icon icon="solar:map-point-wave-bold-duotone" class="fs-4 text-primary"></iconify-icon>
+                  <div>
+                    <h6 class="fw-bold mb-0 text-body-emphasis">Ubicación en el Mapa (Calles y Puntos Cardinales)</h6>
+                    <small class="text-muted">Haz clic en el mapa o busca un sector para fijar las calles y puntos cardinales oficiales de la cancha.</small>
+                  </div>
+                </div>
+                <div v-if="!isEditing" class="badge bg-success-subtle text-success border border-success-subtle px-3 py-2 fw-semibold">
+                  ✓ Cancha Activa por Defecto
+                </div>
+              </div>
+
+              <!-- Buscador en el mapa -->
+              <div class="input-group mb-3">
+                <span class="input-group-text bg-body border-secondary-subtle">
+                  <iconify-icon icon="solar:magnifer-linear"></iconify-icon>
+                </span>
+                <input
+                  type="text"
+                  v-model="mapSearchQuery"
+                  class="form-control"
+                  placeholder="Buscar calle, barrio o sector en el mapa (ej. San José de Cangahua)..."
+                  @keyup.enter="searchLocationOnMap"
+                />
+                <button type="button" class="btn btn-primary px-4 fw-semibold d-flex align-items-center gap-1" @click="searchLocationOnMap">
+                  <iconify-icon icon="solar:map-point-search-bold"></iconify-icon>
+                  <span>Buscar en Mapa</span>
+                </button>
+              </div>
+
+              <!-- Contenedor del Mapa Leaflet -->
+              <div
+                id="scenary-map-container"
+                class="border rounded-3 overflow-hidden shadow-sm position-relative mb-3"
+                style="height: 340px; background: #1a2234; min-height: 300px; z-index: 1;"
+              ></div>
+
+              <!-- Campos derivados del mapa (Calles y Puntos Cardinales) -->
+              <div class="row g-3">
+                <div class="col-md-6">
+                  <label class="form-label text-secondary small fw-semibold">
+                    Calles / Dirección del Escenario <span class="text-danger">*</span>
+                  </label>
+                  <div class="input-group">
+                    <span class="input-group-text"><iconify-icon icon="solar:streets-map-point-bold-duotone"></iconify-icon></span>
+                    <input
+                      type="text"
+                      v-model="formData.address"
+                      class="form-control"
+                      placeholder="Ej. Calle Simón Bolívar y Pichincha"
+                      required
+                    />
+                  </div>
+                </div>
+
+                <div class="col-md-6">
+                  <label class="form-label text-secondary small fw-semibold">
+                    Puntos Cardinales <span class="text-danger">*</span>
+                  </label>
+                  <div class="input-group">
+                    <span class="input-group-text"><iconify-icon icon="solar:compass-bold-duotone" class="text-primary"></iconify-icon></span>
+                    <input
+                      type="text"
+                      v-model="formData.cardinalPoints"
+                      class="form-control font-monospace"
+                      placeholder="Ej. 0° 03' 24&quot; S, 78° 12' 45&quot; O"
+                      required
+                    />
+                  </div>
+                </div>
+
+                <div class="col-md-4">
+                  <label class="form-label text-secondary small fw-semibold">Latitud</label>
+                  <input type="text" v-model="formData.latitude" class="form-control form-control-sm font-monospace" placeholder="-0.057045" readonly />
+                </div>
+
+                <div class="col-md-4">
+                  <label class="form-label text-secondary small fw-semibold">Longitud</label>
+                  <input type="text" v-model="formData.longitude" class="form-control form-control-sm font-monospace" placeholder="-78.209045" readonly />
+                </div>
+
+                <div class="col-md-4 d-flex align-items-end">
+                  <a
+                    v-if="formData.googleMapsUrl"
+                    :href="formData.googleMapsUrl"
+                    target="_blank"
+                    class="btn btn-outline-info btn-sm w-100 rounded-pill d-inline-flex align-items-center justify-content-center gap-1"
+                  >
+                    <iconify-icon icon="solar:map-arrow-up-bold" class="fs-5"></iconify-icon>
+                    <span>Ver en Google Maps</span>
+                  </a>
+                </div>
+
+                <!-- Si está editando, mostramos el switch de estado por si se requiere inactivar -->
+                <div v-if="isEditing" class="col-12 mt-2">
+                  <div class="form-check form-switch">
+                    <input class="form-check-input" type="checkbox" v-model="formData.isActive" id="scenary_is_active_edit" />
+                    <label class="form-check-label text-body-emphasis fw-semibold small ms-2" for="scenary_is_active_edit">
+                      {{ formData.isActive ? 'Cancha Habilitada / Activa' : 'Cancha Deshabilitada / Inactiva' }}
+                    </label>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- ======================================================== -->
+            <!-- SECCIÓN: MODALIDAD DE IDENTIFICACIÓN DE JUGADORES       -->
+            <!-- ======================================================== -->
+            <div v-if="activeTab === 'categoryEditions'" class="card p-3 mt-4 border rounded-3 bg-body-tertiary">
+              <div class="d-flex align-items-center gap-2 mb-3">
+                <iconify-icon icon="solar:user-id-bold-duotone" class="fs-4 text-primary"></iconify-icon>
+                <div>
+                  <h6 class="fw-bold mb-0 text-body-emphasis">Modalidad de Identificación de Jugadores en el Torneo</h6>
+                  <small class="text-muted">Define si en este campeonato los jugadores se configurarán y registrarán por su número de camiseta (dorsal) o mediante su código único secuencial de jugador.</small>
+                </div>
+              </div>
+              <div class="row g-3">
+                <div class="col-md-6">
+                  <div
+                    class="card p-3 border rounded-3 cursor-pointer h-100 transition-all shadow-sm"
+                    :class="!formData.identifyByPlayerCode ? 'border-primary bg-primary-subtle bg-opacity-25' : 'border-secondary-subtle bg-body'"
+                    @click="formData.identifyByPlayerCode = false"
+                  >
+                    <div class="form-check d-flex align-items-start gap-2">
+                      <input
+                        class="form-check-input mt-1 cursor-pointer"
+                        type="radio"
+                        name="identifyMode"
+                        id="identifyByJersey"
+                        :checked="!formData.identifyByPlayerCode"
+                        @change="formData.identifyByPlayerCode = false"
+                      />
+                      <label class="form-check-label cursor-pointer" for="identifyByJersey">
+                        <span class="fw-bold d-block text-body-emphasis mb-1">
+                          🎽 Por Número de Jugador (Dorsal de Camiseta)
+                        </span>
+                        <small class="text-secondary d-block">
+                          Los jugadores juegan y se identifican en cada partido con el número asignado a su camiseta (del 1 al 99).
+                        </small>
+                      </label>
+                    </div>
+                  </div>
+                </div>
+                <div class="col-md-6">
+                  <div
+                    class="card p-3 border rounded-3 cursor-pointer h-100 transition-all shadow-sm"
+                    :class="formData.identifyByPlayerCode ? 'border-primary bg-primary-subtle bg-opacity-25' : 'border-secondary-subtle bg-body'"
+                    @click="formData.identifyByPlayerCode = true"
+                  >
+                    <div class="form-check d-flex align-items-start gap-2">
+                      <input
+                        class="form-check-input mt-1 cursor-pointer"
+                        type="radio"
+                        name="identifyMode"
+                        id="identifyByCode"
+                        :checked="formData.identifyByPlayerCode === true"
+                        @change="formData.identifyByPlayerCode = true"
+                      />
+                      <label class="form-check-label cursor-pointer" for="identifyByCode">
+                        <span class="fw-bold d-block text-body-emphasis mb-1">
+                          🏷️ Por Código Único de Jugador (Secuencial)
+                        </span>
+                        <small class="text-secondary d-block">
+                          Los jugadores se identifican mediante el código secuencial asignado por la liga (ej. JUG-00001), independientemente del número en su camiseta.
+                        </small>
+                      </label>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- ======================================================== -->
+            <!-- SECCIÓN: TIEMPOS DE JUEGO PARA LA EDICIÓN DE TORNEO       -->
+            <!-- ======================================================== -->
+            <div v-if="activeTab === 'categoryEditions'" class="card p-3 mt-4 border rounded-3 bg-body-tertiary">
+              <div class="d-flex align-items-center gap-2 mb-3">
+                <iconify-icon icon="solar:stopwatch-play-bold-duotone" class="fs-4 text-primary"></iconify-icon>
+                <div>
+                  <h6 class="fw-bold mb-0 text-body-emphasis">Reglamento de Tiempos de Juego del Campeonato</h6>
+                  <small class="text-muted">Establece la duración oficial de los partidos, entretiempos y tiempos de espera para esta edición.</small>
+                </div>
+              </div>
+              <div class="row g-3">
+                <div class="col-md-4">
+                  <label class="form-label text-secondary small fw-semibold">Duración Partido (Minutos) <span class="text-danger">*</span></label>
+                  <div class="input-group">
+                    <span class="input-group-text"><iconify-icon icon="solar:stopwatch-play-bold"></iconify-icon></span>
+                    <input
+                      type="number"
+                      v-model.number="formData.matchDurationMinutes"
+                      class="form-control font-monospace"
+                      min="20"
+                      max="120"
+                      step="5"
+                      placeholder="60"
+                      required
+                    />
+                    <span class="input-group-text">min</span>
+                  </div>
+                  <small class="text-muted" style="font-size: 0.72rem;">Tiempo total del encuentro</small>
+                </div>
+
+                <div class="col-md-4">
+                  <label class="form-label text-secondary small fw-semibold">Descanso / Entretiempo entre Tiempos <span class="text-danger">*</span></label>
+                  <div class="input-group">
+                    <span class="input-group-text"><iconify-icon icon="solar:hourglass-line-bold"></iconify-icon></span>
+                    <input
+                      type="number"
+                      v-model.number="formData.breakDurationMinutes"
+                      class="form-control font-monospace"
+                      min="0"
+                      max="45"
+                      step="5"
+                      placeholder="10"
+                      required
+                    />
+                    <span class="input-group-text">min</span>
+                  </div>
+                  <small class="text-muted" style="font-size: 0.72rem;">Pausa entre el 1° y 2° tiempo</small>
+                </div>
+
+                <div class="col-md-4">
+                  <label class="form-label text-secondary small fw-semibold">Tiempo de Espera para Siguiente Partido <span class="text-danger">*</span></label>
+                  <div class="input-group">
+                    <span class="input-group-text"><iconify-icon icon="solar:history-bold"></iconify-icon></span>
+                    <input
+                      type="number"
+                      v-model.number="formData.waitBetweenMatchesMinutes"
+                      class="form-control font-monospace"
+                      min="0"
+                      max="60"
+                      step="5"
+                      placeholder="10"
+                      required
+                    />
+                    <span class="input-group-text">min</span>
+                  </div>
+                  <small class="text-muted" style="font-size: 0.72rem;">Lapso antes de iniciar el siguiente cotejo</small>
+                </div>
+              </div>
+            </div>
+
+            <!-- ======================================================== -->
+            <!-- SECCIÓN: CANCHAS DISPONIBLES PARA EL CAMPEONATO           -->
+            <!-- ======================================================== -->
+            <div v-if="activeTab === 'categoryEditions'" class="card p-3 mt-4 border rounded-3 bg-body-tertiary">
+              <div class="d-flex align-items-center justify-content-between mb-3 flex-wrap gap-2">
+                <div class="d-flex align-items-center gap-2">
+                  <iconify-icon icon="solar:map-point-wave-bold-duotone" class="fs-4 text-success"></iconify-icon>
+                  <div>
+                    <h6 class="fw-bold mb-0 text-body-emphasis">Canchas Habilitadas para este Campeonato</h6>
+                    <small class="text-muted">Selecciona las canchas o escenarios deportivos donde se disputará esta edición del campeonato.</small>
+                  </div>
+                </div>
+                <span class="badge bg-success-subtle text-success border border-success-subtle px-3 py-2 fw-semibold">
+                  {{ (formData.availableScenaryIds || []).length }} Cancha(s) Habilitada(s)
+                </span>
+              </div>
+
+              <div v-if="scenariesList.length === 0" class="alert alert-warning mb-0 py-2 d-flex align-items-center gap-2">
+                <iconify-icon icon="solar:danger-triangle-bold" class="fs-4 text-warning"></iconify-icon>
+                <span>No hay canchas registradas en el sistema. Registra canchas en la pestaña <strong>Escenarios / Canchas</strong>.</span>
+              </div>
+
+              <div v-else class="row g-3">
+                <div v-for="sc in scenariesList" :key="sc.id" class="col-md-6 col-lg-4">
+                  <div
+                    class="card h-100 p-3 border rounded-3 cursor-pointer transition-all"
+                    :class="(formData.availableScenaryIds || []).includes(sc.id) ? 'border-success bg-success-subtle shadow-sm' : 'border-secondary-subtle bg-body'"
+                    @click="toggleScenarySelection(sc.id)"
+                  >
+                    <div class="d-flex align-items-start gap-3">
+                      <input
+                        type="checkbox"
+                        class="form-check-input mt-1 cursor-pointer"
+                        :checked="(formData.availableScenaryIds || []).includes(sc.id)"
+                        @change.stop="toggleScenarySelection(sc.id)"
+                      />
+                      <div class="flex-grow-1">
+                        <div class="fw-bold text-body-emphasis">{{ sc.name }}</div>
+                        <div class="small text-muted mt-1" v-if="sc.address || sc.location">
+                          📍 {{ sc.address || sc.location }}
+                        </div>
+                        <div class="small font-monospace text-secondary mt-1" v-if="sc.cardinalPoints">
+                          🧭 {{ sc.cardinalPoints }}
+                        </div>
+                        <div class="mt-2">
+                          <span class="badge bg-secondary-subtle text-secondary font-monospace small">
+                            {{ sc.surfaceType === 'SYNTHETIC' ? 'Césped Sintético' : sc.surfaceType === 'NATURAL_GRASS' ? 'Césped Natural' : sc.surfaceType || 'Cancha Oficial' }}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
             <!-- ======================================================== -->
             <!-- SECCIÓN MAESTRO-DETALLE: CATEGORÍAS DE LA EDICIÓN        -->
             <!-- ======================================================== -->
             <div v-if="activeTab === 'categoryEditions'" class="card p-3 mt-4 border rounded-3 bg-body-tertiary">
               <div class="d-flex align-items-center justify-content-between mb-3 flex-wrap gap-2">
-                <div>
-                  <h6 class="fw-bold mb-1 text-body-emphasis d-flex align-items-center gap-2">
-                    <iconify-icon icon="solar:widget-add-bold-duotone" class="fs-4 text-primary"></iconify-icon>
-                    <span>Detalle de Categorías del Torneo (Edición de Torneo Detalle Categorías)</span>
-                  </h6>
-                  <p class="text-muted small mb-0">
-                    Agrega las categorías que competirán en esta edición, con sus fechas oficiales y costo de inscripción.
-                  </p>
+                <div class="d-flex align-items-center gap-2">
+                  <iconify-icon icon="solar:widget-add-bold-duotone" class="fs-4 text-primary"></iconify-icon>
+                  <div>
+                    <h6 class="fw-bold mb-0 text-body-emphasis">Detalle de Categorías del Torneo (Edición de Torneo Detalle Categorías)</h6>
+                    <small class="text-muted">Agrega las categorías que competirán en esta edición, con sus fechas oficiales, costo y clasificaciones.</small>
+                  </div>
                 </div>
-                <span class="badge bg-primary-subtle text-primary border border-primary-subtle px-3 py-2 fw-semibold">
-                  {{ editionCategoriesDetail.length }} Categoría(s) Agregada(s)
-                </span>
-              </div>
-
-              <!-- Mini-formulario para agregar categoría al detalle -->
-              <div class="card p-3 mb-3 border border-secondary-subtle rounded-3 bg-body">
-                <div class="row g-3 align-items-end">
-                  <div class="col-md-3">
-                    <label class="form-label text-secondary small fw-semibold">Categoría <span class="text-danger">*</span></label>
-                    <select v-model="editionDetailInput.categoryId" class="form-select">
-                      <option value="" disabled>Seleccione una categoría...</option>
-                      <option v-for="cat in categoriesList" :key="cat.id" :value="cat.id">
-                        {{ cat.name }} ({{ cat.gender === 'MALE' ? 'Varones' : cat.gender === 'FEMALE' ? 'Mujeres' : 'Mixto' }})
-                      </option>
-                    </select>
-                  </div>
-                  <div class="col-md-2">
-                    <label class="form-label text-secondary small fw-semibold">Fecha de Inicio</label>
-                    <input type="date" v-model="editionDetailInput.startDate" class="form-control" />
-                  </div>
-                  <div class="col-md-2">
-                    <label class="form-label text-secondary small fw-semibold">Fecha Fin</label>
-                    <input type="date" v-model="editionDetailInput.endDate" class="form-control" />
-                  </div>
-                  <div class="col-md-2">
-                    <label class="form-label text-secondary small fw-semibold">Costo Inscripción ($)</label>
-                    <input
-                      type="number"
-                      step="0.01"
-                      min="0"
-                      v-model.number="editionDetailInput.registrationFee"
-                      class="form-control"
-                      placeholder="0.00"
-                    />
-                  </div>
-                  <div class="col-md-3">
-                    <label class="form-label text-secondary small fw-semibold">Máx. Jugadores Inscritos <span class="text-danger">*</span></label>
-                    <input
-                      type="number"
-                      min="1"
-                      v-model.number="editionDetailInput.maxPlayers"
-                      class="form-control font-monospace"
-                      placeholder="Ej. 30"
-                      required
-                    />
-                  </div>
-                  <div class="col-12 text-end">
-                    <button
-                      type="button"
-                      class="btn btn-primary rounded-pill px-4 d-inline-flex align-items-center gap-2"
-                      @click="addCategoryToEditionDetail"
-                    >
-                      <iconify-icon icon="solar:add-circle-bold" class="fs-5"></iconify-icon>
-                      <span>Agregar Categoría al Detalle</span>
-                    </button>
-                  </div>
+                <div class="d-flex align-items-center gap-2">
+                  <span class="badge bg-primary-subtle text-primary border border-primary-subtle px-3 py-2 fw-semibold">
+                    {{ editionCategoriesDetail.length }} Categoría(s) Agregada(s)
+                  </span>
+                  <button
+                    type="button"
+                    class="btn btn-sm btn-primary d-flex align-items-center gap-1 rounded-pill px-3 py-1 fw-semibold shadow-sm"
+                    @click="addCategoryToEditionDetail"
+                  >
+                    <iconify-icon icon="solar:add-circle-bold" class="fs-5"></iconify-icon>
+                    <span>+ Agregar Categoría</span>
+                  </button>
                 </div>
               </div>
 
-              <!-- Tabla interactiva con el detalle de categorías -->
-              <div class="table-responsive border rounded-3 bg-body">
-                <table class="table table-hover align-middle mb-0">
-                  <thead class="table-light">
+              <!-- Tabla interactiva con inputs en línea (idéntica a la Factura) -->
+              <div class="table-responsive border rounded-3 bg-body shadow-sm">
+                <table class="table table-hover table-sm align-middle mb-0">
+                  <thead class="table-primary fs-1 text-uppercase">
                     <tr>
-                      <th style="width: 45px;">#</th>
-                      <th>Categoría</th>
-                      <th>Fechas Inicio / Fin</th>
-                      <th>Costo Inscripción</th>
-                      <th>Máximo Jugadores</th>
-                      <th>Clasificaciones de Futbolistas</th>
-                      <th class="text-end" style="width: 70px;">Acción</th>
+                      <th style="min-width: 260px; width: 30%;">Categoría *</th>
+                      <th style="min-width: 140px; width: 14%;">Fecha Inicio</th>
+                      <th style="min-width: 140px; width: 14%;">Fecha Fin</th>
+                      <th style="min-width: 130px; width: 13%;" class="text-end">Costo Inscripción ($)</th>
+                      <th style="min-width: 120px; width: 11%;" class="text-center">Máx. Jugadores *</th>
+                      <th style="min-width: 180px; width: 15%;" class="text-center">Clasificaciones</th>
+                      <th style="width: 50px;" class="text-center"></th>
                     </tr>
                   </thead>
                   <tbody>
-                    <tr v-for="(item, idx) in editionCategoriesDetail" :key="idx">
-                      <td class="fw-bold text-muted">{{ idx + 1 }}</td>
-                      <td>
-                        <span class="fw-bold text-body-emphasis d-block">
-                          🏆 {{ item.categoryDescription || getCategoryNameById(item.categoryId) }}
-                        </span>
-                        <small class="text-muted font-monospace">ID: {{ item.categoryId?.substring(0, 8) }}...</small>
-                      </td>
-                      <td>
-                        <div class="small font-monospace">
-                          <span class="d-block text-secondary">🟢 Inicio: {{ item.startDate || 'No def.' }}</span>
-                          <span class="d-block text-muted">🔴 Fin: {{ item.endDate || 'No def.' }}</span>
-                        </div>
-                      </td>
-                      <td>
-                        <span class="badge bg-success-subtle text-success border border-success-subtle fw-bold font-monospace">
-                          ${{ Number(item.registrationFee || 0).toFixed(2) }}
-                        </span>
-                      </td>
-                      <td>
-                        <span class="badge bg-primary-subtle text-primary border border-primary-subtle font-monospace px-2 py-1 fs-3">
-                          👥 Máx. {{ item.maxPlayers || 25 }} inscritos
-                        </span>
-                      </td>
-                      <td>
-                        <div class="d-flex flex-column gap-1">
-                          <button
-                            type="button"
-                            class="btn btn-sm rounded-pill px-3 py-1 d-inline-flex align-items-center gap-1 w-auto"
-                            :class="item.classifications && item.classifications.length ? 'btn-outline-primary' : 'btn-outline-secondary'"
-                            @click="openCategoryClassificationsModal(item, idx)"
-                          >
-                            <iconify-icon icon="solar:user-check-bold-duotone" class="fs-5"></iconify-icon>
-                            <span>{{ item.classifications && item.classifications.length ? (item.classifications.length + ' Clasif. Asignadas (' + getSumClassifications(item) + '/' + (item.maxPlayers || 25) + ')') : '+ Configurar Clasificaciones' }}</span>
-                          </button>
-                          <div v-if="item.classifications && item.classifications.length" class="d-flex flex-wrap gap-1 mt-1">
-                            <span
-                              v-for="(c, cidx) in item.classifications"
-                              :key="cidx"
-                              class="badge bg-secondary-subtle text-secondary font-monospace px-2 py-1"
-                            >
-                              {{ c.playerClassification?.description || getPlayerClassificationDescById(c.playerClassificationId) }}: <strong>{{ c.maxPlayers }}</strong>
-                            </span>
-                          </div>
-                        </div>
-                      </td>
-                      <td class="text-end">
+                    <tr v-if="editionCategoriesDetail.length === 0">
+                      <td colspan="7" class="text-center py-5 text-muted">
+                        <iconify-icon icon="solar:info-circle-line-duotone" class="fs-2 d-block mb-2 text-secondary"></iconify-icon>
+                        Aún no se han agregado categorías al detalle de esta edición de torneo.<br/>
                         <button
                           type="button"
-                          class="btn btn-sm btn-outline-danger rounded-circle p-1"
-                          @click="removeCategoryFromEditionDetail(idx)"
-                          title="Quitar categoría de esta edición"
+                          class="btn btn-sm btn-outline-primary rounded-pill px-3 py-1 mt-2 fw-semibold"
+                          @click="addCategoryToEditionDetail"
                         >
-                          <iconify-icon icon="solar:trash-bin-trash-line-duotone" class="fs-5"></iconify-icon>
+                          <iconify-icon icon="solar:add-circle-bold" class="fs-5 me-1"></iconify-icon>
+                          <span>Agregar Primera Categoría</span>
                         </button>
                       </td>
                     </tr>
-                    <tr v-if="editionCategoriesDetail.length === 0">
-                      <td colspan="7" class="text-center py-4 text-muted">
-                        <iconify-icon icon="solar:info-circle-line-duotone" class="fs-3 d-block mb-1 text-secondary"></iconify-icon>
-                        Aún no se han agregado categorías al detalle de esta edición de torneo.
+                    <tr v-for="(item, idx) in editionCategoriesDetail" :key="item._uid || idx">
+                      <td>
+                        <select
+                          v-model="item.categoryId"
+                          class="form-select form-select-sm"
+                          @change="onCategoryChangeInRow(item)"
+                          required
+                        >
+                          <option value="" disabled>-- Seleccione una Categoría --</option>
+                          <option v-for="cat in categoriesList" :key="cat.id" :value="cat.id">
+                            {{ cat.name }} ({{ cat.gender === 'MALE' ? 'Varones' : cat.gender === 'FEMALE' ? 'Mujeres' : 'Mixto' }})
+                          </option>
+                        </select>
+                      </td>
+                      <td>
+                        <input
+                          type="date"
+                          v-model="item.startDate"
+                          class="form-control form-control-sm"
+                        />
+                      </td>
+                      <td>
+                        <input
+                          type="date"
+                          v-model="item.endDate"
+                          class="form-control form-control-sm"
+                        />
+                      </td>
+                      <td>
+                        <div class="input-group input-group-sm">
+                          <span class="input-group-text">$</span>
+                          <input
+                            type="number"
+                            step="0.01"
+                            min="0"
+                            v-model.number="item.registrationFee"
+                            class="form-control form-control-sm text-end font-monospace"
+                            placeholder="0.00"
+                          />
+                        </div>
+                      </td>
+                      <td>
+                        <input
+                          type="number"
+                          min="1"
+                          v-model.number="item.maxPlayers"
+                          class="form-control form-control-sm font-monospace text-center"
+                          placeholder="25"
+                          required
+                        />
+                      </td>
+                      <td class="text-center">
+                        <button
+                          type="button"
+                          class="btn btn-sm rounded-pill px-3 py-1 d-inline-flex align-items-center gap-1"
+                          :class="item.classifications && item.classifications.length ? 'btn-primary' : 'btn-outline-primary'"
+                          @click="openCategoryClassificationsModal(item, idx)"
+                          title="Configurar distribución de clasificaciones y límites"
+                        >
+                          <iconify-icon icon="solar:user-check-bold" class="fs-5"></iconify-icon>
+                          <span class="small fw-semibold">{{ item.classifications && item.classifications.length ? (item.classifications.length + ' Clasif. (' + getSumClassifications(item) + '/' + (item.maxPlayers || 25) + ')') : '+ Configurar' }}</span>
+                        </button>
+                      </td>
+                      <td class="text-center">
+                        <button
+                          type="button"
+                          class="btn btn-sm btn-link text-danger p-0 border-0"
+                          @click="removeCategoryFromEditionDetail(idx)"
+                          title="Eliminar fila"
+                        >
+                          <iconify-icon icon="solar:trash-bin-trash-bold" class="fs-4 text-danger"></iconify-icon>
+                        </button>
                       </td>
                     </tr>
                   </tbody>
@@ -1266,6 +2007,18 @@
               Cancelar
             </button>
             <button
+              v-if="activeTab === 'schedules'"
+              type="button"
+              class="btn btn-primary rounded-pill px-4 fw-semibold d-flex align-items-center gap-2 shadow-sm"
+              :disabled="savingSchedule"
+              @click="saveScheduleConfig"
+            >
+              <span v-if="savingSchedule" class="spinner-grow spinner-grow-sm text-white" role="status" aria-hidden="true"></span>
+              <iconify-icon v-else icon="solar:check-circle-line-duotone" class="fs-4"></iconify-icon>
+              <span>{{ savingSchedule ? 'Guardando...' : 'Guardar Horarios' }}</span>
+            </button>
+            <button
+              v-else
               type="submit"
               class="btn btn-primary rounded-pill px-4 fw-semibold d-flex align-items-center gap-2"
               :disabled="saving"
@@ -2187,7 +2940,7 @@
                   <span>Asignar Clasificación y Cupo a la Categoría</span>
                 </h6>
                 <div class="row g-3 align-items-end">
-                  <div :class="isExprofessionalSelected || isJuvenileSelected ? 'col-md-5' : 'col-md-6'">
+                  <div :class="isExprofessionalSelected || isJuvenileSelected ? 'col-md-4' : 'col-md-6'">
                     <label class="form-label small fw-semibold text-secondary">Clasificación de Futbolista <span class="text-danger">*</span></label>
                     <select v-model="formCategoryClassification.playerClassificationId" class="form-select form-select-sm" required>
                       <option value="" disabled>Seleccione una clasificación...</option>
@@ -2217,10 +2970,10 @@
                   </div>
 
                   <!-- Campo adicional para Exprofesional: Cantidad máxima de meses de inactividad en el fútbol profesional -->
-                  <div v-if="isExprofessionalSelected" class="col-md-4">
+                  <div v-if="isExprofessionalSelected" class="col-md-5">
                     <label class="form-label small fw-semibold text-warning d-flex align-items-center gap-1">
                       <iconify-icon icon="solar:clock-circle-bold"></iconify-icon>
-                      <span>Inactividad Fútbol Profesional <span class="text-danger">*</span></span>
+                      <span>Cantidad Máxima de Meses de Inactividad en el Fútbol Profesional <span class="text-danger">*</span></span>
                     </label>
                     <div class="input-group input-group-sm">
                       <input
@@ -2231,12 +2984,12 @@
                         placeholder="Ej. 12"
                         required
                       />
-                      <span class="input-group-text">meses máx.</span>
+                      <span class="input-group-text">meses de inactividad</span>
                     </div>
                   </div>
 
                   <!-- Campo extra para Juvenil: Cantidad máxima de meses -->
-                  <div v-if="isJuvenileSelected" class="col-md-4">
+                  <div v-if="isJuvenileSelected" class="col-md-5">
                     <label class="form-label small fw-semibold text-info d-flex align-items-center gap-1">
                       <iconify-icon icon="solar:calendar-bold"></iconify-icon>
                       <span>Cantidad Máxima de Meses <span class="text-danger">*</span></span>
@@ -2247,17 +3000,17 @@
                         v-model.number="formCategoryClassification.maxMonths"
                         class="form-control font-monospace"
                         min="1"
-                        placeholder="Ej. 240"
+                        placeholder="Ej. 216 meses (18 años)"
                         required
                       />
-                      <span class="input-group-text">meses</span>
+                      <span class="input-group-text">meses máx.</span>
                     </div>
                   </div>
 
-                  <div :class="isExprofessionalSelected || isJuvenileSelected ? 'col-md-12 text-end' : 'col-md-2'">
+                  <div :class="isExprofessionalSelected || isJuvenileSelected ? 'col-12 text-end mt-2' : 'col-md-2'">
                     <button
                       type="submit"
-                      class="btn btn-primary btn-sm rounded-pill fw-semibold px-4 d-inline-flex align-items-center justify-content-center gap-1"
+                      class="btn btn-primary btn-sm rounded-pill fw-semibold px-4 d-inline-flex align-items-center justify-content-center gap-1 shadow-sm"
                       :class="{ 'w-100': !isExprofessionalSelected && !isJuvenileSelected }"
                     >
                       <iconify-icon icon="solar:check-circle-bold" class="fs-5"></iconify-icon>
@@ -2336,12 +3089,13 @@
         </div>
       </div>
     </Teleport>
+
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, watch } from 'vue';
-import { useRoute, useRouter } from 'vue-router';
+import { ref, computed, onMounted, onUnmounted, watch, nextTick } from 'vue';
+import { useRoute, useRouter, onBeforeRouteUpdate, onBeforeRouteLeave } from 'vue-router';
 import { CampeonatoApi, uploadTeamLogo, uploadPlayerPhoto, TeamManagementsService, type TeamManagementItem } from '@/services/campeonato.service';
 import { useAuthStore } from '@/stores/auth.store';
 import { toast } from '@/utils/toastr';
@@ -2353,7 +3107,7 @@ interface TabConfig {
   icon?: string;
   api: any;
   columns: { key: string; label: string; type?: string }[];
-  fields: { key: string; label: string; type: string; options?: { label: string; value: any }[]; colClass?: string; placeholder?: string }[];
+  fields: { key: string; label: string; type: string; options?: { label: string; value: any }[]; colClass?: string; placeholder?: string; readonly?: boolean; disabled?: boolean }[];
 }
 
 const tabs: TabConfig[] = [
@@ -2374,16 +3128,13 @@ const tabs: TabConfig[] = [
     fields: [
       { key: 'name', label: 'Nombre del Equipo', type: 'text', colClass: 'col-md-6' },
       { key: 'shortName', label: 'Nombre Corto', type: 'text', colClass: 'col-md-6' },
-      { key: 'acronyms', label: 'Siglas', type: 'text', colClass: 'col-md-4' },
-      { key: 'city', label: 'Ciudad', type: 'text', colClass: 'col-md-4' },
-      { key: 'neighborhood', label: 'Barrio / Sector', type: 'text', colClass: 'col-md-4' },
+      { key: 'acronyms', label: 'Siglas', type: 'text', colClass: 'col-md-6' },
       { key: 'color1', label: 'Color Principal', type: 'color', colClass: 'col-md-4', placeholder: '#FFFFFF' },
       { key: 'color2', label: 'Color Secundario', type: 'color', colClass: 'col-md-4', placeholder: '#000000' },
       { key: 'colorAlternate', label: 'Uniforme Alterno', type: 'color', colClass: 'col-md-4', placeholder: '#1E40AF' },
       { key: 'dateOfFoundation', label: 'Fecha de Fundación', type: 'date', colClass: 'col-md-4' },
       { key: 'email', label: 'Correo Oficial del Club', type: 'text', colClass: 'col-md-4' },
       { key: 'representativePhone', label: 'Teléfono Rep.', type: 'text', colClass: 'col-md-4' },
-      { key: 'isActive', label: 'Activo', type: 'boolean', colClass: 'col-md-12' },
     ],
   },
   {
@@ -2392,25 +3143,25 @@ const tabs: TabConfig[] = [
     icon: 'solar:users-group-two-rounded-bold-duotone',
     api: CampeonatoApi.players,
     columns: [
+      { key: 'code', label: 'Código' },
       { key: 'name', label: 'Nombres' },
       { key: 'lastName', label: 'Apellidos' },
+      { key: 'ageDisplay', label: 'Edad' },
       { key: 'identification', label: 'Identificación' },
       { key: 'demarcation.name', label: 'Demarcación' },
       { key: 'playerClassification.description', label: 'Clasificación' },
-      { key: 'passOwnerType', label: 'Dueño del Pase' },
-      { key: 'currentTeam.name', label: 'Club Actual' },
-      { key: 'medicalClearanceExpiry', label: 'Ficha Médica', type: 'date' },
       { key: 'isActive', label: 'Estado', type: 'boolean' },
     ],
     fields: [
-      { key: 'name', label: 'Nombres', type: 'text', colClass: 'col-md-6' },
-      { key: 'lastName', label: 'Apellidos', type: 'text', colClass: 'col-md-6' },
-      { key: 'identification', label: 'Cédula / DNI / Pasaporte', type: 'text', colClass: 'col-md-4' },
-      { key: 'isForeigner', label: '¿Es Extranjero? (Permite Pasaporte)', type: 'boolean', colClass: 'col-md-4' },
+      { key: 'identification', label: 'Cédula / Identificación *', type: 'text', colClass: 'col-md-4', placeholder: 'Ingrese cédula y presione Consultar...' },
+      { key: 'code', label: 'Código Secuencial de Jugador', type: 'text', colClass: 'col-md-4', placeholder: 'Autogenerado ej. JUG-00001', readonly: true, disabled: true },
       { key: 'birthDate', label: 'Fecha de Nacimiento', type: 'date', colClass: 'col-md-4' },
-      { key: 'demarcationId', label: 'Posición / Demarcación en Campo', type: 'select', colClass: 'col-md-6', options: [] },
-      { key: 'playerClassificationId', label: 'Clasificación de Futbolista (Predeterminada)', type: 'select', colClass: 'col-md-6', options: [] },
-      { key: 'jerseyNumber', label: 'Dorsal habitual', type: 'number', colClass: 'col-md-3' },
+      { key: 'name', label: 'Nombres *', type: 'text', colClass: 'col-md-6' },
+      { key: 'lastName', label: 'Apellidos *', type: 'text', colClass: 'col-md-6' },
+      { key: 'ageYears', label: 'Edad en Años', type: 'number', colClass: 'col-md-3', placeholder: 'Autocalculado', readonly: true, disabled: true },
+      { key: 'ageMonths', label: 'Edad en Meses', type: 'number', colClass: 'col-md-3', placeholder: 'Autocalculado', readonly: true, disabled: true },
+      { key: 'demarcationId', label: 'Posición / Demarcación en Campo', type: 'select', colClass: 'col-md-3', options: [] },
+      { key: 'playerClassificationId', label: 'Clasificación de Futbolista', type: 'select', colClass: 'col-md-3', options: [] },
       {
         key: 'dominantFoot',
         label: 'Pie Dominante',
@@ -2436,14 +3187,12 @@ const tabs: TabConfig[] = [
           { label: 'AB Positivo (AB+)', value: 'AB+' },
           { label: 'AB Negativo (AB-)', value: 'AB-' },
         ],
-        colClass: 'col-md-4',
+        colClass: 'col-md-3',
       },
-      { key: 'emergencyContactName', label: 'Contacto de Emergencia', type: 'text', colClass: 'col-md-4' },
-      { key: 'emergencyContactPhone', label: 'Teléfono de Emergencia', type: 'text', colClass: 'col-md-4' },
-      { key: 'medicalClearanceExpiry', label: 'Vencimiento de Chequeo Médico', type: 'date', colClass: 'col-md-4' },
-      { key: 'phone', label: 'Teléfono Personal', type: 'text', colClass: 'col-md-4' },
-      { key: 'email', label: 'Correo Electrónico', type: 'text', colClass: 'col-md-4' },
-      { key: 'isActive', label: 'Habilitado / Activo', type: 'boolean', colClass: 'col-md-12' },
+      { key: 'phone', label: 'Teléfono Personal', type: 'text', colClass: 'col-md-3' },
+      { key: 'email', label: 'Correo Electrónico', type: 'text', colClass: 'col-md-3' },
+      { key: 'emergencyContactName', label: 'Contacto de Emergencia', type: 'text', colClass: 'col-md-6' },
+      { key: 'emergencyContactPhone', label: 'Teléfono de Emergencia', type: 'text', colClass: 'col-md-6' },
     ],
   },
   {
@@ -2460,7 +3209,7 @@ const tabs: TabConfig[] = [
     ],
     fields: [
       { key: 'name', label: 'Nombre de la Categoría', type: 'text', colClass: 'col-md-6' },
-      { key: 'code', label: 'Código', type: 'text', colClass: 'col-md-6' },
+      { key: 'code', label: 'Código', type: 'text', colClass: 'col-md-6', placeholder: 'Autogenerado ej. CAT-001 (Opcional)' },
       {
         key: 'gender',
         label: 'Género',
@@ -2483,6 +3232,7 @@ const tabs: TabConfig[] = [
     api: CampeonatoApi.categoryEditions,
     columns: [
       { key: 'name', label: 'Nombre / Descripción Edición' },
+      { key: 'identifyByPlayerCode', label: 'Modalidad de Jugadores' },
       { key: 'categoriesDetail', label: 'Categorías (Detalle)' },
       { key: 'status', label: 'Estado' },
     ],
@@ -2526,13 +3276,13 @@ const tabs: TabConfig[] = [
     api: CampeonatoApi.scenaries,
     columns: [
       { key: 'name', label: 'Nombre Cancha' },
-      { key: 'location', label: 'Ubicación' },
+      { key: 'address', label: 'Calles / Dirección' },
+      { key: 'cardinalPoints', label: 'Puntos Cardinales' },
       { key: 'surfaceType', label: 'Superficie' },
       { key: 'isActive', label: 'Activo', type: 'boolean' },
     ],
     fields: [
-      { key: 'name', label: 'Nombre del Escenario', type: 'text', colClass: 'col-md-6' },
-      { key: 'location', label: 'Ubicación', type: 'text', colClass: 'col-md-6' },
+      { key: 'name', label: 'Nombre del Escenario', type: 'text', colClass: 'col-md-6', placeholder: 'Ej. Cancha Central San José de Cangahua' },
       {
         key: 'surfaceType',
         label: 'Tipo de Superficie',
@@ -2545,7 +3295,6 @@ const tabs: TabConfig[] = [
         ],
         colClass: 'col-md-6',
       },
-      { key: 'isActive', label: 'Activo', type: 'boolean', colClass: 'col-md-6' },
     ],
   },
   {
@@ -2629,34 +3378,6 @@ const tabs: TabConfig[] = [
     ],
   },
   {
-    id: 'positions',
-    label: 'Cargos / Roles',
-    icon: 'solar:user-id-bold-duotone',
-    api: CampeonatoApi.positions,
-    columns: [
-      { key: 'name', label: 'Cargo' },
-      { key: 'code', label: 'Código' },
-      { key: 'scope', label: 'Ámbito' },
-      { key: 'isActive', label: 'Activo', type: 'boolean' },
-    ],
-    fields: [
-      { key: 'name', label: 'Nombre del Cargo', type: 'text', colClass: 'col-md-6' },
-      { key: 'code', label: 'Código', type: 'text', colClass: 'col-md-6' },
-      {
-        key: 'scope',
-        label: 'Ámbito',
-        type: 'select',
-        options: [
-          { label: 'Campeonato / Torneo', value: 'TOURNAMENT' },
-          { label: 'Equipo', value: 'TEAM' },
-          { label: 'Arbitral', value: 'ARBITRAL' },
-        ],
-        colClass: 'col-md-6',
-      },
-      { key: 'isActive', label: 'Activo', type: 'boolean', colClass: 'col-md-6' },
-    ],
-  },
-  {
     id: 'demarcations',
     label: 'Demarcaciones',
     icon: 'solar:running-bold-duotone',
@@ -2699,19 +3420,21 @@ const tabs: TabConfig[] = [
     icon: 'solar:whistle-bold-duotone',
     api: CampeonatoApi.referees,
     columns: [
+      { key: 'identification', label: 'Documento / Cédula' },
       { key: 'name', label: 'Nombres' },
       { key: 'lastName', label: 'Apellidos' },
-      { key: 'identification', label: 'Identificación' },
-      { key: 'category', label: 'Categoría' },
-      { key: 'isActive', label: 'Activo', type: 'boolean' },
+      { key: 'guild.description', label: 'Gremio / Núcleo' },
+      { key: 'phone', label: 'Teléfono' },
+      { key: 'email', label: 'Correo' },
+      { key: 'isActive', label: 'Estado', type: 'boolean' },
     ],
     fields: [
-      { key: 'name', label: 'Nombres', type: 'text', colClass: 'col-md-6' },
-      { key: 'lastName', label: 'Apellidos', type: 'text', colClass: 'col-md-6' },
-      { key: 'identification', label: 'Identificación', type: 'text', colClass: 'col-md-6' },
-      { key: 'category', label: 'Categoría (FIFA, Nacional, Local)', type: 'text', colClass: 'col-md-6' },
-      { key: 'phone', label: 'Teléfono', type: 'text', colClass: 'col-md-6' },
-      { key: 'isActive', label: 'Activo', type: 'boolean', colClass: 'col-md-6' },
+      { key: 'identification', label: 'Número de Documento / Cédula *', type: 'text', colClass: 'col-md-6', placeholder: 'Ingrese documento y presione Consultar...' },
+      { key: 'guildId', label: 'Gremio / Núcleo Arbitral', type: 'select', colClass: 'col-md-6', options: [] },
+      { key: 'name', label: 'Nombres *', type: 'text', colClass: 'col-md-6' },
+      { key: 'lastName', label: 'Apellidos *', type: 'text', colClass: 'col-md-6' },
+      { key: 'phone', label: 'Teléfono Personal', type: 'text', colClass: 'col-md-6' },
+      { key: 'email', label: 'Correo Electrónico', type: 'text', colClass: 'col-md-6' },
     ],
   },
   {
@@ -2723,15 +3446,12 @@ const tabs: TabConfig[] = [
       { key: 'name', label: 'Nombres' },
       { key: 'lastName', label: 'Apellidos' },
       { key: 'identification', label: 'Identificación' },
-      { key: 'team.name', label: 'Equipo Asignado' },
       { key: 'isActive', label: 'Activo', type: 'boolean' },
     ],
     fields: [
-      { key: 'name', label: 'Nombres', type: 'text', colClass: 'col-md-6' },
-      { key: 'lastName', label: 'Apellidos', type: 'text', colClass: 'col-md-6' },
-      { key: 'identification', label: 'Identificación', type: 'text', colClass: 'col-md-6' },
-      { key: 'teamId', label: 'ID de Equipo (Opcional)', type: 'text', colClass: 'col-md-6' },
-      { key: 'isActive', label: 'Activo', type: 'boolean', colClass: 'col-md-12' },
+      { key: 'name', label: 'Nombres', type: 'text', colClass: 'col-md-4' },
+      { key: 'lastName', label: 'Apellidos', type: 'text', colClass: 'col-md-4' },
+      { key: 'identification', label: 'Identificación', type: 'text', colClass: 'col-md-4' },
     ],
   },
   {
@@ -2869,6 +3589,28 @@ const tabs: TabConfig[] = [
       { key: 'observation', label: 'Observación', type: 'text', colClass: 'col-md-12', placeholder: 'Notas u observaciones de la clasificación...' },
     ],
   },
+  {
+    id: 'playerTransfers',
+    label: 'Transferencias de Jugadores',
+    icon: 'solar:transfer-horizontal-bold-duotone',
+    api: CampeonatoApi.playerTransfers,
+    columns: [
+      { key: 'player.name', label: 'Futbolista' },
+      { key: 'originTeam.name', label: 'Club Origen' },
+      { key: 'destinationTeam.name', label: 'Club Destino' },
+      { key: 'edition.name', label: 'Edición' },
+      { key: 'status', label: 'Estado' },
+      { key: 'approvalsSummary', label: 'Firmas / Resoluciones' },
+      { key: 'request_date', label: 'Fecha Solicitud', type: 'date' },
+    ],
+    fields: [
+      { key: 'edition_id', label: 'Edición del Campeonato *', type: 'select', options: [], colClass: 'col-md-6' },
+      { key: 'player_id', label: 'Futbolista a Transferir *', type: 'select', options: [], colClass: 'col-md-6' },
+      { key: 'destination_team_id', label: 'Club de Destino (Receptor) *', type: 'select', options: [], colClass: 'col-md-6' },
+      { key: 'stage_id', label: 'Etapa / Fase (Opcional)', type: 'select', options: [], colClass: 'col-md-6' },
+      { key: 'reason', label: 'Motivo / Justificación de la Transferencia', type: 'textarea', colClass: 'col-md-12', placeholder: 'Ingrese el motivo del traspaso de derechos o cambio de club...' },
+    ],
+  },
 ];
 
 const route = useRoute();
@@ -2888,9 +3630,6 @@ const isConfigSection = computed(() => {
     'schedules',
     'referees',
     'vocals',
-    'demarcations',
-    'positions',
-    'playerClassifications',
   ];
   return cfgList.includes(activeTab.value);
 });
@@ -2905,11 +3644,8 @@ const configSubTabsList = [
   { id: 'stages', label: 'Etapas y Fases', icon: 'solar:cup-first-bold-duotone' },
   { id: 'scenaries', label: 'Canchas (Escenarios)', icon: 'solar:map-point-wave-bold-duotone' },
   { id: 'schedules', label: 'Días y Horarios', icon: 'solar:clock-circle-bold-duotone' },
-  { id: 'playerClassifications', label: 'Clasificación Futbolistas', icon: 'solar:user-check-bold-duotone' },
   { id: 'referees', label: 'Árbitros', icon: 'solar:whistle-bold-duotone' },
   { id: 'vocals', label: 'Vocales', icon: 'solar:notes-bold-duotone' },
-  { id: 'demarcations', label: 'Demarcaciones', icon: 'solar:running-bold-duotone' },
-  { id: 'positions', label: 'Cargos y Roles', icon: 'solar:user-id-bold-duotone' },
 ];
 
 const switchConfigSubTab = (subId: string) => {
@@ -2918,12 +3654,15 @@ const switchConfigSubTab = (subId: string) => {
   activeTab.value = subId;
   page.value = 1;
   searchQuery.value = '';
-  router.replace({ path: '/campeonato', query: { tab: 'configuracion', sub: subId } });
-  if (subId === 'schedules') {
-    loadAuxiliaryTournamentData();
-    loadScheduleConfig();
+  if (route.query.tab === 'configuracion' && route.query.sub === subId) {
+    if (subId === 'schedules') {
+      loadAuxiliaryTournamentData();
+      loadScheduleConfig();
+    } else {
+      loadData();
+    }
   } else {
-    loadData();
+    router.replace({ path: '/campeonato', query: { tab: 'configuracion', sub: subId } });
   }
 };
 
@@ -2943,9 +3682,9 @@ const defaultDailySchedules = (): Record<WeekDayKey, DayScheduleItem> => ({
   TUE: { enabled: false, startTime: '18:00', endTime: '22:00' },
   WED: { enabled: false, startTime: '18:00', endTime: '22:00' },
   THU: { enabled: false, startTime: '18:00', endTime: '22:00' },
-  FRI: { enabled: true, startTime: '19:00', endTime: '21:00' }, // Ejemplo: viernes 7pm a 9pm
-  SAT: { enabled: true, startTime: '08:00', endTime: '22:00' }, // Ejemplo: sábado 8am a 10pm
-  SUN: { enabled: true, startTime: '08:00', endTime: '16:00' }, // Ejemplo: domingo 8am a 4pm
+  FRI: { enabled: false, startTime: '19:00', endTime: '21:00' },
+  SAT: { enabled: false, startTime: '08:00', endTime: '22:00' },
+  SUN: { enabled: true, startTime: '08:00', endTime: '16:00' }, // Por defecto domingo activo
 });
 
 const scheduleConfig = ref<{
@@ -2958,9 +3697,13 @@ const scheduleConfig = ref<{
   editionId: '',
   dailySchedules: defaultDailySchedules(),
   matchDurationMinutes: 60,
-  intervalMinutes: 10,
+  intervalMinutes: 20,
   selectedScenaryIds: [] as string[],
 });
+
+// Programación por cancha individual: { [scenaryId]: Record<WeekDayKey, DayScheduleItem> }
+const courtSchedules = ref<Record<string, Record<WeekDayKey, DayScheduleItem>>>({});
+const selectedCourtId = ref<string>('');
 
 const weekDaysList: Array<{ key: WeekDayKey; label: string }> = [
   { key: 'MON', label: 'Lunes' },
@@ -2972,12 +3715,58 @@ const weekDaysList: Array<{ key: WeekDayKey; label: string }> = [
   { key: 'SUN', label: 'Domingo' },
 ];
 
-const setQuickDays = (mode: 'weekend_fri' | 'weekend_std' | 'weekdays' | 'all' | 'none') => {
-  const current = scheduleConfig.value.dailySchedules;
+// Canchas habilitadas para la edición seleccionada
+const availableScenariesForEdition = computed(() => {
+  const ed = categoryEditionsList.value.find((e) => e.id === scheduleConfig.value.editionId);
+  if (ed && Array.isArray(ed.availableScenaryIds) && ed.availableScenaryIds.length > 0) {
+    const filtered = scenariesList.value.filter((sc) => ed.availableScenaryIds.includes(sc.id));
+    if (filtered.length > 0) return filtered;
+  }
+  return scenariesList.value;
+});
+
+const currentCourtName = computed(() => {
+  const sc = scenariesList.value.find((s) => s.id === selectedCourtId.value);
+  return sc ? sc.name : 'Cancha Seleccionada';
+});
+
+const getCourtDailySchedules = (scenaryId: string): Record<WeekDayKey, DayScheduleItem> => {
+  if (!scenaryId) return defaultDailySchedules();
+  if (!courtSchedules.value[scenaryId]) {
+    courtSchedules.value[scenaryId] = defaultDailySchedules();
+  }
+  return courtSchedules.value[scenaryId];
+};
+
+const activeCourtDailySchedules = computed(() => {
+  if (!selectedCourtId.value && availableScenariesForEdition.value.length > 0) {
+    selectedCourtId.value = availableScenariesForEdition.value[0].id;
+  }
+  return getCourtDailySchedules(selectedCourtId.value);
+});
+
+const getCourtActiveDaysCount = (scenaryId: string): number => {
+  const sched = courtSchedules.value[scenaryId];
+  if (!sched) return 0;
+  return weekDaysList.filter((d) => sched[d.key]?.enabled).length;
+};
+
+const selectCourtToConfigure = (scenaryId: string) => {
+  selectedCourtId.value = scenaryId;
+};
+
+const setQuickDays = (mode: 'sunday_only' | 'weekend_fri' | 'weekend_std' | 'weekdays' | 'all' | 'none') => {
+  const current = activeCourtDailySchedules.value;
   weekDaysList.forEach((d) => {
     const item = current[d.key];
     if (!item) return;
-    if (mode === 'weekend_fri') {
+    if (mode === 'sunday_only') {
+      item.enabled = d.key === 'SUN';
+      if (d.key === 'SUN') {
+        item.startTime = '08:00';
+        item.endTime = '16:00';
+      }
+    } else if (mode === 'weekend_fri') {
       item.enabled = ['FRI', 'SAT', 'SUN'].includes(d.key);
       if (d.key === 'FRI') {
         item.startTime = '19:00';
@@ -3010,8 +3799,8 @@ const setQuickDays = (mode: 'weekend_fri' | 'weekend_std' | 'weekdays' | 'all' |
   });
 };
 
-const getDayCalculation = (dayKey: WeekDayKey | string) => {
-  const dayConf = scheduleConfig.value.dailySchedules[dayKey as WeekDayKey];
+const getDayCalculation = (dayKey: WeekDayKey | string, schedMap?: Record<WeekDayKey, DayScheduleItem>) => {
+  const dayConf = (schedMap || activeCourtDailySchedules.value)[dayKey as WeekDayKey];
   if (!dayConf || !dayConf.enabled) {
     return { minutes: 0, hours: '0.0', matchesPerCourt: 0 };
   }
@@ -3042,62 +3831,132 @@ const scheduleCalculation = computed(() => {
     (Number(scheduleConfig.value.matchDurationMinutes) || 60) +
     (Number(scheduleConfig.value.intervalMinutes) || 0);
 
-  const courtsCount =
-    scheduleConfig.value.selectedScenaryIds.length || (scenariesList.value.length || 1);
-
   let totalMinutesWeek = 0;
-  let activeDaysCount = 0;
   let totalMatchesPerWeek = 0;
+  const activeCourtsSet = new Set<string>();
 
-  const breakdown: Array<{
-    key: string;
-    label: string;
-    startTime: string;
-    endTime: string;
-    hours: string;
-    matchesPerCourt: number;
-    matchesAllCourts: number;
+  const courtBreakdowns: Array<{
+    courtId: string;
+    courtName: string;
+    totalMatches: number;
+    days: Array<{
+      key: string;
+      label: string;
+      startTime: string;
+      endTime: string;
+      hours: string;
+      matches: number;
+    }>;
   }> = [];
 
-  for (const day of weekDaysList) {
-    const dayConf = scheduleConfig.value.dailySchedules[day.key];
-    if (dayConf && dayConf.enabled) {
-      activeDaysCount++;
-      const calc = getDayCalculation(day.key);
-      totalMinutesWeek += calc.minutes;
-      const dayMatchesAllCourts = calc.matchesPerCourt * courtsCount;
-      totalMatchesPerWeek += dayMatchesAllCourts;
+  for (const sc of availableScenariesForEdition.value) {
+    const cSched = courtSchedules.value[sc.id];
+    if (!cSched) continue;
 
-      breakdown.push({
-        key: day.key,
-        label: day.label,
-        startTime: dayConf.startTime,
-        endTime: dayConf.endTime,
-        hours: calc.hours,
-        matchesPerCourt: calc.matchesPerCourt,
-        matchesAllCourts: dayMatchesAllCourts,
+    const daysWithMatches: Array<{
+      key: string;
+      label: string;
+      startTime: string;
+      endTime: string;
+      hours: string;
+      matches: number;
+    }> = [];
+    let courtTotalMatches = 0;
+
+    for (const day of weekDaysList) {
+      const dayConf = cSched[day.key];
+      if (dayConf && dayConf.enabled) {
+        activeCourtsSet.add(sc.id);
+        const calc = getDayCalculation(day.key, cSched);
+        totalMinutesWeek += calc.minutes;
+        courtTotalMatches += calc.matchesPerCourt;
+        totalMatchesPerWeek += calc.matchesPerCourt;
+
+        daysWithMatches.push({
+          key: day.key,
+          label: day.label,
+          startTime: dayConf.startTime,
+          endTime: dayConf.endTime,
+          hours: calc.hours,
+          matches: calc.matchesPerCourt,
+        });
+      }
+    }
+
+    if (daysWithMatches.length > 0) {
+      courtBreakdowns.push({
+        courtId: sc.id,
+        courtName: sc.name,
+        totalMatches: courtTotalMatches,
+        days: daysWithMatches,
       });
     }
   }
 
+  // Contar días únicos con al menos 1 cancha activa
+  const activeWeekDays = new Set<string>();
+  for (const cb of courtBreakdowns) {
+    for (const d of cb.days) {
+      activeWeekDays.add(d.key);
+    }
+  }
+  const activeDaysCount = activeWeekDays.size;
   const totalHoursWeek = (totalMinutesWeek / 60).toFixed(1);
 
   return {
     slotMinutes,
     activeDaysCount,
-    courtsCount,
+    courtsCount: activeCourtsSet.size,
     totalHoursWeek,
     totalMatchesPerWeek,
-    breakdown,
+    courtBreakdowns,
   };
 });
+
+const syncEditionTimes = () => {
+  const edId = scheduleConfig.value.editionId;
+  if (!edId) return;
+  const foundEd = categoryEditionsList.value.find((e) => e.id === edId);
+  if (foundEd) {
+    if (foundEd.matchDurationMinutes) {
+      scheduleConfig.value.matchDurationMinutes = Number(foundEd.matchDurationMinutes);
+    }
+    const brk = Number(foundEd.breakDurationMinutes) || 0;
+    const wait = Number(foundEd.waitBetweenMatchesMinutes) || 0;
+    scheduleConfig.value.intervalMinutes = brk + wait;
+    if (foundEd.availableScenaryIds && Array.isArray(foundEd.availableScenaryIds) && foundEd.availableScenaryIds.length > 0) {
+      scheduleConfig.value.selectedScenaryIds = [...foundEd.availableScenaryIds];
+    }
+  }
+};
 
 const saveScheduleConfig = () => {
   savingSchedule.value = true;
   try {
     const companyId = getActiveCompanyId();
-    localStorage.setItem(`deskounta_camp_schedules_${companyId}`, JSON.stringify(scheduleConfig.value));
-    toast.success('Horarios específicos por día guardados exitosamente');
+    if (selectedCourtId.value && activeCourtDailySchedules.value) {
+      courtSchedules.value[selectedCourtId.value] = { ...activeCourtDailySchedules.value };
+    }
+
+    const activeScenaryIds = availableScenariesForEdition.value
+      .filter((sc) => getCourtActiveDaysCount(sc.id) > 0)
+      .map((sc) => sc.id);
+
+    scheduleConfig.value.selectedScenaryIds = activeScenaryIds;
+    scheduleConfig.value.dailySchedules = activeCourtDailySchedules.value;
+
+    const dataToSave = {
+      ...scheduleConfig.value,
+      courtSchedules: courtSchedules.value,
+      selectedCourtId: selectedCourtId.value,
+    };
+
+    localStorage.setItem(`deskounta_camp_schedules_${companyId}`, JSON.stringify(dataToSave));
+    if (scheduleConfig.value.editionId) {
+      localStorage.setItem(`deskounta_camp_schedules_${companyId}_${scheduleConfig.value.editionId}`, JSON.stringify(dataToSave));
+    }
+    toast.success('Horarios específicos por cancha guardados exitosamente');
+    closeForm();
   } catch {
     toast.error('Error al guardar la configuración de horarios');
   } finally {
@@ -3105,49 +3964,178 @@ const saveScheduleConfig = () => {
   }
 };
 
+interface ScheduleTableItem {
+  editionId: string;
+  editionName: string;
+  categoryName: string;
+  courtNames: string[];
+  activeDayLabels: string[];
+  matchDuration: number;
+  intervalMinutes: number;
+  slotMinutes: number;
+  totalMatchesWeek: number;
+}
+
+const schedulesList = computed<ScheduleTableItem[]>(() => {
+  const companyId = getActiveCompanyId();
+  const list: ScheduleTableItem[] = [];
+
+  for (const ed of categoryEditionsList.value) {
+    let raw = localStorage.getItem(`deskounta_camp_schedules_${companyId}_${ed.id}`);
+    if (!raw && categoryEditionsList.value.length === 1) {
+      raw = localStorage.getItem(`deskounta_camp_schedules_${companyId}`);
+    }
+
+    const matchDuration = Number(ed.matchDurationMinutes) || 60;
+    const brk = Number(ed.breakDurationMinutes) || 10;
+    const wait = Number(ed.waitBetweenMatchesMinutes) || 10;
+    const intervalMinutes = brk + wait;
+    const slotMinutes = matchDuration + intervalMinutes;
+
+    let cSchedules: Record<string, Record<WeekDayKey, DayScheduleItem>> = {};
+    if (raw) {
+      try {
+        const parsed = JSON.parse(raw);
+        if (parsed.courtSchedules && typeof parsed.courtSchedules === 'object') {
+          cSchedules = parsed.courtSchedules;
+        }
+      } catch {
+        // Ignorar
+      }
+    }
+
+    const editionScenaryIds = Array.isArray(ed.availableScenaryIds) && ed.availableScenaryIds.length > 0
+      ? ed.availableScenaryIds
+      : scenariesList.value.map((s: any) => s.id);
+
+    const activeCourtNames: string[] = [];
+    const activeDaysSet = new Set<string>();
+    let totalMatches = 0;
+
+    for (const scId of editionScenaryIds) {
+      const sc = scenariesList.value.find((s: any) => s.id === scId);
+      const sched = cSchedules[scId];
+      if (sched) {
+        let hasActiveDay = false;
+        for (const day of weekDaysList) {
+          if (sched[day.key]?.enabled) {
+            hasActiveDay = true;
+            activeDaysSet.add(day.label.slice(0, 3));
+            const startParts = (sched[day.key].startTime || '08:00').split(':').map(Number);
+            const endParts = (sched[day.key].endTime || '16:00').split(':').map(Number);
+            const sh = startParts[0] ?? 8;
+            const sm = startParts[1] ?? 0;
+            const eh = endParts[0] ?? 16;
+            const em = endParts[1] ?? 0;
+            const diffMin = (eh * 60 + em) - (sh * 60 + sm);
+            if (diffMin > 0 && slotMinutes > 0) {
+              totalMatches += Math.floor(diffMin / slotMinutes);
+            }
+          }
+        }
+        if (hasActiveDay && sc) {
+          activeCourtNames.push(sc.name);
+        }
+      }
+    }
+
+    list.push({
+      editionId: ed.id,
+      editionName: ed.name,
+      categoryName: ed.category?.name || 'Categoría Principal',
+      courtNames: activeCourtNames.length > 0 ? activeCourtNames : (scenariesList.value.length > 0 ? [scenariesList.value[0].name] : ['Cancha Central']),
+      activeDayLabels: activeDaysSet.size > 0 ? Array.from(activeDaysSet) : ['Dom'],
+      matchDuration,
+      intervalMinutes,
+      slotMinutes,
+      totalMatchesWeek: totalMatches > 0 ? totalMatches : 6,
+    });
+  }
+
+  return list;
+});
+
+const schedulesListFiltered = computed(() => {
+  const q = searchQuery.value.trim().toLowerCase();
+  if (!q) return schedulesList.value;
+  return schedulesList.value.filter(
+    (s) =>
+      s.editionName.toLowerCase().includes(q) ||
+      s.categoryName.toLowerCase().includes(q) ||
+      s.courtNames.some((c) => c.toLowerCase().includes(q))
+  );
+});
+
+const openCreateSchedule = () => {
+  isEditing.value = false;
+  editingId.value = null;
+  if (categoryEditionsList.value.length > 0) {
+    scheduleConfig.value.editionId = categoryEditionsList.value[0].id;
+  }
+  syncEditionTimes();
+  loadScheduleConfig();
+  if (availableScenariesForEdition.value.length > 0) {
+    selectedCourtId.value = availableScenariesForEdition.value[0].id;
+  }
+  isFormOpen.value = true;
+};
+
+const openEditSchedule = (item: ScheduleTableItem) => {
+  isEditing.value = true;
+  editingId.value = item.editionId;
+  scheduleConfig.value.editionId = item.editionId;
+  syncEditionTimes();
+  loadScheduleConfig();
+  if (availableScenariesForEdition.value.length > 0) {
+    selectedCourtId.value = availableScenariesForEdition.value[0].id;
+  }
+  isFormOpen.value = true;
+};
+
+const deleteSchedule = (item: ScheduleTableItem) => {
+  const companyId = getActiveCompanyId();
+  localStorage.removeItem(`deskounta_camp_schedules_${companyId}_${item.editionId}`);
+  courtSchedules.value = {};
+  toast.success('Reglamento de horarios eliminado correctamente');
+};
+
+const applyScheduleFromItem = (item: ScheduleTableItem) => {
+  scheduleConfig.value.editionId = item.editionId;
+  syncEditionTimes();
+  loadScheduleConfig();
+  applyScheduleToFixture();
+};
+
 const loadScheduleConfig = () => {
   try {
     const companyId = getActiveCompanyId();
-    const raw = localStorage.getItem(`deskounta_camp_schedules_${companyId}`);
+    if (!scheduleConfig.value.editionId && categoryEditionsList.value.length > 0) {
+      scheduleConfig.value.editionId = categoryEditionsList.value[0].id;
+    }
+
+    const edId = scheduleConfig.value.editionId;
+    let raw = edId ? localStorage.getItem(`deskounta_camp_schedules_${companyId}_${edId}`) : null;
+    if (!raw) {
+      raw = localStorage.getItem(`deskounta_camp_schedules_${companyId}`);
+    }
+
     if (raw) {
       const parsed = JSON.parse(raw);
-      if (parsed.dailySchedules) {
-        // Asegurar que todos los días existan
-        scheduleConfig.value.dailySchedules = {
-          ...defaultDailySchedules(),
-          ...parsed.dailySchedules,
-        };
-      } else if (parsed.gameDays && Array.isArray(parsed.gameDays)) {
-        // Migración de formato legado
-        const migrated = defaultDailySchedules();
-        weekDaysList.forEach((d) => {
-          migrated[d.key] = {
-            enabled: parsed.gameDays.includes(d.key),
-            startTime: parsed.startTime || '08:00',
-            endTime: parsed.endTime || '18:00',
-          };
-        });
-        scheduleConfig.value.dailySchedules = migrated;
+      if (parsed.courtSchedules && typeof parsed.courtSchedules === 'object') {
+        courtSchedules.value = parsed.courtSchedules;
       }
-
-      if (parsed.matchDurationMinutes) {
-        scheduleConfig.value.matchDurationMinutes = parsed.matchDurationMinutes;
-      }
-      if (parsed.intervalMinutes !== undefined) {
-        scheduleConfig.value.intervalMinutes = parsed.intervalMinutes;
-      }
-      if (parsed.selectedScenaryIds && Array.isArray(parsed.selectedScenaryIds)) {
-        scheduleConfig.value.selectedScenaryIds = parsed.selectedScenaryIds;
+      if (parsed.selectedCourtId) {
+        selectedCourtId.value = parsed.selectedCourtId;
       }
       if (parsed.editionId) {
         scheduleConfig.value.editionId = parsed.editionId;
       }
     }
-    if (scheduleConfig.value.selectedScenaryIds.length === 0 && scenariesList.value.length > 0) {
-      scheduleConfig.value.selectedScenaryIds = scenariesList.value.map((s) => s.id);
-    }
-    if (!scheduleConfig.value.editionId && categoryEditionsList.value.length > 0) {
-      scheduleConfig.value.editionId = categoryEditionsList.value[0].id;
+
+    syncEditionTimes();
+
+    if (!selectedCourtId.value && availableScenariesForEdition.value.length > 0) {
+      selectedCourtId.value = availableScenariesForEdition.value[0].id;
     }
   } catch (err) {
     console.error('Error cargando configuración de horarios:', err);
@@ -3178,11 +4166,11 @@ const tabToSubCode: Record<string, string> = {
   matches: 'SUB-CAMP-011',
   sanctions: 'SUB-CAMP-012',
   payments: 'SUB-CAMP-013',
-  positions: 'SUB-CAMP-014',
   demarcations: 'SUB-CAMP-015',
   schedules: 'SUB-CAMP-016',
   standings: 'SUB-CAMP-017',
   playerClassifications: 'SUB-CAMP-019',
+  playerTransfers: 'SUB-CAMP-020',
 };
 
 // Filtrar las pestañas según los permisos / submódulos activos de la empresa
@@ -3200,7 +4188,14 @@ const allowedTabs = computed(() => {
   // Si no hay restricciones explícitas o tiene el módulo de campeonato completo asignado
   if (allowedUrls.length === 0 && subUrls.length === 0 && subCodes.length === 0) return tabs;
 
+  const hasGeneralConfigAccess =
+    allowedUrls.some((u) => u.includes('tab=configuracion') || u.includes('tab=configuraciones') || u === '/campeonato') ||
+    subUrls.some((u) => u.includes('tab=configuracion') || u.includes('tab=configuraciones') || u === '/campeonato');
+
   return tabs.filter((t) => {
+    // Si tiene acceso a Configuraciones, todas las subpestañas de configuración son visibles
+    if (hasGeneralConfigAccess && configSubTabsList.some((st) => st.id === t.id)) return true;
+
     const code = tabToSubCode[t.id];
     if (code && subCodes.includes(code)) return true;
 
@@ -3218,8 +4213,7 @@ const visibleConfigSubTabs = computed(() => {
 
 const activeTab = ref('teams');
 const currentTabConfig = computed<TabConfig>(() => {
-  const currentList = allowedTabs.value.length > 0 ? allowedTabs.value : tabs;
-  return currentList.find((t) => t.id === activeTab.value) ?? currentList[0]!;
+  return tabs.find((t) => t.id === activeTab.value) ?? tabs[0]!;
 });
 const activeTabLabel = computed(() => currentTabConfig.value.label);
 const columns = computed(() => currentTabConfig.value.columns);
@@ -3239,6 +4233,172 @@ const isEditing = ref(false);
 const editingId = ref<string | null>(null);
 const formData = ref<Record<string, any>>({});
 const saving = ref(false);
+
+// ==========================================
+// CÁLCULO DE EDAD DE JUGADORES (AÑOS Y MESES)
+// ==========================================
+const calculatePlayerAgeDirect = (birthDateStr: string | null | undefined) => {
+  if (!birthDateStr) return null;
+  const bDate = new Date(birthDateStr);
+  if (isNaN(bDate.getTime())) return null;
+  const now = new Date();
+  let years = now.getFullYear() - bDate.getFullYear();
+  let months = (now.getFullYear() - bDate.getFullYear()) * 12 + (now.getMonth() - bDate.getMonth());
+  const mDiff = now.getMonth() - bDate.getMonth();
+  if (mDiff < 0 || (mDiff === 0 && now.getDate() < bDate.getDate())) {
+    years--;
+  }
+  if (now.getDate() < bDate.getDate()) {
+    months--;
+  }
+  if (years < 0) years = 0;
+  if (months < 0) months = 0;
+  return { years, months };
+};
+
+const computedPlayerAge = computed(() => {
+  if (!formData.value.birthDate) return null;
+  return calculatePlayerAgeDirect(formData.value.birthDate);
+});
+
+// ==========================================
+// PADRÓN GLOBAL DE FUTBOLISTAS
+// ==========================================
+const searchingGlobalPlayer = ref(false);
+const globalPlayerFound = ref(false);
+const globalPlayerSearched = ref(false);
+
+const searchGlobalPlayer = async () => {
+  const ident = (formData.value.identification || '').trim();
+  if (!ident) {
+    toast.warning('Ingresa el número de cédula o identificación para consultar');
+    return;
+  }
+
+  try {
+    searchingGlobalPlayer.value = true;
+    const res = await CampeonatoApi.players.findGlobal(ident);
+    const data = res.data;
+
+    globalPlayerSearched.value = true;
+
+    if (data.exists && data.player) {
+      const p = data.player;
+      globalPlayerFound.value = true;
+
+      formData.value.name = p.name || '';
+      formData.value.lastName = p.lastName || '';
+      formData.value.code = p.code || '';
+      formData.value.birthDate = p.birthDate ? String(p.birthDate).slice(0, 10) : '';
+      formData.value.photo = p.photo || '';
+      formData.value.demarcationId = p.demarcationId || formData.value.demarcationId || '';
+      formData.value.playerClassificationId = p.playerClassificationId || formData.value.playerClassificationId || '';
+      formData.value.dominantFoot = p.dominantFoot || formData.value.dominantFoot || 'RIGHT';
+      formData.value.bloodType = p.bloodType || formData.value.bloodType || '';
+      formData.value.phone = p.phone || '';
+      formData.value.email = p.email || '';
+      formData.value.emergencyContactName = p.emergencyContactName || '';
+      formData.value.emergencyContactPhone = p.emergencyContactPhone || '';
+      formData.value.passOwnerType = p.passOwnerType || 'PLAYER';
+      formData.value.isActive = true;
+
+      if (formData.value.birthDate) {
+        const calculated = calculatePlayerAgeDirect(formData.value.birthDate);
+        if (calculated) {
+          formData.value.ageYears = calculated.years;
+          formData.value.ageMonths = calculated.months;
+        }
+      }
+
+      if (data.isLinkedToCurrentCompany) {
+        toast.info(`El futbolista ${p.name} ${p.lastName} ya se encuentra registrado en tu liga.`);
+      } else {
+        toast.success(`Futbolista localizado en Padrón Global: ${p.name} ${p.lastName}. Se vinculará a tu liga al guardar.`);
+      }
+    } else {
+      globalPlayerFound.value = false;
+      toast.info('No existe en el padrón global. Puedes proceder a registrar sus datos como nuevo futbolista.');
+    }
+  } catch (err: any) {
+    console.error('Error al consultar padrón global de jugadores:', err);
+    toast.error('Error al consultar el padrón global de futbolistas');
+  } finally {
+    searchingGlobalPlayer.value = false;
+  }
+};
+
+// ==========================================
+// PADRÓN GLOBAL DE ÁRBITROS
+// ==========================================
+const refereeGuildsList = ref<any[]>([]);
+const searchingGlobalReferee = ref(false);
+const globalRefereeFound = ref(false);
+const globalRefereeSearched = ref(false);
+
+const getGuildNameById = (guildId: string) => {
+  const found = refereeGuildsList.value.find((g) => g.id === guildId);
+  return found ? `${found.description}${found.acronyms ? ' (' + found.acronyms + ')' : ''}` : '';
+};
+
+const searchGlobalReferee = async () => {
+  const ident = (formData.value.identification || '').trim();
+  if (!ident) {
+    toast.warning('Ingresa el número de documento para consultar');
+    return;
+  }
+
+  try {
+    searchingGlobalReferee.value = true;
+    const res = await CampeonatoApi.referees.findGlobal(ident);
+    const data = res.data;
+
+    globalRefereeSearched.value = true;
+
+    if (data.exists && data.referee) {
+      const r = data.referee;
+      globalRefereeFound.value = true;
+
+      formData.value.name = r.name || '';
+      formData.value.lastName = r.lastName || '';
+      formData.value.guildId = r.guildId || '';
+      formData.value.phone = r.phone || '';
+      formData.value.email = r.email || '';
+      formData.value.isActive = true;
+
+      if (data.isLinkedToCurrentCompany) {
+        toast.info(`El árbitro ${r.name} ${r.lastName} ya está vinculado a tu liga.`);
+      } else {
+        toast.success(`Árbitro localizado en Padrón Global: ${r.name} ${r.lastName}. Se vinculará a tu liga al guardar.`);
+      }
+    } else {
+      globalRefereeFound.value = false;
+      toast.info('No existe en el padrón global. Puedes proceder a registrarlo como nuevo árbitro.');
+    }
+  } catch (err: any) {
+    console.error('Error al consultar árbitro en padrón global:', err);
+    toast.error('Error al consultar el padrón global de árbitros');
+  } finally {
+    searchingGlobalReferee.value = false;
+  }
+};
+
+watch(
+  () => formData.value.birthDate,
+  (newBirthDate) => {
+    if (activeTab.value === 'players') {
+      if (newBirthDate) {
+        const calculated = calculatePlayerAgeDirect(newBirthDate);
+        if (calculated) {
+          formData.value.ageYears = calculated.years;
+          formData.value.ageMonths = calculated.months;
+        }
+      } else {
+        formData.value.ageYears = null;
+        formData.value.ageMonths = null;
+      }
+    }
+  }
+);
 
 // Estado para Tabla de Posiciones y Goleadores
 const selectedStageId = ref('');
@@ -3260,6 +4420,7 @@ const uploadingImage = ref(false);
 // EDICIÓN DE TORNEO DETALLE CATEGORÍAS
 // ==========================================
 const editionCategoriesDetail = ref<Array<{
+  _uid?: string;
   id?: string;
   categoryId: string;
   categoryDescription?: string;
@@ -3272,6 +4433,8 @@ const editionCategoriesDetail = ref<Array<{
     playerClassificationId: string;
     playerClassification?: any;
     maxPlayers: number;
+    maxInactivityMonths?: number | null;
+    maxMonths?: number | null;
   }>;
 }>>([]);
 
@@ -3289,34 +4452,25 @@ const getCategoryNameById = (catId: string) => {
 };
 
 const addCategoryToEditionDetail = () => {
-  if (!editionDetailInput.value.categoryId) {
-    toast.warning('Debe seleccionar una categoría');
-    return;
-  }
-  const catName = getCategoryNameById(editionDetailInput.value.categoryId);
-  const exists = editionCategoriesDetail.value.some((c) => c.categoryId === editionDetailInput.value.categoryId);
-  if (exists) {
-    toast.warning(`La categoría "${catName}" ya se encuentra agregada al detalle`);
-    return;
-  }
-  const maxPl = Number(editionDetailInput.value.maxPlayers) > 0 ? Number(editionDetailInput.value.maxPlayers) : 25;
-  editionCategoriesDetail.value.push({
-    categoryId: editionDetailInput.value.categoryId,
-    categoryDescription: catName,
-    startDate: editionDetailInput.value.startDate || undefined,
-    endDate: editionDetailInput.value.endDate || undefined,
-    registrationFee: Number(editionDetailInput.value.registrationFee) || 0,
-    maxPlayers: maxPl,
-    classifications: [],
-  });
-  editionDetailInput.value = {
+  const newRow = {
+    _uid: 'cat_' + Date.now() + '_' + Math.random().toString(36).substring(2, 7),
     categoryId: '',
-    startDate: '',
-    endDate: '',
+    categoryDescription: '',
+    startDate: formData.value.startDate || '',
+    endDate: formData.value.endDate || '',
     registrationFee: 0,
     maxPlayers: 25,
+    classifications: [],
   };
-  toast.success(`Categoría "${catName}" agregada al detalle`);
+  editionCategoriesDetail.value.push(newRow);
+};
+
+const onCategoryChangeInRow = (item: any) => {
+  if (!item.categoryId) return;
+  const found = categoriesList.value.find((c: any) => c.id === item.categoryId);
+  if (found) {
+    item.categoryDescription = found.name;
+  }
 };
 
 const removeCategoryFromEditionDetail = (index: number) => {
@@ -3727,11 +4881,56 @@ const populateFieldOptions = () => {
       };
     });
   }
+
+  // Opciones para Transferencias de Jugadores
+  const ptTab = tabs.find((t) => t.id === 'playerTransfers');
+  if (ptTab) {
+    const ptEdField = ptTab.fields.find((f) => f.key === 'edition_id');
+    if (ptEdField) {
+      ptEdField.options = categoryEditionsList.value.map((e) => ({
+        label: `${e.name} - ${e.category?.name || 'Categoría'}`,
+        value: e.id,
+      }));
+    }
+    const ptPlField = ptTab.fields.find((f) => f.key === 'player_id');
+    if (ptPlField) {
+      ptPlField.options = playersList.value.map((p) => ({
+        label: `${p.name} ${p.lastName} (${p.identification || p.code || 'ID'})`,
+        value: p.id,
+      }));
+    }
+    const ptDestField = ptTab.fields.find((f) => f.key === 'destination_team_id');
+    if (ptDestField) {
+      ptDestField.options = teamsList.value.map((t) => ({
+        label: `${t.name} (${t.acronyms || t.shortName || 'Club'})`,
+        value: t.id,
+      }));
+    }
+    const ptStField = ptTab.fields.find((f) => f.key === 'stage_id');
+    if (ptStField) {
+      ptStField.options = stagesList.value.map((s) => ({
+        label: s.name,
+        value: s.id,
+      }));
+    }
+  }
+
+  // Opciones para Árbitros (Gremios Arbitrales)
+  const rfTab = tabs.find((t) => t.id === 'referees');
+  if (rfTab) {
+    const gField = rfTab.fields.find((f) => f.key === 'guildId');
+    if (gField) {
+      gField.options = refereeGuildsList.value.map((g) => ({
+        label: `${g.description}${g.acronyms ? ' (' + g.acronyms + ')' : ''}`,
+        value: g.id,
+      }));
+    }
+  }
 };
 
 const loadAuxiliaryTournamentData = async () => {
   try {
-    const [stRes, tmRes, scRes, dmRes, plRes, edRes, trRes, pcRes, catRes] = await Promise.all([
+    const [stRes, tmRes, scRes, dmRes, plRes, edRes, trRes, pcRes, catRes, rgRes] = await Promise.all([
       CampeonatoApi.stages.list({ limit: 100 }).catch(() => ({ data: { data: [] } })),
       CampeonatoApi.teams.list({ limit: 100 }).catch(() => ({ data: { data: [] } })),
       CampeonatoApi.scenaries.list({ limit: 100 }).catch(() => ({ data: { data: [] } })),
@@ -3741,6 +4940,7 @@ const loadAuxiliaryTournamentData = async () => {
       CampeonatoApi.teamRegistrations.list({ limit: 100 }).catch(() => ({ data: { data: [] } })),
       CampeonatoApi.playerClassifications.list({ limit: 100 }).catch(() => ({ data: { data: [] } })),
       CampeonatoApi.categories.list({ limit: 100 }).catch(() => ({ data: { data: [] } })),
+      CampeonatoApi.refereeGuilds.list({ limit: 100 }).catch(() => ({ data: { data: [] } })),
     ]);
     stagesList.value = stRes.data.data || [];
     teamsList.value = tmRes.data.data || [];
@@ -3751,6 +4951,7 @@ const loadAuxiliaryTournamentData = async () => {
     teamRegistrationsList.value = trRes.data.data || [];
     playerClassificationsList.value = pcRes.data.data || [];
     categoriesList.value = catRes.data.data || [];
+    refereeGuildsList.value = rgRes.data.data || [];
     populateFieldOptions();
   } catch (err) {
     console.error('Error cargando datos auxiliares de campeonato:', err);
@@ -4009,6 +5210,103 @@ const fetchTeamsOptions = async (query: string) => {
 };
 
 // ==========================================
+// MÓDULO DE INSCRIPCIONES, PLANTILLAS Y TRANSFERENCIAS
+// ==========================================
+const isMassRegistrationOpen = ref(false);
+const isTeamRosterOpen = ref(false);
+const selectedTeamRegIdForRoster = ref<string | null>(null);
+
+const isSportsHistoryOpen = ref(false);
+const selectedPlayerIdForHistory = ref<string | null>(null);
+
+const isTransferConfigOpen = ref(false);
+const selectedEditionForConfig = ref<any>(null);
+
+const isTransferDetailOpen = ref(false);
+const selectedTransferForDetail = ref<any>(null);
+
+const detectedOriginRegistration = ref<any>(null);
+const checkingOriginRegistration = ref(false);
+
+const openMassRegistrationModal = () => {
+  isMassRegistrationOpen.value = true;
+};
+
+const openGeneralRosterModal = () => {
+  if (teamRegistrationsList.value.length > 0) {
+    selectedTeamRegIdForRoster.value = teamRegistrationsList.value[0].id;
+  }
+  isTeamRosterOpen.value = true;
+};
+
+const openRosterForTeamReg = (teamRegId: string) => {
+  selectedTeamRegIdForRoster.value = teamRegId;
+  isTeamRosterOpen.value = true;
+};
+
+const openSportsHistory = (playerId: string) => {
+  if (!playerId) return;
+  selectedPlayerIdForHistory.value = playerId;
+  isSportsHistoryOpen.value = true;
+};
+
+const openTransferConfig = (edition: any) => {
+  selectedEditionForConfig.value = edition;
+  isTransferConfigOpen.value = true;
+};
+
+const openTransferDetail = (transfer: any) => {
+  selectedTransferForDetail.value = transfer;
+  isTransferDetailOpen.value = true;
+};
+
+const onTransferUpdated = () => {
+  loadData();
+  if (selectedTransferForDetail.value?.id) {
+    CampeonatoApi.playerTransfers.get(selectedTransferForDetail.value.id).then((res: any) => {
+      selectedTransferForDetail.value = res.data;
+    }).catch(() => {});
+  }
+};
+
+const checkPlayerCurrentRegistration = async () => {
+  if (activeTab.value !== 'playerTransfers') return;
+  const pId = formData.value.player_id;
+  const eId = formData.value.edition_id;
+  if (!pId || !eId) {
+    detectedOriginRegistration.value = null;
+    return;
+  }
+  checkingOriginRegistration.value = true;
+  try {
+    const listRes = await CampeonatoApi.playerRegistrations.list({
+      limit: 100,
+      playerId: pId,
+    });
+    const regs = listRes.data?.data || [];
+    const activeReg = regs.find((r: any) => {
+      const rEditionId = r.teamRegistration?.categoryEditionId || r.categoryEditionId;
+      return (
+        String(rEditionId) === String(eId) &&
+        (r.status === 'ELIGIBLE' || r.status === 'IN_REVIEW' || r.status === 'PENDING_APPROVAL')
+      );
+    });
+    detectedOriginRegistration.value = activeReg || null;
+  } catch (e) {
+    console.error('Error detectando inscripción previa:', e);
+    detectedOriginRegistration.value = null;
+  } finally {
+    checkingOriginRegistration.value = false;
+  }
+};
+
+watch(() => [formData.value.player_id, formData.value.edition_id], () => {
+  if (activeTab.value === 'playerTransfers' && isFormOpen.value) {
+    checkPlayerCurrentRegistration();
+  }
+});
+
+// ==========================================
 // HISTORIAL DE CATEGORÍAS DE EQUIPOS
 // ==========================================
 const showTeamCategoryModal = ref(false);
@@ -4201,21 +5499,25 @@ const getNestedValue = (obj: any, path: string) => {
 const loadData = async () => {
   try {
     loading.value = true;
+    items.value = [];
     if (activeTab.value === 'standings') {
       await Promise.all([loadAuxiliaryTournamentData(), loadStandings()]);
       return;
     }
-    if (activeTab.value === 'matches' || activeTab.value === 'playerRegistrations') {
+    if (activeTab.value === 'matches' || activeTab.value === 'playerRegistrations' || activeTab.value === 'playerTransfers') {
       loadAuxiliaryTournamentData();
+    }
+    if (!currentTabConfig.value?.api) {
+      return;
     }
     const res = await currentTabConfig.value.api.list({
       page: page.value,
       limit: limit.value,
       search: searchQuery.value,
     });
-    items.value = res.data.data || [];
-    total.value = res.data.total || 0;
-    totalPages.value = res.data.totalPages || 1;
+    items.value = res.data?.data || [];
+    total.value = res.data?.total || 0;
+    totalPages.value = res.data?.totalPages || 1;
   } catch (err: any) {
     console.error(err);
     toast.error('Error al cargar datos de ' + activeTabLabel.value);
@@ -4229,16 +5531,227 @@ const changePage = (p: number) => {
   loadData();
 };
 
+function formatCoordinateToCardinal(lat: number, lng: number): string {
+  const formatDMS = (coord: number, isLat: boolean) => {
+    const dir = isLat ? (coord >= 0 ? 'N' : 'S') : (coord >= 0 ? 'E' : 'O');
+    const absCoord = Math.abs(coord);
+    const degrees = Math.floor(absCoord);
+    const minutesNotTruncated = (absCoord - degrees) * 60;
+    const minutes = Math.floor(minutesNotTruncated);
+    const seconds = Math.floor((minutesNotTruncated - minutes) * 60);
+    return `${degrees}° ${minutes}' ${seconds}" ${dir}`;
+  };
+  return `${formatDMS(lat, true)}, ${formatDMS(lng, false)}`;
+}
+
+let scenaryMapInstance: any = null;
+let scenaryMarkerInstance: any = null;
+const mapSearchQuery = ref('');
+
+const loadLeaflet = async (): Promise<any> => {
+  if ((window as any).L) return (window as any).L;
+  if (!document.getElementById('leaflet-css')) {
+    const link = document.createElement('link');
+    link.id = 'leaflet-css';
+    link.rel = 'stylesheet';
+    link.href = 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.css';
+    document.head.appendChild(link);
+  }
+  return new Promise((resolve, reject) => {
+    const script = document.createElement('script');
+    script.id = 'leaflet-js';
+    script.src = 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.js';
+    script.onload = () => resolve((window as any).L);
+    script.onerror = () => reject(new Error('No se pudo cargar el mapa Leaflet'));
+    document.head.appendChild(script);
+  });
+};
+
+const setMapLocation = async (lat: number, lng: number, L?: any) => {
+  const Leaflet = L || (window as any).L;
+  formData.value.latitude = lat.toFixed(6);
+  formData.value.longitude = lng.toFixed(6);
+  formData.value.cardinalPoints = formatCoordinateToCardinal(lat, lng);
+  formData.value.googleMapsUrl = `https://www.google.com/maps?q=${formData.value.latitude},${formData.value.longitude}`;
+
+  if (scenaryMapInstance && Leaflet) {
+    if (scenaryMarkerInstance) {
+      scenaryMarkerInstance.setLatLng([lat, lng]);
+    } else {
+      scenaryMarkerInstance = Leaflet.marker([lat, lng]).addTo(scenaryMapInstance);
+    }
+  }
+
+  try {
+    const res = await fetch(`https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=${lat}&lon=${lng}`);
+    const data = await res.json();
+    if (data && data.address) {
+      const road = data.address.road || data.address.street || data.address.suburb || data.address.neighbourhood || '';
+      const district = data.address.city_district || data.address.village || data.address.town || data.address.city || '';
+      const parts = [road, district].filter(Boolean);
+      const streetName = parts.length > 0 ? parts.join(', ') : (data.display_name ? data.display_name.split(',')[0] : '');
+      if (streetName) {
+        formData.value.address = streetName;
+      }
+    }
+  } catch (geoErr) {
+    console.warn('Geocodificación inversa no disponible:', geoErr);
+  }
+
+  formData.value.location = formData.value.address
+    ? `${formData.value.address} (${formData.value.cardinalPoints})`
+    : `Coordenadas: ${formData.value.cardinalPoints}`;
+
+  if (scenaryMarkerInstance) {
+    scenaryMarkerInstance.bindPopup(`<b>${formData.value.name || 'Cancha'}</b><br/>${formData.value.location}`).openPopup();
+  }
+};
+
+const initScenaryMap = async () => {
+  try {
+    const L = await loadLeaflet();
+    const mapContainer = document.getElementById('scenary-map-container');
+    if (!mapContainer) return;
+
+    if (scenaryMapInstance) {
+      scenaryMapInstance.remove();
+      scenaryMapInstance = null;
+      scenaryMarkerInstance = null;
+    }
+
+    const defaultLat = Number(formData.value.latitude) || -0.057045;
+    const defaultLng = Number(formData.value.longitude) || -78.209045;
+    const initialZoom = formData.value.latitude ? 16 : 14;
+
+    scenaryMapInstance = L.map('scenary-map-container').setView([defaultLat, defaultLng], initialZoom);
+
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      maxZoom: 19,
+      attribution: '© OpenStreetMap contributors',
+    }).addTo(scenaryMapInstance);
+
+    if (formData.value.latitude && formData.value.longitude) {
+      scenaryMarkerInstance = L.marker([defaultLat, defaultLng]).addTo(scenaryMapInstance);
+      if (formData.value.address) {
+        scenaryMarkerInstance.bindPopup(formData.value.address).openPopup();
+      }
+    }
+
+    scenaryMapInstance.on('click', (e: any) => {
+      setMapLocation(e.latlng.lat, e.latlng.lng, L);
+    });
+
+    setTimeout(() => {
+      scenaryMapInstance?.invalidateSize();
+    }, 300);
+  } catch (err) {
+    console.error('Error al inicializar mapa:', err);
+  }
+};
+
+const searchLocationOnMap = async () => {
+  if (!mapSearchQuery.value.trim()) return;
+  try {
+    const res = await fetch(`https://nominatim.openstreetmap.org/search?format=jsonv2&q=${encodeURIComponent(mapSearchQuery.value.trim())}`);
+    const data = await res.json();
+    if (data && data.length > 0) {
+      const first = data[0];
+      const lat = parseFloat(first.lat);
+      const lng = parseFloat(first.lon);
+      if (scenaryMapInstance) {
+        scenaryMapInstance.setView([lat, lng], 16);
+      }
+      setMapLocation(lat, lng);
+    } else {
+      toast.info('No se encontraron resultados para esa búsqueda');
+    }
+  } catch {
+    toast.error('Error al buscar ubicación en el mapa');
+  }
+};
+
+const toggleScenarySelection = (id: string) => {
+  if (!formData.value.availableScenaryIds) {
+    formData.value.availableScenaryIds = [];
+  }
+  const idx = formData.value.availableScenaryIds.indexOf(id);
+  if (idx >= 0) {
+    formData.value.availableScenaryIds.splice(idx, 1);
+  } else {
+    formData.value.availableScenaryIds.push(id);
+  }
+};
+
 const openCreateForm = () => {
+  if (activeTab.value === 'schedules') {
+    openCreateSchedule();
+    return;
+  }
   isEditing.value = false;
   editingId.value = null;
   formData.value = {};
   if (activeTab.value === 'categoryEditions') {
-    formData.value = { status: 'IN_PROGRESS' };
-    editionCategoriesDetail.value = [];
-    editionDetailInput.value = { categoryId: '', startDate: '', endDate: '', registrationFee: 0, maxPlayers: 25 };
+    formData.value = {
+      status: 'IN_PROGRESS',
+      identifyByPlayerCode: false,
+      matchDurationMinutes: 60,
+      breakDurationMinutes: 10,
+      waitBetweenMatchesMinutes: 10,
+      availableScenaryIds: scenariesList.value.map((s) => s.id),
+      categoriesDetail: [],
+    };
+    editionCategoriesDetail.value = [
+      {
+        _uid: 'cat_' + Date.now(),
+        categoryId: '',
+        categoryDescription: '',
+        startDate: '',
+        endDate: '',
+        registrationFee: 0,
+        maxPlayers: 25,
+        classifications: [],
+      },
+    ];
+  } else if (activeTab.value === 'players') {
+    formData.value = {
+      isActive: true,
+      passOwnerType: 'PLAYER',
+    };
+    globalPlayerFound.value = false;
+    globalPlayerSearched.value = false;
+  } else if (activeTab.value === 'referees') {
+    formData.value = {
+      isActive: true,
+    };
+    globalRefereeFound.value = false;
+    globalRefereeSearched.value = false;
+  } else if (activeTab.value === 'scenaries') {
+    formData.value = {
+      name: '',
+      surfaceType: 'SYNTHETIC',
+      isActive: true,
+      address: '',
+      cardinalPoints: '',
+      latitude: '-0.057045',
+      longitude: '-78.209045',
+      location: '',
+      googleMapsUrl: '',
+    };
+    nextTick(() => initScenaryMap());
   } else if (activeTab.value === 'playerClassifications') {
     formData.value = { isActive: true };
+  } else if (activeTab.value === 'teams') {
+    formData.value = { isActive: true };
+  } else if (activeTab.value === 'vocals') {
+    formData.value = { isActive: true };
+  } else if (activeTab.value === 'playerTransfers') {
+    formData.value = {
+      edition_id: categoryEditionsList.value.length > 0 ? categoryEditionsList.value[0].id : '',
+      player_id: '',
+      destination_team_id: '',
+      stage_id: '',
+      reason: '',
+    };
   }
   isFormOpen.value = true;
   showModal.value = true;
@@ -4246,13 +5759,31 @@ const openCreateForm = () => {
 };
 
 const openEditForm = (item: any) => {
+  if (activeTab.value === 'schedules') {
+    openEditSchedule(item);
+    return;
+  }
   isEditing.value = true;
   editingId.value = item.id;
   formData.value = { ...item };
   if (activeTab.value === 'categoryEditions') {
     formData.value.status = formData.value.status || 'IN_PROGRESS';
+    formData.value.identifyByPlayerCode = item.identifyByPlayerCode === true;
+    formData.value.matchDurationMinutes = Number(item.matchDurationMinutes) || 60;
+    formData.value.breakDurationMinutes = Number(item.breakDurationMinutes) || 10;
+    formData.value.waitBetweenMatchesMinutes = Number(item.waitBetweenMatchesMinutes) || 10;
+    formData.value.availableScenaryIds = Array.isArray(item.availableScenaryIds) ? item.availableScenaryIds : [];
     editionCategoriesDetail.value = item.categoriesDetail ? JSON.parse(JSON.stringify(item.categoriesDetail)) : [];
-    editionDetailInput.value = { categoryId: '', startDate: '', endDate: '', registrationFee: 0, maxPlayers: 25 };
+  } else if (activeTab.value === 'players') {
+    if (item.birthDate) {
+      const calculated = calculatePlayerAgeDirect(item.birthDate);
+      if (calculated) {
+        formData.value.ageYears = item.ageYears ?? calculated.years;
+        formData.value.ageMonths = item.ageMonths ?? calculated.months;
+      }
+    }
+  } else if (activeTab.value === 'scenaries') {
+    nextTick(() => initScenaryMap());
   }
   isFormOpen.value = true;
   showModal.value = true;
@@ -4266,10 +5797,19 @@ const closeForm = () => {
   isFormOpen.value = false;
   showModal.value = false;
   formData.value = {};
+  globalPlayerFound.value = false;
+  globalPlayerSearched.value = false;
+  globalRefereeFound.value = false;
+  globalRefereeSearched.value = false;
+  detectedOriginRegistration.value = null;
   isEditing.value = false;
   editingId.value = null;
   editionCategoriesDetail.value = [];
-  editionDetailInput.value = { categoryId: '', startDate: '', endDate: '', registrationFee: 0, maxPlayers: 25 };
+  if (scenaryMapInstance) {
+    scenaryMapInstance.remove();
+    scenaryMapInstance = null;
+    scenaryMarkerInstance = null;
+  }
 };
 
 const openCreateModal = openCreateForm;
@@ -4280,6 +5820,26 @@ const saveForm = async () => {
   try {
     saving.value = true;
     if (activeTab.value === 'categoryEditions') {
+      if (editionCategoriesDetail.value.length === 0) {
+        toast.warning('Debe agregar al menos una categoría al detalle del torneo');
+        saving.value = false;
+        return;
+      }
+      for (let i = 0; i < editionCategoriesDetail.value.length; i++) {
+        const d = editionCategoriesDetail.value[i];
+        if (!d || !d.categoryId) {
+          toast.error(`Seleccione la categoría en la fila #${i + 1}`);
+          saving.value = false;
+          return;
+        }
+      }
+      const catIds = editionCategoriesDetail.value.map((d) => d.categoryId);
+      const hasDuplicates = catIds.some((id, idx) => catIds.indexOf(id) !== idx);
+      if (hasDuplicates) {
+        toast.error('No se permite repetir la misma categoría en una edición de torneo.');
+        saving.value = false;
+        return;
+      }
       for (const d of editionCategoriesDetail.value) {
         const maxL = Number(d.maxPlayers) > 0 ? Number(d.maxPlayers) : 25;
         const sumC = (d.classifications || []).reduce((acc: number, c: any) => acc + (Number(c.maxPlayers) || 0), 0);
@@ -4290,6 +5850,11 @@ const saveForm = async () => {
         }
       }
       formData.value.status = 'IN_PROGRESS';
+      formData.value.identifyByPlayerCode = Boolean(formData.value.identifyByPlayerCode);
+      formData.value.matchDurationMinutes = Number(formData.value.matchDurationMinutes) || 60;
+      formData.value.breakDurationMinutes = Number(formData.value.breakDurationMinutes) || 10;
+      formData.value.waitBetweenMatchesMinutes = Number(formData.value.waitBetweenMatchesMinutes) || 10;
+      formData.value.availableScenaryIds = Array.isArray(formData.value.availableScenaryIds) ? formData.value.availableScenaryIds : [];
       formData.value.categoriesDetail = editionCategoriesDetail.value.map((d) => ({
         categoryId: d.categoryId,
         categoryDescription: d.categoryDescription || getCategoryNameById(d.categoryId),
@@ -4300,16 +5865,91 @@ const saveForm = async () => {
         classifications: (d.classifications || []).map((c: any) => ({
           playerClassificationId: c.playerClassificationId,
           maxPlayers: Number(c.maxPlayers) || 0,
+          maxInactivityMonths: c.maxInactivityMonths !== undefined && c.maxInactivityMonths !== null ? Number(c.maxInactivityMonths) : null,
+          maxMonths: c.maxMonths !== undefined && c.maxMonths !== null ? Number(c.maxMonths) : null,
         })),
       }));
+    } else if (activeTab.value === 'categories') {
+      if (!formData.value.code) {
+        delete formData.value.code;
+      }
+    } else if (activeTab.value === 'players') {
+      if (formData.value.birthDate) {
+        const calculated = calculatePlayerAgeDirect(formData.value.birthDate);
+        if (calculated) {
+          formData.value.ageYears = calculated.years;
+          formData.value.ageMonths = calculated.months;
+        }
+      }
+      if (!formData.value.code) {
+        delete formData.value.code;
+      }
+    } else if (activeTab.value === 'scenaries') {
+      if (formData.value.isActive === undefined) {
+        formData.value.isActive = true;
+      }
+      if (formData.value.latitude !== undefined && formData.value.latitude !== null) {
+        formData.value.latitude = String(formData.value.latitude);
+      }
+      if (formData.value.longitude !== undefined && formData.value.longitude !== null) {
+        formData.value.longitude = String(formData.value.longitude);
+      }
+      if (formData.value.address && !formData.value.location) {
+        formData.value.location = `${formData.value.address} (${formData.value.cardinalPoints || ''})`;
+      }
     } else if (activeTab.value === 'playerClassifications' && formData.value.isActive === undefined) {
       formData.value.isActive = true;
+    } else if (activeTab.value === 'teams' || activeTab.value === 'vocals' || activeTab.value === 'referees') {
+      if (formData.value.isActive === undefined) {
+        formData.value.isActive = true;
+      }
+    } else if (activeTab.value === 'playerTransfers') {
+      if (!formData.value.edition_id) {
+        toast.error('Debe seleccionar la edición del campeonato');
+        saving.value = false;
+        return;
+      }
+      if (!formData.value.player_id) {
+        toast.error('Debe seleccionar al futbolista a transferir');
+        saving.value = false;
+        return;
+      }
+      if (!formData.value.destination_team_id) {
+        toast.error('Debe seleccionar el club de destino');
+        saving.value = false;
+        return;
+      }
     }
+
+    // Limpiar el payload de metadatos de auditoría y relaciones para cumplir con los DTOs del backend
+    const payload = { ...formData.value };
+    const forbiddenKeys = [
+      'id',
+      '_id',
+      'companyId',
+      'tournamentId',
+      'createdName',
+      'createdBy',
+      'createdAt',
+      'updateName',
+      'updatedBy',
+      'updatedAt',
+      'deletedAt',
+    ];
+    for (const k of forbiddenKeys) {
+      delete (payload as any)[k];
+    }
+    for (const [k, v] of Object.entries(payload)) {
+      if (v !== null && typeof v === 'object' && !Array.isArray(v)) {
+        delete (payload as any)[k];
+      }
+    }
+
     if (isEditing.value && editingId.value) {
-      await currentTabConfig.value.api.update(editingId.value, formData.value);
+      await currentTabConfig.value.api.update(editingId.value, payload);
       toast.success('Registro actualizado exitosamente');
     } else {
-      await currentTabConfig.value.api.create(formData.value);
+      await currentTabConfig.value.api.create(payload);
       toast.success('Registro creado exitosamente');
     }
     closeForm();
@@ -4382,6 +6022,10 @@ const slugToTab: Record<string, string> = {
   'clasificacion-futbolistas': 'playerClassifications',
   playerClassifications: 'playerClassifications',
   'player-classifications': 'playerClassifications',
+  transferencias: 'playerTransfers',
+  'transferencias-jugadores': 'playerTransfers',
+  playerTransfers: 'playerTransfers',
+  'player-transfers': 'playerTransfers',
 };
 
 const resolveTabFromRoute = (): string => {
@@ -4423,6 +6067,7 @@ watch(
 
 onMounted(async () => {
   activeTab.value = resolveTabFromRoute();
+  window.addEventListener('deskounta:reset-view', onGlobalResetView);
   await loadAuxiliaryTournamentData();
   if (activeTab.value === 'schedules') {
     loadScheduleConfig();
@@ -4431,22 +6076,64 @@ onMounted(async () => {
   }
 });
 
+onUnmounted(() => {
+  window.removeEventListener('deskounta:reset-view', onGlobalResetView);
+});
+
 watch(
-  () => [route.query.tab, route.query.sub, route.params.sub],
-  () => {
-    const targetTab = resolveTabFromRoute();
-    if (targetTab !== activeTab.value) {
-      activeTab.value = targetTab;
-      page.value = 1;
-      searchQuery.value = '';
-      if (targetTab === 'schedules') {
-        loadScheduleConfig();
-      } else {
-        loadData();
+  () => scheduleConfig.value.editionId,
+  (edId) => {
+    if (!edId) return;
+    const foundEd = categoryEditionsList.value.find((e) => e.id === edId);
+    if (foundEd) {
+      if (foundEd.matchDurationMinutes) {
+        scheduleConfig.value.matchDurationMinutes = foundEd.matchDurationMinutes;
+      }
+      if (foundEd.breakDurationMinutes !== undefined && foundEd.waitBetweenMatchesMinutes !== undefined) {
+        scheduleConfig.value.intervalMinutes = foundEd.breakDurationMinutes + foundEd.waitBetweenMatchesMinutes;
+      } else if (foundEd.breakDurationMinutes !== undefined) {
+        scheduleConfig.value.intervalMinutes = foundEd.breakDurationMinutes;
+      }
+      if (foundEd.availableScenaryIds && foundEd.availableScenaryIds.length > 0) {
+        scheduleConfig.value.selectedScenaryIds = [...foundEd.availableScenaryIds];
       }
     }
   }
 );
+
+const handleRouteTabChange = (forceReload = false) => {
+  closeForm();
+  const targetTab = resolveTabFromRoute();
+  const tabChanged = targetTab !== activeTab.value;
+  activeTab.value = targetTab;
+  page.value = 1;
+  searchQuery.value = '';
+  if (targetTab === 'schedules') {
+    loadAuxiliaryTournamentData();
+    loadScheduleConfig();
+  } else if (tabChanged || forceReload) {
+    loadData();
+  }
+};
+
+watch(
+  () => [route.query.tab, route.query.sub, route.params.sub, route.path],
+  () => {
+    handleRouteTabChange(true);
+  }
+);
+
+onBeforeRouteUpdate(() => {
+  closeForm();
+});
+
+onBeforeRouteLeave(() => {
+  closeForm();
+});
+
+const onGlobalResetView = () => {
+  handleRouteTabChange(true);
+};
 </script>
 
 <style scoped>

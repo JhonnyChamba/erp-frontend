@@ -224,10 +224,21 @@ export interface PlayerRegistrationItem {
   updatedAt?: string;
 }
 
+export interface RefereeGuildItem {
+  id: string;
+  description: string;
+  acronyms?: string;
+  isActive: boolean;
+  createdAt: string;
+  updatedAt?: string;
+}
+
 export interface RefereeItem {
   id: string;
   companyId?: number;
   tournamentId?: string;
+  guildId?: string;
+  guild?: RefereeGuildItem;
   name: string;
   lastName: string;
   identification: string;
@@ -235,6 +246,8 @@ export interface RefereeItem {
   email?: string;
   category?: string;
   isActive: boolean;
+  companyRefereeId?: string;
+  isActiveInCompany?: boolean;
   createdAt: string;
   updatedAt?: string;
 }
@@ -435,7 +448,14 @@ export const createCrudService = <T>(endpoint: string) => ({
 export const PositionsService = createCrudService<PositionItem>('positions');
 export const DemarcationsService = createCrudService<DemarcationItem>('demarcations');
 export const TeamsService = createCrudService<TeamItem>('teams');
-export const PlayersService = createCrudService<PlayerItem>('players');
+export const PlayersService = {
+  ...createCrudService<PlayerItem>('players'),
+  findGlobal: (identification: string, companyId?: number) =>
+    api.get<{ exists: boolean; player: any; isLinkedToCurrentCompany?: boolean }>(
+      `/campeonato/players/find-global/${encodeURIComponent(identification.trim())}`,
+      withCompany(companyId)
+    ),
+};
 export const CategoriesService = createCrudService<CategoryItem>('categories');
 export const CategoryEditionsService = createCrudService<CategoryEditionItem>('category-editions');
 export const StagesService = {
@@ -459,8 +479,25 @@ export const StagesService = {
 export const ScenariesService = createCrudService<ScenaryItem>('scenaries');
 export const PlayerClassificationsService = createCrudService<PlayerClassificationItem>('player-classifications');
 export const TeamRegistrationsService = createCrudService<TeamRegistrationItem>('team-registrations');
-export const PlayerRegistrationsService = createCrudService<PlayerRegistrationItem>('player-registrations');
-export const RefereesService = createCrudService<RefereeItem>('referees');
+export const PlayerRegistrationsService = {
+  ...createCrudService<PlayerRegistrationItem>('player-registrations'),
+  massCreate: (data: { teamRegistrationId: string; stageId?: string; registrations: any[] }, companyId?: number) =>
+    api.post<any>('/campeonato/player-registrations/mass', data, withCompany(companyId)),
+  updateStatus: (id: string, data: { status: string; comments?: string }, companyId?: number) =>
+    api.patch<any>(`/campeonato/player-registrations/${id}/status`, data, withCompany(companyId)),
+  getRoster: (teamRegistrationId: string, companyId?: number) =>
+    api.get<any>(`/campeonato/player-registrations/roster/${teamRegistrationId}`, withCompany(companyId)),
+};
+export const RefereeGuildsService = createCrudService<RefereeGuildItem>('referee-guilds');
+export const RefereesService = {
+  ...createCrudService<RefereeItem>('referees'),
+  findGlobal: (identification: string, companyId?: number) =>
+    api.get<{
+      exists: boolean;
+      referee: RefereeItem | null;
+      isLinkedToCurrentCompany: boolean;
+    }>(`/campeonato/referees/find-global/${encodeURIComponent(identification)}`, withCompany(companyId)),
+};
 export const VocalsService = createCrudService<VocalItem>('vocals');
 export const MatchesService = {
   ...createCrudService<MatchItem>('matches'),
@@ -516,12 +553,24 @@ export const TeamCategoryHistoryService = {
 };
 
 export const PlayerTransfersService = {
+  ...createCrudService<any>('player-transfers'),
   listByPlayer: (playerId: string, companyId?: number) =>
-    api.get<any[]>(`/campeonato/player-transfers/${playerId}`, withCompany(companyId)),
-  create: (data: any, companyId?: number) =>
+    api.get<any[]>(`/campeonato/player-transfers/player/${playerId}`, withCompany(companyId)),
+  getSportsHistory: (playerId: string, companyId?: number) =>
+    api.get<any>(`/campeonato/player-transfers/sports-history/${playerId}`, withCompany(companyId)),
+  createRequest: (data: any, companyId?: number) =>
     api.post<any>('/campeonato/player-transfers', data, withCompany(companyId)),
-  delete: (id: string, companyId?: number) =>
-    api.delete<any>(`/campeonato/player-transfers/${id}`, withCompany(companyId)),
+  approve: (id: string, data: { role: string; status: string; comments?: string }, companyId?: number) =>
+    api.post<any>(`/campeonato/player-transfers/${id}/approve`, data, withCompany(companyId)),
+  execute: (id: string, companyId?: number) =>
+    api.post<any>(`/campeonato/player-transfers/${id}/execute`, {}, withCompany(companyId)),
+};
+
+export const TournamentTransferConfigsService = {
+  getByEdition: (editionId: string, companyId?: number) =>
+    api.get<any>(`/campeonato/tournament-transfer-configs/${editionId}`, withCompany(companyId)),
+  upsert: (editionId: string, data: any, companyId?: number) =>
+    api.put<any>(`/campeonato/tournament-transfer-configs/${editionId}`, data, withCompany(companyId)),
 };
 
 export const CampeonatoApi = {
@@ -536,6 +585,7 @@ export const CampeonatoApi = {
   teamRegistrations: TeamRegistrationsService,
   playerRegistrations: PlayerRegistrationsService,
   referees: RefereesService,
+  refereeGuilds: RefereeGuildsService,
   vocals: VocalsService,
   matches: MatchesService,
   matchLineups: MatchLineupsService,
@@ -547,4 +597,25 @@ export const CampeonatoApi = {
   teamCategoryHistory: TeamCategoryHistoryService,
   playerTransfers: PlayerTransfersService,
   playerClassifications: PlayerClassificationsService,
+  tournamentTransferConfigs: TournamentTransferConfigsService,
+};
+
+export const campeonatoService = {
+  ...CampeonatoApi,
+  getTournamentTransferConfig: (editionId: string, companyId?: number) =>
+    TournamentTransferConfigsService.getByEdition(editionId, companyId).then((r: any) => r.data),
+  saveTournamentTransferConfig: (payload: any, companyId?: number) =>
+    TournamentTransferConfigsService.upsert(payload.edition_id, payload, companyId).then((r: any) => r.data),
+  approveTransfer: (id: string, data: any, companyId?: number) =>
+    PlayerTransfersService.approve(id, data, companyId).then((r: any) => r.data),
+  executeTransfer: (id: string, companyId?: number) =>
+    PlayerTransfersService.execute(id, companyId).then((r: any) => r.data),
+  getSportsHistory: (playerId: string, companyId?: number) =>
+    PlayerTransfersService.getSportsHistory(playerId, companyId).then((r: any) => r.data),
+  getRosterByTeamRegistration: (teamRegId: string, companyId?: number) =>
+    PlayerRegistrationsService.getRoster(teamRegId, companyId).then((r: any) => r.data),
+  registerMass: (payload: any, companyId?: number) =>
+    PlayerRegistrationsService.massCreate(payload, companyId).then((r: any) => r.data),
+  updateRegistrationStatus: (id: string, payload: any, companyId?: number) =>
+    PlayerRegistrationsService.updateStatus(id, payload, companyId).then((r: any) => r.data),
 };

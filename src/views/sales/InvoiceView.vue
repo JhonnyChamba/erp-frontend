@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, computed, onMounted, watch, nextTick } from 'vue'
+import { ref, computed, onMounted, onUnmounted, watch, nextTick } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores/auth.store'
 import { toast } from '@/utils/toastr'
@@ -1213,11 +1213,25 @@ const formatNumber = (val: any) => {
   return num.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
 }
 
+const closeAllInvoiceModals = () => {
+  showCreateModal.value = false
+  showDetailModal.value = false
+  showQuickCustomerModal.value = false
+  showDailyCashModal.value = false
+  showSriModal.value = false
+}
+
 onMounted(() => {
   loadData()
+  window.addEventListener('deskounta:reset-view', closeAllInvoiceModals)
 })
 
-watch(() => route.path, () => {
+onUnmounted(() => {
+  window.removeEventListener('deskounta:reset-view', closeAllInvoiceModals)
+})
+
+watch(() => [route.path, route.query], () => {
+  closeAllInvoiceModals()
   loadData()
 })
 </script>

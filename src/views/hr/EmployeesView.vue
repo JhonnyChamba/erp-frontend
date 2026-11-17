@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, computed, onMounted, watch } from 'vue'
+import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
 import { useAuthStore } from '@/stores/auth.store'
 import {
   getEmployees,
@@ -375,8 +375,17 @@ const onDeleteEmployee = async (emp: EmployeeItem) => {
   }
 }
 
+const closeEmployeeForm = () => {
+  isEmployeeFormOpen.value = false
+}
+
 onMounted(() => {
   loadData()
+  window.addEventListener('deskounta:reset-view', closeEmployeeForm)
+})
+
+onUnmounted(() => {
+  window.removeEventListener('deskounta:reset-view', closeEmployeeForm)
 })
 </script>
 

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, onMounted, computed, watch, nextTick } from 'vue'
+import { ref, onMounted, onUnmounted, computed, watch, nextTick } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { toast } from '@/utils/toastr'
 import {
@@ -990,7 +990,17 @@ watch(
   }
 )
 
+const closeAllSettingsModals = () => {
+  showCompanyModal.value = false
+  showUserModal.value = false
+  showRoleModal.value = false
+  showBranchModal.value = false
+  showTaxModal.value = false
+  showDocTypeModal.value = false
+}
+
 onMounted(async () => {
+  window.addEventListener('deskounta:reset-view', closeAllSettingsModals)
   const comp = localStorage.getItem('selectedCompany')
   if (comp) {
     try {
@@ -1001,6 +1011,10 @@ onMounted(async () => {
     } catch (e) {}
   }
   loadCurrentTabData()
+})
+
+onUnmounted(() => {
+  window.removeEventListener('deskounta:reset-view', closeAllSettingsModals)
 })
 
 // =================== GUARDAR EMPRESA ===================

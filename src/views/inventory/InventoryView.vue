@@ -1501,7 +1501,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, watch, nextTick } from 'vue'
+import { ref, computed, onMounted, onUnmounted, watch, nextTick } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { toast } from '@/utils/toastr'
 import {
@@ -1618,6 +1618,9 @@ const loadKardex = async () => {
 
 // Sync tab with URL query (?tab=categorias | bodegas | articulos | servicios | subcontratacion | kardex) or route param
 const syncTabFromRoute = () => {
+  if (typeof closeAllInventoryModals === 'function') {
+    closeAllInventoryModals()
+  }
   const qTab = String(route.query.tab || route.params.sub || '').toLowerCase()
   if (qTab.includes('cat')) {
     activeTab.value = 'categorias'
@@ -1947,6 +1950,16 @@ const showCategoryModal = ref(false)
 const showWarehouseModal = ref(false)
 const showTransferModal = ref(false)
 const showAdjustmentModal = ref(false)
+
+const closeAllInventoryModals = () => {
+  showItemModal.value = false
+  showServiceModal.value = false
+  showSubcontractModal.value = false
+  showCategoryModal.value = false
+  showWarehouseModal.value = false
+  showTransferModal.value = false
+  showAdjustmentModal.value = false
+}
 
 // Mientras un formulario de registro/edición está abierto se muestra como página y se oculta el listado
 const isFormOpen = computed(() =>
@@ -2699,6 +2712,11 @@ const confirmDelete = async (tab: InventoryTab, record: any) => {
 onMounted(() => {
   syncTabFromRoute()
   loadAllInventory()
+  window.addEventListener('deskounta:reset-view', closeAllInventoryModals)
+})
+
+onUnmounted(() => {
+  window.removeEventListener('deskounta:reset-view', closeAllInventoryModals)
 })
 </script>
 

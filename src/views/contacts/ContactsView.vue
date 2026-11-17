@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, onMounted, computed, watch, nextTick } from 'vue'
+import { ref, onMounted, onUnmounted, computed, watch, nextTick } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { toast } from '@/utils/toastr'
 import {
@@ -203,10 +203,20 @@ const switchTab = (tab: 'clientes' | 'proveedores' | 'vendedores') => {
   loadData()
 }
 
+const closeAllContactModals = () => {
+  showCustomerModal.value = false
+  showProviderModal.value = false
+  showSellerModal.value = false
+  showViewCustomerModal.value = false
+  showViewProviderModal.value = false
+  showViewSellerModal.value = false
+}
+
 // Sincronizar pestaña activa con ruta
 watch(
   () => route.query.tab,
   (newTab) => {
+    closeAllContactModals()
     if (newTab && ['clientes', 'proveedores', 'vendedores'].includes(newTab as string)) {
       activeTab.value = newTab as any
       loadData()
@@ -216,6 +226,7 @@ watch(
 )
 
 onMounted(async () => {
+  window.addEventListener('deskounta:reset-view', closeAllContactModals)
   const comp = localStorage.getItem('selectedCompany')
   if (comp) {
     try {
@@ -224,6 +235,10 @@ onMounted(async () => {
   }
   loadData()
   loadDocTypes()
+})
+
+onUnmounted(() => {
+  window.removeEventListener('deskounta:reset-view', closeAllContactModals)
 })
 
 // ==========================================

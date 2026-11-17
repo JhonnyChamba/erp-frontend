@@ -16,7 +16,7 @@
       <!-- HEADER DEL SIDEBAR (LOGO) -->
       <div class="d-flex flex-column flex-grow-1" style="min-height: 0;">
         <div class="brand-logo flex-shrink-0 d-flex align-items-center justify-content-between p-3 border-bottom border-translucent">
-          <router-link to="/dashboard" class="text-nowrap logo-img d-flex align-items-center text-decoration-none" title="Ir al Dashboard" @click="mobileSidebarOpen = false">
+          <router-link to="/dashboard" class="text-nowrap logo-img d-flex align-items-center text-decoration-none" title="Ir al Dashboard" @click="handleSidebarNavClick('/dashboard')">
             <img src="/controller/images/logos/logo-dark.svg" class="dark-logo" alt="Deskounta Logo" height="34" />
             <img src="/controller/images/logos/logo-light.svg" class="light-logo" alt="Deskounta Logo" height="34" />
           </router-link>
@@ -72,7 +72,7 @@
                           :to="sub.url"
                           class="sidebar-sublink"
                           :class="{ active: isSubActive(sub.url) }"
-                          @click="mobileSidebarOpen = false"
+                          @click="handleSidebarNavClick(sub.url)"
                         >
                           <span class="sidebar-icon"></span>
                           <span class="hide-menu">{{ sub.description }}</span>
@@ -87,7 +87,7 @@
                       :to="getDirectModuleUrl(mod)"
                       class="sidebar-link info-hover-bg"
                       :class="{ active: route.path === getDirectModuleUrl(mod) || route.path.startsWith(getDirectModuleUrl(mod) + '/') }"
-                      @click="mobileSidebarOpen = false"
+                      @click="handleSidebarNavClick(getDirectModuleUrl(mod))"
                     >
                       <span class="aside-icon p-2 bg-info-subtle rounded-1 text-info">
                         <iconify-icon :icon="mod.icon || 'solar:chart-square-bold-duotone'" class="fs-6"></iconify-icon>
@@ -140,7 +140,7 @@
                         :to="sub.url"
                         class="sidebar-sublink"
                         :class="{ active: isSubActive(sub.url) }"
-                        @click="mobileSidebarOpen = false"
+                        @click="handleSidebarNavClick(sub.url)"
                       >
                         <span class="sidebar-icon"></span>
                         <span class="hide-menu">{{ sub.description }}</span>
@@ -205,6 +205,13 @@ const authStore = useAuthStore()
 const customizerRef = ref<InstanceType<typeof AppCustomizer> | null>(null)
 const isMiniSidebar = ref(false)
 const mobileSidebarOpen = ref(false)
+
+const handleSidebarNavClick = (url?: string) => {
+  mobileSidebarOpen.value = false
+  if (typeof window !== 'undefined') {
+    window.dispatchEvent(new CustomEvent('deskounta:reset-view', { detail: { url } }))
+  }
+}
 const userName = ref('Usuario')
 const userPhoto = computed(() => resolveAvatarUrl(authStore.tokenPayload?.photo_url || localStorage.getItem('userPhoto')))
 
@@ -286,7 +293,6 @@ const isSubActive = (subUrl: string) => {
           'referees',
           'vocals',
           'demarcations',
-          'positions',
         ]
         if (configTabs.includes(currentTab.toLowerCase())) {
           return true
@@ -412,6 +418,7 @@ const getCampeonatoSubItems = (mod: any) => {
   const operationalSubItems = [
     { code: 'SUB-CAMP-007', description: 'Inscripción de Equipos', url: '/campeonato?tab=teamRegistrations', tab: 'teamRegistrations' },
     { code: 'SUB-CAMP-008', description: 'Inscripción y Carnets', url: '/campeonato?tab=playerRegistrations', tab: 'playerRegistrations' },
+    { code: 'SUB-CAMP-020', description: 'Transferencias de Jugadores', url: '/campeonato?tab=playerTransfers', tab: 'playerTransfers' },
     { code: 'SUB-CAMP-011', description: 'Partidos y Encuentros', url: '/campeonato?tab=matches', tab: 'matches' },
     { code: 'SUB-CAMP-017', description: 'Tabla de Posiciones & Goleadores', url: '/campeonato?tab=standings', tab: 'standings' },
     { code: 'SUB-CAMP-012', description: 'Sanciones y Disciplina', url: '/campeonato?tab=sanctions', tab: 'sanctions' },
@@ -438,7 +445,6 @@ const getCampeonatoSubItems = (mod: any) => {
           'SUB-CAMP-006',
           'SUB-CAMP-009',
           'SUB-CAMP-010',
-          'SUB-CAMP-014',
           'SUB-CAMP-015',
           'SUB-CAMP-016',
           'SUB-CAMP-018',

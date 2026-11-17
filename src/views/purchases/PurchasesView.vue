@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, computed, onMounted, watch, nextTick } from 'vue'
+import { ref, computed, onMounted, onUnmounted, watch, nextTick } from 'vue'
 import { useRoute } from 'vue-router'
 import { useAuthStore } from '@/stores/auth.store'
 import {
@@ -527,8 +527,21 @@ const formatNumber = (val: number | string | undefined | null) => {
   return num.toLocaleString('es-EC', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
 }
 
+const closePurchaseForm = () => {
+  isFormOpen.value = false
+}
+
 onMounted(() => {
   loadPurchasesData()
+  window.addEventListener('deskounta:reset-view', closePurchaseForm)
+})
+
+onUnmounted(() => {
+  window.removeEventListener('deskounta:reset-view', closePurchaseForm)
+})
+
+watch(() => [route.path, route.query], () => {
+  closePurchaseForm()
 })
 </script>
 

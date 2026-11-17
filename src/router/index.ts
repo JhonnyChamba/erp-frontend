@@ -196,6 +196,12 @@ const router = createRouter({
   routes
 })
 
+router.afterEach((to, from) => {
+  if (typeof window !== 'undefined') {
+    window.dispatchEvent(new CustomEvent('deskounta:reset-view', { detail: { to, from } }))
+  }
+})
+
 // Guardia de navegación: Protección de rutas, verificación de expiración (15h) y control de retroceso
 router.beforeEach(async (to, from) => {
   const authStore = useAuthStore()

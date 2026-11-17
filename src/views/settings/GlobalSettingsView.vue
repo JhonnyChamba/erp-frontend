@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, onMounted, computed, watch, nextTick } from 'vue'
+import { ref, onMounted, onUnmounted, computed, watch, nextTick } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { toast } from '@/utils/toastr'
 import {
@@ -65,6 +65,7 @@ import { resolveAvatarUrl, handleAvatarError } from '@/utils/avatar'
 import { getMyProfile, type MyProfile } from '@/services/auth.service'
 import { useAuthStore } from '@/stores/auth.store'
 import { useThemeStore } from '@/stores/theme.store'
+import GlobalTournamentCatalogs from './components/GlobalTournamentCatalogs.vue'
 
 const route = useRoute()
 const router = useRouter()
@@ -194,8 +195,20 @@ const closeUserModal = () => {
   document.documentElement.setAttribute('data-color-theme', currentTheme)
 }
 
-// Pestaña activa ('companies' | 'branches' | 'users' | 'modules' | 'subscriptions' | 'taxes' | 'document_types')
-const activeTab = ref<'companies' | 'branches' | 'users' | 'modules' | 'subscriptions' | 'taxes' | 'document_types'>('companies')
+// Pestaña activa ('companies' | 'branches' | 'users' | 'modules' | 'subscriptions' | 'taxes' | 'document_types' | 'referee_guilds' | 'global_referees' | 'player_classifications' | 'demarcations')
+const activeTab = ref<
+  | 'companies'
+  | 'branches'
+  | 'users'
+  | 'modules'
+  | 'subscriptions'
+  | 'taxes'
+  | 'document_types'
+  | 'referee_guilds'
+  | 'global_referees'
+  | 'player_classifications'
+  | 'demarcations'
+>('companies')
 
 // Filtros específicos para Usuarios Globales
 const userFilterCompanyId = ref<number | ''>('')
@@ -1383,7 +1396,7 @@ const filteredUsers = computed(() => {
   return list
 })
 
-const switchTab = (tab: 'companies' | 'branches' | 'users' | 'modules' | 'subscriptions' | 'taxes' | 'document_types') => {
+const switchTab = (tab: any) => {
   activeTab.value = tab
   router.replace({ query: { ...route.query, tab } })
   loadCurrentTabData()
@@ -1393,7 +1406,20 @@ const switchTab = (tab: 'companies' | 'branches' | 'users' | 'modules' | 'subscr
 watch(
   () => route.query.tab,
   (newTab) => {
-    if (newTab && ['companies', 'branches', 'users', 'modules', 'subscriptions', 'taxes', 'document_types'].includes(newTab as string)) {
+    const validTabs = [
+      'companies',
+      'branches',
+      'users',
+      'modules',
+      'subscriptions',
+      'taxes',
+      'document_types',
+      'referee_guilds',
+      'global_referees',
+      'player_classifications',
+      'demarcations',
+    ]
+    if (newTab && validTabs.includes(newTab as string)) {
       activeTab.value = newTab as any
       showCompanyModal.value = false
       showCompanySubscriptionModal.value = false
@@ -1414,7 +1440,21 @@ watch(
   { immediate: true }
 )
 
+const closeAllGlobalSettingsModals = () => {
+  showCompanyModal.value = false
+  showCompanySubscriptionModal.value = false
+  showBranchModal.value = false
+  showUserModal.value = false
+  showRoleModal.value = false
+  showModuleModal.value = false
+  showSubModuleModal.value = false
+  showPlanModal.value = false
+  showTaxModal.value = false
+  showDocTypeModal.value = false
+}
+
 onMounted(async () => {
+  window.addEventListener('deskounta:reset-view', closeAllGlobalSettingsModals)
   fetchProfile()
   const comp = localStorage.getItem('selectedCompany')
   if (comp) {
@@ -1426,6 +1466,10 @@ onMounted(async () => {
     } catch (e) {}
   }
   loadCurrentTabData()
+})
+
+onUnmounted(() => {
+  window.removeEventListener('deskounta:reset-view', closeAllGlobalSettingsModals)
 })
 
 // =================== GUARDAR EMPRESA ===================
@@ -2661,7 +2705,7 @@ const mobileSidebarOpen = ref(false)
           </button>
         </li>
 
-        <li class="nav-item">
+        <li class="nav-item me-2">
           <button
             class="nav-link rounded-pill px-4 py-2 d-flex align-items-center gap-2 fs-3 text-decoration-none"
             :class="{ 'active bg-primary text-white': activeTab === 'document_types', 'text-white-50 hover-tab': activeTab !== 'document_types' }"
@@ -2672,10 +2716,62 @@ const mobileSidebarOpen = ref(false)
           </button>
         </li>
 
+        <li class="nav-item me-2">
+          <button
+            class="nav-link rounded-pill px-4 py-2 d-flex align-items-center gap-2 fs-3 text-decoration-none"
+            :class="{ 'active bg-primary text-white': activeTab === 'referee_guilds', 'text-white-50 hover-tab': activeTab !== 'referee_guilds' }"
+            @click="switchTab('referee_guilds')"
+          >
+            <iconify-icon icon="solar:shield-star-bold-duotone" class="fs-5"></iconify-icon>
+            <span>Gremios Arbitrales</span>
+          </button>
+        </li>
+
+        <li class="nav-item me-2">
+          <button
+            class="nav-link rounded-pill px-4 py-2 d-flex align-items-center gap-2 fs-3 text-decoration-none"
+            :class="{ 'active bg-primary text-white': activeTab === 'global_referees', 'text-white-50 hover-tab': activeTab !== 'global_referees' }"
+            @click="switchTab('global_referees')"
+          >
+            <iconify-icon icon="solar:whistle-bold-duotone" class="fs-5"></iconify-icon>
+            <span>Padrón Árbitros</span>
+          </button>
+        </li>
+
+        <li class="nav-item me-2">
+          <button
+            class="nav-link rounded-pill px-4 py-2 d-flex align-items-center gap-2 fs-3 text-decoration-none"
+            :class="{ 'active bg-primary text-white': activeTab === 'player_classifications', 'text-white-50 hover-tab': activeTab !== 'player_classifications' }"
+            @click="switchTab('player_classifications')"
+          >
+            <iconify-icon icon="solar:user-check-bold-duotone" class="fs-5"></iconify-icon>
+            <span>Clasif. Futbolistas</span>
+          </button>
+        </li>
+
+        <li class="nav-item">
+          <button
+            class="nav-link rounded-pill px-4 py-2 d-flex align-items-center gap-2 fs-3 text-decoration-none"
+            :class="{ 'active bg-primary text-white': activeTab === 'demarcations', 'text-white-50 hover-tab': activeTab !== 'demarcations' }"
+            @click="switchTab('demarcations')"
+          >
+            <iconify-icon icon="solar:running-bold-duotone" class="fs-5"></iconify-icon>
+            <span>Demarcaciones</span>
+          </button>
+        </li>
+
       </ul>
     </div>
 
     <!-- CONTENIDO DE LA PESTAÑA ACTIVA -->
+
+    <!-- ======================================================== -->
+    <!-- CATÁLOGOS GLOBALES DE CAMPEONATOS (PUNTOS 8, 9, 11)      -->
+    <!-- ======================================================== -->
+    <GlobalTournamentCatalogs
+      v-if="['referee_guilds', 'global_referees', 'player_classifications', 'demarcations'].includes(activeTab)"
+      :tab="(activeTab as any)"
+    />
 
     <!-- ======================================================== -->
     <!-- TAB 1: EMPRESAS                                          -->
