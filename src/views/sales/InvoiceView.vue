@@ -620,6 +620,50 @@ const customerSelectOptions = computed(() =>
   }))
 )
 
+// Búsqueda en tiempo real directamente en la base de datos para Select2
+const fetchCustomerOptions = async (query: string) => {
+  try {
+    const companyId = getActiveCompanyId()
+    const list = await getCustomers(companyId)
+    if (Array.isArray(list)) {
+      customersList.value = list
+    }
+    const q = query.trim().toLowerCase()
+    return customersList.value
+      .filter((c) => !q || c.razon_social?.toLowerCase().includes(q) || c.num_document?.includes(q))
+      .map((c) => ({
+        value: c.id,
+        label: `${c.razon_social} (${c.num_document})`,
+        sublabel: c.email || c.direccion || '',
+      }))
+  } catch (err) {
+    console.error('Error buscando clientes en tiempo real:', err)
+    return customerSelectOptions.value
+  }
+}
+
+const fetchArticleOptions = async (query: string) => {
+  try {
+    const companyId = getActiveCompanyId()
+    const arts = await getInventoryItems(companyId)
+    const list = Array.isArray((arts as any)?.data) ? (arts as any).data : Array.isArray(arts) ? arts : []
+    if (list.length > 0) {
+      articlesList.value = list
+    }
+    const q = query.trim().toLowerCase()
+    return articlesList.value
+      .filter((a) => !q || a.name?.toLowerCase().includes(q) || a.code?.toLowerCase().includes(q))
+      .map((a) => ({
+        value: a.id,
+        label: `${a.code} - ${a.name} ($${formatNumber(a.salePrice)})`,
+        sublabel: `Stock disponible: ${Number(a.stockCurrent ?? 0)} ${a.unit || 'UND'}`,
+      }))
+  } catch (err) {
+    console.error('Error buscando artículos en tiempo real:', err)
+    return articleSelectOptions.value
+  }
+}
+
 const onSelectCustomerSelect2 = (custId: number | null) => {
   if (!custId) {
     selectedCustomerId.value = null
@@ -1221,7 +1265,7 @@ watch(() => route.path, () => {
     </div>
 
     <!-- Indicadores KPIs de Facturación -->
-    <div v-if="isInvoiceSubmodule && !isFormOpen" class="crud-kpi-grid mt-3">
+    <div v-if="isInvoiceSubmodule && !isFormOpen" class="crud-kpi-grid">
       <div class="crud-kpi-card">
         <div class="crud-kpi-icon primary">
           <iconify-icon icon="solar:document-text-line-duotone" class="fs-5"></iconify-icon>
@@ -1270,7 +1314,7 @@ watch(() => route.path, () => {
     <!-- VISTA PRINCIPAL DE FACTURACIÓN ECUADOR -->
     <template v-else>
       <!-- Barra de Filtros y Búsqueda -->
-      <div v-show="!isFormOpen" class="crud-filters-card mt-3">
+      <div v-show="!isFormOpen" class="crud-filters-card">
         <div class="d-flex flex-wrap align-items-center justify-content-between gap-3">
           <div class="d-flex align-items-center gap-2 flex-grow-1" style="max-width: 400px;">
             <div class="input-group">
@@ -1309,7 +1353,7 @@ watch(() => route.path, () => {
       </div>
 
       <!-- Tabla de Facturas Emitidas -->
-      <div v-show="!isFormOpen" class="crud-table-card mt-3">
+      <div v-show="!isFormOpen" class="crud-table-card">
         <div class="table-responsive">
           <table class="crud-table">
             <thead>
@@ -1628,6 +1672,7 @@ watch(() => route.path, () => {
                 <div style="min-width: 260px;">
                   <AppSelect2
                     :options="customerSelectOptions"
+                    :fetch-options="fetchCustomerOptions"
                     placeholder="Seleccionar de Contactos..."
                     search-placeholder="Buscar cliente por nombre o RUC..."
                     allow-clear
@@ -1812,6 +1857,7 @@ watch(() => route.path, () => {
                           <AppSelect2
                             :model-value="row.item_id"
                             :options="articleSelectOptions"
+                            :fetch-options="fetchArticleOptions"
                             placeholder="-- Seleccionar Artículo Físico --"
                             search-placeholder="Buscar artículo por código o nombre..."
                             @update:model-value="onSelectArticle(row, $event)"
@@ -2378,9 +2424,7 @@ watch(() => route.path, () => {
   transform: translate(-50%, -12px);
 }
 .invoices-page {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
+  width: 100%;
 }
 
 .modal-backdrop-custom {

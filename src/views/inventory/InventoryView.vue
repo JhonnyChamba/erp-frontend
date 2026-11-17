@@ -53,7 +53,7 @@
     </div>
 
     <!-- Search & Filters -->
-    <div class="crud-filters-card mt-2 mb-3">
+    <div class="crud-filters-card">
       <div class="d-flex flex-wrap align-items-center justify-content-between gap-3">
         <div class="d-flex align-items-center gap-2 flex-grow-1" style="max-width: 420px;">
           <div class="input-group">
@@ -925,12 +925,14 @@
 
             <div class="form-group">
               <label>Categoría * <span class="badge bg-primary-subtle text-primary" style="font-size: 10px; margin-left: 6px;">Obligatoria</span></label>
-              <select v-model="itemForm.categoryId" @change="onCategorySelect" required>
-                <option :value="null" disabled>-- Selecciona una categoría obligatoria --</option>
-                <option v-for="cat in activeCategories" :key="cat.id" :value="cat.id">
-                  {{ cat.code ? `[${cat.code}] ` : '' }}{{ cat.name }}
-                </option>
-              </select>
+              <AppSelect2
+                v-model="itemForm.categoryId"
+                :options="productCategoryOptions"
+                placeholder="-- Seleccionar categoría obligatoria --"
+                search-placeholder="Buscar categoría..."
+                @change="onCategorySelect"
+                required
+              />
             </div>
 
             <div class="form-group">
@@ -1024,12 +1026,14 @@
 
             <div class="form-group">
               <label>Categoría del Servicio * <span class="badge bg-primary-subtle text-primary" style="font-size: 10px; margin-left: 6px;">Obligatoria</span></label>
-              <select v-model="serviceForm.categoryId" @change="onServiceCategorySelect" required>
-                <option :value="null" disabled>-- Selecciona una categoría obligatoria --</option>
-                <option v-for="cat in serviceCategories" :key="cat.id" :value="cat.id">
-                  {{ cat.code ? `[${cat.code}] ` : '' }}{{ cat.name }}
-                </option>
-              </select>
+              <AppSelect2
+                v-model="serviceForm.categoryId"
+                :options="serviceCategoryOptions"
+                placeholder="-- Seleccionar categoría obligatoria --"
+                search-placeholder="Buscar categoría..."
+                @change="onServiceCategorySelect"
+                required
+              />
             </div>
 
             <div class="form-group span-2">
@@ -1124,12 +1128,14 @@
 
             <div class="form-group">
               <label>Categoría de Mano de Obra</label>
-              <select v-model="subcontractForm.categoryId" @change="onSubcontractCategorySelect">
-                <option :value="null">-- Seleccionar categoría (opcional) --</option>
-                <option v-for="cat in laborCategories" :key="cat.id" :value="cat.id">
-                  {{ cat.code ? `[${cat.code}] ` : '' }}{{ cat.name }}
-                </option>
-              </select>
+              <AppSelect2
+                v-model="subcontractForm.categoryId"
+                :options="laborCategoryOptions"
+                placeholder="-- Seleccionar categoría (opcional) --"
+                search-placeholder="Buscar categoría..."
+                @change="onSubcontractCategorySelect"
+                allow-clear
+              />
             </div>
 
             <div class="form-group span-2">
@@ -1360,32 +1366,36 @@
           <div class="form-grid">
             <div class="form-group span-2">
               <label>Artículo / Producto a Transferir *</label>
-              <select v-model="transferForm.product_id" required>
-                <option :value="null" disabled>-- Selecciona un artículo físico --</option>
-                <option v-for="item in itemsList" :key="item.id" :value="item.id">
-                  {{ item.code ? `[${item.code}] ` : '' }}{{ item.name }} (Stock Total: {{ formatNumber(item.stockCurrent) }})
-                </option>
-              </select>
+              <AppSelect2
+                v-model="transferForm.product_id"
+                :options="itemSelectOptions"
+                :fetch-options="fetchItemOptions"
+                placeholder="-- Seleccionar producto a transferir --"
+                search-placeholder="Buscar producto por código o nombre..."
+                required
+              />
             </div>
 
             <div class="form-group">
               <label>Bodega de Origen (Sale stock) *</label>
-              <select v-model="transferForm.from_warehouse_id" required>
-                <option :value="null" disabled>-- Selecciona bodega origen --</option>
-                <option v-for="wh in activeWarehouses" :key="'from-'+wh.id" :value="wh.id">
-                  {{ wh.name }}
-                </option>
-              </select>
+              <AppSelect2
+                v-model="transferForm.from_warehouse_id"
+                :options="warehouseSelectOptions"
+                placeholder="-- Seleccionar bodega origen --"
+                search-placeholder="Buscar bodega..."
+                required
+              />
             </div>
 
             <div class="form-group">
               <label>Bodega de Destino (Entra stock) *</label>
-              <select v-model="transferForm.to_warehouse_id" required>
-                <option :value="null" disabled>-- Selecciona bodega destino --</option>
-                <option v-for="wh in activeWarehouses" :key="'to-'+wh.id" :value="wh.id">
-                  {{ wh.name }}
-                </option>
-              </select>
+              <AppSelect2
+                v-model="transferForm.to_warehouse_id"
+                :options="warehouseSelectOptions"
+                placeholder="-- Seleccionar bodega destino --"
+                search-placeholder="Buscar bodega..."
+                required
+              />
             </div>
 
             <div class="form-group">
@@ -1431,22 +1441,26 @@
           <div class="form-grid">
             <div class="form-group span-2">
               <label>Artículo / Producto a Ajustar *</label>
-              <select v-model="adjustmentForm.product_id" @change="onAdjustmentProductChange" required>
-                <option :value="null" disabled>-- Selecciona un artículo --</option>
-                <option v-for="item in itemsList" :key="item.id" :value="item.id">
-                  {{ item.code ? `[${item.code}] ` : '' }}{{ item.name }} (Stock registrado: {{ formatNumber(item.stockCurrent) }})
-                </option>
-              </select>
+              <AppSelect2
+                v-model="adjustmentForm.product_id"
+                :options="itemSelectOptions"
+                :fetch-options="fetchItemOptions"
+                placeholder="-- Seleccionar producto a ajustar --"
+                search-placeholder="Buscar producto por código o nombre..."
+                @change="onAdjustmentProductChange"
+                required
+              />
             </div>
 
             <div class="form-group">
               <label>Bodega donde se realiza el conteo *</label>
-              <select v-model="adjustmentForm.warehouse_id" required>
-                <option :value="null" disabled>-- Selecciona bodega --</option>
-                <option v-for="wh in activeWarehouses" :key="wh.id" :value="wh.id">
-                  {{ wh.name }}
-                </option>
-              </select>
+              <AppSelect2
+                v-model="adjustmentForm.warehouse_id"
+                :options="warehouseSelectOptions"
+                placeholder="-- Seleccionar bodega --"
+                search-placeholder="Buscar bodega..."
+                required
+              />
             </div>
 
             <div class="form-group">
@@ -1772,6 +1786,66 @@ const laborCategories = computed(() =>
 )
 const activeWarehouses = computed(() => warehousesList.value.filter(w => w.status))
 const defaultWarehouseName = computed(() => warehousesList.value.find(w => w.isDefault)?.name || 'Sin predeterminada')
+
+// Opciones Select2 para formularios de Inventario
+const productCategoryOptions = computed(() =>
+  productCategories.value.map((c) => ({
+    value: c.id,
+    label: `${c.code ? `[${c.code}] ` : ''}${c.name}`,
+    sublabel: c.description || undefined
+  }))
+)
+
+const serviceCategoryOptions = computed(() =>
+  serviceCategories.value.map((c) => ({
+    value: c.id,
+    label: `${c.code ? `[${c.code}] ` : ''}${c.name}`,
+    sublabel: c.description || undefined
+  }))
+)
+
+const laborCategoryOptions = computed(() =>
+  laborCategories.value.map((c) => ({
+    value: c.id,
+    label: `${c.code ? `[${c.code}] ` : ''}${c.name}`,
+    sublabel: c.description || undefined
+  }))
+)
+
+const warehouseSelectOptions = computed(() =>
+  activeWarehouses.value.map((w) => ({
+    value: w.id,
+    label: `${w.name}${w.isDefault ? ' ★ (Predeterminada)' : ''}`,
+    sublabel: w.code ? `Código: ${w.code}` : undefined
+  }))
+)
+
+const itemSelectOptions = computed(() =>
+  itemsList.value.map((item) => ({
+    value: item.id,
+    label: `${item.code ? `[${item.code}] ` : ''}${item.name}`,
+    sublabel: `Stock: ${item.stockCurrent ?? 0} ${item.unit || 'UND'} | PVP: $${formatNumber(item.salePrice)}`
+  }))
+)
+
+const fetchItemOptions = async (query: string) => {
+  try {
+    const companyId = getActiveCompanyId()
+    const res: any = await getInventoryItems(companyId)
+    const list = Array.isArray(res?.data) ? res.data : Array.isArray(res) ? res : []
+    if (list.length > 0) itemsList.value = list
+    const q = query.trim().toLowerCase()
+    return itemsList.value
+      .filter((i) => !q || i.name?.toLowerCase().includes(q) || i.code?.toLowerCase().includes(q))
+      .map((item) => ({
+        value: item.id,
+        label: `${item.code ? `[${item.code}] ` : ''}${item.name}`,
+        sublabel: `Stock: ${item.stockCurrent ?? 0} ${item.unit || 'UND'} | PVP: $${formatNumber(item.salePrice)}`
+      }))
+  } catch (err) {
+    return itemSelectOptions.value
+  }
+}
 
 const filteredKardexMovements = computed(() => {
   const q = searchQuery.value.trim().toLowerCase()
@@ -2630,9 +2704,7 @@ onMounted(() => {
 
 <style scoped>
 .inventory-page {
-  display: flex;
-  flex-direction: column;
-  gap: 20px;
+  width: 100%;
   color: #e2e8f0;
 }
 

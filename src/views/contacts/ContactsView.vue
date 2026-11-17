@@ -639,7 +639,7 @@ const paymentLabel = (p: string) => {
     <!-- ============================================================= -->
     <div v-if="activeTab === 'clientes'">
       <!-- Barra de herramientas (Búsqueda, filtro y botón Nuevo) -->
-      <div class="crud-filters-card mb-3">
+      <div class="crud-filters-card">
         <div class="d-flex flex-wrap justify-content-between align-items-center gap-3">
           <div class="d-flex flex-wrap align-items-center gap-2 flex-grow-1">
             <!-- Buscador -->
@@ -826,7 +826,7 @@ const paymentLabel = (p: string) => {
     <!-- ============================================================= -->
     <div v-else-if="activeTab === 'proveedores'">
       <!-- Barra de herramientas -->
-      <div class="crud-filters-card mb-3">
+      <div class="crud-filters-card">
         <div class="d-flex flex-wrap justify-content-between align-items-center gap-3">
           <div class="d-flex flex-wrap align-items-center gap-2 flex-grow-1">
             <!-- Buscador -->
@@ -1023,7 +1023,7 @@ const paymentLabel = (p: string) => {
     <!-- ============================================================= -->
     <div v-else-if="activeTab === 'vendedores'">
       <!-- Barra de herramientas -->
-      <div class="crud-filters-card mb-3">
+      <div class="crud-filters-card">
         <div class="d-flex flex-wrap justify-content-between align-items-center gap-3">
           <div class="d-flex flex-wrap align-items-center gap-2 flex-grow-1">
             <!-- Buscador -->

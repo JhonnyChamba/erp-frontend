@@ -338,6 +338,7 @@
                 <AppSelect2
                   v-model="selectedInvoiceId"
                   :options="invoiceSelectOptions"
+                  :fetch-options="fetchInvoiceOptions"
                   placeholder="-- Seleccionar Factura --"
                   search-placeholder="Buscar por N° factura o cliente..."
                   @update:model-value="onInvoiceSelected"
@@ -518,7 +519,7 @@
               </button>
             </div>
 
-            <div class="crud-table-card mb-4">
+            <div class="crud-table-card">
               <div class="table-responsive">
                 <table class="crud-table">
                   <thead>
@@ -995,6 +996,35 @@ const invoiceSelectOptions = computed(() =>
       sublabel: `Fecha: ${inv.issue_date} | Estado SRI: AUTORIZADA`
     }))
 )
+
+// Búsqueda en tiempo real directamente en la base de datos para Select2
+const fetchInvoiceOptions = async (query: string) => {
+  try {
+    const invs: any = await api.get('/sales/invoices').then((r: any) => r.data).catch(() => [])
+    const list = Array.isArray(invs?.data) ? invs.data : Array.isArray(invs) ? invs : []
+    if (list.length > 0) {
+      invoicesList.value = list
+    }
+    const q = query.trim().toLowerCase()
+    return invoicesList.value
+      .filter((inv) => inv.sri_status === 'AUTHORIZED' && inv.status !== 'CANCELED')
+      .filter(
+        (inv) =>
+          !q ||
+          inv.invoice_number?.toLowerCase().includes(q) ||
+          inv.customer_name?.toLowerCase().includes(q) ||
+          inv.customer_id_number?.includes(q)
+      )
+      .map((inv) => ({
+        value: inv.id,
+        label: `${inv.invoice_number} - ${inv.customer_name} ($${formatMoney(inv.total)})`,
+        sublabel: `Fecha: ${inv.issue_date} | Estado SRI: AUTORIZADA`
+      }))
+  } catch (err) {
+    console.error('Error buscando facturas en tiempo real:', err)
+    return invoiceSelectOptions.value
+  }
+}
 
 // Opciones de Select2 para puntos de emisión
 const emissionPointOptions = computed(() => {

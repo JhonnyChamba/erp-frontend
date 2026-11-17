@@ -20,6 +20,7 @@ import {
 } from '@/services/inventory.service'
 import { getDocumentTypes, type DocumentTypeItem } from '@/services/document-types.service'
 import { toast } from '@/utils/toastr'
+import AppSelect2 from '@/components/common/AppSelect2.vue'
 
 const route = useRoute()
 const authStore = useAuthStore()
@@ -202,6 +203,58 @@ const providerSelectOptions = computed(() => [
     sublabel: prov.direccion || prov.email || '',
   })),
 ])
+
+// Búsqueda en tiempo real directamente en la base de datos para Select2
+const fetchProviderOptions = async (query: string) => {
+  try {
+    const companyId = getActiveCompanyId()
+    const provs = await getProviders(companyId)
+    if (Array.isArray(provs)) {
+      providersList.value = provs
+    }
+    const q = query.trim().toLowerCase()
+    return activeProviders.value
+      .filter((p) => !q || p.razon_social?.toLowerCase().includes(q) || p.num_document?.includes(q))
+      .map((prov) => ({
+        value: prov.id,
+        label: `${prov.razon_social || prov.nombre_comercial} (${prov.num_document})`,
+        sublabel: prov.direccion || prov.email || '',
+      }))
+  } catch (err) {
+    console.error('Error buscando proveedores en tiempo real:', err)
+    return providerSelectOptions.value
+  }
+}
+
+const articleSelectOptions = computed(() =>
+  activeArticles.value.map((art) => ({
+    value: art.id,
+    label: `${art.code ? `[${art.code}] ` : ''}${art.name}`,
+    sublabel: `Costo: $${formatNumber(art.costPrice || 0)} | Stock: ${art.stockCurrent ?? 0} ${art.unit || 'UND'}`
+  }))
+)
+
+const fetchArticleOptions = async (query: string) => {
+  try {
+    const companyId = getActiveCompanyId()
+    const arts: any = await getInventoryItems(companyId)
+    const list = Array.isArray(arts?.data) ? arts.data : Array.isArray(arts) ? arts : []
+    if (list.length > 0) {
+      articlesList.value = list
+    }
+    const q = query.trim().toLowerCase()
+    return activeArticles.value
+      .filter((a) => !q || a.name?.toLowerCase().includes(q) || a.code?.toLowerCase().includes(q))
+      .map((art) => ({
+        value: art.id,
+        label: `${art.code ? `[${art.code}] ` : ''}${art.name}`,
+        sublabel: `Costo: $${formatNumber(art.costPrice || 0)} | Stock: ${art.stockCurrent ?? 0} ${art.unit || 'UND'}`
+      }))
+  } catch (err) {
+    console.error('Error buscando productos en tiempo real:', err)
+    return articleSelectOptions.value
+  }
+}
 
 const warehouseSelectOptions = computed(() => [
   ...activeWarehouses.value.map((wh) => ({
@@ -510,7 +563,7 @@ onMounted(() => {
     </div>
 
     <!-- KPIs -->
-    <div class="crud-kpi-grid mt-3">
+    <div class="crud-kpi-grid">
       <div class="crud-kpi-card">
         <div class="crud-kpi-icon primary">
           <iconify-icon icon="solar:cart-large-minimalistic-bold-duotone" class="fs-5"></iconify-icon>
@@ -550,7 +603,7 @@ onMounted(() => {
     </div>
 
     <!-- Filters Row -->
-    <div class="crud-filters-card mt-3">
+    <div class="crud-filters-card">
       <div class="d-flex flex-wrap align-items-center justify-content-between gap-3">
         <div class="d-flex align-items-center gap-2 flex-grow-1" style="max-width: 420px;">
           <div class="input-group">
@@ -587,7 +640,7 @@ onMounted(() => {
     </div>
 
     <!-- Purchases Table Card -->
-    <div class="crud-table-card mt-3">
+    <div class="crud-table-card">
       <div class="table-responsive">
         <table class="crud-table">
           <thead>
@@ -727,6 +780,7 @@ onMounted(() => {
               <AppSelect2
                 v-model="purchaseForm.provider_id"
                 :options="providerSelectOptions"
+                :fetch-options="fetchProviderOptions"
                 placeholder="-- Seleccionar de la agenda de proveedores --"
                 search-placeholder="Buscar proveedor por razón social o RUC..."
                 @change="onProviderSelect"
@@ -896,12 +950,15 @@ onMounted(() => {
                 <tbody>
                   <tr v-for="(row, idx) in purchaseForm.items" :key="idx">
                     <td>
-                      <select v-model="row.item_id" @change="onArticleSelect(idx)" class="table-input" required>
-                        <option :value="undefined" disabled>-- Seleccionar del catálogo --</option>
-                        <option v-for="art in activeArticles" :key="art.id" :value="art.id">
-                          {{ art.code ? `[${art.code}] ` : '' }}{{ art.name }}
-                        </option>
-                      </select>
+                      <AppSelect2
+                        v-model="row.item_id"
+                        :options="articleSelectOptions"
+                        :fetch-options="fetchArticleOptions"
+                        placeholder="-- Seleccionar producto --"
+                        search-placeholder="Buscar producto por código o nombre..."
+                        @change="onArticleSelect(idx)"
+                        required
+                      />
                     </td>
                     <td>
                       <input v-model="row.code" type="text" placeholder="Código" class="table-input font-mono" />
@@ -1080,9 +1137,7 @@ onMounted(() => {
 
 <style scoped>
 .purchases-page {
-  display: flex;
-  flex-direction: column;
-  gap: 18px;
+  width: 100%;
   color: #f1f5f9;
 }
 

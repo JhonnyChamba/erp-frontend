@@ -2370,10 +2370,25 @@ const togglePlanSubModule = (subMod: SubModuleItem) => {
   }
 }
 
+// Módulos comerciales disponibles para Planes SaaS (los módulos generales solo deben aparecer en su pestaña de catálogo maestro)
+const planAvailableModules = computed(() => {
+  return modulesList.value.filter((m) => {
+    const code = (m.code || '').toUpperCase()
+    const desc = (m.description || '').toLowerCase()
+    if (code === 'MOD-006' || desc.includes('configuraci') || desc.includes('sistema general')) {
+      return false
+    }
+    return m.enabled !== false
+  })
+})
+
 const toggleAllPlanModulesAndSubModules = (select: boolean) => {
   if (select) {
-    formPlan.value.moduleIds = modulesList.value.filter((m) => m.enabled !== false).map((m) => m.id)
-    formPlan.value.subModuleIds = allSubModulesList.value.filter((sm) => sm.enabled !== false).map((sm) => sm.id)
+    const validModIds = planAvailableModules.value.map((m) => m.id)
+    formPlan.value.moduleIds = validModIds
+    formPlan.value.subModuleIds = allSubModulesList.value
+      .filter((sm) => sm.enabled !== false && validModIds.includes(sm.moduleId))
+      .map((sm) => sm.id)
   } else {
     formPlan.value.moduleIds = []
     formPlan.value.subModuleIds = []
@@ -5251,7 +5266,7 @@ const mobileSidebarOpen = ref(false)
 
                   <div class="p-2 bg-dark-subtle rounded-3 border border-dark-subtle" style="max-height: 380px; overflow-y: auto;">
                     <div class="row g-3">
-                      <div v-for="mod in modulesList" :key="'p-tree-mod-' + mod.id" class="col-md-6">
+                      <div v-for="mod in planAvailableModules" :key="'p-tree-mod-' + mod.id" class="col-md-6">
                         <div class="p-2 bg-navy-card rounded-3 border border-secondary-subtle h-100">
                           <!-- Cabecera del módulo -->
                           <div class="d-flex align-items-center justify-content-between pb-2 mb-2 border-bottom border-dark-subtle">

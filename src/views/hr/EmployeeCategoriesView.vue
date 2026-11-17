@@ -170,8 +170,8 @@ onMounted(() => {
 
     <!-- Lista de Categorías -->
     <template v-if="!isFormOpen">
-      <div class="card rounded-4 border border-secondary-subtle bg-navy-card p-4 shadow-sm">
-        <div class="d-flex flex-wrap align-items-center justify-content-between gap-3 mb-4">
+      <div class="crud-table-card p-3">
+        <div class="d-flex flex-wrap align-items-center justify-content-between gap-3 mb-3">
           <!-- Buscador -->
           <div class="input-group" style="width: 280px;">
             <span class="input-group-text bg-dark-subtle border-secondary-subtle text-secondary" style="height: 40px;">
@@ -198,7 +198,7 @@ onMounted(() => {
         </div>
 
         <div class="table-responsive">
-          <table class="table table-hover align-middle mb-0">
+          <table class="crud-table">
             <thead>
               <tr class="border-bottom border-dark-subtle text-secondary fs-2 text-uppercase">
                 <th>Nombre del Cargo</th>
@@ -240,21 +240,32 @@ onMounted(() => {
                   </span>
                 </td>
                 <td class="text-end">
-                  <div class="d-inline-flex align-items-center gap-1">
+                  <div class="dropdown">
                     <button
-                      class="btn btn-sm btn-outline-info rounded-3 p-1.5"
-                      title="Editar Cargo"
-                      @click="openEdit(cat)"
+                      class="btn bg-secondary-subtle text-secondary btn-sm dropdown-toggle d-inline-flex align-items-center gap-1 fw-semibold"
+                      type="button"
+                      data-bs-toggle="dropdown"
+                      data-bs-popper-config='{"strategy":"fixed"}'
+                      aria-expanded="false"
                     >
-                      <iconify-icon icon="solar:pen-new-square-line-duotone" class="fs-4"></iconify-icon>
+                      <iconify-icon icon="solar:menu-dots-bold" class="fs-4"></iconify-icon>
+                      <span>Acciones</span>
                     </button>
-                    <button
-                      class="btn btn-sm btn-outline-danger rounded-3 p-1.5"
-                      title="Eliminar Cargo"
-                      @click="onDelete(cat)"
-                    >
-                      <iconify-icon icon="solar:trash-bin-trash-line-duotone" class="fs-4"></iconify-icon>
-                    </button>
+                    <ul class="dropdown-menu dropdown-menu-end shadow-lg py-1">
+                      <li>
+                        <a class="dropdown-item py-2 text-warning" href="javascript:void(0)" @click="openEdit(cat)">
+                          <iconify-icon icon="solar:pen-new-square-line-duotone" class="fs-5 text-warning"></iconify-icon>
+                          <span>Editar Cargo</span>
+                        </a>
+                      </li>
+                      <li><hr class="dropdown-divider"></li>
+                      <li>
+                        <a class="dropdown-item py-2 text-danger" href="javascript:void(0)" @click="onDelete(cat)">
+                          <iconify-icon icon="solar:trash-bin-trash-line-duotone" class="fs-5 text-danger"></iconify-icon>
+                          <span>Eliminar Cargo</span>
+                        </a>
+                      </li>
+                    </ul>
                   </div>
                 </td>
               </tr>

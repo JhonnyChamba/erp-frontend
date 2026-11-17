@@ -293,7 +293,8 @@ router.beforeEach(async (to, from) => {
     }
 
     // Validación de permisos por URL según el rol
-    if (to.path !== '/dashboard' && authStore.accessInfo && !authStore.canAccessUrl(to.fullPath)) {
+    const isSuperAdmin = Boolean(authStore.tokenPayload?.super_admin || authStore.accessInfo?.isSuperAdmin)
+    if (!isSuperAdmin && to.path !== '/dashboard' && authStore.accessInfo && !authStore.canAccessUrl(to.fullPath)) {
       console.warn(`[Guardia de Navegación] Acceso denegado a la ruta: ${to.fullPath}`)
       toast.warning('No tienes permisos en esta empresa para acceder a esta sección.')
       return { path: '/dashboard' }

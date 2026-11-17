@@ -174,6 +174,11 @@ export const useAuthStore = defineStore('auth', {
     },
 
     canAccessUrl(fullPath: string): boolean {
+      const isSuper = Boolean(this.tokenPayload?.super_admin || this.accessInfo?.isSuperAdmin)
+      if (isSuper) {
+        return true
+      }
+
       const cleanTarget = fullPath.trim().toLowerCase()
       if (
         cleanTarget === '/' ||
@@ -194,6 +199,154 @@ export const useAuthStore = defineStore('auth', {
       }
 
       if (this.accessInfo) {
+        // Validación específica para /campeonato y sus pestañas / submódulos
+        if (cleanTarget === '/campeonato' || cleanTarget.startsWith('/campeonato?') || cleanTarget.startsWith('/campeonato/')) {
+          const hasCampeonatoMod =
+            this.accessInfo.allowedUrls.some((u) => u.toLowerCase().includes('campeonato')) ||
+            (this.accessInfo.subModuleCodes || []).some((c) => c.toUpperCase().startsWith('SUB-CAMP-')) ||
+            (this.accessInfo.menu || []).some((m) => m.code === 'MOD-010' || m.description?.toLowerCase().includes('campeonato'))
+
+          if (!hasCampeonatoMod) {
+            return false
+          }
+
+          if (cleanTarget === '/campeonato') {
+            return true
+          }
+
+          let tabParam = new URLSearchParams(cleanTarget.split('?')[1] || '').get('tab')
+          if (!tabParam && cleanTarget.startsWith('/campeonato/')) {
+            const rawPath = cleanTarget.split('?')[0] || ''
+            const segs = rawPath.split('/')
+            tabParam = segs[2] || ''
+          }
+
+          if (!tabParam) {
+            return true
+          }
+
+          const tabNorm = tabParam.toLowerCase()
+          if (tabNorm === 'configuracion' || tabNorm === 'configuraciones') {
+            return true
+          }
+          const campTabMapping: Record<string, string[]> = {
+            teams: ['equipos', 'teams', 'sub-camp-001'],
+            players: ['jugadores', 'players', 'sub-camp-002'],
+            demarcations: ['demarcaciones', 'demarcations', 'sub-camp-015'],
+            teamregistrations: ['inscripciones-equipos', 'teamregistrations', 'sub-camp-007'],
+            playerregistrations: ['inscripciones-jugadores', 'playerregistrations', 'sub-camp-008'],
+            matches: ['partidos', 'matches', 'sub-camp-011'],
+            standings: ['posiciones', 'standings', 'sub-camp-017'],
+            sanctions: ['sanciones', 'sanctions', 'sub-camp-012'],
+            payments: ['pagos', 'payments', 'sub-camp-013'],
+            categories: ['categorias', 'categories', 'sub-camp-003'],
+            categoryeditions: ['ediciones', 'categoryeditions', 'sub-camp-004'],
+            stages: ['etapas', 'stages', 'sub-camp-005'],
+            scenaries: ['escenarios', 'canchas', 'scenaries', 'sub-camp-006'],
+            referees: ['arbitros', 'referees', 'sub-camp-009'],
+            vocals: ['vocales', 'vocals', 'sub-camp-010'],
+            positions: ['cargos', 'positions', 'sub-camp-014'],
+            schedules: ['horarios', 'schedules', 'sub-camp-016'],
+            configuracion: [
+              'configuracion',
+              'configuraciones',
+              'campeonato',
+              'equipos',
+              'teams',
+              'jugadores',
+              'players',
+              'categorias',
+              'categories',
+              'ediciones',
+              'categoryeditions',
+              'etapas',
+              'stages',
+              'escenarios',
+              'canchas',
+              'scenaries',
+              'arbitros',
+              'referees',
+              'vocales',
+              'vocals',
+              'cargos',
+              'positions',
+              'horarios',
+              'schedules',
+              'demarcaciones',
+              'demarcations',
+              'sub-camp-001',
+              'sub-camp-002',
+              'sub-camp-003',
+              'sub-camp-004',
+              'sub-camp-005',
+              'sub-camp-006',
+              'sub-camp-009',
+              'sub-camp-010',
+              'sub-camp-014',
+              'sub-camp-015',
+              'sub-camp-016',
+              'sub-camp-018',
+            ],
+            configuraciones: [
+              'configuracion',
+              'configuraciones',
+              'campeonato',
+              'equipos',
+              'teams',
+              'jugadores',
+              'players',
+              'categorias',
+              'categories',
+              'ediciones',
+              'categoryeditions',
+              'etapas',
+              'stages',
+              'escenarios',
+              'canchas',
+              'scenaries',
+              'arbitros',
+              'referees',
+              'vocales',
+              'vocals',
+              'cargos',
+              'positions',
+              'horarios',
+              'schedules',
+              'demarcaciones',
+              'demarcations',
+              'sub-camp-001',
+              'sub-camp-002',
+              'sub-camp-003',
+              'sub-camp-004',
+              'sub-camp-005',
+              'sub-camp-006',
+              'sub-camp-009',
+              'sub-camp-010',
+              'sub-camp-014',
+              'sub-camp-015',
+              'sub-camp-016',
+              'sub-camp-018',
+            ],
+          }
+
+          const aliases = campTabMapping[tabNorm] || [tabNorm]
+          const subCodes = (this.accessInfo.subModuleCodes || []).map((c) => c.toLowerCase())
+          const allowedUrls = (this.accessInfo.allowedUrls || []).map((u) => u.toLowerCase())
+
+          return (
+            allowedUrls.some((u) => aliases.some((a) => u.includes(a))) ||
+            subCodes.some((c) => aliases.some((a) => a === c)) ||
+            (this.accessInfo.menu || []).some(
+              (m) =>
+                (m.code === 'MOD-010' || m.description?.toLowerCase().includes('campeonato')) &&
+                (m.children || []).some((ch: any) => {
+                  const chUrl = (ch.url_desc || ch.url || '').toLowerCase()
+                  const chCode = (ch.code || '').toLowerCase()
+                  return aliases.some((a) => chUrl.includes(a) || chCode === a)
+                })
+            )
+          )
+        }
         // Validación específica para /configuracion y sus pestañas
         if (cleanTarget === '/configuracion' || cleanTarget.startsWith('/configuracion?')) {
           const tabParam = new URLSearchParams(cleanTarget.split('?')[1] || '').get('tab')

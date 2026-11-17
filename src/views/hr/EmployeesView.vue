@@ -405,7 +405,7 @@ onMounted(() => {
     <!-- ======================================================== -->
     <template v-if="!isEmployeeFormOpen">
       <!-- Barra de Filtros y Acciones -->
-      <div class="card rounded-4 border border-secondary-subtle bg-navy-card p-3 mb-4 shadow-sm">
+      <div class="crud-filters-card">
         <div class="d-flex flex-wrap align-items-center justify-content-between gap-3">
           <div class="d-flex flex-wrap align-items-center gap-2 flex-grow-1">
             <!-- Buscador -->
@@ -465,9 +465,9 @@ onMounted(() => {
       </div>
 
       <!-- Tabla de Colaboradores -->
-      <div class="card rounded-4 border border-secondary-subtle bg-navy-card p-3 shadow-sm">
+      <div class="crud-table-card">
         <div class="table-responsive">
-          <table class="table table-hover align-middle mb-0">
+          <table class="crud-table">
             <thead>
               <tr class="border-bottom border-dark-subtle text-secondary fs-2 text-uppercase">
                 <th>Colaborador</th>
@@ -575,21 +575,32 @@ onMounted(() => {
 
                 <!-- Acciones -->
                 <td class="text-end">
-                  <div class="d-inline-flex align-items-center gap-1">
+                  <div class="dropdown">
                     <button
-                      class="btn btn-sm btn-outline-info rounded-3 p-1.5"
-                      title="Editar Colaborador"
-                      @click="openEditEmployee(emp)"
+                      class="btn bg-secondary-subtle text-secondary btn-sm dropdown-toggle d-inline-flex align-items-center gap-1 fw-semibold"
+                      type="button"
+                      data-bs-toggle="dropdown"
+                      data-bs-popper-config='{"strategy":"fixed"}'
+                      aria-expanded="false"
                     >
-                      <iconify-icon icon="solar:pen-new-square-line-duotone" class="fs-4"></iconify-icon>
+                      <iconify-icon icon="solar:menu-dots-bold" class="fs-4"></iconify-icon>
+                      <span>Acciones</span>
                     </button>
-                    <button
-                      class="btn btn-sm btn-outline-danger rounded-3 p-1.5"
-                      title="Eliminar Colaborador"
-                      @click="onDeleteEmployee(emp)"
-                    >
-                      <iconify-icon icon="solar:trash-bin-trash-line-duotone" class="fs-4"></iconify-icon>
-                    </button>
+                    <ul class="dropdown-menu dropdown-menu-end shadow-lg py-1">
+                      <li>
+                        <a class="dropdown-item py-2 text-warning" href="javascript:void(0)" @click="openEditEmployee(emp)">
+                          <iconify-icon icon="solar:pen-new-square-line-duotone" class="fs-5 text-warning"></iconify-icon>
+                          <span>Editar Colaborador</span>
+                        </a>
+                      </li>
+                      <li><hr class="dropdown-divider"></li>
+                      <li>
+                        <a class="dropdown-item py-2 text-danger" href="javascript:void(0)" @click="onDeleteEmployee(emp)">
+                          <iconify-icon icon="solar:trash-bin-trash-line-duotone" class="fs-5 text-danger"></iconify-icon>
+                          <span>Eliminar Colaborador</span>
+                        </a>
+                      </li>
+                    </ul>
                   </div>
                 </td>
               </tr>

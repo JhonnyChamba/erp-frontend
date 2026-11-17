@@ -395,13 +395,63 @@ export const TeamRegistrationsService = createCrudService<TeamRegistrationItem>(
 export const PlayerRegistrationsService = createCrudService<PlayerRegistrationItem>('player-registrations');
 export const RefereesService = createCrudService<RefereeItem>('referees');
 export const VocalsService = createCrudService<VocalItem>('vocals');
-export const MatchesService = createCrudService<MatchItem>('matches');
+export const MatchesService = {
+  ...createCrudService<MatchItem>('matches'),
+  getStandings: (stageId?: string, companyId?: number) =>
+    api.get<{ standings: any[]; topScorers: any[]; totalMatchesPlayed: number }>('/campeonato/matches/standings', {
+      params: { stageId },
+      ...withCompany(companyId),
+    }),
+  generateFixture: (
+    data: { stageId: string; teamIds: string[]; scenaryId?: string; startDate: string; matchDurationMinutes?: number; intervalDays?: number; numberOfLaps?: number },
+    companyId?: number
+  ) =>
+    api.post<{ success: boolean; message: string; matchesCount: number; roundsCount: number }>('/campeonato/matches/generate-fixture', data, withCompany(companyId)),
+};
 export const MatchLineupsService = createCrudService<MatchLineupItem>('match-lineups');
 export const MatchEventsService = createCrudService<MatchEventItem>('match-events');
 export const SanctionsService = createCrudService<SanctionItem>('sanctions');
 export const PaymentsService = createCrudService<PaymentItem>('payments');
 export const TournamentCommitteesService = createCrudService<TournamentCommitteeItem>('committees');
 export const TeamManagementsService = createCrudService<TeamManagementItem>('team-managements');
+
+export const uploadTeamLogo = async (file: File, companyId?: number): Promise<string> => {
+  const formData = new FormData();
+  formData.append('file', file);
+  const { data } = await api.post<{ url: string }>('/storage/team-logo', formData, {
+    headers: { 'Content-Type': 'multipart/form-data', ...withCompany(companyId).headers },
+    params: companyId ? { companyId } : undefined,
+  });
+  return data.url;
+};
+
+export const uploadPlayerPhoto = async (file: File, companyId?: number): Promise<string> => {
+  const formData = new FormData();
+  formData.append('file', file);
+  const { data } = await api.post<{ url: string }>('/storage/player-photo', formData, {
+    headers: { 'Content-Type': 'multipart/form-data', ...withCompany(companyId).headers },
+    params: companyId ? { companyId } : undefined,
+  });
+  return data.url;
+};
+
+export const TeamCategoryHistoryService = {
+  listByTeam: (teamId: string, companyId?: number) =>
+    api.get<any[]>(`/campeonato/team-category-history/${teamId}`, withCompany(companyId)),
+  create: (data: any, companyId?: number) =>
+    api.post<any>('/campeonato/team-category-history', data, withCompany(companyId)),
+  delete: (id: string, companyId?: number) =>
+    api.delete<any>(`/campeonato/team-category-history/${id}`, withCompany(companyId)),
+};
+
+export const PlayerTransfersService = {
+  listByPlayer: (playerId: string, companyId?: number) =>
+    api.get<any[]>(`/campeonato/player-transfers/${playerId}`, withCompany(companyId)),
+  create: (data: any, companyId?: number) =>
+    api.post<any>('/campeonato/player-transfers', data, withCompany(companyId)),
+  delete: (id: string, companyId?: number) =>
+    api.delete<any>(`/campeonato/player-transfers/${id}`, withCompany(companyId)),
+};
 
 export const CampeonatoApi = {
   positions: PositionsService,
@@ -423,4 +473,6 @@ export const CampeonatoApi = {
   payments: PaymentsService,
   committees: TournamentCommitteesService,
   teamManagements: TeamManagementsService,
+  teamCategoryHistory: TeamCategoryHistoryService,
+  playerTransfers: PlayerTransfersService,
 };

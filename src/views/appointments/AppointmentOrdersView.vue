@@ -25,9 +25,8 @@
     </div>
 
     <!-- FILTROS Y BÚSQUEDA -->
-    <div class="card mb-4 border-0 shadow-sm">
-      <div class="card-body p-3">
-        <div class="row g-3 align-items-center">
+    <div class="crud-filters-card">
+      <div class="row g-3 align-items-center">
           
           <!-- BÚSQUEDA TEXTUAL -->
           <div class="col-md-3">
@@ -77,13 +76,11 @@
           </div>
 
         </div>
-      </div>
     </div>
 
     <!-- TABLA DE ÓRDENES DE CITA -->
-    <div class="card border-0 shadow-sm">
-      <div class="card-body p-0">
-        
+    <div class="crud-table-card">
+      <div class="table-responsive">
         <div v-if="loading" class="text-center py-5">
           <div class="spinner-border text-primary" role="status"></div>
           <p class="text-muted mt-2 mb-0">Cargando órdenes de cita...</p>
@@ -98,10 +95,9 @@
           </router-link>
         </div>
 
-        <div v-else class="table-responsive">
-          <table class="table table-hover align-middle mb-0">
-            <thead class="table-light">
-              <tr>
+        <table v-else class="crud-table">
+          <thead>
+            <tr>
                 <th class="ps-4" style="width: 140px;">ORDEN #</th>
                 <th>FECHA & HORA</th>
                 <th>CLIENTE</th>
@@ -174,10 +170,17 @@
                 <!-- ACCIONES -->
                 <td class="text-center pe-4">
                   <div class="dropdown">
-                    <button class="btn btn-sm btn-light border dropdown-toggle" type="button" data-bs-toggle="dropdown">
-                      Acciones
+                    <button
+                      class="btn bg-secondary-subtle text-secondary btn-sm dropdown-toggle d-inline-flex align-items-center gap-1 fw-semibold"
+                      type="button"
+                      data-bs-toggle="dropdown"
+                      data-bs-popper-config='{"strategy":"fixed"}'
+                      aria-expanded="false"
+                    >
+                      <iconify-icon icon="solar:menu-dots-bold" class="fs-4"></iconify-icon>
+                      <span>Acciones</span>
                     </button>
-                    <ul class="dropdown-menu dropdown-menu-end shadow">
+                    <ul class="dropdown-menu dropdown-menu-end shadow-lg py-1">
                       
                       <!-- VER TICKET / ORDEN IMPRESA -->
                       <li>
@@ -227,9 +230,7 @@
             </tbody>
           </table>
         </div>
-
       </div>
-    </div>
 
     <!-- MODAL TICKET DE CITA / ORDEN DE ATENCIÓN TÉRMICA -->
     <div class="modal fade" id="modalAppointmentTicket" tabindex="-1" aria-hidden="true">

@@ -200,23 +200,24 @@
                 <!-- CLIENTE -->
                 <div class="col-md-6">
                   <label class="form-label fw-bold text-dark">Cliente <span class="text-danger">*</span></label>
-                  <select v-model="formAppointment.customer_id" class="form-select" required>
-                    <option :value="null" disabled>Seleccione un cliente...</option>
-                    <option v-for="c in customersList" :key="c.id" :value="c.id">
-                      {{ c.razon_social || c.nombre_comercial }} ({{ c.num_document }})
-                    </option>
-                  </select>
+                  <AppSelect2
+                    v-model="formAppointment.customer_id"
+                    :options="customerSelectOptions"
+                    :fetch-options="fetchCustomerOptions"
+                    placeholder="Buscar o seleccionar cliente..."
+                    required
+                  />
                 </div>
 
                 <!-- ESPECIALISTA -->
                 <div class="col-md-6">
                   <label class="form-label fw-bold text-dark">Especialista / Profesional <span class="text-danger">*</span></label>
-                  <select v-model="formAppointment.employee_id" class="form-select" required>
-                    <option :value="null" disabled>Seleccione especialista...</option>
-                    <option v-for="emp in specialists" :key="emp.id" :value="emp.id">
-                      {{ emp.first_name }} {{ emp.last_name }} ({{ emp.category?.name || 'Spa' }})
-                    </option>
-                  </select>
+                  <AppSelect2
+                    v-model="formAppointment.employee_id"
+                    :options="specialistSelectOptions"
+                    placeholder="Seleccione especialista..."
+                    required
+                  />
                 </div>
 
                 <!-- FECHA -->
@@ -463,6 +464,7 @@ import { getEmployees, type EmployeeItem } from '@/services/hr.service';
 import { getCustomers, type CustomerItem } from '@/services/contacts.service';
 import { getInventoryServices, type InventoryServiceItem } from '@/services/inventory.service';
 import { toast } from '@/utils/toastr';
+import AppSelect2 from '@/components/common/AppSelect2.vue';
 
 const router = useRouter();
 
@@ -540,6 +542,36 @@ const calculatedTax = computed(() => {
 const calculatedTotal = computed(() => {
   return calculatedSubtotal.value + calculatedTax.value;
 });
+
+const customerSelectOptions = computed(() =>
+  customersList.value.map((c) => ({
+    value: c.id,
+    label: `${c.razon_social || c.nombre_comercial} (${c.num_document})`,
+  }))
+);
+
+const specialistSelectOptions = computed(() =>
+  specialists.value.map((emp) => ({
+    value: emp.id,
+    label: `${emp.first_name} ${emp.last_name} (${emp.category?.name || 'Profesional'})`,
+  }))
+);
+
+const fetchCustomerOptions = async (query: string) => {
+  try {
+    const list = await getCustomers();
+    if (Array.isArray(list)) customersList.value = list;
+    const q = query.trim().toLowerCase();
+    return customersList.value
+      .filter((c) => !q || (c.razon_social || c.nombre_comercial)?.toLowerCase().includes(q) || c.num_document?.includes(q))
+      .map((c) => ({
+        value: c.id,
+        label: `${c.razon_social || c.nombre_comercial} (${c.num_document})`,
+      }));
+  } catch (err) {
+    return customerSelectOptions.value;
+  }
+};
 
 // Methods
 const setToday = () => {

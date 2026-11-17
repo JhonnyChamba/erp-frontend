@@ -45,7 +45,7 @@
     <!-- ========================================== -->
     <!-- 2. TARJETAS DE INDICADORES (KPIS)          -->
     <!-- ========================================== -->
-    <div v-show="!isFormOpen" class="crud-kpi-grid mb-4">
+    <div v-show="!isFormOpen" class="crud-kpi-grid">
       <!-- Total Órdenes -->
       <div class="crud-kpi-card">
         <div class="crud-kpi-icon primary">
@@ -94,7 +94,7 @@
     <!-- ========================================== -->
     <!-- 3. TARJETA DE FILTROS Y BÚSQUEDA           -->
     <!-- ========================================== -->
-    <div v-show="!isFormOpen" class="crud-filters-card mb-4">
+    <div v-show="!isFormOpen" class="crud-filters-card">
       <div class="row g-3 align-items-center">
         <!-- Búsqueda rápida -->
         <div class="col-lg-4 col-md-6 col-12">
@@ -386,6 +386,7 @@
                     <AppSelect2
                       v-model="form.customer_id"
                       :options="customerOptions"
+                      :fetch-options="fetchCustomerOptions"
                       placeholder="Buscar cliente por nombre o cédula..."
                       allow-clear
                       @change="onCustomerSelected"
@@ -438,6 +439,7 @@
                     <AppSelect2
                       v-model="form.technician_id"
                       :options="technicianOptions"
+                      :fetch-options="fetchTechnicianOptions"
                       placeholder="Seleccionar técnico..."
                       allow-clear
                       @change="onTechnicianSelected"
@@ -1206,6 +1208,40 @@ const technicianOptions = computed<Select2Option[]>(() => {
     sublabel: e.category?.name || 'Técnico',
   }));
 });
+
+const fetchCustomerOptions = async (query: string): Promise<Select2Option[]> => {
+  try {
+    const list = await getCustomers(getActiveCompanyId());
+    if (Array.isArray(list)) customers.value = list;
+    const q = query.trim().toLowerCase();
+    return customers.value
+      .filter((c) => !q || (c.razon_social || c.nombre_comercial)?.toLowerCase().includes(q) || c.num_document?.includes(q))
+      .map((c) => ({
+        value: c.id,
+        label: c.razon_social || c.nombre_comercial || 'Cliente',
+        sublabel: c.num_document ? `Doc: ${c.num_document} | Tel: ${c.telefono || '-'}` : c.telefono,
+      }));
+  } catch (e) {
+    return customerOptions.value;
+  }
+};
+
+const fetchTechnicianOptions = async (query: string): Promise<Select2Option[]> => {
+  try {
+    const list = await getEmployees();
+    if (Array.isArray(list)) employees.value = list;
+    const q = query.trim().toLowerCase();
+    return employees.value
+      .filter((e) => !q || `${e.first_name} ${e.last_name}`.toLowerCase().includes(q))
+      .map((e) => ({
+        value: e.id,
+        label: `${e.first_name} ${e.last_name}`,
+        sublabel: e.category?.name || 'Técnico',
+      }));
+  } catch (e) {
+    return technicianOptions.value;
+  }
+};
 
 // Selection Handlers
 const onCustomerSelected = (customerId: number | null) => {

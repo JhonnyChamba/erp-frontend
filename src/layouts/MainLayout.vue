@@ -64,7 +64,7 @@
                       class="list-unstyled ps-3 pt-1 mb-2 first-level"
                     >
                       <li
-                        v-for="sub in (isInventoryMod(mod) ? getInventorySubItems(mod) : (isPurchasesMod(mod) ? getPurchasesSubItems(mod) : (isSalesMod(mod) ? getSalesSubItems(mod) : mod.children)))"
+                        v-for="sub in getModuleChildren(mod)"
                         :key="sub.code"
                         class="sidebar-item mb-1"
                       >
@@ -127,12 +127,12 @@
                   </a>
 
                   <ul
-                    v-if="mod.children && mod.children.length > 0"
+                    v-if="getModuleChildren(mod).length > 0"
                     v-show="isOpen(mod.code)"
                     class="list-unstyled ps-3 pt-1 mb-2 first-level"
                   >
                     <li
-                      v-for="sub in mod.children"
+                      v-for="sub in getModuleChildren(mod)"
                       :key="sub.code"
                       class="sidebar-item mb-1"
                     >
@@ -161,7 +161,7 @@
     <div class="page-wrapper flex-grow-1 d-flex flex-column" style="min-height: 100vh;">
       
       <!-- CONTENIDO DE LA VISTA CON HEADER SPIKE FLOTANTE -->
-      <div class="body-wrapper flex-grow-1 p-3 p-md-4">
+      <div class="body-wrapper flex-grow-1 p-2 p-md-3">
         
         <!-- HEADER SUPERIOR CONECTADO -->
         <AppHeader
@@ -229,6 +229,7 @@ const operationalModules = computed(() => {
     }
     // Módulos con submódulos
     if (m.children && m.children.length > 0) {
+      if (isCampeonatoMod(m)) return getCampeonatoSubItems(m).length > 0
       if (isInventoryMod(m)) return getInventorySubItems(m).length > 0
       if (isPurchasesMod(m)) return getPurchasesSubItems(m).length > 0
       if (isSalesMod(m)) return getSalesSubItems(m).length > 0
@@ -272,6 +273,25 @@ const isSubActive = (subUrl: string) => {
     const expectedTab = searchParams.get('tab')
     const currentTab = (route.query.tab as string) || (currentPath === '/configuracion' ? 'companies' : '')
     if (expectedTab && currentTab) {
+      if (expectedTab.toLowerCase() === 'configuracion') {
+        const configTabs = [
+          'configuracion',
+          'teams',
+          'players',
+          'categories',
+          'categoryeditions',
+          'stages',
+          'scenaries',
+          'schedules',
+          'referees',
+          'vocals',
+          'demarcations',
+          'positions',
+        ]
+        if (configTabs.includes(currentTab.toLowerCase())) {
+          return true
+        }
+      }
       return expectedTab.toLowerCase() === currentTab.toLowerCase()
     }
     for (const [key, val] of searchParams.entries()) {
@@ -379,6 +399,70 @@ const getSalesSubItems = (mod: any) => {
   })
 
   return children
+}
+
+const isCampeonatoMod = (mod: any) =>
+  mod.code === 'MOD-010' || mod.description?.toLowerCase().includes('campeonato')
+
+const getCampeonatoSubItems = (mod: any) => {
+  const children = mod.children || []
+  const isSuper = Boolean(authStore.tokenPayload?.super_admin || authStore.accessInfo?.isSuperAdmin)
+
+  // Submódulos operativos que van en el menú lateral (Equipos, Jugadores y configuraciones técnicas van en "Configuraciones")
+  const operationalSubItems = [
+    { code: 'SUB-CAMP-007', description: 'Inscripción de Equipos', url: '/campeonato?tab=teamRegistrations', tab: 'teamRegistrations' },
+    { code: 'SUB-CAMP-008', description: 'Inscripción y Carnets', url: '/campeonato?tab=playerRegistrations', tab: 'playerRegistrations' },
+    { code: 'SUB-CAMP-011', description: 'Partidos y Encuentros', url: '/campeonato?tab=matches', tab: 'matches' },
+    { code: 'SUB-CAMP-017', description: 'Tabla de Posiciones & Goleadores', url: '/campeonato?tab=standings', tab: 'standings' },
+    { code: 'SUB-CAMP-012', description: 'Sanciones y Disciplina', url: '/campeonato?tab=sanctions', tab: 'sanctions' },
+    { code: 'SUB-CAMP-013', description: 'Pagos y Finanzas', url: '/campeonato?tab=payments', tab: 'payments' },
+    { code: 'SUB-CAMP-018', description: 'Configuraciones', url: '/campeonato?tab=configuracion', tab: 'configuracion' },
+  ]
+
+  if (isSuper || children.length === 0) {
+    return operationalSubItems.map(({ tab, ...rest }) => rest)
+  }
+
+  const allowedCodes = children.map((c: any) => c.code)
+  const allowedUrls = (authStore.accessInfo?.allowedUrls || []).concat(children.map((c: any) => c.url_desc || c.url || '')).map((u: string) => u.toLowerCase())
+
+  return operationalSubItems
+    .filter((item) => {
+      if (item.tab === 'configuracion') {
+        const configCodes = [
+          'SUB-CAMP-001',
+          'SUB-CAMP-002',
+          'SUB-CAMP-003',
+          'SUB-CAMP-004',
+          'SUB-CAMP-005',
+          'SUB-CAMP-006',
+          'SUB-CAMP-009',
+          'SUB-CAMP-010',
+          'SUB-CAMP-014',
+          'SUB-CAMP-015',
+          'SUB-CAMP-016',
+          'SUB-CAMP-018',
+        ]
+        return (
+          configCodes.some((code) => allowedCodes.includes(code)) ||
+          allowedUrls.some((u) => u.includes('configuracion') || u.includes('campeonato')) ||
+          allowedCodes.some((code: string) => code.startsWith('SUB-CAMP-'))
+        )
+      }
+      return (
+        allowedCodes.includes(item.code) ||
+        allowedUrls.some((u) => u.includes(item.tab.toLowerCase()) || (item.code && u.includes(item.code.toLowerCase())))
+      )
+    })
+    .map(({ tab, ...rest }) => rest)
+}
+
+const getModuleChildren = (mod: any) => {
+  if (isCampeonatoMod(mod)) return getCampeonatoSubItems(mod)
+  if (isInventoryMod(mod)) return getInventorySubItems(mod)
+  if (isSalesMod(mod)) return getSalesSubItems(mod)
+  if (isPurchasesMod(mod)) return getPurchasesSubItems(mod)
+  return mod.children || []
 }
 
 const isOpen = (moduleCode: string) => {
