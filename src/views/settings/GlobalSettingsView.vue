@@ -195,7 +195,7 @@ const closeUserModal = () => {
   document.documentElement.setAttribute('data-color-theme', currentTheme)
 }
 
-// Pestaña activa ('companies' | 'branches' | 'users' | 'modules' | 'subscriptions' | 'taxes' | 'document_types' | 'referee_guilds' | 'global_referees' | 'player_classifications' | 'demarcations')
+// Pestaña activa ('companies' | 'branches' | 'users' | 'modules' | 'subscriptions' | 'taxes' | 'document_types' | 'global_players' | 'referee_guilds' | 'global_referees' | 'player_classifications' | 'demarcations')
 const activeTab = ref<
   | 'companies'
   | 'branches'
@@ -204,10 +204,15 @@ const activeTab = ref<
   | 'subscriptions'
   | 'taxes'
   | 'document_types'
+  | 'global_players'
   | 'referee_guilds'
   | 'global_referees'
   | 'player_classifications'
   | 'demarcations'
+  | 'stage_formats'
+  | 'competition_types'
+  | 'competition_laps'
+  | 'tie_breaker_criteria'
 >('companies')
 
 // Filtros específicos para Usuarios Globales
@@ -1396,6 +1401,33 @@ const filteredUsers = computed(() => {
   return list
 })
 
+const platformSubmodules = [
+  { id: 'companies', label: 'Empresas', subtitle: 'Administración y parametrización de empresas del sistema ERP.', icon: 'solar:buildings-3-line-duotone' },
+  { id: 'branches', label: 'Sucursales', subtitle: 'Sucursales, puntos físicos y matrices de las empresas registradas.', icon: 'solar:shop-2-line-duotone' },
+  { id: 'users', label: 'Usuarios Globales', subtitle: 'Usuarios, accesos, asignación multi-empresa y contraseñas.', icon: 'solar:users-group-two-rounded-line-duotone' },
+  { id: 'modules', label: 'Módulos & Submódulos', subtitle: 'Catálogo maestro de módulos y submódulos del sistema.', icon: 'solar:widget-4-line-duotone' },
+  { id: 'subscriptions', label: 'Planes SaaS', subtitle: 'Planes comerciales, precios, límites de usuarios y módulos autorizados.', icon: 'solar:card-line-duotone' },
+  { id: 'taxes', label: 'Impuestos', subtitle: 'Catálogo oficial de impuestos SRI para facturación electrónica.', icon: 'solar:calculator-minimalistic-line-duotone' },
+  { id: 'document_types', label: 'Tipos de Documentos', subtitle: 'Tipos de identificación (Cédula, RUC, Pasaporte) y documentos comerciales.', icon: 'solar:document-text-line-duotone' },
+]
+
+const sportsSubmodules = [
+  { id: 'global_players', label: 'Futbolistas', subtitle: 'Base maestra de jugadores compartida para validación de fichajes y carnetización.', icon: 'solar:users-group-two-rounded-bold-duotone' },
+  { id: 'referee_guilds', label: 'Gremios Arbitrales', subtitle: 'Gremios, asociaciones y colegios de árbitros del torneo.', icon: 'solar:shield-star-bold-duotone' },
+  { id: 'global_referees', label: 'Árbitros', subtitle: 'Nómina global de árbitros, jueces de línea y credenciales.', icon: 'solar:whistle-bold-duotone' },
+  { id: 'player_classifications', label: 'Clasif. Futbolistas', subtitle: 'Categorización de futbolistas (Libre, Exprofesional, Juvenil, etc.).', icon: 'solar:user-check-bold-duotone' },
+  { id: 'demarcations', label: 'Demarcaciones', subtitle: 'Posiciones en el campo de juego (Arquero, Defensa, Volante, Delantero).', icon: 'solar:running-bold-duotone' },
+  { id: 'competition_types', label: 'Tipos de Competencia', subtitle: 'Catálogo global de tipos principales de disputa (Todos contra Todos, Eliminación Directa, Grupos, Suizo).', icon: 'solar:cup-first-bold-duotone' },
+  { id: 'competition_laps', label: 'Vueltas / Modalidad', subtitle: 'Catálogo global de modalidades de vueltas (Solo Ida, Ida y Vuelta, 3 Vueltas).', icon: 'solar:refresh-circle-bold-duotone' },
+  { id: 'tie_breaker_criteria', label: 'Criterios de Desempate', subtitle: 'Catálogo global de desempate (Gol Diferencia, Mayor Goles a Favor, Penales, Sorteo).', icon: 'solar:scale-bold-duotone' },
+]
+
+const allSubmodules = computed(() => [...platformSubmodules, ...sportsSubmodules])
+
+const currentActiveSubmodule = computed(() => {
+  return allSubmodules.value.find((s) => s.id === activeTab.value) || platformSubmodules[0]!
+})
+
 const switchTab = (tab: any) => {
   activeTab.value = tab
   router.replace({ query: { ...route.query, tab } })
@@ -1414,10 +1446,15 @@ watch(
       'subscriptions',
       'taxes',
       'document_types',
+      'global_players',
       'referee_guilds',
       'global_referees',
       'player_classifications',
       'demarcations',
+      'stage_formats',
+      'competition_types',
+      'competition_laps',
+      'tie_breaker_criteria',
     ]
     if (newTab && validTabs.includes(newTab as string)) {
       activeTab.value = newTab as any
@@ -1455,6 +1492,10 @@ const closeAllGlobalSettingsModals = () => {
 
 onMounted(async () => {
   window.addEventListener('deskounta:reset-view', closeAllGlobalSettingsModals)
+  if (typeof document !== 'undefined') {
+    const current = document.body.getAttribute('data-sidebartype')
+    isMiniSidebar.value = current === 'mini-sidebar'
+  }
   fetchProfile()
   const comp = localStorage.getItem('selectedCompany')
   if (comp) {
@@ -2498,11 +2539,23 @@ const getSubModuleNameById = (subModId: number) => {
   return found ? found.description : `Submódulo #${subModId}`
 }
 
+const isMiniSidebar = ref(false)
 const mobileSidebarOpen = ref(false)
+
+const toggleSidebar = () => {
+  if (typeof window !== 'undefined' && window.innerWidth < 1200) {
+    mobileSidebarOpen.value = !mobileSidebarOpen.value
+  } else {
+    isMiniSidebar.value = !isMiniSidebar.value
+    if (typeof document !== 'undefined') {
+      document.body.setAttribute('data-sidebartype', isMiniSidebar.value ? 'mini-sidebar' : 'full')
+    }
+  }
+}
 </script>
 
 <template>
-  <div id="main-wrapper" class="d-flex" :class="{ 'show-sidebar': mobileSidebarOpen }">
+  <div id="main-wrapper" class="d-flex" :class="{ 'mini-sidebar': isMiniSidebar, 'show-sidebar': mobileSidebarOpen }">
     <!-- TELÓN OSCURO DE FONDO EN MÓVIL (BACKDROP) -->
     <div
       v-if="mobileSidebarOpen"
@@ -2518,8 +2571,17 @@ const mobileSidebarOpen = ref(false)
             <img src="/controller/images/logos/logo-dark.svg" class="dark-logo" alt="Deskounta Logo" height="34" />
             <img src="/controller/images/logos/logo-light.svg" class="light-logo" alt="Deskounta Logo" height="34" />
           </router-link>
+          <!-- Botón cerrar en móvil -->
           <button class="btn btn-link text-body p-0 d-xl-none" @click="mobileSidebarOpen = false" title="Cerrar panel">
             <iconify-icon icon="solar:close-circle-line-duotone" class="fs-6"></iconify-icon>
+          </button>
+          <!-- Botón toggle en desktop -->
+          <button
+            class="btn btn-link text-secondary p-0 d-none d-xl-inline-flex align-items-center justify-content-center"
+            @click="toggleSidebar"
+            :title="isMiniSidebar ? 'Expandir menú lateral' : 'Colapsar menú lateral'"
+          >
+            <iconify-icon :icon="isMiniSidebar ? 'solar:alt-arrow-right-line-duotone' : 'solar:sidebar-minimalistic-line-duotone'" class="fs-5 text-white"></iconify-icon>
           </button>
         </div>
 
@@ -2530,46 +2592,60 @@ const mobileSidebarOpen = ref(false)
               :src="profilePhoto"
               @error="handleAvatarError"
               alt="Foto de perfil"
-              width="84"
-              height="84"
-              class="rounded-circle border border-primary border-3 mb-3"
-              style="object-fit: cover;"
+              :width="isMiniSidebar ? 38 : 84"
+              :height="isMiniSidebar ? 38 : 84"
+              class="rounded-circle border border-primary border-3 mb-2 profile-avatar"
+              style="object-fit: cover; transition: all 0.25s;"
             />
-            <h5 class="fw-bold mb-1 text-white">{{ profileFullName }}</h5>
-            <span class="badge bg-danger-subtle text-danger border border-danger-subtle">
+            <h5 class="fw-bold mb-1 text-white hide-menu">{{ profileFullName }}</h5>
+            <span class="badge bg-danger-subtle text-danger border border-danger-subtle hide-menu">
               <iconify-icon icon="solar:crown-line-duotone" class="me-1"></iconify-icon>Super Administrador
             </span>
           </div>
 
-          <!-- Opciones de Navegación del Panel Lateral -->
-          <div class="d-flex flex-column gap-2 mt-4 pt-3 border-top border-secondary-subtle">
-            <small class="text-secondary fw-bold text-uppercase fs-1 px-2">Acceso a Plataforma</small>
-            <router-link
-              to="/companies?cambiar=true"
-              class="btn btn-outline-secondary rounded-pill w-100 py-2 d-inline-flex align-items-center justify-content-start px-3 gap-2 fw-semibold"
+          <!-- MENÚ DE NAVEGACIÓN SUPER ADMIN (SUBMÓDULOS EN PANEL LATERAL EXCLUSIVO) -->
+          <div class="d-flex flex-column gap-1 mt-3 pt-3 border-top border-secondary-subtle">
+            <small class="text-secondary fw-bold text-uppercase fs-1 px-2 hide-menu">Plataforma & SaaS</small>
+            
+            <button
+              v-for="sub in platformSubmodules"
+              :key="sub.id"
+              type="button"
+              class="btn text-start w-100 py-2 d-inline-flex align-items-center px-3 gap-2 fw-semibold sidebar-action-btn transition-all"
+              :class="activeTab === sub.id ? 'btn-primary text-white shadow-sm' : 'btn-outline-secondary text-body-emphasis border-0'"
+              @click="switchTab(sub.id)"
+              :title="isMiniSidebar ? sub.label : undefined"
             >
-              <iconify-icon icon="solar:buildings-2-line-duotone" class="fs-5 text-primary"></iconify-icon>
-              <span>Listado de Empresas</span>
-            </router-link>
+              <iconify-icon :icon="sub.icon" class="fs-5 flex-shrink-0" :class="activeTab === sub.id ? 'text-white' : 'text-primary'"></iconify-icon>
+              <span class="hide-menu text-truncate">{{ sub.label }}</span>
+            </button>
 
-            <router-link
-              to="/dashboard"
-              class="btn btn-outline-primary rounded-pill w-100 py-2 d-inline-flex align-items-center justify-content-start px-3 gap-2 fw-semibold"
+            <small class="text-secondary fw-bold text-uppercase fs-1 px-2 hide-menu mt-2">Catálogos Deportivos</small>
+            
+            <button
+              v-for="cat in sportsSubmodules"
+              :key="cat.id"
+              type="button"
+              class="btn text-start w-100 py-2 d-inline-flex align-items-center px-3 gap-2 fw-semibold sidebar-action-btn transition-all"
+              :class="activeTab === cat.id ? 'btn-primary text-white shadow-sm' : 'btn-outline-secondary text-body-emphasis border-0'"
+              @click="switchTab(cat.id)"
+              :title="isMiniSidebar ? cat.label : undefined"
             >
-              <iconify-icon icon="solar:home-smile-line-duotone" class="fs-5"></iconify-icon>
-              <span>Entrar al ERP</span>
-            </router-link>
+              <iconify-icon :icon="cat.icon" class="fs-5 flex-shrink-0" :class="activeTab === cat.id ? 'text-white' : 'text-info'"></iconify-icon>
+              <span class="hide-menu text-truncate">{{ cat.label }}</span>
+            </button>
           </div>
         </div>
 
         <!-- Botón Inferior: Cerrar Sesión -->
         <div class="p-3 border-top border-translucent">
           <button
-            class="btn btn-danger-subtle text-danger w-100 rounded-pill py-2 d-flex align-items-center justify-content-center gap-2 fw-semibold"
+            class="btn btn-danger-subtle text-danger w-100 rounded-pill py-2 d-flex align-items-center justify-content-center gap-2 fw-semibold sidebar-action-btn"
             @click="logout"
+            :title="isMiniSidebar ? 'Cerrar Sesión' : undefined"
           >
-            <iconify-icon icon="solar:logout-2-line-duotone" class="fs-5"></iconify-icon>
-            <span>Cerrar Sesión</span>
+            <iconify-icon icon="solar:logout-2-line-duotone" class="fs-5 flex-shrink-0"></iconify-icon>
+            <span class="hide-menu">Cerrar Sesión</span>
           </button>
         </div>
       </div>
@@ -2583,12 +2659,12 @@ const mobileSidebarOpen = ref(false)
           <div class="d-flex align-items-center gap-2">
             <button
               type="button"
-              class="btn btn-sm btn-outline-light d-xl-none p-1 d-flex align-items-center justify-content-center me-1"
-              @click="mobileSidebarOpen = !mobileSidebarOpen"
-              title="Abrir panel lateral"
+              class="btn btn-sm btn-outline-light p-1 d-flex align-items-center justify-content-center me-1"
+              @click="toggleSidebar"
+              :title="isMiniSidebar ? 'Expandir menú lateral' : 'Colapsar menú lateral'"
               style="width: 34px; height: 34px;"
             >
-              <iconify-icon icon="solar:hamburger-menu-linear" class="fs-5 text-white"></iconify-icon>
+              <iconify-icon :icon="isMiniSidebar ? 'solar:sidebar-minimalistic-line-duotone' : 'solar:hamburger-menu-linear'" class="fs-5 text-white"></iconify-icon>
             </button>
             <span class="p-2 bg-primary-subtle text-primary rounded-3 d-inline-flex">
               <iconify-icon icon="solar:shield-user-bold-duotone" class="fs-6"></iconify-icon>
@@ -2617,150 +2693,25 @@ const mobileSidebarOpen = ref(false)
 
         <div class="crud-page settings-page" :class="{ 'form-open': isFormOpen }">
     
-    <!-- ENCABEZADO DE MÓDULO -->
-    <div class="card rounded-4 border-0 shadow-sm p-4 mb-4 bg-navy-card keep-in-form">
-      <div class="d-flex flex-wrap justify-content-between align-items-center gap-3">
-        <div>
-          <div class="d-flex align-items-center gap-2 mb-1">
-            <span class="p-2 bg-primary-subtle text-primary rounded-3 d-inline-flex">
-              <iconify-icon icon="solar:shield-user-bold-duotone" class="fs-6"></iconify-icon>
-            </span>
-            <h4 class="fw-bold text-white mb-0">Configuración General del Sistema</h4>
-            <span class="badge bg-danger-subtle text-danger border border-danger-subtle ms-2">
-              <iconify-icon icon="solar:crown-line-duotone" class="me-1"></iconify-icon>SUPER ADMIN
-            </span>
-          </div>
-          <p class="text-secondary fs-3 mb-0">
-            Administración centralizada de empresas, sucursales, usuarios de todo el sistema, catálogo maestro de módulos, planes SaaS, impuestos y tipos de documento.
-          </p>
+    <!-- ENCABEZADO DE MÓDULO ESTANDARIZADO FACTURACIÓN Y VENTAS -->
+    <div class="crud-page-header keep-in-form mb-4">
+      <div>
+        <div class="d-flex align-items-center gap-2 mb-1">
+          <span class="badge bg-primary-subtle text-primary border border-primary-subtle px-2 py-1 fs-2 font-monospace">
+            MOD-006 · CONFIGURACIÓN
+          </span>
+          <span class="badge bg-danger-subtle text-danger border border-danger-subtle px-2 py-1 fs-2">
+            <iconify-icon icon="solar:crown-line-duotone" class="me-1"></iconify-icon>SUPER ADMIN
+          </span>
         </div>
+        <h2 class="crud-title mb-0 d-flex align-items-center gap-2">
+          <iconify-icon :icon="currentActiveSubmodule.icon" class="text-primary"></iconify-icon>
+          <span>{{ currentActiveSubmodule.label }}</span>
+        </h2>
+        <p class="crud-subtitle mb-0">
+          {{ currentActiveSubmodule.subtitle }}
+        </p>
       </div>
-
-      <!-- PESTAÑAS TIPO PILLS (ESTILO SPIKE / PHP ORIGINAL) -->
-      <ul v-show="!isFormOpen" class="nav nav-pills user-profile-tab mt-4 border-top border-dark-subtle pt-3" role="tablist">
-        
-        <li class="nav-item me-2">
-          <button
-            class="nav-link rounded-pill px-4 py-2 d-flex align-items-center gap-2 fs-3 text-decoration-none"
-            :class="{ 'active bg-primary text-white': activeTab === 'companies', 'text-white-50 hover-tab': activeTab !== 'companies' }"
-            @click="switchTab('companies')"
-          >
-            <iconify-icon icon="solar:buildings-3-line-duotone" class="fs-5"></iconify-icon>
-            <span>Empresas</span>
-          </button>
-        </li>
-
-        <li class="nav-item me-2">
-          <button
-            class="nav-link rounded-pill px-4 py-2 d-flex align-items-center gap-2 fs-3 text-decoration-none"
-            :class="{ 'active bg-primary text-white': activeTab === 'branches', 'text-white-50 hover-tab': activeTab !== 'branches' }"
-            @click="switchTab('branches')"
-          >
-            <iconify-icon icon="solar:shop-2-line-duotone" class="fs-5"></iconify-icon>
-            <span>Sucursales</span>
-          </button>
-        </li>
-
-        <li class="nav-item me-2">
-          <button
-            class="nav-link rounded-pill px-4 py-2 d-flex align-items-center gap-2 fs-3 text-decoration-none"
-            :class="{ 'active bg-primary text-white': activeTab === 'users', 'text-white-50 hover-tab': activeTab !== 'users' }"
-            @click="switchTab('users')"
-          >
-            <iconify-icon icon="solar:users-group-two-rounded-line-duotone" class="fs-5"></iconify-icon>
-            <span>Usuarios Globales</span>
-          </button>
-        </li>
-
-        <li class="nav-item me-2">
-          <button
-            class="nav-link rounded-pill px-4 py-2 d-flex align-items-center gap-2 fs-3 text-decoration-none"
-            :class="{ 'active bg-primary text-white': activeTab === 'modules', 'text-white-50 hover-tab': activeTab !== 'modules' }"
-            @click="switchTab('modules')"
-          >
-            <iconify-icon icon="solar:widget-4-line-duotone" class="fs-5"></iconify-icon>
-            <span>Módulos & Submódulos</span>
-          </button>
-        </li>
-
-        <li class="nav-item me-2">
-          <button
-            class="nav-link rounded-pill px-4 py-2 d-flex align-items-center gap-2 fs-3 text-decoration-none"
-            :class="{ 'active bg-primary text-white': activeTab === 'subscriptions', 'text-white-50 hover-tab': activeTab !== 'subscriptions' }"
-            @click="switchTab('subscriptions')"
-          >
-            <iconify-icon icon="solar:card-line-duotone" class="fs-5"></iconify-icon>
-            <span>Planes SaaS</span>
-          </button>
-        </li>
-
-        <li class="nav-item me-2">
-          <button
-            class="nav-link rounded-pill px-4 py-2 d-flex align-items-center gap-2 fs-3 text-decoration-none"
-            :class="{ 'active bg-primary text-white': activeTab === 'taxes', 'text-white-50 hover-tab': activeTab !== 'taxes' }"
-            @click="switchTab('taxes')"
-          >
-            <iconify-icon icon="solar:calculator-minimalistic-line-duotone" class="fs-5"></iconify-icon>
-            <span>Impuestos</span>
-          </button>
-        </li>
-
-        <li class="nav-item me-2">
-          <button
-            class="nav-link rounded-pill px-4 py-2 d-flex align-items-center gap-2 fs-3 text-decoration-none"
-            :class="{ 'active bg-primary text-white': activeTab === 'document_types', 'text-white-50 hover-tab': activeTab !== 'document_types' }"
-            @click="switchTab('document_types')"
-          >
-            <iconify-icon icon="solar:document-text-line-duotone" class="fs-5"></iconify-icon>
-            <span>Tipos de Documentos</span>
-          </button>
-        </li>
-
-        <li class="nav-item me-2">
-          <button
-            class="nav-link rounded-pill px-4 py-2 d-flex align-items-center gap-2 fs-3 text-decoration-none"
-            :class="{ 'active bg-primary text-white': activeTab === 'referee_guilds', 'text-white-50 hover-tab': activeTab !== 'referee_guilds' }"
-            @click="switchTab('referee_guilds')"
-          >
-            <iconify-icon icon="solar:shield-star-bold-duotone" class="fs-5"></iconify-icon>
-            <span>Gremios Arbitrales</span>
-          </button>
-        </li>
-
-        <li class="nav-item me-2">
-          <button
-            class="nav-link rounded-pill px-4 py-2 d-flex align-items-center gap-2 fs-3 text-decoration-none"
-            :class="{ 'active bg-primary text-white': activeTab === 'global_referees', 'text-white-50 hover-tab': activeTab !== 'global_referees' }"
-            @click="switchTab('global_referees')"
-          >
-            <iconify-icon icon="solar:whistle-bold-duotone" class="fs-5"></iconify-icon>
-            <span>Padrón Árbitros</span>
-          </button>
-        </li>
-
-        <li class="nav-item me-2">
-          <button
-            class="nav-link rounded-pill px-4 py-2 d-flex align-items-center gap-2 fs-3 text-decoration-none"
-            :class="{ 'active bg-primary text-white': activeTab === 'player_classifications', 'text-white-50 hover-tab': activeTab !== 'player_classifications' }"
-            @click="switchTab('player_classifications')"
-          >
-            <iconify-icon icon="solar:user-check-bold-duotone" class="fs-5"></iconify-icon>
-            <span>Clasif. Futbolistas</span>
-          </button>
-        </li>
-
-        <li class="nav-item">
-          <button
-            class="nav-link rounded-pill px-4 py-2 d-flex align-items-center gap-2 fs-3 text-decoration-none"
-            :class="{ 'active bg-primary text-white': activeTab === 'demarcations', 'text-white-50 hover-tab': activeTab !== 'demarcations' }"
-            @click="switchTab('demarcations')"
-          >
-            <iconify-icon icon="solar:running-bold-duotone" class="fs-5"></iconify-icon>
-            <span>Demarcaciones</span>
-          </button>
-        </li>
-
-      </ul>
     </div>
 
     <!-- CONTENIDO DE LA PESTAÑA ACTIVA -->
@@ -2769,7 +2720,7 @@ const mobileSidebarOpen = ref(false)
     <!-- CATÁLOGOS GLOBALES DE CAMPEONATOS (PUNTOS 8, 9, 11)      -->
     <!-- ======================================================== -->
     <GlobalTournamentCatalogs
-      v-if="['referee_guilds', 'global_referees', 'player_classifications', 'demarcations'].includes(activeTab)"
+      v-if="['global_players', 'referee_guilds', 'global_referees', 'player_classifications', 'demarcations', 'stage_formats', 'competition_types', 'competition_laps', 'tie_breaker_criteria'].includes(activeTab)"
       :tab="(activeTab as any)"
     />
 
@@ -4489,22 +4440,33 @@ const mobileSidebarOpen = ref(false)
       </div>
     </div>
 
-    <!-- 2. MODAL NUEVO / EDITAR USUARIO -->
+    <!-- 2. FORMULARIO EN PÁGINA: NUEVO / EDITAR USUARIO -->
       <div v-if="showUserModal" id="form-page" class="form-page">
         <div class="form-page-card form-page-card-lg">
-          <div class="card bg-navy-card border border-secondary-subtle rounded-4 shadow-sm">
-            <div class="modal-header d-flex justify-content-between align-items-center px-4 py-3 border-bottom border-dark-subtle">
-              <div class="d-flex align-items-center gap-2">
-                <span class="p-2 bg-primary-subtle text-primary rounded-3 d-inline-flex"><iconify-icon :icon="isEditingUser ? 'solar:user-bold' : 'solar:user-plus-line-duotone'" class="fs-5"></iconify-icon></span>
-                <h5 class="fw-bold text-white mb-0">{{ isEditingUser ? 'Editar Usuario del Sistema' : 'Crear Usuario del Sistema' }}</h5>
+          <div class="form-page-header">
+            <div>
+              <div class="d-flex align-items-center gap-2 mb-1">
+                <span class="badge bg-primary-subtle text-primary border border-primary-subtle px-2 py-1 fs-2">
+                  MOD-006 · USUARIOS
+                </span>
+                <span class="badge bg-info-subtle text-info border border-info-subtle px-2 py-1 fs-2">
+                  {{ isEditingUser ? 'MODIFICACIÓN' : 'REGISTRO' }}
+                </span>
               </div>
-              <button type="button" class="btn btn-outline-secondary btn-sm rounded-3 d-flex align-items-center gap-1" @click="closeUserModal">
-                <iconify-icon icon="solar:alt-arrow-left-line-duotone" class="fs-5"></iconify-icon>
-                <span>Volver</span>
-              </button>
+              <h3 class="crud-title mb-0">
+                {{ isEditingUser ? 'Editar Usuario del Sistema' : 'Crear Usuario del Sistema' }}
+              </h3>
+              <p class="crud-subtitle mb-0">
+                Gestiona credenciales, perfil de acceso, roles específicos y asignación de empresas.
+              </p>
             </div>
-            <form @submit.prevent="submitUser">
-              <div class="modal-body p-4">
+            <button type="button" class="btn btn-outline-secondary d-flex align-items-center gap-1 rounded-pill px-3" @click="closeUserModal">
+              <iconify-icon icon="solar:alt-arrow-left-line-duotone" class="fs-4"></iconify-icon>
+              <span>Volver al Listado</span>
+            </button>
+          </div>
+          <form @submit.prevent="submitUser">
+            <div class="form-page-body">
                 <!-- FOTOGRAFÍA / AVATAR DEL USUARIO (SUPABASE STORAGE) -->
                 <div class="mb-4">
                   <div class="p-3 rounded-3 border border-secondary-subtle bg-dark-subtle d-flex flex-wrap align-items-center justify-content-between gap-3">
@@ -4829,34 +4791,47 @@ const mobileSidebarOpen = ref(false)
                   </small>
                 </div>
               </div>
-              <div class="modal-footer d-flex justify-content-end gap-2 px-4 py-3 border-top border-dark-subtle">
-                <button type="button" class="btn btn-outline-secondary px-4 rounded-3" @click="closeUserModal">Cancelar</button>
-                <button type="submit" class="btn btn-primary px-4 rounded-3 fw-bold" :disabled="loading">
-                  <span v-if="loading" class="spinner-grow spinner-grow-sm me-2" role="status" aria-hidden="true"></span>
+              <div class="form-page-footer">
+                <button type="button" class="btn btn-outline-secondary rounded-pill px-4" @click="closeUserModal">
+                  Cancelar
+                </button>
+                <button type="submit" class="btn btn-primary rounded-pill px-4 fw-semibold d-flex align-items-center gap-2" :disabled="loading">
+                  <span v-if="loading" class="spinner-grow spinner-grow-sm text-white" role="status" aria-hidden="true"></span>
+                  <iconify-icon v-else icon="solar:check-circle-line-duotone" class="fs-4"></iconify-icon>
                   <span>{{ loading ? 'Guardando...' : (isEditingUser ? 'Actualizar Usuario' : 'Guardar Usuario') }}</span>
                 </button>
               </div>
             </form>
           </div>
         </div>
-      </div>
 
-    <!-- 3. MODAL NUEVO / EDITAR ROL (CABECERA Y DETALLE DE ACCESOS) -->
+    <!-- 3. FORMULARIO EN PÁGINA: NUEVO / EDITAR ROL (CABECERA Y DETALLE DE ACCESOS) -->
       <div v-if="showRoleModal" id="form-page" class="form-page">
         <div class="form-page-card form-page-card-lg">
-          <div class="card bg-navy-card border border-secondary-subtle rounded-4 shadow-sm">
-            <div class="modal-header d-flex justify-content-between align-items-center px-4 py-3 border-bottom border-dark-subtle">
-              <div class="d-flex align-items-center gap-2">
-                <span class="p-2 bg-primary-subtle text-primary rounded-3 d-inline-flex"><iconify-icon icon="solar:shield-check-line-duotone" class="fs-5"></iconify-icon></span>
-                <h5 class="fw-bold text-white mb-0">{{ isEditingRole ? 'Editar Rol (Cabecera y Detalle de Accesos)' : 'Registrar Nuevo Rol (Cabecera y Detalle)' }}</h5>
+          <div class="form-page-header">
+            <div>
+              <div class="d-flex align-items-center gap-2 mb-1">
+                <span class="badge bg-primary-subtle text-primary border border-primary-subtle px-2 py-1 fs-2">
+                  MOD-006 · ROLES Y PERMISOS
+                </span>
+                <span class="badge bg-info-subtle text-info border border-info-subtle px-2 py-1 fs-2">
+                  {{ isEditingRole ? 'MODIFICACIÓN' : 'REGISTRO' }}
+                </span>
               </div>
-              <button type="button" class="btn btn-outline-secondary btn-sm rounded-3 d-flex align-items-center gap-1" @click="showRoleModal = false">
-                <iconify-icon icon="solar:alt-arrow-left-line-duotone" class="fs-5"></iconify-icon>
-                <span>Volver</span>
-              </button>
+              <h3 class="crud-title mb-0">
+                {{ isEditingRole ? 'Editar Rol (Cabecera y Detalle de Accesos)' : 'Registrar Nuevo Rol (Cabecera y Detalle)' }}
+              </h3>
+              <p class="crud-subtitle mb-0">
+                Define el código, nombre y la matriz granular de módulos y submódulos autorizados para esta empresa.
+              </p>
             </div>
-            <form @submit.prevent="submitRole">
-              <div class="modal-body p-4">
+            <button type="button" class="btn btn-outline-secondary d-flex align-items-center gap-1 rounded-pill px-3" @click="showRoleModal = false">
+              <iconify-icon icon="solar:alt-arrow-left-line-duotone" class="fs-4"></iconify-icon>
+              <span>Volver al Listado</span>
+            </button>
+          </div>
+          <form @submit.prevent="submitRole">
+            <div class="form-page-body">
                 <!-- CABECERA DEL ROL -->
                 <div class="p-3 rounded-3 bg-dark-subtle border border-secondary-subtle mb-3">
                   <div class="d-flex justify-content-between align-items-center mb-2">
@@ -5040,34 +5015,47 @@ const mobileSidebarOpen = ref(false)
                   </div>
                 </div>
               </div>
-              <div class="modal-footer d-flex justify-content-end gap-2 px-4 py-3 border-top border-dark-subtle">
-                <button type="button" class="btn btn-outline-secondary px-4 rounded-3" @click="showRoleModal = false">Cancelar</button>
-                <button type="submit" class="btn btn-primary px-4 rounded-3 fw-bold" :disabled="loading || companyAccessibleModules.length === 0">
-                  <span v-if="loading" class="spinner-grow spinner-grow-sm me-2" role="status" aria-hidden="true"></span>
+              <div class="form-page-footer">
+                <button type="button" class="btn btn-outline-secondary rounded-pill px-4" @click="showRoleModal = false">
+                  Cancelar
+                </button>
+                <button type="submit" class="btn btn-primary rounded-pill px-4 fw-semibold d-flex align-items-center gap-2" :disabled="loading || companyAccessibleModules.length === 0">
+                  <span v-if="loading" class="spinner-grow spinner-grow-sm text-white" role="status" aria-hidden="true"></span>
+                  <iconify-icon v-else icon="solar:check-circle-line-duotone" class="fs-4"></iconify-icon>
                   <span>{{ loading ? 'Guardando...' : (isEditingRole ? 'Actualizar Rol y Detalle' : 'Guardar Rol y Detalle') }}</span>
                 </button>
               </div>
             </form>
           </div>
         </div>
-      </div>
 
-    <!-- 3.5 MODAL NUEVO / EDITAR MÓDULO -->
+    <!-- 3.5 FORMULARIO EN PÁGINA: NUEVO / EDITAR MÓDULO -->
       <div v-if="showModuleModal" id="form-page" class="form-page">
         <div class="form-page-card">
-          <div class="card bg-navy-card border border-secondary-subtle rounded-4 shadow-sm">
-            <div class="modal-header d-flex justify-content-between align-items-center px-4 py-3 border-bottom border-dark-subtle">
-              <div class="d-flex align-items-center gap-2">
-                <span class="p-2 bg-primary-subtle text-primary rounded-3 d-inline-flex"><iconify-icon icon="solar:widget-4-line-duotone" class="fs-5"></iconify-icon></span>
-                <h5 class="fw-bold text-white mb-0">{{ isEditingModule ? 'Editar Módulo Principal' : 'Crear Nuevo Módulo' }}</h5>
+          <div class="form-page-header">
+            <div>
+              <div class="d-flex align-items-center gap-2 mb-1">
+                <span class="badge bg-primary-subtle text-primary border border-primary-subtle px-2 py-1 fs-2">
+                  MOD-006 · MÓDULOS DEL SISTEMA
+                </span>
+                <span class="badge bg-info-subtle text-info border border-info-subtle px-2 py-1 fs-2">
+                  {{ isEditingModule ? 'MODIFICACIÓN' : 'REGISTRO' }}
+                </span>
               </div>
-              <button type="button" class="btn btn-outline-secondary btn-sm rounded-3 d-flex align-items-center gap-1" @click="showModuleModal = false">
-                <iconify-icon icon="solar:alt-arrow-left-line-duotone" class="fs-5"></iconify-icon>
-                <span>Volver</span>
-              </button>
+              <h3 class="crud-title mb-0">
+                {{ isEditingModule ? 'Editar Módulo Principal' : 'Crear Nuevo Módulo' }}
+              </h3>
+              <p class="crud-subtitle mb-0">
+                Módulos maestros de la arquitectura ERP (Ventas, Inventario, Compras, etc.).
+              </p>
             </div>
-            <form @submit.prevent="submitModule">
-              <div class="modal-body p-4">
+            <button type="button" class="btn btn-outline-secondary d-flex align-items-center gap-1 rounded-pill px-3" @click="showModuleModal = false">
+              <iconify-icon icon="solar:alt-arrow-left-line-duotone" class="fs-4"></iconify-icon>
+              <span>Volver al Listado</span>
+            </button>
+          </div>
+          <form @submit.prevent="submitModule">
+            <div class="form-page-body">
                 <div class="mb-3">
                   <label class="form-label text-secondary fs-2 fw-semibold d-flex justify-content-between align-items-center">
                     <span>Código Único del Módulo</span>
@@ -5153,34 +5141,47 @@ const mobileSidebarOpen = ref(false)
                   />
                 </div>
               </div>
-              <div class="modal-footer d-flex justify-content-end gap-2 px-4 py-3 border-top border-dark-subtle">
-                <button type="button" class="btn btn-outline-secondary px-4 rounded-3" @click="showModuleModal = false">Cancelar</button>
-                <button type="submit" class="btn btn-primary px-4 rounded-3 fw-bold" :disabled="loading">
-                  <span v-if="loading" class="spinner-grow spinner-grow-sm me-2" role="status" aria-hidden="true"></span>
+              <div class="form-page-footer">
+                <button type="button" class="btn btn-outline-secondary rounded-pill px-4" @click="showModuleModal = false">
+                  Cancelar
+                </button>
+                <button type="submit" class="btn btn-primary rounded-pill px-4 fw-semibold d-flex align-items-center gap-2" :disabled="loading">
+                  <span v-if="loading" class="spinner-grow spinner-grow-sm text-white" role="status" aria-hidden="true"></span>
+                  <iconify-icon v-else icon="solar:check-circle-line-duotone" class="fs-4"></iconify-icon>
                   <span>{{ loading ? 'Guardando...' : (isEditingModule ? 'Actualizar Módulo' : 'Guardar Módulo') }}</span>
                 </button>
               </div>
             </form>
           </div>
         </div>
-      </div>
 
-    <!-- 3.6 MODAL NUEVO / EDITAR SUBMÓDULO -->
+    <!-- 3.6 FORMULARIO EN PÁGINA: NUEVO / EDITAR SUBMÓDULO -->
       <div v-if="showSubModuleModal" id="form-page" class="form-page">
         <div class="form-page-card">
-          <div class="card bg-navy-card border border-secondary-subtle rounded-4 shadow-sm">
-            <div class="modal-header d-flex justify-content-between align-items-center px-4 py-3 border-bottom border-dark-subtle">
-              <div class="d-flex align-items-center gap-2">
-                <span class="p-2 bg-primary-subtle text-primary rounded-3 d-inline-flex"><iconify-icon icon="solar:layers-minimalistic-line-duotone" class="fs-5"></iconify-icon></span>
-                <h5 class="fw-bold text-white mb-0">{{ isEditingSubModule ? 'Editar Submódulo' : 'Crear Nuevo Submódulo' }}</h5>
+          <div class="form-page-header">
+            <div>
+              <div class="d-flex align-items-center gap-2 mb-1">
+                <span class="badge bg-primary-subtle text-primary border border-primary-subtle px-2 py-1 fs-2">
+                  MOD-006 · SUBMÓDULOS DEL SISTEMA
+                </span>
+                <span class="badge bg-info-subtle text-info border border-info-subtle px-2 py-1 fs-2">
+                  {{ isEditingSubModule ? 'MODIFICACIÓN' : 'REGISTRO' }}
+                </span>
               </div>
-              <button type="button" class="btn btn-outline-secondary btn-sm rounded-3 d-flex align-items-center gap-1" @click="showSubModuleModal = false">
-                <iconify-icon icon="solar:alt-arrow-left-line-duotone" class="fs-5"></iconify-icon>
-                <span>Volver</span>
-              </button>
+              <h3 class="crud-title mb-0">
+                {{ isEditingSubModule ? 'Editar Submódulo' : 'Crear Nuevo Submódulo' }}
+              </h3>
+              <p class="crud-subtitle mb-0">
+                Rutas de acceso, icono, módulo principal y orden en la navegación lateral.
+              </p>
             </div>
-            <form @submit.prevent="submitSubModule">
-              <div class="modal-body p-4">
+            <button type="button" class="btn btn-outline-secondary d-flex align-items-center gap-1 rounded-pill px-3" @click="showSubModuleModal = false">
+              <iconify-icon icon="solar:alt-arrow-left-line-duotone" class="fs-4"></iconify-icon>
+              <span>Volver al Listado</span>
+            </button>
+          </div>
+          <form @submit.prevent="submitSubModule">
+            <div class="form-page-body">
                 <div class="mb-3">
                   <label class="form-label text-secondary fs-2 fw-semibold">Módulo Principal (Padre)</label>
                   <select
@@ -5286,34 +5287,47 @@ const mobileSidebarOpen = ref(false)
                   />
                 </div>
               </div>
-              <div class="modal-footer d-flex justify-content-end gap-2 px-4 py-3 border-top border-dark-subtle">
-                <button type="button" class="btn btn-outline-secondary px-4 rounded-3" @click="showSubModuleModal = false">Cancelar</button>
-                <button type="submit" class="btn btn-info text-dark fw-semibold px-4" :disabled="loading">
-                  <span v-if="loading" class="spinner-grow spinner-grow-sm me-2" role="status" aria-hidden="true"></span>
+              <div class="form-page-footer">
+                <button type="button" class="btn btn-outline-secondary rounded-pill px-4" @click="showSubModuleModal = false">
+                  Cancelar
+                </button>
+                <button type="submit" class="btn btn-primary rounded-pill px-4 fw-semibold d-flex align-items-center gap-2" :disabled="loading">
+                  <span v-if="loading" class="spinner-grow spinner-grow-sm text-white" role="status" aria-hidden="true"></span>
+                  <iconify-icon v-else icon="solar:check-circle-line-duotone" class="fs-4"></iconify-icon>
                   <span>{{ loading ? 'Guardando...' : (isEditingSubModule ? 'Actualizar Submódulo' : 'Guardar Submódulo') }}</span>
                 </button>
               </div>
             </form>
           </div>
         </div>
-      </div>
 
-    <!-- 4. MODAL NUEVO / EDITAR PLAN -->
+    <!-- 4. FORMULARIO NUEVO / EDITAR PLAN -->
       <div v-if="showPlanModal" id="form-page" class="form-page">
         <div class="form-page-card">
-          <div class="card bg-navy-card border border-secondary-subtle rounded-4 shadow-sm">
-            <div class="modal-header d-flex justify-content-between align-items-center px-4 py-3 border-bottom border-dark-subtle">
-              <div class="d-flex align-items-center gap-2">
-                <span class="p-2 bg-primary-subtle text-primary rounded-3 d-inline-flex"><iconify-icon icon="solar:tag-price-line-duotone" class="fs-5"></iconify-icon></span>
-                <h5 class="fw-bold text-white mb-0">{{ editingPlanId ? 'Editar Plan SaaS' : 'Crear Plan SaaS' }}</h5>
+          <div class="form-page-header">
+            <div>
+              <div class="d-flex align-items-center gap-2 mb-1">
+                <span class="badge bg-primary-subtle text-primary border border-primary-subtle px-2 py-1 fs-2">
+                  MOD-006 · PLANES SAAS
+                </span>
+                <span class="badge bg-info-subtle text-info border border-info-subtle px-2 py-1 fs-2">
+                  {{ editingPlanId ? 'MODIFICACIÓN' : 'REGISTRO' }}
+                </span>
               </div>
-              <button type="button" class="btn btn-outline-secondary btn-sm rounded-3 d-flex align-items-center gap-1" @click="showPlanModal = false; editingPlanId = null">
-                <iconify-icon icon="solar:alt-arrow-left-line-duotone" class="fs-5"></iconify-icon>
-                <span>Volver</span>
-              </button>
+              <h3 class="crud-title mb-0">
+                {{ editingPlanId ? 'Editar Plan SaaS' : 'Crear Plan SaaS' }}
+              </h3>
+              <p class="crud-subtitle mb-0">
+                Paquetes de suscripción, límites de usuarios, sucursales y módulos habilitados.
+              </p>
             </div>
-            <form @submit.prevent="submitPlan">
-              <div class="modal-body p-4">
+            <button type="button" class="btn btn-outline-secondary d-flex align-items-center gap-1 rounded-pill px-3" @click="showPlanModal = false; editingPlanId = null">
+              <iconify-icon icon="solar:alt-arrow-left-line-duotone" class="fs-4"></iconify-icon>
+              <span>Volver al Listado</span>
+            </button>
+          </div>
+          <form @submit.prevent="submitPlan">
+            <div class="form-page-body">
                 <div class="mb-3">
                   <label class="form-label text-secondary fs-2 fw-semibold">Nombre / Descripción del Plan</label>
                   <input v-model="formPlan.description" type="text" class="form-control bg-dark-subtle border-secondary-subtle text-white" placeholder="Ej. Plan Emprendedor" required />
@@ -5408,36 +5422,45 @@ const mobileSidebarOpen = ref(false)
                   </div>
                 </div>
               </div>
-              <div class="modal-footer d-flex justify-content-end gap-2 px-4 py-3 border-top border-dark-subtle">
-                <button type="button" class="btn btn-outline-secondary px-4 rounded-3" @click="showPlanModal = false; editingPlanId = null">Cancelar</button>
-                <button type="submit" class="btn btn-primary px-4 rounded-3 fw-bold" :disabled="loading">
-                  <span v-if="loading" class="spinner-grow spinner-grow-sm me-2" role="status" aria-hidden="true"></span>
-                  <span>{{ loading ? 'Guardando...' : (editingPlanId ? 'Actualizar Plan' : 'Guardar Plan') }}</span>
+              <div class="form-page-footer">
+                <button type="button" class="btn btn-outline-secondary rounded-pill px-4" @click="showPlanModal = false; editingPlanId = null">Cancelar</button>
+                <button type="submit" class="btn btn-primary rounded-pill px-4 fw-semibold d-flex align-items-center gap-2" :disabled="loading">
+                  <span v-if="loading" class="spinner-grow spinner-grow-sm text-white" role="status" aria-hidden="true"></span>
+                  <iconify-icon v-else icon="solar:check-circle-line-duotone" class="fs-4"></iconify-icon>
+                  <span>{{ editingPlanId ? 'Actualizar Plan' : 'Guardar Plan' }}</span>
                 </button>
               </div>
             </form>
           </div>
         </div>
-      </div>
 
     <!-- 8. FORMULARIO EN PÁGINA: NUEVO / EDITAR IMPUESTO -->
     <div v-if="showTaxModal" id="form-page" class="form-page">
       <div class="form-page-card">
-        <div class="card bg-navy-card border border-secondary-subtle rounded-4 shadow-sm">
-          <div class="modal-header d-flex justify-content-between align-items-center px-4 py-3 border-bottom border-dark-subtle">
-            <div class="d-flex align-items-center gap-2">
-              <span class="p-2 bg-primary-subtle text-primary rounded-3 d-inline-flex">
-                <iconify-icon icon="solar:calculator-minimalistic-line-duotone" class="fs-5"></iconify-icon>
+        <div class="form-page-header">
+          <div>
+            <div class="d-flex align-items-center gap-2 mb-1">
+              <span class="badge bg-primary-subtle text-primary border border-primary-subtle px-2 py-1 fs-2">
+                MOD-006 · IMPUESTOS
               </span>
-              <h5 class="fw-bold text-white mb-0">{{ isEditingTax ? 'Editar Impuesto' : 'Registrar Nuevo Impuesto' }}</h5>
+              <span class="badge bg-info-subtle text-info border border-info-subtle px-2 py-1 fs-2">
+                {{ isEditingTax ? 'MODIFICACIÓN' : 'REGISTRO' }}
+              </span>
             </div>
-            <button type="button" class="btn btn-outline-secondary btn-sm rounded-3 d-flex align-items-center gap-1" @click="showTaxModal = false">
-              <iconify-icon icon="solar:alt-arrow-left-line-duotone" class="fs-5"></iconify-icon>
-              <span>Volver</span>
-            </button>
+            <h3 class="crud-title mb-0">
+              {{ isEditingTax ? 'Editar Impuesto' : 'Registrar Nuevo Impuesto' }}
+            </h3>
+            <p class="crud-subtitle mb-0">
+              Tarifa tributaria autorizada por el SRI para facturación electrónica.
+            </p>
           </div>
-          <form @submit.prevent="submitTax">
-            <div class="modal-body p-4">
+          <button type="button" class="btn btn-outline-secondary d-flex align-items-center gap-1 rounded-pill px-3" @click="showTaxModal = false">
+            <iconify-icon icon="solar:alt-arrow-left-line-duotone" class="fs-4"></iconify-icon>
+            <span>Volver al Listado</span>
+          </button>
+        </div>
+        <form @submit.prevent="submitTax">
+          <div class="form-page-body">
               <div class="row g-3">
                 <div class="col-md-4">
                   <label class="form-label text-secondary fs-2 fw-semibold">Código del Impuesto *</label>
@@ -5509,7 +5532,7 @@ const mobileSidebarOpen = ref(false)
               </div>
             </div>
 
-            <div class="modal-footer px-4 py-3 border-top border-dark-subtle d-flex justify-content-between">
+            <div class="form-page-footer">
               <button type="button" class="btn btn-outline-secondary rounded-pill px-4" @click="showTaxModal = false">
                 Cancelar
               </button>
@@ -5522,26 +5545,34 @@ const mobileSidebarOpen = ref(false)
           </form>
         </div>
       </div>
-    </div>
 
     <!-- 9. FORMULARIO EN PÁGINA: NUEVO / EDITAR TIPO DE DOCUMENTO -->
     <div v-if="showDocTypeModal" id="form-page" class="form-page">
       <div class="form-page-card" style="overflow: visible;">
-        <div class="card bg-navy-card border border-secondary-subtle rounded-4 shadow-sm" style="overflow: visible;">
-          <div class="modal-header d-flex justify-content-between align-items-center px-4 py-3 border-bottom border-dark-subtle">
-            <div class="d-flex align-items-center gap-2">
-              <span class="p-2 bg-primary-subtle text-primary rounded-3 d-inline-flex">
-                <iconify-icon icon="solar:document-text-line-duotone" class="fs-5"></iconify-icon>
+        <div class="form-page-header">
+          <div>
+            <div class="d-flex align-items-center gap-2 mb-1">
+              <span class="badge bg-primary-subtle text-primary border border-primary-subtle px-2 py-1 fs-2">
+                MOD-006 · TIPOS DE DOCUMENTO
               </span>
-              <h5 class="fw-bold text-white mb-0">{{ isEditingDocType ? 'Editar Tipo de Documento' : 'Registrar Nuevo Tipo de Documento' }}</h5>
+              <span class="badge bg-info-subtle text-info border border-info-subtle px-2 py-1 fs-2">
+                {{ isEditingDocType ? 'MODIFICACIÓN' : 'REGISTRO' }}
+              </span>
             </div>
-            <button type="button" class="btn btn-outline-secondary btn-sm rounded-3 d-flex align-items-center gap-1" @click="showDocTypeModal = false">
-              <iconify-icon icon="solar:alt-arrow-left-line-duotone" class="fs-5"></iconify-icon>
-              <span>Volver</span>
-            </button>
+            <h3 class="crud-title mb-0">
+              {{ isEditingDocType ? 'Editar Tipo de Documento' : 'Registrar Nuevo Tipo de Documento' }}
+            </h3>
+            <p class="crud-subtitle mb-0">
+              Documentos de identidad y tributarios para clientes, proveedores y personas.
+            </p>
           </div>
-          <form @submit.prevent="submitDocType" style="overflow: visible;">
-            <div class="modal-body p-4" style="overflow: visible; min-height: 280px; padding-bottom: 8rem;">
+          <button type="button" class="btn btn-outline-secondary d-flex align-items-center gap-1 rounded-pill px-3" @click="showDocTypeModal = false">
+            <iconify-icon icon="solar:alt-arrow-left-line-duotone" class="fs-4"></iconify-icon>
+            <span>Volver al Listado</span>
+          </button>
+        </div>
+        <form @submit.prevent="submitDocType" style="overflow: visible;">
+          <div class="form-page-body" style="overflow: visible; min-height: 280px; padding-bottom: 8rem;">
               <div class="row g-3">
                 <div class="col-md-6">
                   <label class="form-label text-secondary fs-2 fw-semibold">Nombre del Documento *</label>
@@ -5588,7 +5619,7 @@ const mobileSidebarOpen = ref(false)
               </div>
             </div>
 
-            <div class="modal-footer px-4 py-3 border-top border-dark-subtle d-flex justify-content-between">
+            <div class="form-page-footer">
               <button type="button" class="btn btn-outline-secondary rounded-pill px-4" @click="showDocTypeModal = false">
                 Cancelar
               </button>
@@ -5601,7 +5632,6 @@ const mobileSidebarOpen = ref(false)
           </form>
         </div>
       </div>
-    </div>
 
         </div>
       </div>
@@ -5704,5 +5734,33 @@ const mobileSidebarOpen = ref(false)
 }
 .form-page-card-lg {
   max-width: none;
+}
+
+/* Soporte de Mini Sidebar en GlobalSettingsView */
+:deep(.mini-sidebar .left-sidebar),
+.mini-sidebar .left-sidebar {
+  width: 78px !important;
+  overflow: hidden;
+  transition: width 0.25s ease-in-out;
+}
+
+.mini-sidebar .hide-menu {
+  display: none !important;
+}
+
+.mini-sidebar .sidebar-action-btn {
+  justify-content: center !important;
+  padding-left: 0 !important;
+  padding-right: 0 !important;
+}
+
+.mini-sidebar .brand-logo {
+  justify-content: center !important;
+  padding: 12px 6px !important;
+}
+
+.mini-sidebar .brand-logo .logo-img {
+  width: 36px;
+  overflow: hidden;
 }
 </style>

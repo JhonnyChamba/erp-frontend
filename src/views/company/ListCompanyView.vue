@@ -26,7 +26,19 @@ const branchStore = useBranchStore()
 const showBranchesModal = ref(false)
 const selectedCompany = ref<Company | null>(null)
 const selectedCompanyId = ref<number | null>(null)
+const isMiniSidebar = ref(false)
 const mobileSidebarOpen = ref(false)
+
+const toggleSidebar = () => {
+  if (typeof window !== 'undefined' && window.innerWidth < 1200) {
+    mobileSidebarOpen.value = !mobileSidebarOpen.value
+  } else {
+    isMiniSidebar.value = !isMiniSidebar.value
+    if (typeof document !== 'undefined') {
+      document.body.setAttribute('data-sidebartype', isMiniSidebar.value ? 'mini-sidebar' : 'full')
+    }
+  }
+}
 
 // ✅ Usamos el estado del store (NO refs duplicadas)
 const branches = computed(() => branchStore.branches)
@@ -250,6 +262,10 @@ const prevPage = async () => {
 }
 
 onMounted(async () => {
+  if (typeof document !== 'undefined') {
+    const current = document.body.getAttribute('data-sidebartype')
+    isMiniSidebar.value = current === 'mini-sidebar'
+  }
   fetchProfile()
   await fetchCompanies()
 })
@@ -337,10 +353,28 @@ onMounted(async () => {
 .min-w-0 {
   min-width: 0;
 }
+/* Soporte de Mini Sidebar en ListCompanyView */
+:deep(.mini-sidebar .left-sidebar),
+.mini-sidebar .left-sidebar {
+  width: 78px !important;
+  overflow: hidden;
+  transition: width 0.25s ease-in-out;
+}
+.mini-sidebar .hide-menu {
+  display: none !important;
+}
+.mini-sidebar .brand-logo {
+  justify-content: center !important;
+  padding: 12px 6px !important;
+}
+.mini-sidebar .brand-logo .logo-img {
+  width: 36px;
+  overflow: hidden;
+}
 </style>
 
 <template>
-  <div id="main-wrapper" class="d-flex" :class="{ 'show-sidebar': mobileSidebarOpen }">
+  <div id="main-wrapper" class="d-flex" :class="{ 'mini-sidebar': isMiniSidebar, 'show-sidebar': mobileSidebarOpen }">
     <!-- TELÓN OSCURO DE FONDO EN MÓVIL (BACKDROP) -->
     <div
       v-if="mobileSidebarOpen"
@@ -358,6 +392,13 @@ onMounted(async () => {
           </span>
           <button class="btn btn-link text-body p-0 d-xl-none" @click="mobileSidebarOpen = false" title="Cerrar panel">
             <iconify-icon icon="solar:close-circle-line-duotone" class="fs-6"></iconify-icon>
+          </button>
+          <button
+            class="btn btn-link text-body p-0 d-none d-xl-inline-flex align-items-center justify-content-center"
+            @click="toggleSidebar"
+            :title="isMiniSidebar ? 'Expandir perfil de usuario' : 'Colapsar perfil de usuario'"
+          >
+            <iconify-icon :icon="isMiniSidebar ? 'solar:alt-arrow-right-line-duotone' : 'solar:sidebar-minimalistic-line-duotone'" class="fs-5"></iconify-icon>
           </button>
         </div>
 
@@ -377,24 +418,24 @@ onMounted(async () => {
                 :src="profilePhoto"
                 @error="handleAvatarError"
                 alt="Foto de perfil"
-                width="84"
-                height="84"
+                :width="isMiniSidebar ? 38 : 84"
+                :height="isMiniSidebar ? 38 : 84"
                 class="rounded-circle border border-primary border-3 mb-3"
-                style="object-fit: cover;"
+                style="object-fit: cover; transition: all 0.25s;"
               />
-              <h5 class="profile-title fw-bold mb-2">{{ profileFullName }}</h5>
-              <span class="profile-role d-inline-flex align-items-center gap-1">
+              <h5 class="profile-title fw-bold mb-2 hide-menu">{{ profileFullName }}</h5>
+              <span class="profile-role d-inline-flex align-items-center gap-1 hide-menu">
                 <iconify-icon icon="solar:shield-check-bold" class="fs-4"></iconify-icon>
                 {{ profileRole }}
               </span>
             </div>
 
-            <div v-if="profileError" class="profile-note rounded-3 p-2 mb-3 fs-2">
+            <div v-if="profileError" class="profile-note rounded-3 p-2 mb-3 fs-2 hide-menu">
               No se pudieron cargar todos los datos del perfil.
               <a href="javascript:void(0)" class="d-block mt-1" @click="fetchProfile">Reintentar</a>
             </div>
 
-            <ul class="list-unstyled mb-0 profile-list">
+            <ul class="list-unstyled mb-0 profile-list hide-menu">
               <li v-for="row in profileRows" :key="row.label" class="profile-row d-flex align-items-start gap-2">
                 <span class="profile-icon flex-shrink-0">
                   <iconify-icon :icon="row.icon" class="fs-5"></iconify-icon>
@@ -409,18 +450,19 @@ onMounted(async () => {
             <!-- ACCESO PARA SUPER ADMINISTRADORES: CONFIGURACIÓN GLOBAL -->
             <div v-if="isSuperAdmin" class="mt-4 pt-3 border-top border-secondary-subtle">
               <div class="p-3 rounded-4 bg-primary-subtle border border-primary-subtle text-center">
-                <small class="text-primary fw-bold text-uppercase fs-1 d-block mb-1">
+                <small class="text-primary fw-bold text-uppercase fs-1 d-block mb-1 hide-menu">
                   Administración del Sistema
                 </small>
-                <p class="text-secondary fs-2 mb-3">
+                <p class="text-secondary fs-2 mb-3 hide-menu">
                   Acceso exclusivo para Super Administradores: gestión de empresas, usuarios globales, planes SaaS, módulos e impuestos.
                 </p>
                 <router-link
                   to="/configuracion-global"
                   class="btn btn-primary rounded-pill w-100 py-2 d-inline-flex align-items-center justify-content-center gap-2 fw-semibold shadow-sm"
+                  :title="isMiniSidebar ? 'Configuración Global' : undefined"
                 >
-                  <iconify-icon icon="solar:settings-bold-duotone" class="fs-5"></iconify-icon>
-                  <span>Configuración Global</span>
+                  <iconify-icon icon="solar:settings-bold-duotone" class="fs-5 flex-shrink-0"></iconify-icon>
+                  <span class="hide-menu">Configuración Global</span>
                 </router-link>
               </div>
             </div>
@@ -438,12 +480,12 @@ onMounted(async () => {
               <div class="d-flex align-items-center gap-2">
                 <button
                   type="button"
-                  class="btn btn-sm btn-outline-light d-xl-none p-1 d-flex align-items-center justify-content-center me-1"
-                  @click="mobileSidebarOpen = !mobileSidebarOpen"
-                  title="Abrir perfil de usuario"
+                  class="btn btn-sm btn-outline-light p-1 d-flex align-items-center justify-content-center me-1"
+                  @click="toggleSidebar"
+                  :title="isMiniSidebar ? 'Expandir perfil de usuario' : 'Colapsar perfil de usuario'"
                   style="width: 34px; height: 34px;"
                 >
-                  <iconify-icon icon="solar:hamburger-menu-linear" class="fs-5 text-white"></iconify-icon>
+                  <iconify-icon :icon="isMiniSidebar ? 'solar:sidebar-minimalistic-line-duotone' : 'solar:hamburger-menu-linear'" class="fs-5 text-white"></iconify-icon>
                 </button>
                 <iconify-icon icon="solar:buildings-bold" class="fs-5 text-white"></iconify-icon>
                 <h5 class="mb-0 text-white fw-bold">Empresas Asignadas</h5>

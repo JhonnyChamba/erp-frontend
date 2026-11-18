@@ -1,23 +1,37 @@
 <template>
-  <div class="card rounded-4 border-0 shadow-sm p-4 bg-navy-card text-white">
-    <!-- Encabezado con Botón de Acción -->
-    <div class="d-flex flex-wrap justify-content-between align-items-center gap-3 mb-3">
-      <div>
-        <h5 class="fw-bold text-white mb-1 d-flex align-items-center gap-2">
-          <iconify-icon :icon="currentMeta.icon" class="fs-4 text-primary"></iconify-icon>
-          <span>{{ currentMeta.title }}</span>
-        </h5>
-        <small class="text-secondary">{{ currentMeta.subtitle }}</small>
+  <div class="crud-page-wrapper">
+    <!-- VISTA 1: LISTADO (TABLAS Y FILTROS) -->
+    <div v-if="!showModal" class="card rounded-4 border-0 shadow-sm p-4 bg-navy-card text-white">
+      <!-- Encabezado con Botón de Acción -->
+      <div class="d-flex flex-wrap justify-content-between align-items-center gap-3 mb-3">
+        <div>
+          <h5 class="fw-bold text-white mb-1 d-flex align-items-center gap-2">
+            <iconify-icon :icon="currentMeta.icon" class="fs-4 text-primary"></iconify-icon>
+            <span>{{ currentMeta.title }}</span>
+          </h5>
+          <small class="text-secondary">{{ currentMeta.subtitle }}</small>
+        </div>
+        <div class="d-flex align-items-center gap-2">
+          <button
+            type="button"
+            class="btn btn-outline-secondary d-flex align-items-center gap-1 rounded-pill px-3"
+            :disabled="loading"
+            @click="loadData"
+          >
+            <span v-if="loading" class="spinner-grow spinner-grow-sm text-secondary" role="status" aria-hidden="true"></span>
+            <iconify-icon v-else icon="solar:refresh-line-duotone" class="fs-4"></iconify-icon>
+            <span>Actualizar</span>
+          </button>
+          <button
+            type="button"
+            class="btn btn-primary d-flex align-items-center gap-1 rounded-pill px-3 fw-semibold shadow-sm text-nowrap"
+            @click="openCreateModal"
+          >
+            <iconify-icon icon="solar:add-circle-line-duotone" class="fs-5"></iconify-icon>
+            <span>+ Nuevo {{ currentMeta.entityName }}</span>
+          </button>
+        </div>
       </div>
-      <button
-        class="btn btn-primary rounded-pill px-4 d-flex align-items-center gap-2 text-nowrap shadow-sm"
-        style="height: 40px;"
-        @click="openCreateModal"
-      >
-        <iconify-icon icon="solar:add-circle-line-duotone" class="fs-5"></iconify-icon>
-        <span>+ Nuevo {{ currentMeta.entityName }}</span>
-      </button>
-    </div>
 
     <!-- Barra de Filtros y Búsqueda -->
     <div class="d-flex flex-wrap align-items-center gap-2 mb-4 p-2 rounded-3 bg-dark-subtle border border-secondary-subtle">
@@ -39,8 +53,122 @@
       </div>
     </div>
 
+    <!-- TABLA 0: PADRÓN GLOBAL DE FUTBOLISTAS -->
+    <div v-if="tab === 'global_players'" class="table-responsive">
+      <table class="table table-hover align-middle mb-0">
+        <thead>
+          <tr class="border-bottom border-dark-subtle text-secondary fs-2 text-uppercase">
+            <th>Foto</th>
+            <th>Código</th>
+            <th>Cédula / DNI</th>
+            <th>Nombres y Apellidos</th>
+            <th>Edad</th>
+            <th>Demarcación</th>
+            <th>Clasificación</th>
+            <th>Contacto</th>
+            <th class="text-center">Estado</th>
+            <th class="text-end">Acciones</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr v-if="loading" class="text-center">
+            <td colspan="10" class="py-4 text-secondary">
+              <span class="spinner-border spinner-border-sm me-2"></span>Cargando padrón global de futbolistas...
+            </td>
+          </tr>
+          <tr v-else-if="items.length === 0" class="text-center">
+            <td colspan="10" class="py-4 text-secondary">No hay futbolistas registrados en el padrón global.</td>
+          </tr>
+          <tr v-for="item in items" :key="item.id" class="border-bottom border-dark-subtle">
+            <td>
+              <img
+                v-if="item.photo"
+                :src="item.photo"
+                alt="Foto"
+                class="rounded-circle border border-primary"
+                style="width: 38px; height: 38px; object-fit: cover;"
+              />
+              <div
+                v-else
+                class="rounded-circle bg-dark-subtle text-secondary d-flex align-items-center justify-content-center"
+                style="width: 38px; height: 38px;"
+              >
+                <iconify-icon icon="solar:user-bold" class="fs-5"></iconify-icon>
+              </div>
+            </td>
+            <td>
+              <span class="badge bg-primary-subtle text-primary border border-primary-subtle font-monospace px-2 py-1">
+                {{ item.code || '-' }}
+              </span>
+            </td>
+            <td class="font-monospace fw-medium text-white-50">{{ item.identification }}</td>
+            <td class="fw-bold text-white">{{ item.name }} {{ item.lastName }}</td>
+            <td>
+              <span v-if="item.ageYears" class="badge bg-info-subtle text-info font-monospace px-2 py-1">
+                {{ item.ageYears }} años
+              </span>
+              <span v-else class="text-muted small">-</span>
+            </td>
+            <td>
+              <span v-if="item.demarcation?.name" class="badge bg-secondary-subtle text-secondary px-2 py-1">
+                🏃 {{ item.demarcation.name }}
+              </span>
+              <span v-else class="text-muted small">-</span>
+            </td>
+            <td>
+              <span v-if="item.playerClassification?.description" class="badge bg-secondary-subtle text-secondary px-2 py-1">
+                🏷️ {{ item.playerClassification.description }}
+              </span>
+              <span v-else class="text-muted small">-</span>
+            </td>
+            <td>
+              <div class="small">
+                <span v-if="item.phone" class="d-block text-secondary">📞 {{ item.phone }}</span>
+                <span v-if="item.email" class="d-block text-secondary">✉️ {{ item.email }}</span>
+                <span v-if="!item.phone && !item.email" class="text-muted">-</span>
+              </div>
+            </td>
+            <td class="text-center">
+              <span :class="item.isActive ? 'badge bg-success-subtle text-success' : 'badge bg-danger-subtle text-danger'">
+                {{ item.isActive ? 'Activo' : 'Inactivo' }}
+              </span>
+            </td>
+            <td class="text-end">
+              <div class="dropdown">
+                <button
+                  class="btn bg-secondary-subtle text-secondary btn-sm dropdown-toggle d-inline-flex align-items-center gap-1 fw-semibold"
+                  type="button"
+                  data-bs-toggle="dropdown"
+                  data-bs-popper-config='{"strategy":"fixed"}'
+                  aria-expanded="false"
+                >
+                  <iconify-icon icon="solar:menu-dots-bold" class="fs-4"></iconify-icon>
+                  <span>Acciones</span>
+                </button>
+                <ul class="dropdown-menu dropdown-menu-end shadow-lg py-1">
+                  <li>
+                    <a class="dropdown-item py-2 text-warning" href="javascript:void(0)" @click="openEditModal(item)">
+                      <iconify-icon icon="solar:pen-new-square-line-duotone" class="fs-5 text-warning"></iconify-icon>
+                      <span>Editar Futbolista</span>
+                    </a>
+                  </li>
+                  <li>
+                    <hr class="dropdown-divider">
+                    <a class="dropdown-item py-2 text-danger" href="javascript:void(0)" @click="deleteItem(item.id, true)">
+                      <iconify-icon icon="solar:trash-bin-trash-line-duotone" class="fs-5 text-danger"></iconify-icon>
+                      <span>Eliminar</span>
+                    </a>
+                  </li>
+                </ul>
+              </div>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
     <!-- TABLA 1: GREMIOS ARBITRALES -->
-    <div v-if="tab === 'referee_guilds'" class="table-responsive">
+    <div v-else-if="tab === 'referee_guilds'" class="table-responsive">
       <table class="table table-hover align-middle mb-0">
         <thead>
           <tr class="border-bottom border-dark-subtle text-secondary fs-2 text-uppercase">
@@ -76,13 +204,32 @@
               </span>
             </td>
             <td class="text-end">
-              <div class="d-flex justify-content-end gap-1">
-                <button class="btn btn-sm btn-outline-warning rounded-circle p-2" title="Editar" @click="openEditModal(item)">
-                  <iconify-icon icon="solar:pen-new-square-linear" class="fs-5"></iconify-icon>
+              <div class="dropdown">
+                <button
+                  class="btn bg-secondary-subtle text-secondary btn-sm dropdown-toggle d-inline-flex align-items-center gap-1 fw-semibold"
+                  type="button"
+                  data-bs-toggle="dropdown"
+                  data-bs-popper-config='{"strategy":"fixed"}'
+                  aria-expanded="false"
+                >
+                  <iconify-icon icon="solar:menu-dots-bold" class="fs-4"></iconify-icon>
+                  <span>Acciones</span>
                 </button>
-                <button class="btn btn-sm btn-outline-danger rounded-circle p-2" title="Eliminar" @click="deleteItem(item.id)">
-                  <iconify-icon icon="solar:trash-bin-trash-linear" class="fs-5"></iconify-icon>
-                </button>
+                <ul class="dropdown-menu dropdown-menu-end shadow-lg py-1">
+                  <li>
+                    <a class="dropdown-item py-2 text-warning" href="javascript:void(0)" @click="openEditModal(item)">
+                      <iconify-icon icon="solar:pen-new-square-line-duotone" class="fs-5 text-warning"></iconify-icon>
+                      <span>Editar</span>
+                    </a>
+                  </li>
+                  <li>
+                    <hr class="dropdown-divider">
+                    <a class="dropdown-item py-2 text-danger" href="javascript:void(0)" @click="deleteItem(item.id)">
+                      <iconify-icon icon="solar:trash-bin-trash-line-duotone" class="fs-5 text-danger"></iconify-icon>
+                      <span>Eliminar</span>
+                    </a>
+                  </li>
+                </ul>
               </div>
             </td>
           </tr>
@@ -140,13 +287,32 @@
               </span>
             </td>
             <td class="text-end">
-              <div class="d-flex justify-content-end gap-1">
-                <button class="btn btn-sm btn-outline-warning rounded-circle p-2" title="Editar" @click="openEditModal(item)">
-                  <iconify-icon icon="solar:pen-new-square-linear" class="fs-5"></iconify-icon>
+              <div class="dropdown">
+                <button
+                  class="btn bg-secondary-subtle text-secondary btn-sm dropdown-toggle d-inline-flex align-items-center gap-1 fw-semibold"
+                  type="button"
+                  data-bs-toggle="dropdown"
+                  data-bs-popper-config='{"strategy":"fixed"}'
+                  aria-expanded="false"
+                >
+                  <iconify-icon icon="solar:menu-dots-bold" class="fs-4"></iconify-icon>
+                  <span>Acciones</span>
                 </button>
-                <button class="btn btn-sm btn-outline-danger rounded-circle p-2" title="Eliminar del Padrón Global" @click="deleteItem(item.id, true)">
-                  <iconify-icon icon="solar:trash-bin-trash-linear" class="fs-5"></iconify-icon>
-                </button>
+                <ul class="dropdown-menu dropdown-menu-end shadow-lg py-1">
+                  <li>
+                    <a class="dropdown-item py-2 text-warning" href="javascript:void(0)" @click="openEditModal(item)">
+                      <iconify-icon icon="solar:pen-new-square-line-duotone" class="fs-5 text-warning"></iconify-icon>
+                      <span>Editar Futbolista</span>
+                    </a>
+                  </li>
+                  <li>
+                    <hr class="dropdown-divider">
+                    <a class="dropdown-item py-2 text-danger" href="javascript:void(0)" @click="deleteItem(item.id, true)">
+                      <iconify-icon icon="solar:trash-bin-trash-line-duotone" class="fs-5 text-danger"></iconify-icon>
+                      <span>Eliminar</span>
+                    </a>
+                  </li>
+                </ul>
               </div>
             </td>
           </tr>
@@ -191,13 +357,32 @@
               </span>
             </td>
             <td class="text-end">
-              <div class="d-flex justify-content-end gap-1">
-                <button class="btn btn-sm btn-outline-warning rounded-circle p-2" title="Editar" @click="openEditModal(item)">
-                  <iconify-icon icon="solar:pen-new-square-linear" class="fs-5"></iconify-icon>
+              <div class="dropdown">
+                <button
+                  class="btn bg-secondary-subtle text-secondary btn-sm dropdown-toggle d-inline-flex align-items-center gap-1 fw-semibold"
+                  type="button"
+                  data-bs-toggle="dropdown"
+                  data-bs-popper-config='{"strategy":"fixed"}'
+                  aria-expanded="false"
+                >
+                  <iconify-icon icon="solar:menu-dots-bold" class="fs-4"></iconify-icon>
+                  <span>Acciones</span>
                 </button>
-                <button class="btn btn-sm btn-outline-danger rounded-circle p-2" title="Eliminar" @click="deleteItem(item.id)">
-                  <iconify-icon icon="solar:trash-bin-trash-linear" class="fs-5"></iconify-icon>
-                </button>
+                <ul class="dropdown-menu dropdown-menu-end shadow-lg py-1">
+                  <li>
+                    <a class="dropdown-item py-2 text-warning" href="javascript:void(0)" @click="openEditModal(item)">
+                      <iconify-icon icon="solar:pen-new-square-line-duotone" class="fs-5 text-warning"></iconify-icon>
+                      <span>Editar</span>
+                    </a>
+                  </li>
+                  <li>
+                    <hr class="dropdown-divider">
+                    <a class="dropdown-item py-2 text-danger" href="javascript:void(0)" @click="deleteItem(item.id)">
+                      <iconify-icon icon="solar:trash-bin-trash-line-duotone" class="fs-5 text-danger"></iconify-icon>
+                      <span>Eliminar</span>
+                    </a>
+                  </li>
+                </ul>
               </div>
             </td>
           </tr>
@@ -249,13 +434,32 @@
             </td>
             <td class="text-center font-monospace">{{ item.order ?? '-' }}</td>
             <td class="text-end">
-              <div class="d-flex justify-content-end gap-1">
-                <button class="btn btn-sm btn-outline-warning rounded-circle p-2" title="Editar" @click="openEditModal(item)">
-                  <iconify-icon icon="solar:pen-new-square-linear" class="fs-5"></iconify-icon>
+              <div class="dropdown">
+                <button
+                  class="btn bg-secondary-subtle text-secondary btn-sm dropdown-toggle d-inline-flex align-items-center gap-1 fw-semibold"
+                  type="button"
+                  data-bs-toggle="dropdown"
+                  data-bs-popper-config='{"strategy":"fixed"}'
+                  aria-expanded="false"
+                >
+                  <iconify-icon icon="solar:menu-dots-bold" class="fs-4"></iconify-icon>
+                  <span>Acciones</span>
                 </button>
-                <button class="btn btn-sm btn-outline-danger rounded-circle p-2" title="Eliminar" @click="deleteItem(item.id)">
-                  <iconify-icon icon="solar:trash-bin-trash-linear" class="fs-5"></iconify-icon>
-                </button>
+                <ul class="dropdown-menu dropdown-menu-end shadow-lg py-1">
+                  <li>
+                    <a class="dropdown-item py-2 text-warning" href="javascript:void(0)" @click="openEditModal(item)">
+                      <iconify-icon icon="solar:pen-new-square-line-duotone" class="fs-5 text-warning"></iconify-icon>
+                      <span>Editar</span>
+                    </a>
+                  </li>
+                  <li>
+                    <hr class="dropdown-divider">
+                    <a class="dropdown-item py-2 text-danger" href="javascript:void(0)" @click="deleteItem(item.id)">
+                      <iconify-icon icon="solar:trash-bin-trash-line-duotone" class="fs-5 text-danger"></iconify-icon>
+                      <span>Eliminar</span>
+                    </a>
+                  </li>
+                </ul>
               </div>
             </td>
           </tr>
@@ -263,30 +467,428 @@
       </table>
     </div>
 
-    <!-- MODAL DE CREACIÓN / EDICIÓN -->
-    <Teleport to="body">
-      <div
-        v-if="showModal"
-        class="modal fade show d-block"
-        tabindex="-1"
-        style="background: rgba(0, 0, 0, 0.75); z-index: 2050;"
-        role="dialog"
-        aria-modal="true"
-      >
-        <div class="modal-dialog modal-dialog-centered" :class="tab === 'global_referees' ? 'modal-lg' : 'modal-md'">
-          <div class="modal-content border-0 shadow-lg bg-navy-card text-white">
-            <div class="modal-header border-bottom border-dark-subtle">
-              <h5 class="modal-title fw-bold text-white d-flex align-items-center gap-2">
-                <iconify-icon :icon="isEditing ? 'solar:pen-new-square-linear' : 'solar:add-circle-line-duotone'" class="fs-4 text-primary"></iconify-icon>
-                <span>{{ isEditing ? 'Editar' : 'Nuevo' }} {{ currentMeta.entityName }}</span>
-              </h5>
-              <button type="button" class="btn-close btn-close-white" @click="closeModal"></button>
+    <!-- TABLA 5: FORMATOS DE DISPUTA -->
+    <div v-if="tab === 'stage_formats'" class="table-responsive">
+      <table class="table table-hover align-middle mb-0">
+        <thead>
+          <tr class="border-bottom border-dark-subtle text-secondary fs-2 text-uppercase">
+            <th>Código</th>
+            <th>Nombre del Formato</th>
+            <th>Tipo Principal</th>
+            <th>Vueltas / Modalidad</th>
+            <th>Desempate Play-offs</th>
+            <th>Grupos</th>
+            <th class="text-center">Estado</th>
+            <th class="text-end">Acciones</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr v-if="loading" class="text-center">
+            <td colspan="8" class="py-4 text-secondary">
+              <span class="spinner-border spinner-border-sm me-2"></span>Cargando formatos de disputa...
+            </td>
+          </tr>
+          <tr v-else-if="items.length === 0" class="text-center">
+            <td colspan="8" class="py-4 text-secondary">No hay formatos de disputa registrados.</td>
+          </tr>
+          <tr v-for="item in items" :key="item.id" class="border-bottom border-dark-subtle">
+            <td>
+              <span class="badge bg-secondary-subtle text-secondary font-monospace px-2 py-1">
+                {{ item.code || '-' }}
+              </span>
+            </td>
+            <td>
+              <div class="fw-bold text-white">{{ item.name }}</div>
+              <small v-if="item.description" class="text-secondary d-block">{{ item.description }}</small>
+            </td>
+            <td>
+              <span
+                v-if="item.formatType === 'EVERYONE_AGAINST_EVERYONE'"
+                class="badge bg-primary-subtle text-primary border border-primary-subtle px-2 py-1"
+              >
+                ⚽ Todos contra Todos
+              </span>
+              <span
+                v-else-if="item.formatType === 'DIRECT_ELIMINATION'"
+                class="badge bg-warning-subtle text-warning border border-warning-subtle px-2 py-1"
+              >
+                🏆 Eliminación Directa
+              </span>
+              <span
+                v-else-if="item.formatType === 'DOUBLE_ELIMINATION'"
+                class="badge bg-info-subtle text-info border border-info-subtle px-2 py-1"
+              >
+                🔄 Doble Eliminación
+              </span>
+              <span v-else class="badge bg-dark-subtle text-secondary">{{ item.formatType }}</span>
+            </td>
+            <td>
+              <span v-if="item.defaultLaps === 2" class="badge bg-info-subtle text-info font-monospace">2 Vueltas (Ida y Vuelta)</span>
+              <span v-else class="badge bg-secondary-subtle text-secondary font-monospace">1 Sola Vuelta (Partido Único)</span>
+            </td>
+            <td>
+              <span v-if="item.defaultTieBreaker === 'PENALTIES'" class="badge bg-success-subtle text-success">Penales Directos</span>
+              <span v-else-if="item.defaultTieBreaker === 'SPORTING_ADVANTAGE'" class="badge bg-warning-subtle text-warning">Ventaja Deportiva</span>
+              <span v-else-if="item.defaultTieBreaker === 'EXTRA_TIME_PENALTIES'" class="badge bg-info-subtle text-info">Tiempo Extra + Penales</span>
+              <span v-else class="text-muted small">N/A (Puntos regulares)</span>
+            </td>
+            <td>
+              <span v-if="item.requiresGroups" class="badge bg-primary-subtle text-primary font-monospace">Sí (Series / Grupos)</span>
+              <span v-else class="text-muted small">No (Grupo único)</span>
+            </td>
+            <td class="text-center">
+              <span
+                class="badge font-monospace px-2 py-1"
+                :class="item.isActive ? 'bg-success-subtle text-success border border-success-subtle' : 'bg-danger-subtle text-danger border border-danger-subtle'"
+              >
+                {{ item.isActive ? 'Activo' : 'Inactivo' }}
+              </span>
+            </td>
+            <td class="text-end">
+              <div class="dropdown">
+                <button
+                  class="btn bg-secondary-subtle text-secondary btn-sm dropdown-toggle d-inline-flex align-items-center gap-1 fw-semibold"
+                  type="button"
+                  data-bs-toggle="dropdown"
+                  data-bs-popper-config='{"strategy":"fixed"}'
+                  aria-expanded="false"
+                >
+                  <iconify-icon icon="solar:menu-dots-bold" class="fs-4"></iconify-icon>
+                  <span>Acciones</span>
+                </button>
+                <ul class="dropdown-menu dropdown-menu-end shadow-lg py-1">
+                  <li>
+                    <a class="dropdown-item py-2 text-warning" href="javascript:void(0)" @click="openEditModal(item)">
+                      <iconify-icon icon="solar:pen-new-square-line-duotone" class="fs-5 text-warning"></iconify-icon>
+                      <span>Editar</span>
+                    </a>
+                  </li>
+                  <li>
+                    <hr class="dropdown-divider">
+                    <a class="dropdown-item py-2 text-danger" href="javascript:void(0)" @click="deleteItem(item.id)">
+                      <iconify-icon icon="solar:trash-bin-trash-line-duotone" class="fs-5 text-danger"></iconify-icon>
+                      <span>Eliminar</span>
+                    </a>
+                  </li>
+                </ul>
+              </div>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <!-- TABLAS: TIPOS DE COMPETENCIA, VUELTAS Y CRITERIOS DE DESEMPATE -->
+    <div v-else-if="['competition_types', 'competition_laps', 'tie_breaker_criteria'].includes(tab)" class="table-responsive">
+      <table class="table table-hover align-middle mb-0">
+        <thead>
+          <tr class="border-bottom border-dark-subtle text-secondary fs-2 text-uppercase">
+            <th style="width: 50px;">#</th>
+            <th>Descripción / Nombre</th>
+            <th>Código / Siglas</th>
+            <th v-if="tab === 'competition_laps'" class="text-center">N° Vueltas</th>
+            <th>Observación / Regla</th>
+            <th class="text-center">Estado</th>
+            <th class="text-end">Acciones</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr v-if="loading" class="text-center">
+            <td :colspan="tab === 'competition_laps' ? 7 : 6" class="py-4 text-secondary">
+              <span class="spinner-border spinner-border-sm me-2"></span>Cargando registros...
+            </td>
+          </tr>
+          <tr v-else-if="items.length === 0" class="text-center">
+            <td :colspan="tab === 'competition_laps' ? 7 : 6" class="py-4 text-secondary">
+              No se encontraron registros de {{ currentMeta.title.toLowerCase() }}.
+            </td>
+          </tr>
+          <tr v-for="(item, idx) in items" :key="item.id" class="border-bottom border-dark-subtle">
+            <td class="text-secondary small font-monospace">{{ idx + 1 }}</td>
+            <td class="fw-bold text-white">
+              <span v-if="tab === 'competition_types'">🏆</span>
+              <span v-else-if="tab === 'competition_laps'">🔄</span>
+              <span v-else>⚖️</span>
+              {{ item.description }}
+            </td>
+            <td>
+              <span v-if="item.code" class="badge bg-secondary-subtle text-secondary font-monospace px-2 py-1">
+                {{ item.code }}
+              </span>
+              <span v-else class="text-muted small">-</span>
+            </td>
+            <td v-if="tab === 'competition_laps'" class="text-center">
+              <span class="badge bg-info-subtle text-info font-monospace px-2 py-1">
+                {{ item.numberOfLaps || 1 }} Vuelta(s)
+              </span>
+            </td>
+            <td class="text-secondary small">{{ item.observation || '-' }}</td>
+            <td class="text-center">
+              <span :class="item.isActive ? 'badge bg-success-subtle text-success' : 'badge bg-danger-subtle text-danger'">
+                {{ item.isActive ? 'Activo' : 'Inactivo' }}
+              </span>
+            </td>
+            <td class="text-end">
+              <div class="dropdown">
+                <button
+                  class="btn bg-secondary-subtle text-secondary btn-sm dropdown-toggle d-inline-flex align-items-center gap-1 fw-semibold"
+                  type="button"
+                  data-bs-toggle="dropdown"
+                  data-bs-popper-config='{"strategy":"fixed"}'
+                  aria-expanded="false"
+                >
+                  <iconify-icon icon="solar:menu-dots-bold" class="fs-4"></iconify-icon>
+                  <span>Acciones</span>
+                </button>
+                <ul class="dropdown-menu dropdown-menu-end shadow-lg py-1">
+                  <li>
+                    <a class="dropdown-item py-2 text-warning" href="javascript:void(0)" @click="openEditModal(item)">
+                      <iconify-icon icon="solar:pen-new-square-line-duotone" class="fs-5 text-warning"></iconify-icon>
+                      <span>Editar</span>
+                    </a>
+                  </li>
+                  <li>
+                    <hr class="dropdown-divider">
+                    <a class="dropdown-item py-2 text-danger" href="javascript:void(0)" @click="deleteItem(item.id)">
+                      <iconify-icon icon="solar:trash-bin-trash-line-duotone" class="fs-5 text-danger"></iconify-icon>
+                      <span>Eliminar</span>
+                    </a>
+                  </li>
+                </ul>
+              </div>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+    <!-- VISTA 2: FORMULARIO EN PÁGINA (100% ANCHO, NO MODAL) -->
+    <div v-else id="form-page" class="form-page">
+      <div class="form-page-card">
+        <div class="form-page-header">
+          <div>
+            <div class="d-flex align-items-center gap-2 mb-1">
+              <span class="badge bg-primary-subtle text-primary border border-primary-subtle px-2 py-1 fs-2">
+                MOD-010 · CONFIGURACIÓN GLOBAL
+              </span>
+              <span class="badge bg-info-subtle text-info border border-info-subtle px-2 py-1 fs-2">
+                {{ isEditing ? 'MODIFICACIÓN' : 'REGISTRO' }}
+              </span>
             </div>
-            
-            <form @submit.prevent="submitForm">
-              <div class="modal-body p-4">
+            <h3 class="crud-title mb-0">
+              {{ isEditing ? `Editar ${currentMeta.entityName}` : `Nuevo ${currentMeta.entityName}` }}
+            </h3>
+            <p class="crud-subtitle mb-0">
+              Completa los campos requeridos para guardar el registro en el sistema.
+            </p>
+          </div>
+          <button
+            type="button"
+            class="btn btn-outline-secondary d-flex align-items-center gap-1 rounded-pill px-3"
+            @click="closeModal"
+          >
+            <iconify-icon icon="solar:alt-arrow-left-line-duotone" class="fs-4"></iconify-icon>
+            <span>Volver al Listado</span>
+          </button>
+        </div>
+
+        <form @submit.prevent="submitForm">
+          <div class="form-page-body">
+                <!-- FORMULARIO 0: PADRÓN GLOBAL DE FUTBOLISTAS -->
+                <div v-if="tab === 'global_players'" class="row g-3">
+                  <!-- Foto carnet y vista previa -->
+                  <div class="col-12">
+                    <div class="d-flex align-items-center gap-3 p-3 bg-dark rounded-3 border border-secondary-subtle">
+                      <div class="position-relative">
+                        <img
+                          v-if="formData.photo"
+                          :src="formData.photo"
+                          alt="Foto del Jugador"
+                          class="rounded-3 border border-2 border-primary"
+                          style="width: 70px; height: 85px; object-fit: cover;"
+                        />
+                        <div
+                          v-else
+                          class="rounded-3 bg-dark-subtle text-secondary d-flex flex-column align-items-center justify-content-center border border-2 border-dashed border-secondary"
+                          style="width: 70px; height: 85px;"
+                        >
+                          <iconify-icon icon="solar:user-bold" class="fs-2 text-secondary"></iconify-icon>
+                          <span style="font-size: 10px;">Foto</span>
+                        </div>
+                      </div>
+                      <div>
+                        <h6 class="fw-bold mb-1 text-white">Foto Oficial del Futbolista</h6>
+                        <small class="text-secondary d-block mb-2">Para carnetización y validación QR en campeonatos.</small>
+                        <div class="d-flex gap-2">
+                          <label class="btn btn-sm btn-primary rounded-pill px-3 cursor-pointer d-inline-flex align-items-center gap-1 mb-0">
+                            <iconify-icon icon="solar:camera-add-bold" class="fs-5"></iconify-icon>
+                            <span>{{ uploadingPhoto ? 'Procesando...' : (formData.photo ? 'Cambiar Foto' : 'Cargar Foto') }}</span>
+                            <input type="file" accept="image/*" class="d-none" @change="onPhotoSelected" :disabled="uploadingPhoto" />
+                          </label>
+                          <button
+                            v-if="formData.photo"
+                            type="button"
+                            class="btn btn-sm btn-outline-danger rounded-pill px-3"
+                            @click="formData.photo = ''"
+                          >
+                            Quitar
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div class="col-md-4">
+                    <label class="form-label text-secondary small fw-semibold">Cédula / DNI / Pasaporte *</label>
+                    <input
+                      v-model="formData.identification"
+                      type="text"
+                      class="form-control bg-dark border-secondary-subtle text-white font-monospace"
+                      placeholder="Identificación del jugador"
+                      required
+                    />
+                  </div>
+
+                  <div class="col-md-4">
+                    <label class="form-label text-secondary small fw-semibold">Código Secuencial de Jugador</label>
+                    <input
+                      v-model="formData.code"
+                      type="text"
+                      class="form-control bg-dark border-secondary-subtle text-white font-monospace"
+                      placeholder="Autogenerado ej. JUG-00001"
+                      readonly
+                    />
+                  </div>
+
+                  <div class="col-md-4">
+                    <label class="form-label text-secondary small fw-semibold">Fecha de Nacimiento</label>
+                    <input
+                      v-model="formData.birthDate"
+                      type="date"
+                      class="form-control bg-dark border-secondary-subtle text-white"
+                      @change="onBirthDateChange"
+                    />
+                  </div>
+
+                  <div v-if="computedPlayerAge" class="col-12">
+                    <div class="alert alert-info py-2 px-3 mb-0 rounded-3 border-0 bg-info-subtle text-info-emphasis d-flex align-items-center gap-2">
+                      <iconify-icon icon="solar:cake-bold-duotone" class="fs-4 text-info"></iconify-icon>
+                      <span class="small">
+                        Edad calculada: <strong>{{ computedPlayerAge.years }} años</strong> (en meses: <strong>{{ computedPlayerAge.months }} meses</strong> acumulados)
+                      </span>
+                    </div>
+                  </div>
+
+                  <div class="col-md-6">
+                    <label class="form-label text-secondary small fw-semibold">Nombres *</label>
+                    <input
+                      v-model="formData.name"
+                      type="text"
+                      class="form-control bg-dark border-secondary-subtle text-white"
+                      placeholder="Nombres completos"
+                      required
+                    />
+                  </div>
+
+                  <div class="col-md-6">
+                    <label class="form-label text-secondary small fw-semibold">Apellidos *</label>
+                    <input
+                      v-model="formData.lastName"
+                      type="text"
+                      class="form-control bg-dark border-secondary-subtle text-white"
+                      placeholder="Apellidos completos"
+                      required
+                    />
+                  </div>
+
+                  <div class="col-md-6">
+                    <label class="form-label text-secondary small fw-semibold">Posición / Demarcación en Campo</label>
+                    <select v-model="formData.demarcationId" class="form-select bg-dark border-secondary-subtle text-white">
+                      <option value="">-- Seleccionar Demarcación --</option>
+                      <option v-for="d in demarcationsList" :key="d.id" :value="d.id">
+                        {{ d.name }} ({{ d.code }})
+                      </option>
+                    </select>
+                  </div>
+
+                  <div class="col-md-6">
+                    <label class="form-label text-secondary small fw-semibold">Clasificación de Futbolista</label>
+                    <select v-model="formData.playerClassificationId" class="form-select bg-dark border-secondary-subtle text-white">
+                      <option value="">-- Seleccionar Clasificación --</option>
+                      <option v-for="c in classificationsList" :key="c.id" :value="c.id">
+                        {{ c.description }} {{ c.code ? '(' + c.code + ')' : '' }}
+                      </option>
+                    </select>
+                  </div>
+
+                  <div class="col-md-4">
+                    <label class="form-label text-secondary small fw-semibold">Pie Dominante</label>
+                    <select v-model="formData.dominantFoot" class="form-select bg-dark border-secondary-subtle text-white">
+                      <option value="RIGHT">Diestro (Derecho)</option>
+                      <option value="LEFT">Zurdo (Izquierdo)</option>
+                      <option value="BOTH">Ambidiestro</option>
+                    </select>
+                  </div>
+
+                  <div class="col-md-4">
+                    <label class="form-label text-secondary small fw-semibold">Tipo de Sangre</label>
+                    <select v-model="formData.bloodType" class="form-select bg-dark border-secondary-subtle text-white">
+                      <option value="">-- Seleccionar --</option>
+                      <option value="O+">O Positivo (O+)</option>
+                      <option value="O-">O Negativo (O-)</option>
+                      <option value="A+">A Positivo (A+)</option>
+                      <option value="A-">A Negativo (A-)</option>
+                      <option value="B+">B Positivo (B+)</option>
+                      <option value="B-">B Negativo (B-)</option>
+                      <option value="AB+">AB Positivo (AB+)</option>
+                      <option value="AB-">AB Negativo (AB-)</option>
+                    </select>
+                  </div>
+
+                  <div class="col-md-4">
+                    <label class="form-label text-secondary small fw-semibold">Teléfono Personal</label>
+                    <input
+                      v-model="formData.phone"
+                      type="text"
+                      class="form-control bg-dark border-secondary-subtle text-white"
+                      placeholder="Ej. 0991234567"
+                    />
+                  </div>
+
+                  <div class="col-md-4">
+                    <label class="form-label text-secondary small fw-semibold">Correo Electrónico</label>
+                    <input
+                      v-model="formData.email"
+                      type="email"
+                      class="form-control bg-dark border-secondary-subtle text-white"
+                      placeholder="futbolista@ejemplo.com"
+                    />
+                  </div>
+
+                  <div class="col-md-4">
+                    <label class="form-label text-secondary small fw-semibold">Contacto de Emergencia</label>
+                    <input
+                      v-model="formData.emergencyContactName"
+                      type="text"
+                      class="form-control bg-dark border-secondary-subtle text-white"
+                      placeholder="Nombre del familiar"
+                    />
+                  </div>
+
+                  <div class="col-md-4">
+                    <label class="form-label text-secondary small fw-semibold">Teléfono de Emergencia</label>
+                    <input
+                      v-model="formData.emergencyContactPhone"
+                      type="text"
+                      class="form-control bg-dark border-secondary-subtle text-white"
+                      placeholder="Teléfono del contacto"
+                    />
+                  </div>
+                </div>
+
                 <!-- FORMULARIO 1: GREMIOS ARBITRALES -->
-                <div v-if="tab === 'referee_guilds'" class="row g-3">
+                <div v-else-if="tab === 'referee_guilds'" class="row g-3">
                   <div class="col-12">
                     <label class="form-label text-secondary small fw-semibold">Descripción o Nombre del Gremio / Núcleo *</label>
                     <input
@@ -453,43 +1055,192 @@
                     />
                   </div>
                 </div>
-              </div>
 
-              <div class="modal-footer border-top border-dark-subtle bg-dark-subtle">
-                <button type="button" class="btn btn-secondary rounded-pill px-4" @click="closeModal">Cancelar</button>
-                <button type="submit" class="btn btn-primary rounded-pill px-4 fw-semibold" :disabled="saving">
-                  <span v-if="saving" class="spinner-border spinner-border-sm me-1" role="status"></span>
-                  <span>{{ isEditing ? 'Guardar Cambios' : 'Registrar' }}</span>
-                </button>
-              </div>
-            </form>
+                <!-- FORMULARIO 5: FORMATOS DE DISPUTA -->
+                <div v-else-if="tab === 'stage_formats'" class="row g-3">
+                  <div class="col-md-8">
+                    <label class="form-label text-secondary small fw-semibold">Nombre del Formato de Disputa *</label>
+                    <input
+                      v-model="formData.name"
+                      type="text"
+                      class="form-control bg-dark border-secondary-subtle text-white"
+                      placeholder="Ej. Todos contra Todos (1 Sola Vuelta), Cuartos y Semis Ida y Vuelta..."
+                      required
+                    />
+                  </div>
+                  <div class="col-md-4">
+                    <label class="form-label text-secondary small fw-semibold">Código Único</label>
+                    <input
+                      v-model="formData.code"
+                      type="text"
+                      class="form-control bg-dark border-secondary-subtle text-white font-monospace text-uppercase"
+                      placeholder="Autogenerado ej. FMT-001"
+                      :readonly="isEditing"
+                    />
+                  </div>
+                  <div class="col-md-4">
+                    <label class="form-label text-secondary small fw-semibold">Tipo Principal de Competencia *</label>
+                    <select v-model="formData.formatType" class="form-select bg-dark border-secondary-subtle text-white" required>
+                      <option value="EVERYONE_AGAINST_EVERYONE">⚽ Todos contra Todos (Liga Regular)</option>
+                      <option value="DIRECT_ELIMINATION">🏆 Eliminación Directa (Play-offs / Llaves)</option>
+                      <option value="DOUBLE_ELIMINATION">🔄 Doble Eliminación</option>
+                    </select>
+                  </div>
+                  <div class="col-md-4">
+                    <label class="form-label text-secondary small fw-semibold">Vueltas / Modalidad *</label>
+                    <select v-model.number="formData.defaultLaps" class="form-select bg-dark border-secondary-subtle text-white" required>
+                      <option :value="1">1 Sola Vuelta (Partido Único)</option>
+                      <option :value="2">2 Vueltas (Ida y Vuelta)</option>
+                    </select>
+                  </div>
+                  <div class="col-md-4">
+                    <label class="form-label text-secondary small fw-semibold">Criterio de Desempate</label>
+                    <select v-model="formData.defaultTieBreaker" class="form-select bg-dark border-secondary-subtle text-white">
+                      <option value="PENALTIES">Tiros Penales Directos (Ecuador)</option>
+                      <option value="SPORTING_ADVANTAGE">Ventaja Deportiva (Mejor en Tabla)</option>
+                      <option value="EXTRA_TIME_PENALTIES">Tiempo Extra + Penales</option>
+                      <option value="NONE">Ninguno (Regular por puntos)</option>
+                    </select>
+                  </div>
+                  <div class="col-md-6">
+                    <div class="form-check form-switch mt-2">
+                      <input class="form-check-input" type="checkbox" v-model="formData.requiresGroups" id="fmt_requires_groups" />
+                      <label class="form-check-label text-white fw-semibold small ms-2" for="fmt_requires_groups">
+                        Requiere división por Grupos / Series (Serie A, Serie B...)
+                      </label>
+                    </div>
+                  </div>
+                  <div class="col-md-6">
+                    <div class="form-check form-switch mt-2">
+                      <input class="form-check-input" type="checkbox" v-model="formData.isActive" id="fmt_is_active" />
+                      <label class="form-check-label text-white fw-semibold small ms-2" for="fmt_is_active">
+                        Formato Habilitado / Activo
+                      </label>
+                    </div>
+                  </div>
+                  <div class="col-12">
+                    <label class="form-label text-secondary small fw-semibold">Descripción / Observaciones</label>
+                    <textarea
+                      v-model="formData.description"
+                      class="form-control bg-dark border-secondary-subtle text-white"
+                      rows="2"
+                      placeholder="Reglas o detalles de cómo se disputa este formato en el torneo..."
+                    ></textarea>
+                  </div>
+                </div>
+
+                <!-- FORMULARIO 6: TIPOS DE COMPETENCIA, VUELTAS Y CRITERIOS DE DESEMPATE -->
+                <div v-else-if="['competition_types', 'competition_laps', 'tie_breaker_criteria'].includes(tab)" class="row g-3">
+                  <div :class="tab === 'competition_laps' ? 'col-md-6' : 'col-md-8'">
+                    <label class="form-label text-secondary small fw-semibold">Descripción / Nombre *</label>
+                    <input
+                      v-model="formData.description"
+                      type="text"
+                      class="form-control bg-dark border-secondary-subtle text-white"
+                      :placeholder="tab === 'competition_types' ? 'Ej. Todos contra Todos (Liga)' : tab === 'competition_laps' ? 'Ej. Ida y Vuelta (2 Vueltas)' : 'Ej. Gol Diferencia (GD)'"
+                      required
+                    />
+                  </div>
+                  <div class="col-md-3" v-if="tab === 'competition_laps'">
+                    <label class="form-label text-secondary small fw-semibold">Número de Vueltas *</label>
+                    <input
+                      v-model.number="formData.numberOfLaps"
+                      type="number"
+                      min="1"
+                      class="form-control bg-dark border-secondary-subtle text-white font-monospace text-center"
+                      placeholder="1"
+                      required
+                    />
+                  </div>
+                  <div :class="tab === 'competition_laps' ? 'col-md-3' : 'col-md-4'">
+                    <label class="form-label text-secondary small fw-semibold">Código / Siglas</label>
+                    <input
+                      v-model="formData.code"
+                      type="text"
+                      class="form-control bg-dark border-secondary-subtle text-white font-monospace text-uppercase"
+                      placeholder="Ej. TODOS_VS_TODOS, GOL_DIF"
+                    />
+                  </div>
+                  <div class="col-12">
+                    <label class="form-label text-secondary small fw-semibold">Observación / Regla Reglamentaria</label>
+                    <textarea
+                      v-model="formData.observation"
+                      class="form-control bg-dark border-secondary-subtle text-white"
+                      rows="3"
+                      placeholder="Detalle o descripción explicativa de esta opción reglamentaria..."
+                    ></textarea>
+                  </div>
+                  <div class="col-12">
+                    <div class="form-check form-switch mt-1">
+                      <input class="form-check-input" type="checkbox" v-model="formData.isActive" id="cat_is_active" />
+                      <label class="form-check-label text-white fw-semibold small ms-2" for="cat_is_active">
+                        Estado Activo / Habilitado por defecto
+                      </label>
+                    </div>
+                  </div>
+                </div>
           </div>
-        </div>
+
+          <div class="form-page-footer">
+            <button type="button" class="btn btn-outline-secondary rounded-pill px-4" @click="closeModal">Cancelar</button>
+            <button type="submit" class="btn btn-primary rounded-pill px-4 fw-semibold d-flex align-items-center gap-2" :disabled="saving || uploadingPhoto">
+              <span v-if="saving" class="spinner-grow spinner-grow-sm text-white" role="status"></span>
+              <iconify-icon v-else icon="solar:check-circle-line-duotone" class="fs-4"></iconify-icon>
+              <span>{{ isEditing ? 'Guardar Cambios' : `Registrar ${currentMeta.entityName}` }}</span>
+            </button>
+          </div>
+        </form>
       </div>
-    </Teleport>
+    </div>
   </div>
 </template>
 
 <script setup lang="ts">
 import { ref, computed, onMounted, watch } from 'vue';
-import { CampeonatoApi } from '@/services/campeonato.service';
+import { CampeonatoApi, uploadPlayerPhoto } from '@/services/campeonato.service';
 import { toast } from '@/utils/toastr';
 
 const props = defineProps<{
-  tab: 'referee_guilds' | 'global_referees' | 'player_classifications' | 'demarcations';
+  tab:
+    | 'referee_guilds'
+    | 'global_referees'
+    | 'player_classifications'
+    | 'demarcations'
+    | 'global_players'
+    | 'stage_formats'
+    | 'competition_types'
+    | 'competition_laps'
+    | 'tie_breaker_criteria';
+}>();
+
+const emit = defineEmits<{
+  (e: 'update:formOpen', val: boolean): void;
 }>();
 
 const items = ref<any[]>([]);
 const guildsList = ref<any[]>([]);
+const demarcationsList = ref<any[]>([]);
+const classificationsList = ref<any[]>([]);
 const loading = ref(false);
 const saving = ref(false);
+const uploadingPhoto = ref(false);
 const searchQuery = ref('');
 const showModal = ref(false);
+
+watch(showModal, (val) => {
+  emit('update:formOpen', val);
+});
 const isEditing = ref(false);
 const editingId = ref<string | null>(null);
 const formData = ref<Record<string, any>>({});
 
 const metaMap = {
+  global_players: {
+    title: 'Futbolistas',
+    subtitle: 'Registro centralizado de futbolistas del sistema. Cada jugador cuenta con una identidad única e histórica.',
+    entityName: 'Futbolista',
+    icon: 'solar:users-group-two-rounded-bold-duotone',
+  },
   referee_guilds: {
     title: 'Gremios y Núcleos Arbitrales',
     subtitle: 'Catálogo global de asociaciones, colegios y núcleos arbitrales registrados en el sistema.',
@@ -497,7 +1248,7 @@ const metaMap = {
     icon: 'solar:shield-star-bold-duotone',
   },
   global_referees: {
-    title: 'Padrón Global de Árbitros',
+    title: 'Árbitros',
     subtitle: 'Registro centralizado de jueces y colegiados deportivos para su asignación a campeonatos.',
     entityName: 'Árbitro',
     icon: 'solar:whistle-bold-duotone',
@@ -514,9 +1265,33 @@ const metaMap = {
     entityName: 'Demarcación',
     icon: 'solar:running-bold-duotone',
   },
+  stage_formats: {
+    title: 'Formatos de Disputa del Campeonato',
+    subtitle: 'Catálogo global de modalidades de juego (Todos contra Todos, Eliminación Directa, Grupos, Doble Eliminación).',
+    entityName: 'Formato de Disputa',
+    icon: 'solar:cup-first-bold-duotone',
+  },
+  competition_types: {
+    title: 'Tipos Principales de Competencia',
+    subtitle: 'Catálogo global de modalidades y sistemas de disputa deportiva (Todos contra Todos, Eliminación Directa, Grupos, Suizo).',
+    entityName: 'Tipo de Competencia',
+    icon: 'solar:cup-first-bold-duotone',
+  },
+  competition_laps: {
+    title: 'Vueltas y Modalidades de Juego',
+    subtitle: 'Catálogo global de ruedas y vueltas reglamentarias (Solo Ida, Ida y Vuelta, 3 Vueltas, etc.).',
+    entityName: 'Modalidad de Vueltas',
+    icon: 'solar:refresh-circle-bold-duotone',
+  },
+  tie_breaker_criteria: {
+    title: 'Criterios de Desempate del Campeonato',
+    subtitle: 'Catálogo global de criterios para dirimir empates en tablas y fases (Gol Diferencia, Penales, Sorteo, etc.).',
+    entityName: 'Criterio de Desempate',
+    icon: 'solar:scale-bold-duotone',
+  },
 };
 
-const currentMeta = computed(() => metaMap[props.tab] || metaMap.referee_guilds);
+const currentMeta = computed(() => metaMap[props.tab] || metaMap.global_players);
 
 const getZoneLabel = (zone: string) => {
   const map: Record<string, string> = {
@@ -528,12 +1303,68 @@ const getZoneLabel = (zone: string) => {
   return map[zone] || zone || 'General';
 };
 
+const calculateAge = (birthDateStr: string | null | undefined) => {
+  if (!birthDateStr) return null;
+  const bDate = new Date(birthDateStr);
+  if (isNaN(bDate.getTime())) return null;
+  const now = new Date();
+  let years = now.getFullYear() - bDate.getFullYear();
+  let months = (now.getFullYear() - bDate.getFullYear()) * 12 + (now.getMonth() - bDate.getMonth());
+  const mDiff = now.getMonth() - bDate.getMonth();
+  if (mDiff < 0 || (mDiff === 0 && now.getDate() < bDate.getDate())) {
+    years--;
+  }
+  if (now.getDate() < bDate.getDate()) {
+    months--;
+  }
+  return { years: Math.max(0, years), months: Math.max(0, months) };
+};
+
+const computedPlayerAge = computed(() => {
+  if (!formData.value.birthDate) return null;
+  return calculateAge(formData.value.birthDate);
+});
+
+const onBirthDateChange = () => {
+  const calc = calculateAge(formData.value.birthDate);
+  if (calc) {
+    formData.value.ageYears = calc.years;
+    formData.value.ageMonths = calc.months;
+  }
+};
+
+const onPhotoSelected = async (e: Event) => {
+  const file = (e.target as HTMLInputElement).files?.[0];
+  if (!file) return;
+  try {
+    uploadingPhoto.value = true;
+    const url = await uploadPlayerPhoto(file);
+    formData.value.photo = url;
+    toast.success('Foto cargada exitosamente');
+  } catch (err) {
+    console.error('Error al subir foto:', err);
+    toast.error('Error al procesar la fotografía');
+  } finally {
+    uploadingPhoto.value = false;
+  }
+};
+
 const loadData = async () => {
   try {
     loading.value = true;
     const query: any = { limit: 100, search: searchQuery.value.trim() || undefined };
 
-    if (props.tab === 'referee_guilds') {
+    if (props.tab === 'global_players') {
+      query.global = 'true';
+      const [plRes, dmRes, pcRes] = await Promise.all([
+        CampeonatoApi.players.list(query),
+        CampeonatoApi.demarcations.list({ limit: 100 }).catch(() => ({ data: { data: [] } })),
+        CampeonatoApi.playerClassifications.list({ limit: 100 }).catch(() => ({ data: { data: [] } })),
+      ]);
+      items.value = plRes.data?.data || [];
+      demarcationsList.value = dmRes.data?.data || [];
+      classificationsList.value = pcRes.data?.data || [];
+    } else if (props.tab === 'referee_guilds') {
       const res = await CampeonatoApi.refereeGuilds.list(query);
       items.value = res.data?.data || [];
     } else if (props.tab === 'global_referees') {
@@ -549,6 +1380,18 @@ const loadData = async () => {
       items.value = res.data?.data || [];
     } else if (props.tab === 'demarcations') {
       const res = await CampeonatoApi.demarcations.list(query);
+      items.value = res.data?.data || [];
+    } else if (props.tab === 'stage_formats') {
+      const res = await CampeonatoApi.stageFormats.list(query);
+      items.value = res.data?.data || [];
+    } else if (props.tab === 'competition_types') {
+      const res = await CampeonatoApi.competitionTypes.list(query);
+      items.value = res.data?.data || [];
+    } else if (props.tab === 'competition_laps') {
+      const res = await CampeonatoApi.competitionLaps.list(query);
+      items.value = res.data?.data || [];
+    } else if (props.tab === 'tie_breaker_criteria') {
+      const res = await CampeonatoApi.tieBreakerCriteria.list(query);
       items.value = res.data?.data || [];
     }
   } catch (err) {
@@ -570,7 +1413,26 @@ const onSearchInput = () => {
 const openCreateModal = async () => {
   isEditing.value = false;
   editingId.value = null;
-  if (props.tab === 'global_referees') {
+
+  if (props.tab === 'global_players') {
+    if (demarcationsList.value.length === 0 || classificationsList.value.length === 0) {
+      try {
+        const [dmRes, pcRes] = await Promise.all([
+          CampeonatoApi.demarcations.list({ limit: 100 }),
+          CampeonatoApi.playerClassifications.list({ limit: 100 }),
+        ]);
+        demarcationsList.value = dmRes.data?.data || [];
+        classificationsList.value = pcRes.data?.data || [];
+      } catch {}
+    }
+    formData.value = {
+      isActive: true,
+      dominantFoot: 'RIGHT',
+      demarcationId: '',
+      playerClassificationId: '',
+      passOwnerType: 'PLAYER',
+    };
+  } else if (props.tab === 'global_referees') {
     if (guildsList.value.length === 0) {
       try {
         const gRes = await CampeonatoApi.refereeGuilds.list({ limit: 100 });
@@ -580,6 +1442,31 @@ const openCreateModal = async () => {
     formData.value = { isActive: true, guildId: '' };
   } else if (props.tab === 'demarcations') {
     formData.value = { zone: 'DEFENDER', maxPlayers: 0, order: (items.value.length || 0) + 1 };
+  } else if (props.tab === 'stage_formats') {
+    formData.value = {
+      name: '',
+      formatType: 'EVERYONE_AGAINST_EVERYONE',
+      defaultLaps: 1,
+      defaultTieBreaker: 'PENALTIES',
+      requiresGroups: false,
+      isActive: true,
+      description: '',
+    };
+  } else if (props.tab === 'competition_laps') {
+    formData.value = {
+      description: '',
+      code: '',
+      numberOfLaps: 1,
+      observation: '',
+      isActive: true,
+    };
+  } else if (props.tab === 'competition_types' || props.tab === 'tie_breaker_criteria') {
+    formData.value = {
+      description: '',
+      code: '',
+      observation: '',
+      isActive: true,
+    };
   } else {
     formData.value = { isActive: true };
   }
@@ -590,6 +1477,14 @@ const openEditModal = (item: any) => {
   isEditing.value = true;
   editingId.value = item.id;
   formData.value = { ...item };
+  if (props.tab === 'global_players' && item.birthDate) {
+    formData.value.birthDate = String(item.birthDate).slice(0, 10);
+    const calc = calculateAge(formData.value.birthDate);
+    if (calc) {
+      formData.value.ageYears = calc.years;
+      formData.value.ageMonths = calc.months;
+    }
+  }
   showModal.value = true;
 };
 
@@ -608,8 +1503,28 @@ const submitForm = async () => {
     delete payload._id;
     delete payload.createdAt;
     delete payload.updatedAt;
+    delete payload.demarcation;
+    delete payload.playerClassification;
+    delete payload.guild;
 
-    if (props.tab === 'referee_guilds') {
+    if (props.tab === 'global_players') {
+      if (payload.birthDate) {
+        const calc = calculateAge(payload.birthDate);
+        if (calc) {
+          payload.ageYears = calc.years;
+          payload.ageMonths = calc.months;
+        }
+      }
+      if (!payload.code) delete payload.code;
+
+      if (isEditing.value && editingId.value) {
+        await CampeonatoApi.players.update(editingId.value, payload);
+        toast.success('Futbolista actualizado exitosamente');
+      } else {
+        await CampeonatoApi.players.create(payload);
+        toast.success('Futbolista registrado exitosamente');
+      }
+    } else if (props.tab === 'referee_guilds') {
       if (isEditing.value && editingId.value) {
         await CampeonatoApi.refereeGuilds.update(editingId.value, payload);
         toast.success('Gremio arbitral actualizado exitosamente');
@@ -623,7 +1538,7 @@ const submitForm = async () => {
         toast.success('Árbitro actualizado exitosamente');
       } else {
         await CampeonatoApi.referees.create(payload);
-        toast.success('Árbitro registrado en el Padrón Global exitosamente');
+        toast.success('Árbitro registrado exitosamente');
       }
     } else if (props.tab === 'player_classifications') {
       if (isEditing.value && editingId.value) {
@@ -641,6 +1556,38 @@ const submitForm = async () => {
         await CampeonatoApi.demarcations.create(payload);
         toast.success('Demarcación creada exitosamente');
       }
+    } else if (props.tab === 'stage_formats') {
+      if (isEditing.value && editingId.value) {
+        await CampeonatoApi.stageFormats.update(editingId.value, payload);
+        toast.success('Formato de disputa actualizado exitosamente');
+      } else {
+        await CampeonatoApi.stageFormats.create(payload);
+        toast.success('Formato de disputa creado exitosamente');
+      }
+    } else if (props.tab === 'competition_types') {
+      if (isEditing.value && editingId.value) {
+        await CampeonatoApi.competitionTypes.update(editingId.value, payload);
+        toast.success('Tipo de competencia actualizado exitosamente');
+      } else {
+        await CampeonatoApi.competitionTypes.create(payload);
+        toast.success('Tipo de competencia creado exitosamente');
+      }
+    } else if (props.tab === 'competition_laps') {
+      if (isEditing.value && editingId.value) {
+        await CampeonatoApi.competitionLaps.update(editingId.value, payload);
+        toast.success('Modalidad de vueltas actualizada exitosamente');
+      } else {
+        await CampeonatoApi.competitionLaps.create(payload);
+        toast.success('Modalidad de vueltas creada exitosamente');
+      }
+    } else if (props.tab === 'tie_breaker_criteria') {
+      if (isEditing.value && editingId.value) {
+        await CampeonatoApi.tieBreakerCriteria.update(editingId.value, payload);
+        toast.success('Criterio de desempate actualizado exitosamente');
+      } else {
+        await CampeonatoApi.tieBreakerCriteria.create(payload);
+        toast.success('Criterio de desempate creado exitosamente');
+      }
     }
 
     closeModal();
@@ -656,7 +1603,9 @@ const submitForm = async () => {
 const deleteItem = async (id: string, isGlobal = false) => {
   if (!confirm('¿Estás seguro de que deseas eliminar este registro del catálogo global?')) return;
   try {
-    if (props.tab === 'referee_guilds') {
+    if (props.tab === 'global_players') {
+      await CampeonatoApi.players.delete(id);
+    } else if (props.tab === 'referee_guilds') {
       await CampeonatoApi.refereeGuilds.delete(id);
     } else if (props.tab === 'global_referees') {
       await CampeonatoApi.referees.delete(id);
@@ -664,6 +1613,14 @@ const deleteItem = async (id: string, isGlobal = false) => {
       await CampeonatoApi.playerClassifications.delete(id);
     } else if (props.tab === 'demarcations') {
       await CampeonatoApi.demarcations.delete(id);
+    } else if (props.tab === 'stage_formats') {
+      await CampeonatoApi.stageFormats.delete(id);
+    } else if (props.tab === 'competition_types') {
+      await CampeonatoApi.competitionTypes.delete(id);
+    } else if (props.tab === 'competition_laps') {
+      await CampeonatoApi.competitionLaps.delete(id);
+    } else if (props.tab === 'tie_breaker_criteria') {
+      await CampeonatoApi.tieBreakerCriteria.delete(id);
     }
     toast.success('Registro eliminado exitosamente');
     loadData();
@@ -686,5 +1643,8 @@ onMounted(() => {
 <style scoped>
 .bg-navy-card {
   background: #111c2d;
+}
+.cursor-pointer {
+  cursor: pointer;
 }
 </style>

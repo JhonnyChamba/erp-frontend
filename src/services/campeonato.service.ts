@@ -573,6 +573,12 @@ export const TournamentTransferConfigsService = {
     api.put<any>(`/campeonato/tournament-transfer-configs/${editionId}`, data, withCompany(companyId)),
 };
 
+export const StageFormatsService = createCrudService<any>('stage-formats');
+export const StageTemplatesService = createCrudService<any>('stage-templates');
+export const CompetitionTypesService = createCrudService<any>('competition-types');
+export const CompetitionLapsService = createCrudService<any>('competition-laps');
+export const TieBreakerCriteriaService = createCrudService<any>('tie-breaker-criteria');
+
 export const CampeonatoApi = {
   positions: PositionsService,
   demarcations: DemarcationsService,
@@ -580,7 +586,12 @@ export const CampeonatoApi = {
   players: PlayersService,
   categories: CategoriesService,
   categoryEditions: CategoryEditionsService,
-  stages: StagesService,
+  stages: StageTemplatesService,
+  stageTemplates: StageTemplatesService,
+  stageFormats: StageFormatsService,
+  competitionTypes: CompetitionTypesService,
+  competitionLaps: CompetitionLapsService,
+  tieBreakerCriteria: TieBreakerCriteriaService,
   scenaries: ScenariesService,
   teamRegistrations: TeamRegistrationsService,
   playerRegistrations: PlayerRegistrationsService,
