@@ -41,8 +41,8 @@
 
 .select2-container-custom.is-open .select2-selection-custom,
 .select2-selection-custom:focus {
-  border-color: var(--bs-primary, #0085db);
-  box-shadow: 0 0 0 0.2rem rgba(var(--bs-primary-rgb, 0, 133, 219), 0.15);
+  border-color: #10b981;
+  box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.22);
   outline: 0;
 }
 
@@ -123,11 +123,11 @@
 @keyframes select2DropdownFadeIn {
   from {
     opacity: 0;
-    transform: translateY(-4px);
+    transform: translateY(-4px) scale(0.98);
   }
   to {
     opacity: 1;
-    transform: translateY(0);
+    transform: translateY(0) scale(1);
   }
 }
 

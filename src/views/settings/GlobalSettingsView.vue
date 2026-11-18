@@ -2696,14 +2696,6 @@ const toggleSidebar = () => {
     <!-- ENCABEZADO DE MÓDULO ESTANDARIZADO FACTURACIÓN Y VENTAS -->
     <div class="crud-page-header keep-in-form mb-4">
       <div>
-        <div class="d-flex align-items-center gap-2 mb-1">
-          <span class="badge bg-primary-subtle text-primary border border-primary-subtle px-2 py-1 fs-2 font-monospace">
-            MOD-006 · CONFIGURACIÓN
-          </span>
-          <span class="badge bg-danger-subtle text-danger border border-danger-subtle px-2 py-1 fs-2">
-            <iconify-icon icon="solar:crown-line-duotone" class="me-1"></iconify-icon>SUPER ADMIN
-          </span>
-        </div>
         <h2 class="crud-title mb-0 d-flex align-items-center gap-2">
           <iconify-icon :icon="currentActiveSubmodule.icon" class="text-primary"></iconify-icon>
           <span>{{ currentActiveSubmodule.label }}</span>

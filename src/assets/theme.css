@@ -4,9 +4,14 @@
    ========================================================================== */
 
 /* --------------------------------------------------------------------------
-   1. Tipografía y Base (Plus Jakarta Sans)
+   1. Tipografía y Base (Plus Jakarta Sans y Escala Compacta ERP)
    -------------------------------------------------------------------------- */
 @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap');
+
+html {
+  font-size: 80% !important;
+  -webkit-text-size-adjust: 100%;
+}
 
 body,
 #main-wrapper {
