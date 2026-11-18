@@ -439,7 +439,7 @@ onMounted(() => {
                 <th scope="col" class="text-center" style="width: 110px;">Serie</th>
                 <th scope="col" style="min-width: 220px;">Secuencias de Documentos</th>
                 <th scope="col" class="text-center" style="width: 110px;">Estado</th>
-                <th scope="col" class="text-end" style="min-width: 140px;">Acciones</th>
+                <th scope="col" class="text-end" style="width: 70px;">Acciones</th>
               </tr>
             </thead>
             <tbody>
@@ -504,14 +504,14 @@ onMounted(() => {
                 <td class="text-end">
                   <div class="dropdown">
                     <button
-                      class="btn bg-secondary-subtle text-secondary btn-sm dropdown-toggle d-inline-flex align-items-center gap-1 fw-semibold"
+                      class="btn btn-action-kebab"
                       type="button"
                       data-bs-toggle="dropdown"
-                      data-bs-popper-config='{"strategy":"fixed"}'
+                      data-bs-display="static"
                       aria-expanded="false"
+                      title="Acciones"
                     >
-                      <iconify-icon icon="solar:menu-dots-bold" class="fs-4"></iconify-icon>
-                      <span>Acciones</span>
+                      <iconify-icon icon="solar:menu-dots-vertical-bold" class="fs-4"></iconify-icon>
                     </button>
                     <ul class="dropdown-menu dropdown-menu-end shadow-lg py-1">
                       <!-- Configurar Secuencias -->

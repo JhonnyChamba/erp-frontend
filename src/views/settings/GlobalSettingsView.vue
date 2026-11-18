@@ -66,6 +66,7 @@ import { getMyProfile, type MyProfile } from '@/services/auth.service'
 import { useAuthStore } from '@/stores/auth.store'
 import { useThemeStore } from '@/stores/theme.store'
 import GlobalTournamentCatalogs from './components/GlobalTournamentCatalogs.vue'
+import ImageUpload from '@/components/common/ImageUpload.vue'
 
 const route = useRoute()
 const router = useRouter()
@@ -1414,7 +1415,7 @@ const platformSubmodules = [
 const sportsSubmodules = [
   { id: 'global_players', label: 'Futbolistas', subtitle: 'Base maestra de jugadores compartida para validación de fichajes y carnetización.', icon: 'solar:users-group-two-rounded-bold-duotone' },
   { id: 'referee_guilds', label: 'Gremios Arbitrales', subtitle: 'Gremios, asociaciones y colegios de árbitros del torneo.', icon: 'solar:shield-star-bold-duotone' },
-  { id: 'global_referees', label: 'Árbitros', subtitle: 'Nómina global de árbitros, jueces de línea y credenciales.', icon: 'solar:whistle-bold-duotone' },
+  { id: 'global_referees', label: 'Árbitros', subtitle: 'Nómina global de árbitros, jueces de línea y credenciales.', icon: 'solar:user-speak-bold-duotone' },
   { id: 'player_classifications', label: 'Clasif. Futbolistas', subtitle: 'Categorización de futbolistas (Libre, Exprofesional, Juvenil, etc.).', icon: 'solar:user-check-bold-duotone' },
   { id: 'demarcations', label: 'Demarcaciones', subtitle: 'Posiciones en el campo de juego (Arquero, Defensa, Volante, Delantero).', icon: 'solar:running-bold-duotone' },
   { id: 'competition_types', label: 'Tipos de Competencia', subtitle: 'Catálogo global de tipos principales de disputa (Todos contra Todos, Eliminación Directa, Grupos, Suizo).', icon: 'solar:cup-first-bold-duotone' },
@@ -1430,6 +1431,16 @@ const currentActiveSubmodule = computed(() => {
 
 const switchTab = (tab: any) => {
   activeTab.value = tab
+  showCompanyModal.value = false
+  showCompanySubscriptionModal.value = false
+  showBranchModal.value = false
+  showUserModal.value = false
+  showRoleModal.value = false
+  showModuleModal.value = false
+  showSubModuleModal.value = false
+  showPlanModal.value = false
+  showTaxModal.value = false
+  showDocTypeModal.value = false
   router.replace({ query: { ...route.query, tab } })
   loadCurrentTabData()
 }
@@ -2581,7 +2592,7 @@ const toggleSidebar = () => {
             @click="toggleSidebar"
             :title="isMiniSidebar ? 'Expandir menú lateral' : 'Colapsar menú lateral'"
           >
-            <iconify-icon :icon="isMiniSidebar ? 'solar:alt-arrow-right-line-duotone' : 'solar:sidebar-minimalistic-line-duotone'" class="fs-5 text-white"></iconify-icon>
+            <iconify-icon :icon="isMiniSidebar ? 'solar:alt-arrow-right-line-duotone' : 'solar:sidebar-minimalistic-line-duotone'" class="fs-5 text-secondary"></iconify-icon>
           </button>
         </div>
 
@@ -2597,7 +2608,7 @@ const toggleSidebar = () => {
               class="rounded-circle border border-primary border-3 mb-2 profile-avatar"
               style="object-fit: cover; transition: all 0.25s;"
             />
-            <h5 class="fw-bold mb-1 text-white hide-menu">{{ profileFullName }}</h5>
+            <h5 class="fw-bold mb-1 text-body-emphasis hide-menu">{{ profileFullName }}</h5>
             <span class="badge bg-danger-subtle text-danger border border-danger-subtle hide-menu">
               <iconify-icon icon="solar:crown-line-duotone" class="me-1"></iconify-icon>Super Administrador
             </span>
@@ -2655,34 +2666,34 @@ const toggleSidebar = () => {
     <div class="page-wrapper flex-grow-1" style="min-width: 0; min-height: 100vh;">
       <div class="body-wrapper p-3 p-md-4">
         <!-- Barra Superior Flotante -->
-        <div class="card rounded-4 border-0 shadow-sm p-3 mb-4 bg-navy-card d-flex flex-row justify-content-between align-items-center">
+        <div class="card rounded-4 border shadow-sm p-3 mb-4 bg-navy-card d-flex flex-row justify-content-between align-items-center">
           <div class="d-flex align-items-center gap-2">
             <button
               type="button"
-              class="btn btn-sm btn-outline-light p-1 d-flex align-items-center justify-content-center me-1"
+              class="btn btn-sm btn-outline-secondary p-1 d-flex align-items-center justify-content-center me-1"
               @click="toggleSidebar"
               :title="isMiniSidebar ? 'Expandir menú lateral' : 'Colapsar menú lateral'"
               style="width: 34px; height: 34px;"
             >
-              <iconify-icon :icon="isMiniSidebar ? 'solar:sidebar-minimalistic-line-duotone' : 'solar:hamburger-menu-linear'" class="fs-5 text-white"></iconify-icon>
+              <iconify-icon :icon="isMiniSidebar ? 'solar:sidebar-minimalistic-line-duotone' : 'solar:hamburger-menu-linear'" class="fs-5 text-body"></iconify-icon>
             </button>
             <span class="p-2 bg-primary-subtle text-primary rounded-3 d-inline-flex">
               <iconify-icon icon="solar:shield-user-bold-duotone" class="fs-6"></iconify-icon>
             </span>
             <div>
-              <h5 class="fw-bold text-white mb-0">Configuración General del Sistema</h5>
+              <h5 class="fw-bold text-body-emphasis mb-0">Configuración General del Sistema</h5>
               <small class="text-secondary">Administración maestra independiente de empresas del ERP</small>
             </div>
           </div>
           <div class="d-flex align-items-center gap-2">
             <button
               type="button"
-              class="btn btn-sm btn-outline-light rounded-circle p-2 d-flex align-items-center justify-content-center border-0"
+              class="btn btn-sm btn-outline-secondary rounded-circle p-2 d-flex align-items-center justify-content-center border-0"
               @click="themeStore.toggleTheme"
               :title="themeStore.themeMode === 'dark' ? 'Cambiar a modo claro' : 'Cambiar a modo oscuro'"
               style="width: 36px; height: 36px;"
             >
-              <iconify-icon :icon="themeStore.themeMode === 'dark' ? 'solar:sun-bold-duotone' : 'solar:moon-bold-duotone'" class="fs-5 text-white"></iconify-icon>
+              <iconify-icon :icon="themeStore.themeMode === 'dark' ? 'solar:sun-bold-duotone' : 'solar:moon-bold-duotone'" class="fs-5 text-body"></iconify-icon>
             </button>
             <router-link to="/companies?cambiar=true" class="btn btn-outline-secondary btn-sm rounded-pill px-3 py-1 d-flex align-items-center gap-1">
               <iconify-icon icon="solar:arrow-left-line-duotone"></iconify-icon>
@@ -2693,19 +2704,6 @@ const toggleSidebar = () => {
 
         <div class="crud-page settings-page" :class="{ 'form-open': isFormOpen }">
     
-    <!-- ENCABEZADO DE MÓDULO ESTANDARIZADO FACTURACIÓN Y VENTAS -->
-    <div class="crud-page-header keep-in-form mb-4">
-      <div>
-        <h2 class="crud-title mb-0 d-flex align-items-center gap-2">
-          <iconify-icon :icon="currentActiveSubmodule.icon" class="text-primary"></iconify-icon>
-          <span>{{ currentActiveSubmodule.label }}</span>
-        </h2>
-        <p class="crud-subtitle mb-0">
-          {{ currentActiveSubmodule.subtitle }}
-        </p>
-      </div>
-    </div>
-
     <!-- CONTENIDO DE LA PESTAÑA ACTIVA -->
 
     <!-- ======================================================== -->
@@ -2713,6 +2711,7 @@ const toggleSidebar = () => {
     <!-- ======================================================== -->
     <GlobalTournamentCatalogs
       v-if="['global_players', 'referee_guilds', 'global_referees', 'player_classifications', 'demarcations', 'stage_formats', 'competition_types', 'competition_laps', 'tie_breaker_criteria'].includes(activeTab)"
+      :key="activeTab"
       :tab="(activeTab as any)"
     />
 
@@ -2787,14 +2786,14 @@ const toggleSidebar = () => {
               <td class="text-end">
                 <div class="dropdown">
                   <button
-                    class="btn bg-secondary-subtle text-secondary btn-sm dropdown-toggle d-inline-flex align-items-center gap-1 fw-semibold"
+                    class="btn btn-action-kebab"
                     type="button"
                     data-bs-toggle="dropdown"
-                    data-bs-popper-config='{"strategy":"fixed"}'
+                    data-bs-display="static"
                     aria-expanded="false"
+                    title="Acciones"
                   >
-                    <iconify-icon icon="solar:menu-dots-bold" class="fs-4"></iconify-icon>
-                    <span>Acciones</span>
+                    <iconify-icon icon="solar:menu-dots-vertical-bold" class="fs-4"></iconify-icon>
                   </button>
                   <ul class="dropdown-menu dropdown-menu-end shadow-lg py-1">
                     <li>
@@ -2894,14 +2893,14 @@ const toggleSidebar = () => {
               <td class="text-end">
                 <div class="dropdown">
                   <button
-                    class="btn bg-secondary-subtle text-secondary btn-sm dropdown-toggle d-inline-flex align-items-center gap-1 fw-semibold"
+                    class="btn btn-action-kebab"
                     type="button"
                     data-bs-toggle="dropdown"
-                    data-bs-popper-config='{"strategy":"fixed"}'
+                    data-bs-display="static"
                     aria-expanded="false"
+                    title="Acciones"
                   >
-                    <iconify-icon icon="solar:menu-dots-bold" class="fs-4"></iconify-icon>
-                    <span>Acciones</span>
+                    <iconify-icon icon="solar:menu-dots-vertical-bold" class="fs-4"></iconify-icon>
                   </button>
                   <ul class="dropdown-menu dropdown-menu-end shadow-lg py-1">
                     <li>
@@ -3082,14 +3081,14 @@ const toggleSidebar = () => {
               <td class="text-end">
                 <div class="dropdown">
                   <button
-                    class="btn bg-secondary-subtle text-secondary btn-sm dropdown-toggle d-inline-flex align-items-center gap-1 fw-semibold"
+                    class="btn btn-action-kebab"
                     type="button"
                     data-bs-toggle="dropdown"
-                    data-bs-popper-config='{"strategy":"fixed"}'
+                    data-bs-display="static"
                     aria-expanded="false"
+                    title="Acciones"
                   >
-                    <iconify-icon icon="solar:menu-dots-bold" class="fs-4"></iconify-icon>
-                    <span>Acciones</span>
+                    <iconify-icon icon="solar:menu-dots-vertical-bold" class="fs-4"></iconify-icon>
                   </button>
                   <ul class="dropdown-menu dropdown-menu-end shadow-lg py-1">
                     <li>
@@ -3177,14 +3176,14 @@ const toggleSidebar = () => {
                 <td class="text-end">
                   <div class="dropdown">
                     <button
-                      class="btn bg-secondary-subtle text-secondary btn-sm dropdown-toggle d-inline-flex align-items-center gap-1 fw-semibold"
+                      class="btn btn-action-kebab"
                       type="button"
                       data-bs-toggle="dropdown"
-                      data-bs-popper-config='{"strategy":"fixed"}'
+                      data-bs-display="static"
                       aria-expanded="false"
+                      title="Acciones"
                     >
-                      <iconify-icon icon="solar:menu-dots-bold" class="fs-4"></iconify-icon>
-                      <span>Acciones</span>
+                      <iconify-icon icon="solar:menu-dots-vertical-bold" class="fs-4"></iconify-icon>
                     </button>
                     <ul class="dropdown-menu dropdown-menu-end shadow-lg py-1">
                       <li>
@@ -3296,14 +3295,14 @@ const toggleSidebar = () => {
                 <td class="text-end">
                   <div class="dropdown">
                     <button
-                      class="btn bg-secondary-subtle text-secondary btn-sm dropdown-toggle d-inline-flex align-items-center gap-1 fw-semibold"
+                      class="btn btn-action-kebab"
                       type="button"
                       data-bs-toggle="dropdown"
-                      data-bs-popper-config='{"strategy":"fixed"}'
+                      data-bs-display="static"
                       aria-expanded="false"
+                      title="Acciones"
                     >
-                      <iconify-icon icon="solar:menu-dots-bold" class="fs-4"></iconify-icon>
-                      <span>Acciones</span>
+                      <iconify-icon icon="solar:menu-dots-vertical-bold" class="fs-4"></iconify-icon>
                     </button>
                     <ul class="dropdown-menu dropdown-menu-end shadow-lg py-1">
                       <li>
@@ -3485,14 +3484,14 @@ const toggleSidebar = () => {
               <td class="text-end">
                 <div class="dropdown">
                   <button
-                    class="btn bg-secondary-subtle text-secondary btn-sm dropdown-toggle d-inline-flex align-items-center gap-1 fw-semibold"
+                    class="btn btn-action-kebab"
                     type="button"
                     data-bs-toggle="dropdown"
-                    data-bs-popper-config='{"strategy":"fixed"}'
+                    data-bs-display="static"
                     aria-expanded="false"
+                    title="Acciones"
                   >
-                    <iconify-icon icon="solar:menu-dots-bold" class="fs-4"></iconify-icon>
-                    <span>Acciones</span>
+                    <iconify-icon icon="solar:menu-dots-vertical-bold" class="fs-4"></iconify-icon>
                   </button>
                   <ul class="dropdown-menu dropdown-menu-end shadow-lg py-1">
                     <li>
@@ -3622,14 +3621,14 @@ const toggleSidebar = () => {
               <td class="text-end">
                 <div class="dropdown">
                   <button
-                    class="btn bg-secondary-subtle text-secondary btn-sm dropdown-toggle d-inline-flex align-items-center gap-1 fw-semibold"
+                    class="btn btn-action-kebab"
                     type="button"
                     data-bs-toggle="dropdown"
-                    data-bs-popper-config='{"strategy":"fixed"}'
+                    data-bs-display="static"
                     aria-expanded="false"
+                    title="Acciones"
                   >
-                    <iconify-icon icon="solar:menu-dots-bold" class="fs-4"></iconify-icon>
-                    <span>Acciones</span>
+                    <iconify-icon icon="solar:menu-dots-vertical-bold" class="fs-4"></iconify-icon>
                   </button>
                   <ul class="dropdown-menu dropdown-menu-end shadow-lg py-1">
                     <li>
@@ -3685,28 +3684,17 @@ const toggleSidebar = () => {
             </div>
             <form @submit.prevent="submitBranch">
               <div class="modal-body p-4">
-                <!-- LOGOTIPO DE LA SUCURSAL (SUPABASE STORAGE) -->
+                <!-- LOGOTIPO DE LA SUCURSAL (SOCCERADMIN STYLE - CROP & WEBP) -->
                 <div class="mb-4">
-                  <div class="p-3 rounded-3 border border-secondary-subtle bg-dark-subtle d-flex flex-wrap align-items-center justify-content-between gap-3">
-                    <div class="d-flex align-items-center gap-3">
-                      <div class="rounded-3 border border-secondary-subtle bg-black d-flex align-items-center justify-content-center overflow-hidden" style="width: 80px; height: 80px;">
-                        <img v-if="branchLogoPreview" :src="branchLogoPreview" alt="Logo Sucursal" style="max-width: 100%; max-height: 100%; object-fit: contain;" />
-                        <iconify-icon v-else icon="solar:shop-2-bold-duotone" class="fs-9 text-secondary"></iconify-icon>
-                      </div>
-                      <div>
-                        <h6 class="text-white fw-bold mb-1">Logotipo Propio de la Sucursal</h6>
-                        <p class="text-secondary fs-2 mb-0">Prioridad #1 en la impresión RIDE. Si no se sube, se usará automáticamente el de la empresa.</p>
-                        <small class="text-white-50 fs-1">Formatos: PNG, JPG, WEBP, SVG (Máx. 5MB). Guardado en Supabase Storage.</small>
-                      </div>
-                    </div>
-                    <div>
-                      <label class="btn btn-outline-primary btn-sm rounded-pill px-3 cursor-pointer d-inline-flex align-items-center gap-2 mb-0">
-                        <iconify-icon icon="solar:upload-track-2-line-duotone" class="fs-4"></iconify-icon>
-                        <span>{{ branchLogoPreview ? 'Cambiar Logotipo' : 'Subir Logotipo' }}</span>
-                        <input type="file" accept="image/png,image/jpeg,image/webp,image/svg+xml" class="d-none" @change="onBranchLogoChange" />
-                      </label>
-                    </div>
-                  </div>
+                  <ImageUpload
+                    v-model="branchLogoPreview"
+                    @file="f => branchLogoFile = f"
+                    @remove="branchLogoFile = null; branchLogoPreview = ''"
+                    label="Logotipo Propio de la Sucursal"
+                    helpText="Prioridad #1 en RIDE. Si no se sube, se usará el de la empresa. Formatos: PNG, JPG, WEBP (se optimiza a WebP)."
+                    :aspect-ratio="1"
+                    crop-shape="rect"
+                  />
                 </div>
                 <div class="alert alert-info d-flex align-items-start gap-2 py-2 mb-4">
                   <iconify-icon icon="solar:info-circle-line-duotone" class="fs-5 mt-1"></iconify-icon>
@@ -3812,28 +3800,17 @@ const toggleSidebar = () => {
               <div class="modal-body p-4">
                 <!-- GENERAL -->
                 <div v-show="companyFormTab === 'general'" class="row g-3">
-                  <!-- LOGOTIPO DE LA EMPRESA (SUPABASE STORAGE) -->
+                  <!-- LOGOTIPO DE LA EMPRESA (SOCCERADMIN STYLE - CROP & WEBP) -->
                   <div class="col-12">
-                    <div class="p-3 rounded-3 border border-secondary-subtle bg-dark-subtle d-flex flex-wrap align-items-center justify-content-between gap-3">
-                      <div class="d-flex align-items-center gap-3">
-                        <div class="rounded-3 border border-secondary-subtle bg-black d-flex align-items-center justify-content-center overflow-hidden" style="width: 80px; height: 80px;">
-                          <img v-if="companyLogoPreview" :src="companyLogoPreview" alt="Logo Empresa" style="max-width: 100%; max-height: 100%; object-fit: contain;" />
-                          <iconify-icon v-else icon="solar:buildings-bold-duotone" class="fs-9 text-secondary"></iconify-icon>
-                        </div>
-                        <div>
-                          <h6 class="text-white fw-bold mb-1">Logotipo de la Empresa</h6>
-                          <p class="text-secondary fs-2 mb-0">Se mostrará en la impresión de facturas y notas de crédito (RIDE A4 y Ticket) de las sucursales sin logo propio.</p>
-                          <small class="text-white-50 fs-1">Formatos: PNG, JPG, WEBP, SVG (Máx. 5MB). Guardado en Supabase Storage.</small>
-                        </div>
-                      </div>
-                      <div>
-                        <label class="btn btn-outline-primary btn-sm rounded-pill px-3 cursor-pointer d-inline-flex align-items-center gap-2 mb-0">
-                          <iconify-icon icon="solar:upload-track-2-line-duotone" class="fs-4"></iconify-icon>
-                          <span>{{ companyLogoPreview ? 'Cambiar Logotipo' : 'Subir Logotipo' }}</span>
-                          <input type="file" accept="image/png,image/jpeg,image/webp,image/svg+xml" class="d-none" @change="onCompanyLogoChange" />
-                        </label>
-                      </div>
-                    </div>
+                    <ImageUpload
+                      v-model="companyLogoPreview"
+                      @file="f => companyLogoFile = f"
+                      @remove="companyLogoFile = null; companyLogoPreview = ''"
+                      label="Logotipo de la Empresa"
+                      helpText="Se mostrará en facturas y notas de crédito (RIDE A4 y Ticket). Formatos: PNG, JPG, WEBP (se optimiza a WebP)."
+                      :aspect-ratio="1"
+                      crop-shape="rect"
+                    />
                   </div>
                   <div class="col-md-6">
                     <label class="form-label text-secondary fs-2 fw-semibold">RUC *</label>
@@ -4459,27 +4436,17 @@ const toggleSidebar = () => {
           </div>
           <form @submit.prevent="submitUser">
             <div class="form-page-body">
-                <!-- FOTOGRAFÍA / AVATAR DEL USUARIO (SUPABASE STORAGE) -->
+                <!-- FOTOGRAFÍA / AVATAR DEL USUARIO (SOCCERADMIN STYLE - CROP & WEBP) -->
                 <div class="mb-4">
-                  <div class="p-3 rounded-3 border border-secondary-subtle bg-dark-subtle d-flex flex-wrap align-items-center justify-content-between gap-3">
-                    <div class="d-flex align-items-center gap-3">
-                      <div class="rounded-circle border border-primary border-2 bg-black d-flex align-items-center justify-content-center overflow-hidden" style="width: 72px; height: 72px;">
-                        <img :src="resolveAvatarUrl(userPhotoPreview || formUser.photo_url)" @error="handleAvatarError" alt="Foto Usuario" style="width: 100%; height: 100%; object-fit: cover;" />
-                      </div>
-                      <div>
-                        <h6 class="text-white fw-bold mb-1">Fotografía / Avatar del Usuario</h6>
-                        <p class="text-secondary fs-2 mb-0">Foto de perfil visible en la barra superior y pie lateral del sistema.</p>
-                        <small class="text-white-50 fs-1">Formatos: PNG, JPG, WEBP (Máx. 5MB). Guardado en Supabase Storage.</small>
-                      </div>
-                    </div>
-                    <div>
-                      <label class="btn btn-outline-primary btn-sm rounded-pill px-3 cursor-pointer d-inline-flex align-items-center gap-2 mb-0">
-                        <iconify-icon icon="solar:camera-line-duotone" class="fs-4"></iconify-icon>
-                        <span>{{ userPhotoPreview ? 'Cambiar Foto' : 'Subir Foto' }}</span>
-                        <input type="file" accept="image/png,image/jpeg,image/webp" class="d-none" @change="onUserPhotoChange" />
-                      </label>
-                    </div>
-                  </div>
+                  <ImageUpload
+                    v-model="userPhotoPreview"
+                    @file="f => userPhotoFile = f"
+                    @remove="userPhotoFile = null; userPhotoPreview = ''"
+                    label="Fotografía / Avatar del Usuario"
+                    helpText="Foto de perfil visible en barra superior y pie lateral. Recorte circular 1:1."
+                    :aspect-ratio="1"
+                    crop-shape="round"
+                  />
                 </div>
                 <div class="row">
                   <div class="col-md-6 mb-3">
@@ -5633,8 +5600,20 @@ const toggleSidebar = () => {
 
 <style scoped>
 .bg-navy-card {
+  background-color: var(--bs-card-bg, #0d182e) !important;
+  border: 1px solid var(--bs-border-color, rgba(255, 255, 255, 0.05)) !important;
+}
+
+[data-bs-theme="dark"] .bg-navy-card {
   background-color: #0d182e !important;
   border: 1px solid rgba(255, 255, 255, 0.05) !important;
+}
+
+[data-bs-theme="light"] .bg-navy-card {
+  background-color: #ffffff !important;
+  border: 1px solid #e6ecf1 !important;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.05) !important;
+  color: #2a3547 !important;
 }
 
 .hover-tab:hover {

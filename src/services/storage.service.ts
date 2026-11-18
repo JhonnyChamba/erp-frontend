@@ -31,3 +31,23 @@ export async function uploadUserPhoto(userId: number, file: File): Promise<Uploa
   return res.data
 }
 
+export async function uploadTeamLogo(file: File, companyId?: number): Promise<UploadResponse> {
+  const formData = new FormData()
+  formData.append('file', file)
+  const q = companyId ? `?companyId=${companyId}` : ''
+  const res = await api.post<UploadResponse>(`/storage/team-logo${q}`, formData, {
+    headers: { 'Content-Type': 'multipart/form-data' },
+  })
+  return res.data
+}
+
+export async function uploadPlayerPhoto(file: File, companyId?: number): Promise<UploadResponse> {
+  const formData = new FormData()
+  formData.append('file', file)
+  const q = companyId ? `?companyId=${companyId}` : ''
+  const res = await api.post<UploadResponse>(`/storage/player-photo${q}`, formData, {
+    headers: { 'Content-Type': 'multipart/form-data' },
+  })
+  return res.data
+}
+

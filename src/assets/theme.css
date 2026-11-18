@@ -375,6 +375,12 @@ html[data-card="shadow"] .bg-navy-card {
     backdrop-filter: blur(2px);
     z-index: 1055 !important;
   }
+
+  .container-fluid,
+  .body-wrapper > .container-fluid {
+    padding-left: 0.75rem !important;
+    padding-right: 0.75rem !important;
+  }
 }
 
 /* Logo en el sidebar */

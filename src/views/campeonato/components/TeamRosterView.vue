@@ -127,7 +127,7 @@
               <th>Clasificación</th>
               <th>Carnet</th>
               <th class="text-center">Estado</th>
-              <th class="text-end" style="width: 140px;">Acciones</th>
+              <th class="text-end" style="width: 70px;">Acciones</th>
             </tr>
           </thead>
           <tbody>
@@ -194,9 +194,15 @@
               </td>
               <td class="text-end">
                 <div class="dropdown">
-                  <button class="btn bg-secondary-subtle text-secondary btn-sm dropdown-toggle" type="button" data-bs-toggle="dropdown">
-                    <iconify-icon icon="solar:menu-dots-bold"></iconify-icon>
-                    <span>Acciones</span>
+                  <button
+                    class="btn btn-action-kebab"
+                    type="button"
+                    data-bs-toggle="dropdown"
+                    data-bs-display="static"
+                    aria-expanded="false"
+                    title="Acciones"
+                  >
+                    <iconify-icon icon="solar:menu-dots-vertical-bold" class="fs-4"></iconify-icon>
                   </button>
                   <ul class="dropdown-menu dropdown-menu-end shadow-sm">
                     <li v-if="item.status === 'PENDING_APPROVAL'">

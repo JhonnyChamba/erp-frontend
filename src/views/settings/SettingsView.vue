@@ -2,6 +2,7 @@
 import { ref, onMounted, onUnmounted, computed, watch, nextTick } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { toast } from '@/utils/toastr'
+import { compressImageToWebP } from '@/utils/image-processor'
 import {
   getCompanies,
   createCompany,
@@ -77,49 +78,67 @@ const branchLogoPreview = ref<string>('')
 const userPhotoFile = ref<File | null>(null)
 const userPhotoPreview = ref<string>('')
 
-const onCompanyLogoChange = (e: Event) => {
+const onCompanyLogoChange = async (e: Event) => {
   const file = (e.target as HTMLInputElement).files?.[0]
   if (!file) return
   if (!/^image\/(png|jpe?g|webp|svg\+xml)$/i.test(file.type)) {
     toast.error('Formato no permitido. Solo se aceptan imágenes (PNG, JPG, WEBP, SVG).')
     return
   }
-  if (file.size > 5 * 1024 * 1024) {
-    toast.error('El tamaño de la imagen no puede superar 5MB.')
+  if (file.size > 10 * 1024 * 1024) {
+    toast.error('El tamaño de la imagen no puede superar 10MB.')
     return
   }
-  companyLogoFile.value = file
-  companyLogoPreview.value = URL.createObjectURL(file)
+  try {
+    const { file: compressed, previewUrl } = await compressImageToWebP(file, { maxWidth: 1000, maxHeight: 1000, quality: 0.85 })
+    companyLogoFile.value = compressed
+    companyLogoPreview.value = previewUrl
+  } catch {
+    companyLogoFile.value = file
+    companyLogoPreview.value = URL.createObjectURL(file)
+  }
 }
 
-const onBranchLogoChange = (e: Event) => {
+const onBranchLogoChange = async (e: Event) => {
   const file = (e.target as HTMLInputElement).files?.[0]
   if (!file) return
   if (!/^image\/(png|jpe?g|webp|svg\+xml)$/i.test(file.type)) {
     toast.error('Formato no permitido. Solo se aceptan imágenes (PNG, JPG, WEBP, SVG).')
     return
   }
-  if (file.size > 5 * 1024 * 1024) {
-    toast.error('El tamaño de la imagen no puede superar 5MB.')
+  if (file.size > 10 * 1024 * 1024) {
+    toast.error('El tamaño de la imagen no puede superar 10MB.')
     return
   }
-  branchLogoFile.value = file
-  branchLogoPreview.value = URL.createObjectURL(file)
+  try {
+    const { file: compressed, previewUrl } = await compressImageToWebP(file, { maxWidth: 1000, maxHeight: 1000, quality: 0.85 })
+    branchLogoFile.value = compressed
+    branchLogoPreview.value = previewUrl
+  } catch {
+    branchLogoFile.value = file
+    branchLogoPreview.value = URL.createObjectURL(file)
+  }
 }
 
-const onUserPhotoChange = (e: Event) => {
+const onUserPhotoChange = async (e: Event) => {
   const file = (e.target as HTMLInputElement).files?.[0]
   if (!file) return
   if (!/^image\/(png|jpe?g|webp|svg\+xml)$/i.test(file.type)) {
     toast.error('Formato no permitido. Solo se aceptan imágenes (PNG, JPG, WEBP, SVG).')
     return
   }
-  if (file.size > 5 * 1024 * 1024) {
-    toast.error('El tamaño de la imagen no puede superar 5MB.')
+  if (file.size > 10 * 1024 * 1024) {
+    toast.error('El tamaño de la imagen no puede superar 10MB.')
     return
   }
-  userPhotoFile.value = file
-  userPhotoPreview.value = URL.createObjectURL(file)
+  try {
+    const { file: compressed, previewUrl } = await compressImageToWebP(file, { maxWidth: 600, maxHeight: 600, quality: 0.85 })
+    userPhotoFile.value = compressed
+    userPhotoPreview.value = previewUrl
+  } catch {
+    userPhotoFile.value = file
+    userPhotoPreview.value = URL.createObjectURL(file)
+  }
 }
 
 // Paleta de colores de temas (Spike Admin)
@@ -2049,14 +2068,14 @@ const submitSubscription = async () => {
               <td class="text-end">
                 <div class="dropdown">
                   <button
-                    class="btn bg-secondary-subtle text-secondary btn-sm dropdown-toggle d-inline-flex align-items-center gap-1 fw-semibold"
+                    class="btn btn-action-kebab"
                     type="button"
                     data-bs-toggle="dropdown"
-                    data-bs-popper-config='{"strategy":"fixed"}'
+                    data-bs-display="static"
                     aria-expanded="false"
+                    title="Acciones"
                   >
-                    <iconify-icon icon="solar:menu-dots-bold" class="fs-4"></iconify-icon>
-                    <span>Acciones</span>
+                    <iconify-icon icon="solar:menu-dots-vertical-bold" class="fs-4"></iconify-icon>
                   </button>
                   <ul class="dropdown-menu dropdown-menu-end shadow-lg py-1">
                     <li>
@@ -2177,14 +2196,14 @@ const submitSubscription = async () => {
               <td class="text-end">
                 <div class="dropdown">
                   <button
-                    class="btn bg-secondary-subtle text-secondary btn-sm dropdown-toggle d-inline-flex align-items-center gap-1 fw-semibold"
+                    class="btn btn-action-kebab"
                     type="button"
                     data-bs-toggle="dropdown"
-                    data-bs-popper-config='{"strategy":"fixed"}'
+                    data-bs-display="static"
                     aria-expanded="false"
+                    title="Acciones"
                   >
-                    <iconify-icon icon="solar:menu-dots-bold" class="fs-4"></iconify-icon>
-                    <span>Acciones</span>
+                    <iconify-icon icon="solar:menu-dots-vertical-bold" class="fs-4"></iconify-icon>
                   </button>
                   <ul class="dropdown-menu dropdown-menu-end shadow-lg py-1">
                     <li>
@@ -2285,14 +2304,14 @@ const submitSubscription = async () => {
               <td class="text-end">
                 <div class="dropdown">
                   <button
-                    class="btn bg-secondary-subtle text-secondary btn-sm dropdown-toggle d-inline-flex align-items-center gap-1 fw-semibold"
+                    class="btn btn-action-kebab"
                     type="button"
                     data-bs-toggle="dropdown"
-                    data-bs-popper-config='{"strategy":"fixed"}'
+                    data-bs-display="static"
                     aria-expanded="false"
+                    title="Acciones"
                   >
-                    <iconify-icon icon="solar:menu-dots-bold" class="fs-4"></iconify-icon>
-                    <span>Acciones</span>
+                    <iconify-icon icon="solar:menu-dots-vertical-bold" class="fs-4"></iconify-icon>
                   </button>
                   <ul class="dropdown-menu dropdown-menu-end shadow-lg py-1">
                     <li v-if="!role.is_company_admin">
@@ -3584,8 +3603,20 @@ const submitSubscription = async () => {
 
 <style scoped>
 .bg-navy-card {
+  background-color: var(--bs-card-bg, #0d182e) !important;
+  border: 1px solid var(--bs-border-color, rgba(255, 255, 255, 0.05)) !important;
+}
+
+[data-bs-theme="dark"] .bg-navy-card {
   background-color: #0d182e !important;
   border: 1px solid rgba(255, 255, 255, 0.05) !important;
+}
+
+[data-bs-theme="light"] .bg-navy-card {
+  background-color: #ffffff !important;
+  border: 1px solid #e6ecf1 !important;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.05) !important;
+  color: #2a3547 !important;
 }
 
 .hover-tab:hover {

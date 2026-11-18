@@ -251,14 +251,14 @@ onUnmounted(() => {
                 <td class="text-end">
                   <div class="dropdown">
                     <button
-                      class="btn bg-secondary-subtle text-secondary btn-sm dropdown-toggle d-inline-flex align-items-center gap-1 fw-semibold"
+                      class="btn btn-action-kebab"
                       type="button"
                       data-bs-toggle="dropdown"
-                      data-bs-popper-config='{"strategy":"fixed"}'
+                      data-bs-display="static"
                       aria-expanded="false"
+                      title="Acciones"
                     >
-                      <iconify-icon icon="solar:menu-dots-bold" class="fs-4"></iconify-icon>
-                      <span>Acciones</span>
+                      <iconify-icon icon="solar:menu-dots-vertical-bold" class="fs-4"></iconify-icon>
                     </button>
                     <ul class="dropdown-menu dropdown-menu-end shadow-lg py-1">
                       <li>
@@ -359,7 +359,16 @@ onUnmounted(() => {
 
 <style scoped>
 .bg-navy-card {
+  background-color: var(--bs-card-bg, #0d182e) !important;
+}
+[data-bs-theme="dark"] .bg-navy-card {
   background-color: #0d182e !important;
+}
+[data-bs-theme="light"] .bg-navy-card {
+  background-color: #ffffff !important;
+  border: 1px solid #e6ecf1 !important;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.05) !important;
+  color: #2a3547 !important;
 }
 .form-page-card {
   width: 100%;

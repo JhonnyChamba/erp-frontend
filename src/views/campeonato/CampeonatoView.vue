@@ -119,7 +119,7 @@
               <th scope="col">Tiempos Oficiales</th>
               <th scope="col">Capacidad Semanal</th>
               <th scope="col" class="text-center">Estado</th>
-              <th scope="col" class="text-end" style="width: 140px;">Acciones</th>
+              <th scope="col" class="text-end" style="width: 70px;">Acciones</th>
             </tr>
           </thead>
           <tbody>
@@ -132,8 +132,8 @@
             </tr>
 
             <tr v-for="(item, idx) in schedulesListFiltered" :key="item.editionId || idx">
-              <td class="text-muted font-monospace">{{ idx + 1 }}</td>
-              <td>
+              <td class="text-muted font-monospace cell-index" data-label="#">{{ idx + 1 }}</td>
+              <td data-label="Edición del Campeonato">
                 <div class="d-flex align-items-center gap-2">
                   <div class="p-2 rounded-3 bg-primary-subtle text-primary">
                     <iconify-icon icon="solar:cup-first-bold" class="fs-4"></iconify-icon>
@@ -183,16 +183,17 @@
                   Activo
                 </span>
               </td>
-              <td class="text-end">
+              <td class="text-end cell-actions" data-label="Acciones">
                 <div class="dropdown">
                   <button
-                    class="btn bg-secondary-subtle text-secondary btn-sm dropdown-toggle d-inline-flex align-items-center gap-1"
+                    class="btn btn-action-kebab"
                     type="button"
                     data-bs-toggle="dropdown"
+                    data-bs-display="static"
                     aria-expanded="false"
+                    title="Acciones"
                   >
-                    <iconify-icon icon="solar:menu-dots-bold"></iconify-icon>
-                    <span>Acciones</span>
+                    <iconify-icon icon="solar:menu-dots-vertical-bold" class="fs-4"></iconify-icon>
                   </button>
                   <ul class="dropdown-menu dropdown-menu-end shadow-sm">
                     <li>
@@ -361,13 +362,14 @@
     <!-- 4. TABLA PRINCIPAL DE DATOS (ESTILO VENTAS)-->
     <!-- ========================================== -->
     <div v-else-if="!isFormOpen" class="crud-table-card">
-      <div class="table-responsive">
+      <!-- 4.A VISTA ESCRITORIO Y TABLET: TABLA DE DATOS (PANTALLAS >= 768px) -->
+      <div class="table-responsive d-none d-md-block">
         <table class="crud-table">
           <thead>
             <tr>
               <th scope="col" style="width: 70px;">#</th>
               <th v-for="col in columns" :key="col.key" scope="col">{{ col.label }}</th>
-              <th scope="col" class="text-end" style="width: 140px;">Acciones</th>
+              <th scope="col" class="text-end" style="width: 70px;">Acciones</th>
             </tr>
           </thead>
           <tbody>
@@ -391,8 +393,8 @@
             </tr>
 
             <tr v-for="(item, idx) in items" :key="item.id || idx">
-              <td class="text-muted font-monospace">{{ (page - 1) * limit + idx + 1 }}</td>
-              <td v-for="col in columns" :key="col.key">
+              <td class="text-muted font-monospace cell-index" data-label="#">{{ (page - 1) * limit + idx + 1 }}</td>
+              <td v-for="col in columns" :key="col.key" :data-label="col.label" :class="'col-' + col.key">
                 <!-- Nombre de Equipo con Escudo / Logo -->
                 <div v-if="activeTab === 'teams' && col.key === 'name'" class="d-flex align-items-center gap-2">
                   <img
@@ -794,17 +796,17 @@
                   {{ getNestedValue(item, col.key) || '-' }}
                 </span>
               </td>
-              <td class="text-end">
+              <td class="text-end cell-actions" data-label="Acciones">
                 <div class="dropdown">
                   <button
-                    class="btn bg-secondary-subtle text-secondary btn-sm dropdown-toggle d-inline-flex align-items-center gap-1 fw-semibold"
+                    class="btn btn-action-kebab"
                     type="button"
                     data-bs-toggle="dropdown"
-                    data-bs-popper-config='{"strategy":"fixed"}'
+                    data-bs-display="static"
                     aria-expanded="false"
+                    title="Acciones"
                   >
-                    <iconify-icon icon="solar:menu-dots-bold" class="fs-4"></iconify-icon>
-                    <span>Acciones</span>
+                    <iconify-icon icon="solar:menu-dots-vertical-bold" class="fs-4"></iconify-icon>
                   </button>
                   <ul class="dropdown-menu dropdown-menu-end shadow-lg py-1">
                     <!-- Acciones para Transferencias de Jugadores -->
@@ -920,6 +922,248 @@
         </table>
       </div>
 
+      <!-- 4.B VISTA MÓVIL EN TARJETAS (ESTILO SOCCERADMINEC - PANTALLAS < 768px) -->
+      <div class="d-block d-md-none p-2">
+        <div v-if="loading" class="text-center py-5">
+          <div class="d-flex align-items-center justify-content-center gap-2 mb-2">
+            <div class="spinner-grow text-primary" role="status"><span class="visually-hidden">Cargando...</span></div>
+            <div class="spinner-grow text-info" role="status"><span class="visually-hidden">Cargando...</span></div>
+            <div class="spinner-grow text-secondary" role="status"><span class="visually-hidden">Cargando...</span></div>
+          </div>
+          <span class="text-secondary small">Cargando registros de {{ activeTabLabel }}...</span>
+        </div>
+
+        <div v-else-if="items.length === 0" class="text-center py-5 text-secondary card border rounded-4 p-4 bg-body-tertiary">
+          <iconify-icon icon="solar:box-minimalistic-line-duotone" class="fs-8 text-secondary mb-2 d-block"></iconify-icon>
+          <p class="mb-1 fw-semibold text-body-emphasis">No se encontraron registros en {{ activeTabLabel }}</p>
+          <p class="mb-0 fs-2 text-muted">Haz clic en <strong>+ Nuevo {{ activeTabLabel }}</strong> para registrar el primero.</p>
+        </div>
+
+        <div v-else class="crud-mobile-cards-view">
+          <div
+            v-for="(item, idx) in items"
+            :key="item.id || idx"
+            class="crud-mobile-card"
+          >
+            <!-- Cabecera de la tarjeta: Identificador + Entidad principal + Menú Acciones -->
+            <div class="crud-mobile-card-header">
+              <div class="d-flex align-items-center gap-2.5 min-w-0 flex-grow-1">
+                <!-- Escudo de equipo o foto de jugador -->
+                <img
+                  v-if="activeTab === 'teams' && item.logo"
+                  :src="item.logo"
+                  alt="Escudo"
+                  class="rounded-3 shadow-sm border border-secondary-subtle flex-shrink-0"
+                  style="width: 44px; height: 44px; object-fit: cover;"
+                />
+                <img
+                  v-else-if="activeTab === 'players' && item.photo"
+                  :src="item.photo"
+                  alt="Foto"
+                  class="rounded-circle shadow-sm border border-primary flex-shrink-0"
+                  style="width: 44px; height: 44px; object-fit: cover;"
+                />
+                <div
+                  v-else-if="activeTab === 'teams'"
+                  class="rounded-3 bg-secondary-subtle text-secondary d-flex align-items-center justify-content-center flex-shrink-0"
+                  style="width: 44px; height: 44px;"
+                >
+                  <iconify-icon icon="solar:shield-bold-duotone" class="fs-2 text-secondary"></iconify-icon>
+                </div>
+                <div
+                  v-else-if="activeTab === 'players'"
+                  class="rounded-circle bg-secondary-subtle text-secondary d-flex align-items-center justify-content-center flex-shrink-0"
+                  style="width: 44px; height: 44px;"
+                >
+                  <iconify-icon icon="solar:user-bold-duotone" class="fs-2 text-secondary"></iconify-icon>
+                </div>
+
+                <div class="min-w-0 flex-grow-1">
+                  <div class="d-flex align-items-center gap-1.5 mb-0.5">
+                    <span class="badge bg-secondary-subtle text-body-secondary font-monospace fw-bold" style="font-size: 0.65rem;">
+                      #{{ (page - 1) * limit + idx + 1 }}
+                    </span>
+                    <span class="text-uppercase fw-bold text-secondary font-monospace" style="font-size: 0.62rem; letter-spacing: 0.05em;">
+                      {{ activeTabLabel }}
+                    </span>
+                  </div>
+
+                  <!-- Título principal -->
+                  <div class="fw-bold text-body-emphasis fs-3 text-truncate">
+                    {{ item.name || item.fullName || (item.player ? item.player.name : '') || getNestedValue(item, columns[0]?.key) || '-' }}
+                  </div>
+
+                  <!-- Subtítulo complementario -->
+                  <div v-if="activeTab === 'teams' && item.shortName" class="text-muted fs-1 text-truncate">
+                    {{ item.shortName }}
+                  </div>
+                  <div v-else-if="activeTab === 'players' && (item.documentNumber || item.idCard)" class="text-muted fs-1 font-monospace">
+                    CI: {{ item.documentNumber || item.idCard }}
+                  </div>
+                </div>
+              </div>
+
+              <!-- Menú de Acciones ⋮ estilo SoccerAdmin -->
+              <div class="dropdown flex-shrink-0">
+                <button
+                  class="btn btn-action-kebab"
+                  type="button"
+                  data-bs-toggle="dropdown"
+                  data-bs-display="static"
+                  aria-expanded="false"
+                  title="Acciones"
+                >
+                  <iconify-icon icon="solar:menu-dots-vertical-bold" class="fs-4 text-body-emphasis"></iconify-icon>
+                </button>
+                <ul class="dropdown-menu dropdown-menu-end shadow-lg py-1">
+                  <!-- Acciones para Transferencias de Jugadores -->
+                  <li v-if="activeTab === 'playerTransfers'">
+                    <a class="dropdown-item py-2 text-warning d-flex align-items-center gap-2" href="javascript:void(0)" @click="openTransferDetail(item)">
+                      <iconify-icon icon="solar:document-text-bold-duotone" class="fs-5 text-warning"></iconify-icon>
+                      <span>Ver Expediente / Firmas</span>
+                    </a>
+                  </li>
+                  <li v-if="activeTab === 'playerTransfers'">
+                    <a class="dropdown-item py-2 text-primary d-flex align-items-center gap-2" href="javascript:void(0)" @click="openSportsHistory(item.playerId || item.player?.id)">
+                      <iconify-icon icon="solar:history-bold-duotone" class="fs-5 text-primary"></iconify-icon>
+                      <span>Historial Deportivo</span>
+                    </a>
+                  </li>
+                  <li v-if="activeTab === 'playerTransfers'"><hr class="dropdown-divider"></li>
+
+                  <!-- Ver Carnet QR y Ficha si es inscripción de jugador -->
+                  <li v-if="activeTab === 'playerRegistrations'">
+                    <a class="dropdown-item py-2 text-info d-flex align-items-center gap-2" href="javascript:void(0)" @click="openCarnetModal(item)">
+                      <iconify-icon icon="solar:card-2-bold-duotone" class="fs-5 text-info"></iconify-icon>
+                      <span>Ver Carnet (QR)</span>
+                    </a>
+                  </li>
+                  <li v-if="activeTab === 'playerRegistrations'">
+                    <a class="dropdown-item py-2 text-info d-flex align-items-center gap-2" href="javascript:void(0)" @click="openRosterForTeamReg(item.teamRegistrationId)">
+                      <iconify-icon icon="solar:clipboard-list-bold-duotone" class="fs-5 text-info"></iconify-icon>
+                      <span>Ver Plantilla del Club</span>
+                    </a>
+                  </li>
+                  <li v-if="activeTab === 'playerRegistrations'">
+                    <a class="dropdown-item py-2 text-primary d-flex align-items-center gap-2" href="javascript:void(0)" @click="openSportsHistory(item.playerId || item.player?.id)">
+                      <iconify-icon icon="solar:history-bold-duotone" class="fs-5 text-primary"></iconify-icon>
+                      <span>Historial Deportivo</span>
+                    </a>
+                  </li>
+                  <li v-if="activeTab === 'playerRegistrations'"><hr class="dropdown-divider"></li>
+
+                  <!-- Reglas de Pases en Ediciones de Torneo -->
+                  <li v-if="activeTab === 'categoryEditions'">
+                    <a class="dropdown-item py-2 text-warning d-flex align-items-center gap-2" href="javascript:void(0)" @click="openTransferConfig(item)">
+                      <iconify-icon icon="solar:settings-bold-duotone" class="fs-5 text-warning"></iconify-icon>
+                      <span>Reglas de Inscripción y Pases</span>
+                    </a>
+                  </li>
+                  <li v-if="activeTab === 'categoryEditions'"><hr class="dropdown-divider"></li>
+
+                  <!-- Acciones directas desde la fila de Equipos -->
+                  <li v-if="activeTab === 'teams'">
+                    <a class="dropdown-item py-2 text-warning d-flex align-items-center gap-2" href="javascript:void(0)" @click="openTeamManagementModal(item)">
+                      <iconify-icon icon="solar:users-group-rounded-bold-duotone" class="fs-5 text-warning"></iconify-icon>
+                      <span>Directorio del Club</span>
+                    </a>
+                  </li>
+                  <li v-if="activeTab === 'teams'">
+                    <a class="dropdown-item py-2 text-primary d-flex align-items-center gap-2" href="javascript:void(0)" @click="openTeamCategoryHistory(item)">
+                      <iconify-icon icon="solar:history-bold-duotone" class="fs-5 text-primary"></iconify-icon>
+                      <span>Historial de Categorías</span>
+                    </a>
+                  </li>
+                  <li v-if="activeTab === 'teams'">
+                    <a class="dropdown-item py-2 text-primary d-flex align-items-center gap-2" href="javascript:void(0)" @click="inscribeTeamToTorneo(item)">
+                      <iconify-icon icon="solar:diploma-verified-bold-duotone" class="fs-5 text-primary"></iconify-icon>
+                      <span>Inscribir en Torneo</span>
+                    </a>
+                  </li>
+                  <li v-if="activeTab === 'teams'">
+                    <a class="dropdown-item py-2 text-info d-flex align-items-center gap-2" href="javascript:void(0)" @click="viewTeamPlayers(item)">
+                      <iconify-icon icon="solar:users-group-two-rounded-bold-duotone" class="fs-5 text-info"></iconify-icon>
+                      <span>Ver Nómina y Carnets</span>
+                    </a>
+                  </li>
+                  <li v-if="activeTab === 'teams'"><hr class="dropdown-divider"></li>
+
+                  <!-- Acciones directas desde la fila de Jugadores -->
+                  <li v-if="activeTab === 'players'">
+                    <a class="dropdown-item py-2 text-info d-flex align-items-center gap-2" href="javascript:void(0)" @click="openTransferModal(item)">
+                      <iconify-icon icon="solar:transfer-horizontal-bold-duotone" class="fs-5 text-info"></iconify-icon>
+                      <span>Transferir Jugador</span>
+                    </a>
+                  </li>
+                  <li v-if="activeTab === 'players'">
+                    <a class="dropdown-item py-2 text-primary d-flex align-items-center gap-2" href="javascript:void(0)" @click="openPlayerTransfersModal(item)">
+                      <iconify-icon icon="solar:history-bold-duotone" class="fs-5 text-primary"></iconify-icon>
+                      <span>Historial de Pases</span>
+                    </a>
+                  </li>
+                  <li v-if="activeTab === 'players'"><hr class="dropdown-divider"></li>
+
+                  <!-- Editar -->
+                  <li>
+                    <a class="dropdown-item py-2 text-warning d-flex align-items-center gap-2" href="javascript:void(0)" @click="openEditForm(item)">
+                      <iconify-icon icon="solar:pen-new-square-line-duotone" class="fs-5 text-warning"></iconify-icon>
+                      <span>Editar</span>
+                    </a>
+                  </li>
+
+                  <!-- Separador -->
+                  <li><hr class="dropdown-divider"></li>
+
+                  <!-- Eliminar -->
+                  <li>
+                    <a class="dropdown-item py-2 text-danger d-flex align-items-center gap-2" href="javascript:void(0)" @click="confirmDelete(item.id)">
+                      <iconify-icon icon="solar:trash-bin-trash-line-duotone" class="fs-5 text-danger"></iconify-icon>
+                      <span>Eliminar</span>
+                    </a>
+                  </li>
+                </ul>
+              </div>
+            </div>
+
+            <!-- Rejilla de atributos clave (2 columnas responsivas estilo SoccerAdmin) -->
+            <div class="crud-mobile-card-grid">
+              <template v-for="col in columns" :key="col.key">
+                <div v-if="col.key !== 'name' && col.key !== 'fullName'" class="crud-mobile-field">
+                  <span class="crud-mobile-field-label">{{ col.label }}</span>
+                  <div class="crud-mobile-field-value">
+                    <!-- Estado Booleano -->
+                    <span v-if="col.type === 'boolean'" class="badge" :class="item[col.key] !== false ? 'bg-success-subtle text-success' : 'bg-danger-subtle text-danger'">
+                      {{ item[col.key] !== false ? 'Activo' : 'Inactivo' }}
+                    </span>
+                    <!-- Siglas con badge -->
+                    <span v-else-if="col.key === 'siglas' || col.key === 'acronym'" class="badge bg-secondary-subtle text-body-secondary font-monospace">
+                      {{ item[col.key] || '-' }}
+                    </span>
+                    <!-- Temporada / Año con badge -->
+                    <span v-else-if="col.key === 'season' || col.key === 'year'" class="badge bg-primary-subtle text-primary font-monospace">
+                      📅 {{ item[col.key] || '-' }}
+                    </span>
+                    <!-- Colores de club si aplica en nombre corto -->
+                    <div v-else-if="activeTab === 'teams' && col.key === 'shortName'" class="d-flex align-items-center gap-1.5">
+                      <span>{{ item.shortName || '-' }}</span>
+                      <div v-if="item.color1 || item.color2 || item.colorAlternate" class="d-inline-flex align-items-center gap-1" title="Colores">
+                        <span v-if="item.color1" class="rounded-circle border" :style="{ backgroundColor: item.color1, width: '10px', height: '10px' }"></span>
+                        <span v-if="item.color2" class="rounded-circle border" :style="{ backgroundColor: item.color2, width: '10px', height: '10px' }"></span>
+                        <span v-if="item.colorAlternate" class="rounded-circle border" :style="{ backgroundColor: item.colorAlternate, width: '10px', height: '10px' }"></span>
+                      </div>
+                    </div>
+                    <!-- Valor Genérico -->
+                    <span v-else>
+                      {{ getNestedValue(item, col.key) || '-' }}
+                    </span>
+                  </div>
+                </div>
+              </template>
+            </div>
+          </div>
+        </div>
+      </div>
+
       <!-- PAGINACIÓN -->
       <div v-if="totalPages > 1" class="d-flex justify-content-between align-items-center p-3 border-top border-dark-subtle">
         <span class="text-muted small">Total: {{ total }} registros (Pág. {{ page }} de {{ totalPages }})</span>
@@ -971,46 +1215,16 @@
         <!-- CUERPO DEL FORMULARIO -->
         <form @submit.prevent="saveForm">
           <div class="form-page-body">
-            <!-- SECCIÓN ESPECIAL: CARGA DE LOGO / ESCUDO PARA EQUIPOS -->
-            <div v-if="activeTab === 'teams'" class="card p-3 mb-4 border rounded-3 bg-body-tertiary">
-              <div class="d-flex align-items-center gap-3 flex-wrap">
-                <div class="position-relative">
-                  <img
-                    v-if="formData.logo"
-                    :src="formData.logo"
-                    alt="Escudo del Equipo"
-                    class="rounded-circle shadow-sm border border-2 border-primary"
-                    style="width: 85px; height: 85px; object-fit: cover;"
-                  />
-                  <div
-                    v-else
-                    class="rounded-circle bg-secondary-subtle text-secondary d-flex align-items-center justify-content-center shadow-sm border border-2 border-dashed"
-                    style="width: 85px; height: 85px;"
-                  >
-                    <iconify-icon icon="solar:shield-bold-duotone" class="fs-1 text-secondary"></iconify-icon>
-                  </div>
-                </div>
-                <div class="flex-grow-1">
-                  <h6 class="fw-bold mb-1 text-body-emphasis">Escudo / Logo Oficial del Equipo</h6>
-                  <p class="text-muted small mb-2">Carga el escudo oficial del club deportivo (PNG, JPG o WebP con fondo transparente o sólido).</p>
-                  <div class="d-flex align-items-center gap-2">
-                    <label class="btn btn-sm btn-primary rounded-pill px-3 cursor-pointer d-inline-flex align-items-center gap-1 mb-0">
-                      <iconify-icon icon="solar:camera-add-bold" class="fs-5"></iconify-icon>
-                      <span>{{ uploadingImage ? 'Procesando...' : (formData.logo ? 'Cambiar Escudo' : 'Cargar Escudo') }}</span>
-                      <input type="file" accept="image/*" class="d-none" @change="onTeamLogoSelected" :disabled="uploadingImage" />
-                    </label>
-                    <button
-                      v-if="formData.logo"
-                      type="button"
-                      class="btn btn-sm btn-outline-danger rounded-pill px-3 d-inline-flex align-items-center gap-1"
-                      @click="formData.logo = ''"
-                    >
-                      <iconify-icon icon="solar:trash-bin-trash-line-duotone" class="fs-5"></iconify-icon>
-                      <span>Quitar</span>
-                    </button>
-                  </div>
-                </div>
-              </div>
+            <!-- SECCIÓN ESPECIAL: CARGA DE LOGO / ESCUDO PARA EQUIPOS ESTILO SOCCERADMIN -->
+            <div v-if="activeTab === 'teams'" class="mb-4">
+              <ImageUpload
+                v-model="formData.logo"
+                label="Escudo / Logo Oficial del Equipo"
+                helpText="PNG, JPG o WEBP (con fondo transparente o sólido, recorte 1:1 automático)"
+                :aspect-ratio="1"
+                crop-shape="round"
+                :upload-fn="handleUploadTeamLogo"
+              />
             </div>
 
             
@@ -1040,62 +1254,20 @@
 
             
 
-            <!-- SECCIÓN ESPECIAL: CARGA DE FOTO PARA JUGADORES -->
-            <div v-if="activeTab === 'players'" class="card p-3 mb-4 border rounded-3 bg-body-tertiary">
-              <div class="d-flex align-items-center gap-3 flex-wrap">
-                <div class="position-relative">
-                  <img
-                    v-if="formData.photo"
-                    :src="formData.photo"
-                    alt="Foto del Jugador"
-                    class="rounded-3 shadow-sm border border-2 border-info"
-                    style="width: 80px; height: 100px; object-fit: cover;"
-                  />
-                  <div
-                    v-else
-                    class="rounded-3 bg-secondary-subtle text-secondary d-flex flex-column align-items-center justify-content-center shadow-sm border border-2 border-dashed"
-                    style="width: 80px; height: 100px;"
-                  >
-                    <iconify-icon icon="solar:user-bold-duotone" class="fs-1 text-secondary"></iconify-icon>
-                    <span class="fs-1 text-muted">Foto Carnet</span>
-                  </div>
-                </div>
-                <div class="flex-grow-1">
-                  <h6 class="fw-bold mb-1 text-body-emphasis">Foto Oficial del Jugador (Carnet Deportivo)</h6>
-                  <p class="text-muted small mb-2">Fotografía tamaño carnet con rostro visible para emisión de credenciales y validación QR.</p>
-                  <div class="d-flex align-items-center gap-2">
-                    <label
-                      class="btn btn-sm btn-info rounded-pill px-3 d-inline-flex align-items-center gap-1 text-white mb-0"
-                      :class="{ 'opacity-50 cursor-not-allowed': uploadingImage || (activeTab === 'players' && globalPlayerFound) }"
-                    >
-                      <iconify-icon icon="solar:camera-add-bold" class="fs-5"></iconify-icon>
-                      <span>{{ uploadingImage ? 'Procesando...' : (formData.photo ? 'Cambiar Foto' : 'Cargar Foto') }}</span>
-                      <input
-                        type="file"
-                        accept="image/*"
-                        class="d-none"
-                        @change="onPlayerPhotoSelected"
-                        :disabled="uploadingImage || (activeTab === 'players' && globalPlayerFound)"
-                      />
-                    </label>
-                    <button
-                      v-if="formData.photo && !(activeTab === 'players' && globalPlayerFound)"
-                      type="button"
-                      class="btn btn-sm btn-outline-danger rounded-pill px-3 d-inline-flex align-items-center gap-1"
-                      @click="formData.photo = ''"
-                    >
-                      <iconify-icon icon="solar:trash-bin-trash-line-duotone" class="fs-5"></iconify-icon>
-                      <span>Quitar</span>
-                    </button>
-                    <span
-                      v-if="activeTab === 'players' && globalPlayerFound"
-                      class="badge bg-secondary-subtle text-body-secondary border px-2 py-1 font-monospace"
-                    >
-                      🔒 Foto oficial
-                    </span>
-                  </div>
-                </div>
+            <!-- SECCIÓN ESPECIAL: CARGA DE FOTO PARA JUGADORES ESTILO SOCCERADMIN -->
+            <div v-if="activeTab === 'players'" class="mb-4">
+              <div v-if="globalPlayerFound" class="alert alert-secondary d-flex align-items-center gap-2 mb-2 py-2">
+                <iconify-icon icon="solar:lock-keyhole-bold" class="fs-5 text-secondary"></iconify-icon>
+                <span>Foto oficial vinculada al padrón global de futbolistas.</span>
               </div>
+              <ImageUpload
+                v-model="formData.photo"
+                label="Foto Oficial del Jugador (Carnet Deportivo)"
+                helpText="Fotografía tamaño carnet con rostro visible (recorte 1:1 o carnet)"
+                :aspect-ratio="0.8"
+                crop-shape="rect"
+                :upload-fn="handleUploadPlayerPhoto"
+              />
             </div>
 
             
@@ -1630,16 +1802,13 @@
 
             
 
-            <!-- Estado para Clasificación de Futbolistas: Activo por defecto al crear, editable al modificar -->
-            <div v-if="activeTab === 'playerClassifications'" class="mt-3">
-              <div v-if="isEditing" class="form-check form-switch">
+            <!-- Estado para Clasificación de Futbolistas: editable solo al modificar -->
+            <div v-if="activeTab === 'playerClassifications' && isEditing" class="mt-3">
+              <div class="form-check form-switch">
                 <input class="form-check-input" type="checkbox" v-model="formData.isActive" id="pc_is_active_edit" />
                 <label class="form-check-label text-body-emphasis fw-semibold small ms-2" for="pc_is_active_edit">
                   {{ formData.isActive ? 'Clasificación Habilitada / Activa' : 'Clasificación Deshabilitada / Inactiva' }}
                 </label>
-              </div>
-              <div v-else class="badge bg-success-subtle text-success border border-success-subtle px-3 py-2 fw-semibold">
-                ✓ Clasificación Habilitada / Activa por Defecto
               </div>
             </div>
 
@@ -1656,9 +1825,6 @@
                     <h6 class="fw-bold mb-0 text-body-emphasis">Ubicación en el Mapa (Calles y Puntos Cardinales)</h6>
                     <small class="text-muted">Haz clic en el mapa o busca un sector para fijar las calles y puntos cardinales oficiales de la cancha.</small>
                   </div>
-                </div>
-                <div v-if="!isEditing" class="badge bg-success-subtle text-success border border-success-subtle px-3 py-2 fw-semibold">
-                  ✓ Cancha Activa por Defecto
                 </div>
               </div>
 
@@ -1890,7 +2056,7 @@
             <div v-if="activeTab === 'categoryEditions'" class="card p-3 mt-4 border rounded-3 bg-body-tertiary">
               <div class="d-flex align-items-center justify-content-between mb-3 flex-wrap gap-2">
                 <div class="d-flex align-items-center gap-2">
-                  <iconify-icon icon="solar:widget-add-bold-duotone" class="fs-4 text-primary"></iconify-icon>
+                  <iconify-icon icon="solar:cup-bold" class="fs-4 text-primary"></iconify-icon>
                   <div>
                     <h6 class="fw-bold mb-0 text-body-emphasis">Detalle de Categorías del Torneo (Edición de Torneo Detalle Categorías)</h6>
                     <small class="text-muted">Agrega las categorías que competirán en esta edición, con sus fechas oficiales, costo y clasificaciones.</small>
@@ -1902,36 +2068,34 @@
                   </span>
                   <button
                     type="button"
-                    class="btn btn-sm btn-primary d-flex align-items-center gap-1 rounded-pill px-3 py-1 fw-semibold shadow-sm"
+                    class="btn btn-sm btn-outline-primary d-inline-flex align-items-center gap-1 rounded-pill px-3 py-1 fw-semibold shadow-sm"
                     @click="addCategoryToEditionDetail"
                   >
                     <iconify-icon icon="solar:add-circle-bold" class="fs-5"></iconify-icon>
-                    <span>+ Agregar Categoría</span>
+                    <span>+ Agregar</span>
                   </button>
                 </div>
               </div>
 
-              <!-- Tabla interactiva con inputs en línea (idéntica a la Factura) -->
+              <!-- Tabla Maestro-Detalle idéntica al formato de referencia -->
               <div class="table-responsive border rounded-3 bg-body shadow-sm">
                 <table class="table table-hover table-sm align-middle mb-0">
-                  <thead class="table-primary fs-1 text-uppercase">
+                  <thead class="table-light fs-1 text-uppercase">
                     <tr>
-                      <th style="min-width: 220px; width: 19%;">Categoría *</th>
-                      <th style="min-width: 125px; width: 10%;">Fecha Inicio</th>
-                      <th style="min-width: 125px; width: 10%;">Fecha Fin</th>
-                      <th style="min-width: 100px; width: 8%;" class="text-end">Costo ($)</th>
-                      <th style="min-width: 75px; width: 6%;" class="text-center">Máx. Jug. *</th>
-                      <th style="min-width: 85px; width: 7%;" class="text-center">Duración *</th>
-                      <th style="min-width: 75px; width: 6%;" class="text-center">Descanso</th>
-                      <th style="min-width: 75px; width: 6%;" class="text-center">Espera</th>
-                      <th style="min-width: 140px; width: 12%;" class="text-center">Clasificaciones</th>
-                      <th style="min-width: 140px; width: 12%;" class="text-center">Etapas / Fases</th>
-                      <th style="width: 35px;" class="text-center"></th>
+                      <th style="width: 70px;" class="text-center">#</th>
+                      <th style="min-width: 220px; width: 22%;">Categoría *</th>
+                      <th style="min-width: 140px; width: 14%;">Fechas (Inicio - Fin)</th>
+                      <th style="min-width: 100px; width: 9%;" class="text-end">Costo ($)</th>
+                      <th style="min-width: 70px; width: 6%;" class="text-center">Máx. Jug. *</th>
+                      <th style="min-width: 150px; width: 15%;" class="text-center">Tiempos (Dur./Desc./Esp.)</th>
+                      <th style="min-width: 110px; width: 11%;" class="text-center">Clasificaciones</th>
+                      <th style="min-width: 110px; width: 11%;" class="text-center">Etapas / Fases</th>
+                      <th style="width: 85px;" class="text-center">Acciones</th>
                     </tr>
                   </thead>
                   <tbody>
                     <tr v-if="editionCategoriesDetail.length === 0">
-                      <td colspan="11" class="text-center py-5 text-muted">
+                      <td colspan="9" class="text-center py-5 text-muted">
                         <iconify-icon icon="solar:info-circle-line-duotone" class="fs-2 d-block mb-2 text-secondary"></iconify-icon>
                         Aún no se han agregado categorías al detalle de esta edición de torneo.<br/>
                         <button
@@ -1944,172 +2108,430 @@
                         </button>
                       </td>
                     </tr>
-                    <tr v-for="(item, idx) in editionCategoriesDetail" :key="item._uid || idx">
-                      <td>
-                        <select
-                          v-model="item.categoryId"
-                          class="form-select form-select-sm"
-                          @change="onCategoryChangeInRow(item)"
-                          required
-                        >
-                          <option value="" disabled>-- Seleccione una Categoría --</option>
-                          <option v-for="cat in categoriesList" :key="cat.id" :value="cat.id">
-                            {{ cat.name }} {{ cat.acronyms ? '[' + cat.acronyms + ']' : '' }} ({{ cat.gender === 'MALE' ? 'Varones' : cat.gender === 'FEMALE' ? 'Mujeres' : 'Mixto' }})
-                          </option>
-                        </select>
-                        <div v-if="getCategoryAcronymsById(item.categoryId)" class="mt-1 d-flex align-items-center gap-1">
-                          <span class="badge bg-primary-subtle text-primary border border-primary-subtle font-monospace px-2 py-0 fs-1">
-                            Siglas: {{ getCategoryAcronymsById(item.categoryId) }}
-                          </span>
-                        </div>
-                      </td>
-                      <td>
-                        <input
-                          type="date"
-                          v-model="item.startDate"
-                          class="form-control form-control-sm"
-                        />
-                      </td>
-                      <td>
-                        <input
-                          type="date"
-                          v-model="item.endDate"
-                          class="form-control form-control-sm"
-                        />
-                      </td>
-                      <td>
-                        <div class="input-group input-group-sm">
-                          <span class="input-group-text">$</span>
-                          <input
-                            type="number"
-                            step="0.01"
-                            min="0"
-                            v-model.number="item.registrationFee"
-                            class="form-control form-control-sm text-end font-monospace"
-                            placeholder="0.00"
-                          />
-                        </div>
-                      </td>
-                      <td>
-                        <input
-                          type="number"
-                          min="1"
-                          v-model.number="item.maxPlayers"
-                          class="form-control form-control-sm font-monospace text-center"
-                          placeholder="25"
-                          required
-                        />
-                      </td>
-                      <td>
-                        <div class="input-group input-group-sm" title="Duración del partido en minutos para esta categoría">
-                          <input
-                            type="number"
-                            min="10"
-                            max="120"
-                            step="5"
-                            v-model.number="item.matchDurationMinutes"
-                            class="form-control form-control-sm font-monospace text-center"
-                            placeholder="60"
-                            required
-                          />
-                          <span class="input-group-text px-1 text-muted fs-1">m</span>
-                        </div>
-                      </td>
-                      <td>
-                        <div class="input-group input-group-sm" title="Descanso o entretiempo (minutos)">
-                          <input
-                            type="number"
-                            min="0"
-                            max="45"
-                            step="5"
-                            v-model.number="item.breakDurationMinutes"
-                            class="form-control form-control-sm font-monospace text-center"
-                            placeholder="10"
-                          />
-                          <span class="input-group-text px-1 text-muted fs-1">m</span>
-                        </div>
-                      </td>
-                      <td>
-                        <div class="input-group input-group-sm" title="Tiempo de espera para el siguiente partido (minutos)">
-                          <input
-                            type="number"
-                            min="0"
-                            max="60"
-                            step="5"
-                            v-model.number="item.waitBetweenMatchesMinutes"
-                            class="form-control form-control-sm font-monospace text-center"
-                            placeholder="10"
-                          />
-                          <span class="input-group-text px-1 text-muted fs-1">m</span>
-                        </div>
-                      </td>
-                      <td class="text-center">
-                        <div class="d-flex align-items-center justify-content-center gap-2">
-                          <span
-                            v-if="item.classifications && item.classifications.length"
-                            class="badge bg-primary-subtle text-primary border border-primary-subtle font-monospace px-2 py-1"
-                            title="Total jugadores asignados / cupo máximo"
-                          >
-                            {{ getSumClassifications(item) }}/{{ item.maxPlayers || 25 }}
-                          </span>
-                          <span
-                            v-else
-                            class="badge bg-secondary-subtle text-secondary font-monospace px-2 py-1"
-                            title="Sin clasificaciones asignadas aún"
-                          >
-                            0/{{ item.maxPlayers || 25 }}
-                          </span>
-                          <button
-                            type="button"
-                            class="btn btn-sm rounded-pill px-3 py-1 d-inline-flex align-items-center gap-1"
-                            :class="item.classifications && item.classifications.length ? 'btn-primary' : 'btn-outline-primary'"
-                            @click="openCategoryClassificationsModal(item, idx)"
-                            title="Configurar distribución de clasificaciones y límites"
-                          >
-                            <iconify-icon icon="solar:user-check-bold" class="fs-5"></iconify-icon>
-                            <span class="small fw-semibold">{{ item.classifications && item.classifications.length ? (item.classifications.length + ' Clasif.') : '+ Configurar' }}</span>
-                          </button>
-                        </div>
-                      </td>
-                      <td class="text-center">
-                        <div class="d-flex align-items-center justify-content-center gap-2">
-                          <span
-                            v-if="item.stages && item.stages.length"
-                            class="badge bg-info-subtle text-info border border-info-subtle font-monospace px-2 py-1"
-                            title="Etapas/Fases configuradas para esta categoría"
-                          >
-                            {{ item.stages.length }} Etapa(s)
-                          </span>
-                          <span
-                            v-else
-                            class="badge bg-secondary-subtle text-secondary font-monospace px-2 py-1"
-                            title="Sin etapas configuradas aún"
-                          >
-                            0 Etapas
-                          </span>
-                          <button
-                            type="button"
-                            class="btn btn-sm rounded-pill px-3 py-1 d-inline-flex align-items-center gap-1"
-                            :class="item.stages && item.stages.length ? 'btn-info text-white' : 'btn-outline-info'"
-                            @click="openCategoryStagesModal(item, idx)"
-                            title="Configurar etapas, modalidades de vuelta y desempate para esta categoría"
-                          >
-                            <iconify-icon icon="solar:diagram-up-bold" class="fs-5"></iconify-icon>
-                            <span class="small fw-semibold">{{ item.stages && item.stages.length ? (item.stages.length + ' Etapa(s)') : '+ Configurar' }}</span>
-                          </button>
-                        </div>
-                      </td>
-                      <td class="text-center">
-                        <button
-                          type="button"
-                          class="btn btn-sm btn-link text-danger p-0 border-0"
-                          @click="removeCategoryFromEditionDetail(idx)"
-                          title="Eliminar fila"
-                        >
-                          <iconify-icon icon="solar:trash-bin-trash-bold" class="fs-4 text-danger"></iconify-icon>
-                        </button>
-                      </td>
-                    </tr>
+                    <template v-for="(item, idx) in editionCategoriesDetail" :key="item._uid || idx">
+                      <!-- Fila Maestra de Categoría -->
+                      <tr>
+                        <!-- Columna # con número y chevron de expansión -->
+                        <td class="text-center">
+                          <div class="d-flex align-items-center justify-content-center gap-2">
+                            <span class="fw-bold font-monospace text-secondary fs-3">{{ idx + 1 }}</span>
+                            <button
+                              type="button"
+                              class="btn btn-sm btn-link p-0 text-decoration-none d-inline-flex align-items-center justify-content-center text-body-emphasis"
+                              @click="toggleCategoryRow(idx)"
+                              :title="isCategoryRowExpanded(idx) ? 'Colapsar detalles de categoría' : 'Expandir etapas y fases'"
+                            >
+                              <iconify-icon
+                                :icon="isCategoryRowExpanded(idx) ? 'solar:alt-arrow-up-linear' : 'solar:alt-arrow-down-linear'"
+                                class="fs-5 fw-bold"
+                              ></iconify-icon>
+                            </button>
+                          </div>
+                        </td>
+
+                        <!-- Columna Categoría -->
+                        <td>
+                          <div class="d-flex align-items-start gap-2">
+                            <div class="p-2 rounded-2 bg-primary-subtle text-primary d-flex align-items-center justify-content-center mt-1 flex-shrink-0" style="width: 36px; height: 36px;">
+                              <iconify-icon icon="solar:cup-bold" class="fs-4"></iconify-icon>
+                            </div>
+                            <div class="flex-grow-1" style="min-width: 180px;">
+                              <select
+                                v-model="item.categoryId"
+                                class="form-select form-select-sm fw-semibold"
+                                @change="onCategoryChangeInRow(item)"
+                                required
+                              >
+                                <option value="" disabled>-- Seleccione una Categoría --</option>
+                                <option v-for="cat in categoriesList" :key="cat.id" :value="cat.id">
+                                  {{ cat.name }} {{ cat.acronyms ? '[' + cat.acronyms + ']' : '' }} ({{ cat.gender === 'MALE' ? 'Varones' : cat.gender === 'FEMALE' ? 'Mujeres' : 'Mixto' }})
+                                </option>
+                              </select>
+                              <div v-if="item.categoryId" class="mt-1 d-flex align-items-center gap-1 flex-wrap">
+                                <span v-if="getCategoryAcronymsById(item.categoryId)" class="badge bg-primary-subtle text-primary border border-primary-subtle font-monospace px-1 py-0 fs-1">
+                                  Siglas: {{ getCategoryAcronymsById(item.categoryId) }}
+                                </span>
+                                <span class="badge bg-secondary-subtle text-body border border-secondary-subtle px-1 py-0 fs-1">
+                                  {{ getCategoryGenderById(item.categoryId) }}
+                                </span>
+                              </div>
+                            </div>
+                          </div>
+                        </td>
+
+                        <!-- Fechas (Inicio - Fin) -->
+                        <td>
+                          <div class="d-flex flex-column gap-1" style="min-width: 125px;">
+                            <div class="d-flex align-items-center gap-1">
+                              <span class="badge bg-light text-muted border px-1 py-0 font-monospace" style="font-size: 0.72rem; min-width: 28px;">Ini</span>
+                              <input
+                                type="date"
+                                v-model="item.startDate"
+                                class="form-control form-control-sm py-0 px-1 font-monospace"
+                              />
+                            </div>
+                            <div class="d-flex align-items-center gap-1">
+                              <span class="badge bg-light text-muted border px-1 py-0 font-monospace" style="font-size: 0.72rem; min-width: 28px;">Fin</span>
+                              <input
+                                type="date"
+                                v-model="item.endDate"
+                                class="form-control form-control-sm py-0 px-1 font-monospace"
+                              />
+                            </div>
+                          </div>
+                        </td>
+
+                        <!-- Costo ($) -->
+                        <td>
+                          <div class="input-group input-group-sm" style="min-width: 90px;">
+                            <span class="input-group-text px-1">$</span>
+                            <input
+                              type="number"
+                              step="0.01"
+                              min="0"
+                              v-model.number="item.registrationFee"
+                              class="form-control form-control-sm text-end font-monospace px-1"
+                              placeholder="0.00"
+                            />
+                          </div>
+                        </td>
+
+                        <!-- Máximo Jugadores -->
+                        <td>
+                          <div style="min-width: 60px;">
+                            <input
+                              type="number"
+                              min="1"
+                              v-model.number="item.maxPlayers"
+                              class="form-control form-control-sm font-monospace text-center px-1"
+                              placeholder="25"
+                              required
+                            />
+                          </div>
+                        </td>
+
+                        <!-- Tiempos (Duración / Descanso / Espera) -->
+                        <td>
+                          <div class="d-flex align-items-center justify-content-center gap-1" style="min-width: 140px;">
+                            <div class="input-group input-group-sm" title="Duración del partido en minutos">
+                              <input
+                                type="number"
+                                min="10"
+                                max="120"
+                                step="5"
+                                v-model.number="item.matchDurationMinutes"
+                                class="form-control form-control-sm font-monospace text-center px-1"
+                                placeholder="60"
+                                required
+                              />
+                              <span class="input-group-text px-1 text-muted fs-1">m</span>
+                            </div>
+                            <div class="input-group input-group-sm" title="Descanso o entretiempo (minutos)">
+                              <input
+                                type="number"
+                                min="0"
+                                max="45"
+                                step="5"
+                                v-model.number="item.breakDurationMinutes"
+                                class="form-control form-control-sm font-monospace text-center px-1"
+                                placeholder="10"
+                              />
+                              <span class="input-group-text px-1 text-muted fs-1">m</span>
+                            </div>
+                            <div class="input-group input-group-sm" title="Tiempo de espera para el siguiente partido (minutos)">
+                              <input
+                                type="number"
+                                min="0"
+                                max="60"
+                                step="5"
+                                v-model.number="item.waitBetweenMatchesMinutes"
+                                class="form-control form-control-sm font-monospace text-center px-1"
+                                placeholder="10"
+                              />
+                              <span class="input-group-text px-1 text-muted fs-1">m</span>
+                            </div>
+                          </div>
+                        </td>
+
+                        <!-- Clasificaciones -->
+                        <td class="text-center">
+                          <div class="d-flex align-items-center justify-content-center gap-1" style="min-width: 105px;">
+                            <span
+                              v-if="item.classifications && item.classifications.length"
+                              class="badge bg-primary-subtle text-primary border border-primary-subtle font-monospace px-2 py-1"
+                              title="Total jugadores asignados / cupo máximo"
+                            >
+                              {{ getSumClassifications(item) }}/{{ item.maxPlayers || 25 }}
+                            </span>
+                            <span
+                              v-else
+                              class="badge bg-secondary-subtle text-secondary font-monospace px-2 py-1"
+                              title="Sin clasificaciones asignadas aún"
+                            >
+                              0/{{ item.maxPlayers || 25 }}
+                            </span>
+                            <button
+                              type="button"
+                              class="btn btn-sm btn-outline-primary d-inline-flex align-items-center justify-content-center rounded-2 p-1"
+                              style="width: 28px; height: 28px;"
+                              @click="openCategoryClassificationsModal(item, idx)"
+                              title="Configurar Clasificaciones y Cupos"
+                            >
+                              <iconify-icon icon="solar:user-check-bold" class="fs-6"></iconify-icon>
+                            </button>
+                          </div>
+                        </td>
+
+                        <!-- Etapas / Fases -->
+                        <td class="text-center">
+                          <div class="d-flex align-items-center justify-content-center gap-1" style="min-width: 110px;">
+                            <button
+                              type="button"
+                              class="btn btn-sm rounded-pill px-2 py-1 d-inline-flex align-items-center gap-1 border"
+                              :class="item.stages && item.stages.length ? 'btn-info-subtle text-info border-info-subtle' : 'btn-light text-muted border-secondary-subtle'"
+                              @click="toggleCategoryRow(idx)"
+                              title="Ver/Ocultar Etapas y Fases"
+                            >
+                              <iconify-icon icon="solar:diagram-up-bold" class="fs-6"></iconify-icon>
+                              <span class="small fw-semibold">{{ item.stages && item.stages.length ? (item.stages.length + ' Etapa(s)') : '0 Etapas' }}</span>
+                              <iconify-icon :icon="isCategoryRowExpanded(idx) ? 'solar:alt-arrow-up-linear' : 'solar:alt-arrow-down-linear'" class="fs-6 ms-1"></iconify-icon>
+                            </button>
+                          </div>
+                        </td>
+
+                        <!-- Acciones Maestras: Botón azul editar + Botón rojo eliminar -->
+                        <td class="text-center">
+                          <div class="d-flex align-items-center justify-content-center gap-1">
+                            <button
+                              type="button"
+                              class="btn btn-sm btn-outline-primary d-inline-flex align-items-center justify-content-center rounded-2 p-1"
+                              style="width: 32px; height: 32px;"
+                              @click="openCategoryClassificationsModal(item, idx)"
+                              title="Configurar Clasificaciones y Cupos"
+                            >
+                              <iconify-icon icon="solar:pen-bold" class="fs-5"></iconify-icon>
+                            </button>
+                            <button
+                              type="button"
+                              class="btn btn-sm btn-outline-danger d-inline-flex align-items-center justify-content-center rounded-2 p-1"
+                              style="width: 32px; height: 32px;"
+                              @click="removeCategoryFromEditionDetail(idx)"
+                              title="Eliminar Categoría"
+                            >
+                              <iconify-icon icon="solar:trash-bin-trash-bold" class="fs-5"></iconify-icon>
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+
+                      <!-- Sub-Tarjeta Anidada: Detalle de Etapas / Fases de la Categoría -->
+                      <tr v-if="isCategoryRowExpanded(idx)" class="bg-transparent">
+                        <td colspan="9" class="p-3 bg-transparent">
+                          <div class="card border border-primary-subtle rounded-3 shadow-sm bg-body-tertiary p-3">
+                            <!-- Encabezado de la sub-tarjeta -->
+                            <div class="d-flex align-items-center justify-content-between mb-3 flex-wrap gap-2">
+                              <div class="d-flex align-items-center gap-2">
+                                <iconify-icon icon="solar:diagram-up-bold-duotone" class="fs-4 text-primary"></iconify-icon>
+                                <span class="fw-bold text-body-emphasis fs-6">Etapas y Fases de la Categoría</span>
+                                <span class="badge bg-primary-subtle text-primary border border-primary-subtle rounded-pill px-2 py-1 fs-1">
+                                  {{ item.stages?.length || 0 }} registros
+                                </span>
+                              </div>
+                              <div class="d-flex align-items-center gap-2">
+                                <button
+                                  type="button"
+                                  class="btn btn-sm btn-link text-muted p-0 text-decoration-none d-flex align-items-center"
+                                  @click="toggleCategoryRow(idx)"
+                                  title="Colapsar Etapas"
+                                >
+                                  <iconify-icon icon="solar:alt-arrow-up-linear" class="fs-5"></iconify-icon>
+                                </button>
+                              </div>
+                            </div>
+
+                            <!-- Sub-tabla anidada editable 100% en línea -->
+                            <div class="table-responsive rounded-2 border bg-body shadow-sm">
+                              <table class="table table-sm table-hover align-middle mb-0">
+                                <thead class="table-light fs-1 text-uppercase">
+                                  <tr>
+                                    <th style="width: 50px;" class="text-center">#</th>
+                                    <th style="min-width: 180px; width: 22%;">Nombre de la Etapa / Fase *</th>
+                                    <th style="min-width: 160px; width: 20%;">Tipo de Competencia *</th>
+                                    <th style="min-width: 150px; width: 18%;">Vueltas / Modalidad *</th>
+                                    <th style="min-width: 300px; width: 34%;">Criterios de Desempate (Jerarquía en Línea)</th>
+                                    <th style="width: 60px;" class="text-center">Acción</th>
+                                  </tr>
+                                </thead>
+                                <tbody>
+                                  <tr v-if="!item.stages || item.stages.length === 0">
+                                    <td colspan="6" class="text-center py-4 text-muted">
+                                      <iconify-icon icon="solar:info-circle-line-duotone" class="fs-3 d-block mb-1 text-secondary"></iconify-icon>
+                                      No se han configurado etapas para esta categoría.<br/>
+                                      <button
+                                        type="button"
+                                        class="btn btn-sm btn-outline-primary rounded-pill px-3 py-1 mt-2 fw-semibold"
+                                        @click="addStageToCategoryDirect(item)"
+                                      >
+                                        <iconify-icon icon="solar:add-circle-bold" class="fs-5 me-1"></iconify-icon>
+                                        <span>+ Agregar Primera Etapa en Línea</span>
+                                      </button>
+                                    </td>
+                                  </tr>
+                                  <tr v-for="(stg, sIdx) in item.stages" :key="stg._uid || sIdx">
+                                    <!-- # Numeración compuesta -->
+                                    <td class="text-center fw-bold font-monospace text-secondary fs-2">
+                                      {{ (idx + 1) + '.' + (sIdx + 1) }}
+                                    </td>
+
+                                    <!-- Nombre de la Etapa / Fase -->
+                                    <td>
+                                      <div>
+                                        <input
+                                          type="text"
+                                          v-model="stg.name"
+                                          class="form-control form-control-sm fw-semibold"
+                                          placeholder="Ej. Primera Fase"
+                                          required
+                                        />
+                                        <small class="text-muted font-monospace d-block mt-1">Orden en fase: #{{ stg.stageOrder || (sIdx + 1) }}</small>
+                                      </div>
+                                    </td>
+
+                                    <!-- Tipo de Competencia -->
+                                    <td>
+                                      <select
+                                        v-model="stg.competitionTypeId"
+                                        class="form-select form-select-sm"
+                                        @change="onCompetitionTypeChangeInStage(stg)"
+                                        required
+                                      >
+                                        <option value="" disabled>-- Tipo Competencia --</option>
+                                        <option v-for="ct in competitionTypesList" :key="ct.id" :value="ct.id">
+                                          {{ ct.description }}
+                                        </option>
+                                      </select>
+                                    </td>
+
+                                    <!-- Vueltas / Modalidad -->
+                                    <td>
+                                      <select
+                                        v-model="stg.competitionLapId"
+                                        class="form-select form-select-sm"
+                                        @change="onCompetitionLapChangeInStage(stg)"
+                                        required
+                                      >
+                                        <option value="" disabled>-- Modalidad Vueltas --</option>
+                                        <option v-for="cl in competitionLapsList" :key="cl.id" :value="cl.id">
+                                          {{ cl.description }}
+                                        </option>
+                                      </select>
+                                    </td>
+
+                                    <!-- Criterios de Desempate (Jerarquía en Línea) -->
+                                    <td>
+                                      <div>
+                                        <!-- Selector rápido de criterios -->
+                                        <select
+                                          class="form-select form-select-sm"
+                                          @change="addCriterionToStageDirect(stg, $event)"
+                                        >
+                                          <option value="" selected>+ Agregar criterio reglamentario...</option>
+                                          <option
+                                            v-for="crit in tieBreakerCriteriaList"
+                                            :key="crit.id"
+                                            :value="crit.id"
+                                            :disabled="isCriterionAlreadyInStage(stg, crit.id)"
+                                          >
+                                            {{ crit.description }} {{ crit.code ? '(' + crit.code + ')' : '' }}
+                                          </option>
+                                        </select>
+
+                                        <!-- Chips de criterios jerárquicos con botones subir/bajar -->
+                                        <div v-if="stg.tieBreakerCriteria && stg.tieBreakerCriteria.length" class="d-flex flex-column gap-1 mt-1">
+                                          <div
+                                            v-for="(c, cIdx) in stg.tieBreakerCriteria"
+                                            :key="c.criterionId || c.id || cIdx"
+                                            class="d-flex align-items-center justify-content-between gap-1 p-1 rounded bg-body-tertiary border border-primary-subtle"
+                                          >
+                                            <div class="d-flex align-items-center gap-1 overflow-hidden">
+                                              <!-- Botones ▲ y ▼ -->
+                                              <div class="btn-group btn-group-sm flex-shrink-0" role="group">
+                                                <button
+                                                  type="button"
+                                                  class="btn btn-sm btn-outline-secondary py-0 px-1"
+                                                  style="font-size: 0.7rem; line-height: 1.2;"
+                                                  :disabled="cIdx === 0"
+                                                  @click="moveStageCriterionUp(stg, cIdx)"
+                                                  title="Subir orden"
+                                                >
+                                                  ▲
+                                                </button>
+                                                <button
+                                                  type="button"
+                                                  class="btn btn-sm btn-outline-secondary py-0 px-1"
+                                                  style="font-size: 0.7rem; line-height: 1.2;"
+                                                  :disabled="cIdx === stg.tieBreakerCriteria.length - 1"
+                                                  @click="moveStageCriterionDown(stg, cIdx)"
+                                                  title="Bajar orden"
+                                                >
+                                                  ▼
+                                                </button>
+                                              </div>
+                                              <span class="badge bg-primary-subtle text-primary border border-primary-subtle font-monospace py-0 px-1 fs-1 flex-shrink-0">
+                                                #{{ c.order || (cIdx + 1) }}
+                                              </span>
+                                              <span class="small fw-semibold text-truncate text-body" :title="c.description">
+                                                {{ c.description }}
+                                              </span>
+                                            </div>
+                                            <button
+                                              type="button"
+                                              class="btn btn-sm btn-link text-danger p-0 px-1 text-decoration-none"
+                                              @click="removeStageCriterion(stg, cIdx)"
+                                              title="Quitar criterio"
+                                            >
+                                              ✕
+                                            </button>
+                                          </div>
+                                        </div>
+                                        <div v-else class="text-muted small fst-italic mt-1">
+                                          Sin criterios seleccionados aún
+                                        </div>
+                                      </div>
+                                    </td>
+
+                                    <!-- Acción: Eliminar Fila de Etapa -->
+                                    <td class="text-center">
+                                      <button
+                                        type="button"
+                                        class="btn btn-sm btn-outline-danger d-inline-flex align-items-center justify-content-center rounded-2 p-1"
+                                        style="width: 28px; height: 28px;"
+                                        @click="removeCategoryStageDirect(item, sIdx)"
+                                        title="Eliminar Etapa"
+                                      >
+                                        <iconify-icon icon="solar:trash-bin-trash-bold" class="fs-6"></iconify-icon>
+                                      </button>
+                                    </td>
+                                  </tr>
+                                </tbody>
+                              </table>
+                            </div>
+
+                            <!-- Pie de la sub-tarjeta: botón + Agregar Etapa en Línea -->
+                            <div class="mt-2 pt-1">
+                              <button
+                                type="button"
+                                class="btn btn-sm btn-outline-primary rounded-pill px-3 py-1 fw-semibold d-inline-flex align-items-center gap-1 shadow-sm"
+                                @click="addStageToCategoryDirect(item)"
+                              >
+                                <iconify-icon icon="solar:add-circle-bold" class="fs-5"></iconify-icon>
+                                <span>+ Agregar Etapa / Fase</span>
+                              </button>
+                            </div>
+                          </div>
+                        </td>
+                      </tr>
+                    </template>
                   </tbody>
                 </table>
               </div>
@@ -3431,10 +3853,21 @@
 
               <!-- Formulario para agregar una Etapa / Fase -->
               <form @submit.prevent="addCategoryStageRecord" class="card p-3 mb-4 border rounded-3 bg-body shadow-xs">
-                <h6 class="fw-bold mb-3 text-body-emphasis d-flex align-items-center gap-2">
-                  <iconify-icon icon="solar:add-circle-bold" class="fs-4 text-primary"></iconify-icon>
-                  <span>Agregar Nueva Etapa o Fase</span>
-                </h6>
+                <div class="d-flex align-items-center justify-content-between mb-3 flex-wrap gap-2">
+                  <h6 class="fw-bold mb-0 text-body-emphasis d-flex align-items-center gap-2">
+                    <iconify-icon :icon="editingCategoryStageIndex !== null ? 'solar:pen-bold' : 'solar:add-circle-bold'" class="fs-4 text-primary"></iconify-icon>
+                    <span>{{ editingCategoryStageIndex !== null ? 'Modificar Etapa o Fase' : 'Agregar Nueva Etapa o Fase' }}</span>
+                  </h6>
+                  <button
+                    v-if="editingCategoryStageIndex !== null"
+                    type="button"
+                    class="btn btn-outline-secondary btn-sm rounded-pill px-3 py-1 d-inline-flex align-items-center gap-1"
+                    @click="cancelEditCategoryStage"
+                  >
+                    <iconify-icon icon="solar:close-circle-bold" class="fs-6"></iconify-icon>
+                    <span>Cancelar Edición</span>
+                  </button>
+                </div>
                 <div class="row g-3 align-items-end">
                   <div class="col-md-2">
                     <label class="form-label small fw-semibold text-secondary">Orden <span class="text-danger">*</span></label>
@@ -3470,7 +3903,7 @@
                     />
                   </div>
 
-                  <div class="col-md-6">
+                  <div class="col-md-12">
                     <label class="form-label small fw-semibold text-secondary">Vueltas / Modalidad <span class="text-danger">*</span></label>
                     <AppSelect2
                       v-model="formCategoryStage.competitionLapId"
@@ -3481,15 +3914,129 @@
                     />
                   </div>
 
-                  <div class="col-md-6">
-                    <label class="form-label small fw-semibold text-secondary">Criterio de Desempate</label>
-                    <AppSelect2
-                      v-model="formCategoryStage.tieBreakerCriterionId"
-                      :options="tieBreakerCriteriaOptions"
-                      placeholder="Seleccionar criterio (opcional)..."
-                      search-placeholder="Buscar criterio..."
-                      allow-clear
-                    />
+                  <!-- TABLA DETALLE DE CRITERIOS DE DESEMPATE JERÁRQUICOS -->
+                  <div class="col-12 mt-2">
+                    <div class="card p-3 border rounded-3 bg-body-tertiary">
+                      <div class="d-flex align-items-center justify-content-between mb-2 flex-wrap gap-2">
+                        <div class="d-flex align-items-center gap-2">
+                          <iconify-icon icon="solar:sort-by-time-bold-duotone" class="fs-4 text-primary"></iconify-icon>
+                          <div>
+                            <span class="small fw-bold text-body-emphasis">Criterios de Desempate (Prioridad Jerárquica)</span>
+                            <span class="d-block small text-muted" style="font-size: 0.8rem;">
+                              Define y ordena los criterios de desempate de esta etapa. El orden de prioridad determina cuál criterio se aplica primero (#1, luego #2, etc.).
+                            </span>
+                          </div>
+                        </div>
+                        <span class="badge bg-primary-subtle text-primary border border-primary-subtle px-2 py-1 font-monospace">
+                          {{ formCategoryStageCriteria.length }} criterio(s)
+                        </span>
+                      </div>
+
+                      <!-- Selector para agregar criterio a la lista -->
+                      <div class="row g-2 align-items-end mb-3">
+                        <div class="col-md-9 col-sm-8">
+                          <label class="form-label small fw-semibold text-secondary mb-1">
+                            Seleccionar Criterio para Añadir
+                          </label>
+                          <AppSelect2
+                            v-model="selectedCriterionToAdd"
+                            :options="availableTieBreakerOptions"
+                            placeholder="Buscar y seleccionar criterio de desempate..."
+                            search-placeholder="Buscar criterio..."
+                            allow-clear
+                          />
+                        </div>
+                        <div class="col-md-3 col-sm-4">
+                          <button
+                            type="button"
+                            class="btn btn-outline-primary btn-sm w-100 rounded-pill fw-semibold py-1 d-inline-flex align-items-center justify-content-center gap-1 shadow-sm"
+                            :disabled="!selectedCriterionToAdd"
+                            @click="addCriterionToStage"
+                          >
+                            <iconify-icon icon="solar:add-circle-bold" class="fs-5"></iconify-icon>
+                            <span>+ Añadir Criterio</span>
+                          </button>
+                        </div>
+                      </div>
+
+                      <!-- Tabla detalle de criterios con acciones Subir / Bajar / Eliminar -->
+                      <div class="table-responsive border rounded-3 bg-body">
+                        <table class="table table-sm table-hover mb-0 align-middle">
+                          <thead class="table-light fs-1 text-uppercase">
+                            <tr>
+                              <th class="ps-3 text-center" style="width: 80px;">Prioridad</th>
+                              <th>Criterio de Desempate</th>
+                              <th style="width: 110px;">Código</th>
+                              <th>Observación / Regla Reglamentaria</th>
+                              <th class="text-end pe-3" style="width: 140px;">Acciones</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            <tr v-if="formCategoryStageCriteria.length === 0">
+                              <td colspan="5" class="text-center py-3 text-muted small">
+                                <iconify-icon icon="solar:info-circle-line-duotone" class="fs-5 text-secondary me-1 align-middle"></iconify-icon>
+                                No se han configurado criterios de desempate para esta etapa. Selecciona un criterio arriba y haz clic en <strong>+ Añadir Criterio</strong>.
+                              </td>
+                            </tr>
+                            <tr v-for="(crit, cIdx) in formCategoryStageCriteria" :key="crit.criterionId || crit.id || cIdx">
+                              <td class="text-center ps-3">
+                                <span class="badge bg-primary text-white font-monospace px-2 py-1 rounded-pill" style="font-size: 0.8rem;">
+                                  #{{ cIdx + 1 }}
+                                </span>
+                              </td>
+                              <td>
+                                <span class="fw-semibold text-body-emphasis">
+                                  {{ crit.description }}
+                                </span>
+                              </td>
+                              <td>
+                                <span class="badge bg-secondary-subtle text-body border px-2 py-1 font-monospace">
+                                  {{ crit.code || '-' }}
+                                </span>
+                              </td>
+                              <td>
+                                <span class="text-muted small">
+                                  {{ crit.observation || 'Evaluación reglamentaria de torneo' }}
+                                </span>
+                              </td>
+                              <td class="text-end pe-3">
+                                <div class="d-inline-flex align-items-center gap-1">
+                                  <button
+                                    type="button"
+                                    class="btn btn-sm btn-outline-secondary rounded-circle p-1 d-inline-flex align-items-center justify-content-center"
+                                    style="width: 28px; height: 28px;"
+                                    :disabled="cIdx === 0"
+                                    @click="moveCriterionUp(cIdx)"
+                                    title="Subir prioridad (mayor relevancia)"
+                                  >
+                                    <iconify-icon icon="solar:arrow-up-bold" class="fs-6"></iconify-icon>
+                                  </button>
+                                  <button
+                                    type="button"
+                                    class="btn btn-sm btn-outline-secondary rounded-circle p-1 d-inline-flex align-items-center justify-content-center"
+                                    style="width: 28px; height: 28px;"
+                                    :disabled="cIdx === formCategoryStageCriteria.length - 1"
+                                    @click="moveCriterionDown(cIdx)"
+                                    title="Bajar prioridad (menor relevancia)"
+                                  >
+                                    <iconify-icon icon="solar:arrow-down-bold" class="fs-6"></iconify-icon>
+                                  </button>
+                                  <button
+                                    type="button"
+                                    class="btn btn-sm btn-outline-danger rounded-circle p-1 d-inline-flex align-items-center justify-content-center ms-1"
+                                    style="width: 28px; height: 28px;"
+                                    @click="removeCriterionFromStage(cIdx)"
+                                    title="Eliminar criterio"
+                                  >
+                                    <iconify-icon icon="solar:trash-bin-trash-bold" class="fs-6"></iconify-icon>
+                                  </button>
+                                </div>
+                              </td>
+                            </tr>
+                          </tbody>
+                        </table>
+                      </div>
+                    </div>
                   </div>
 
                   <div class="col-12 text-end mt-3">
@@ -3497,8 +4044,8 @@
                       type="submit"
                       class="btn btn-primary btn-sm rounded-pill fw-semibold px-4 d-inline-flex align-items-center gap-1 shadow-sm"
                     >
-                      <iconify-icon icon="solar:add-circle-bold" class="fs-5"></iconify-icon>
-                      <span>Agregar Etapa a la Categoría</span>
+                      <iconify-icon :icon="editingCategoryStageIndex !== null ? 'solar:check-circle-bold' : 'solar:add-circle-bold'" class="fs-5"></iconify-icon>
+                      <span>{{ editingCategoryStageIndex !== null ? 'Guardar Cambios de la Etapa' : 'Agregar Etapa a la Categoría' }}</span>
                     </button>
                   </div>
                 </div>
@@ -3513,8 +4060,8 @@
                       <th>Nombre de la Etapa / Fase</th>
                       <th>Tipo de Competencia</th>
                       <th>Vueltas / Modalidad</th>
-                      <th>Criterio de Desempate</th>
-                      <th class="text-end pe-3" style="width: 80px;">Acciones</th>
+                      <th>Criterios de Desempate (Jerarquía)</th>
+                      <th class="text-end pe-3" style="width: 100px;">Acciones</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -3546,20 +4093,43 @@
                         </span>
                       </td>
                       <td>
-                        <span v-if="stg.tieBreakerCriterionId || stg.tieBreakerCriterionDescription" class="badge bg-success-subtle text-success border border-success-subtle px-2 py-1">
+                        <div v-if="stg.tieBreakerCriteria && stg.tieBreakerCriteria.length > 0" class="d-flex flex-wrap gap-1 align-items-center">
+                          <span
+                            v-for="(crit, cIdx) in stg.tieBreakerCriteria"
+                            :key="cIdx"
+                            class="badge bg-success-subtle text-success border border-success-subtle px-2 py-1 d-inline-flex align-items-center gap-1 shadow-2xs"
+                            :title="crit.description + (crit.observation ? ': ' + crit.observation : '')"
+                          >
+                            <span class="badge bg-success text-white rounded-pill px-1" style="font-size: 0.65rem;">#{{ crit.order || (cIdx + 1) }}</span>
+                            <span>{{ crit.code || crit.description }}</span>
+                          </span>
+                        </div>
+                        <span v-else-if="stg.tieBreakerCriterionId || stg.tieBreakerCriterionDescription" class="badge bg-success-subtle text-success border border-success-subtle px-2 py-1">
                           ⚖️ {{ stg.tieBreakerCriterionDescription || getTieBreakerCriterionDescById(stg.tieBreakerCriterionId) }}
                         </span>
-                        <span v-else class="text-muted small">-</span>
+                        <span v-else class="text-muted small fst-italic">Sin criterios</span>
                       </td>
                       <td class="text-end pe-3">
-                        <button
-                          type="button"
-                          class="btn btn-outline-danger btn-sm rounded-pill px-2 py-1"
-                          @click="removeCategoryStageRecord(Number(sIdx))"
-                          title="Eliminar etapa"
-                        >
-                          <iconify-icon icon="solar:trash-bin-trash-bold" class="fs-5"></iconify-icon>
-                        </button>
+                        <div class="d-inline-flex align-items-center gap-1">
+                          <button
+                            type="button"
+                            class="btn btn-outline-primary btn-sm rounded-circle p-1 d-inline-flex align-items-center justify-content-center"
+                            style="width: 28px; height: 28px;"
+                            @click="editCategoryStageRecord(Number(sIdx))"
+                            title="Modificar etapa y criterios"
+                          >
+                            <iconify-icon icon="solar:pen-bold" class="fs-6"></iconify-icon>
+                          </button>
+                          <button
+                            type="button"
+                            class="btn btn-outline-danger btn-sm rounded-circle p-1 d-inline-flex align-items-center justify-content-center"
+                            style="width: 28px; height: 28px;"
+                            @click="removeCategoryStageRecord(Number(sIdx))"
+                            title="Eliminar etapa"
+                          >
+                            <iconify-icon icon="solar:trash-bin-trash-bold" class="fs-6"></iconify-icon>
+                          </button>
+                        </div>
                       </td>
                     </tr>
                   </tbody>
@@ -3588,6 +4158,7 @@ import { CampeonatoApi, uploadTeamLogo, uploadPlayerPhoto, TeamManagementsServic
 import { useAuthStore } from '@/stores/auth.store';
 import { toast } from '@/utils/toastr';
 import AppSelect2 from '@/components/common/AppSelect2.vue';
+import ImageUpload from '@/components/common/ImageUpload.vue';
 
 interface TabConfig {
   id: string;
@@ -4989,6 +5560,145 @@ const getCategoryNameById = (catId: string) => {
   return found ? found.name : 'Categoría';
 };
 
+const expandedCategoryRows = ref<Set<number>>(new Set([0]));
+
+const toggleCategoryRow = (idx: number) => {
+  if (expandedCategoryRows.value.has(idx)) {
+    expandedCategoryRows.value.delete(idx);
+  } else {
+    expandedCategoryRows.value.add(idx);
+  }
+};
+
+const isCategoryRowExpanded = (idx: number): boolean => {
+  return expandedCategoryRows.value.has(idx);
+};
+
+const removeCategoryStageDirect = (item: any, sIdx: number) => {
+  if (!item || !Array.isArray(item.stages)) return;
+  item.stages.splice(sIdx, 1);
+  toast.info('Etapa eliminada de la categoría');
+};
+
+const addStageToCategoryDirect = (item: any) => {
+  if (!item.stages) {
+    item.stages = [];
+  }
+  const nextOrder = item.stages.length + 1;
+  const defaultCT = competitionTypesList.value.length > 0 ? competitionTypesList.value[0] : null;
+  const defaultCL = competitionLapsList.value.length > 0 ? competitionLapsList.value[0] : null;
+
+  item.stages.push({
+    _uid: 'stg_' + Date.now() + '_' + Math.random().toString(36).substring(2, 7),
+    stageOrder: nextOrder,
+    name: nextOrder === 1 ? 'Primera Fase' : nextOrder === 2 ? 'Liguilla Final' : `Fase ${nextOrder}`,
+    competitionTypeId: defaultCT ? defaultCT.id : '',
+    competitionTypeDescription: defaultCT ? defaultCT.description : '',
+    competitionLapId: defaultCL ? defaultCL.id : '',
+    competitionLapDescription: defaultCL ? defaultCL.description : '',
+    tieBreakerCriteria: [],
+    tieBreakerCriterionId: null,
+    tieBreakerCriterionDescription: null,
+  });
+};
+
+const onCompetitionTypeChangeInStage = (stg: any) => {
+  if (!stg.competitionTypeId) return;
+  const found = competitionTypesList.value.find((c: any) => c.id === stg.competitionTypeId);
+  if (found) {
+    stg.competitionTypeDescription = found.description;
+  }
+};
+
+const onCompetitionLapChangeInStage = (stg: any) => {
+  if (!stg.competitionLapId) return;
+  const found = competitionLapsList.value.find((c: any) => c.id === stg.competitionLapId);
+  if (found) {
+    stg.competitionLapDescription = found.description;
+  }
+};
+
+const isCriterionAlreadyInStage = (stg: any, critId: string): boolean => {
+  if (!stg.tieBreakerCriteria || !Array.isArray(stg.tieBreakerCriteria)) return false;
+  return stg.tieBreakerCriteria.some((c: any) => (c.criterionId || c.id) === critId);
+};
+
+const updateStageTieBreakerSummary = (stg: any) => {
+  if (stg.tieBreakerCriteria && stg.tieBreakerCriteria.length > 0) {
+    stg.tieBreakerCriterionId = stg.tieBreakerCriteria[0].criterionId || stg.tieBreakerCriteria[0].id;
+    stg.tieBreakerCriterionDescription = stg.tieBreakerCriteria
+      .map((c: any) => `#${c.order} ${c.code || c.description}`)
+      .join(' → ');
+  } else {
+    stg.tieBreakerCriterionId = null;
+    stg.tieBreakerCriterionDescription = null;
+  }
+};
+
+const addCriterionToStageDirect = (stg: any, event: any) => {
+  const critId = event?.target?.value;
+  if (!critId) return;
+  if (!stg.tieBreakerCriteria) {
+    stg.tieBreakerCriteria = [];
+  }
+  if (isCriterionAlreadyInStage(stg, critId)) {
+    toast.warning('Este criterio de desempate ya está en la lista de esta etapa');
+    event.target.value = '';
+    return;
+  }
+  const found = tieBreakerCriteriaList.value.find((c: any) => c.id === critId);
+  if (found) {
+    stg.tieBreakerCriteria.push({
+      criterionId: found.id,
+      id: found.id,
+      description: found.description,
+      code: found.code || '',
+      observation: found.observation || '',
+      order: stg.tieBreakerCriteria.length + 1,
+    });
+    updateStageTieBreakerSummary(stg);
+  }
+  event.target.value = '';
+};
+
+const moveStageCriterionUp = (stg: any, index: number) => {
+  if (!stg.tieBreakerCriteria || index <= 0) return;
+  const temp = stg.tieBreakerCriteria[index];
+  stg.tieBreakerCriteria[index] = stg.tieBreakerCriteria[index - 1];
+  stg.tieBreakerCriteria[index - 1] = temp;
+  stg.tieBreakerCriteria.forEach((c: any, idx: number) => {
+    c.order = idx + 1;
+  });
+  updateStageTieBreakerSummary(stg);
+};
+
+const moveStageCriterionDown = (stg: any, index: number) => {
+  if (!stg.tieBreakerCriteria || index >= stg.tieBreakerCriteria.length - 1) return;
+  const temp = stg.tieBreakerCriteria[index];
+  stg.tieBreakerCriteria[index] = stg.tieBreakerCriteria[index + 1];
+  stg.tieBreakerCriteria[index + 1] = temp;
+  stg.tieBreakerCriteria.forEach((c: any, idx: number) => {
+    c.order = idx + 1;
+  });
+  updateStageTieBreakerSummary(stg);
+};
+
+const removeStageCriterion = (stg: any, index: number) => {
+  if (!stg.tieBreakerCriteria) return;
+  stg.tieBreakerCriteria.splice(index, 1);
+  stg.tieBreakerCriteria.forEach((c: any, idx: number) => {
+    c.order = idx + 1;
+  });
+  updateStageTieBreakerSummary(stg);
+};
+
+const getCategoryGenderById = (categoryId: string): string => {
+  if (!categoryId) return '';
+  const found = categoriesList.value.find((c: any) => c.id === categoryId);
+  if (!found) return '';
+  return found.gender === 'MALE' ? 'Varones' : found.gender === 'FEMALE' ? 'Mujeres' : 'Mixto';
+};
+
 const addCategoryToEditionDetail = () => {
   const newRow = {
     _uid: 'cat_' + Date.now() + '_' + Math.random().toString(36).substring(2, 7),
@@ -5006,6 +5716,7 @@ const addCategoryToEditionDetail = () => {
     stages: [],
   };
   editionCategoriesDetail.value.push(newRow);
+  expandedCategoryRows.value.add(editionCategoriesDetail.value.length - 1);
 };
 
 const onCategoryChangeInRow = (item: any) => {
@@ -5025,6 +5736,16 @@ const getCategoryAcronymsById = (categoryId: string): string => {
 
 const removeCategoryFromEditionDetail = (index: number) => {
   editionCategoriesDetail.value.splice(index, 1);
+  expandedCategoryRows.value.delete(index);
+  const nextSet = new Set<number>();
+  expandedCategoryRows.value.forEach((expIdx) => {
+    if (expIdx < index) {
+      nextSet.add(expIdx);
+    } else if (expIdx > index) {
+      nextSet.add(expIdx - 1);
+    }
+  });
+  expandedCategoryRows.value = nextSet;
 };
 
 // ==========================================
@@ -5298,6 +6019,7 @@ const getPlayerClassificationCodeById = (id: string) => {
 const showCategoryStagesModal = ref(false);
 const selectedCategoryForStages = ref<any>(null);
 const selectedCategoryStagesIndex = ref<number>(-1);
+const editingCategoryStageIndex = ref<number | null>(null);
 const formCategoryStage = ref({
   stageOrder: 1,
   name: '',
@@ -5305,6 +6027,8 @@ const formCategoryStage = ref({
   competitionLapId: '',
   tieBreakerCriterionId: '',
 });
+const formCategoryStageCriteria = ref<any[]>([]);
+const selectedCriterionToAdd = ref('');
 
 const competitionTypesList = ref<any[]>([]);
 const competitionLapsList = ref<any[]>([]);
@@ -5334,6 +6058,111 @@ const tieBreakerCriteriaOptions = computed(() => {
   }));
 });
 
+const availableTieBreakerOptions = computed(() => {
+  const selectedIds = new Set(
+    formCategoryStageCriteria.value.map((c) => c.criterionId || c.id)
+  );
+  return tieBreakerCriteriaList.value
+    .filter((tb) => !selectedIds.has(tb.id))
+    .map((tb) => ({
+      value: tb.id,
+      label: tb.description,
+      sublabel: tb.code ? `[${tb.code}] ${tb.observation || ''}`.trim() : tb.observation || undefined,
+    }));
+});
+
+const addCriterionToStage = () => {
+  if (!selectedCriterionToAdd.value) return;
+  const item = tieBreakerCriteriaList.value.find((c) => c.id === selectedCriterionToAdd.value);
+  if (!item) return;
+
+  formCategoryStageCriteria.value.push({
+    criterionId: item.id,
+    id: item.id,
+    description: item.description,
+    code: item.code || '',
+    observation: item.observation || '',
+    order: formCategoryStageCriteria.value.length + 1,
+  });
+  selectedCriterionToAdd.value = '';
+};
+
+const moveCriterionUp = (index: number) => {
+  if (index <= 0 || index >= formCategoryStageCriteria.value.length) return;
+  const item = formCategoryStageCriteria.value.splice(index, 1)[0];
+  formCategoryStageCriteria.value.splice(index - 1, 0, item);
+  formCategoryStageCriteria.value.forEach((c, idx) => {
+    c.order = idx + 1;
+  });
+};
+
+const moveCriterionDown = (index: number) => {
+  if (index < 0 || index >= formCategoryStageCriteria.value.length - 1) return;
+  const item = formCategoryStageCriteria.value.splice(index, 1)[0];
+  formCategoryStageCriteria.value.splice(index + 1, 0, item);
+  formCategoryStageCriteria.value.forEach((c, idx) => {
+    c.order = idx + 1;
+  });
+};
+
+const removeCriterionFromStage = (index: number) => {
+  formCategoryStageCriteria.value.splice(index, 1);
+  formCategoryStageCriteria.value.forEach((c, idx) => {
+    c.order = idx + 1;
+  });
+};
+
+const editCategoryStageRecord = (index: number) => {
+  if (!selectedCategoryForStages.value?.stages?.[index]) return;
+  const stg = selectedCategoryForStages.value.stages[index];
+  editingCategoryStageIndex.value = index;
+
+  formCategoryStage.value = {
+    stageOrder: stg.stageOrder || (index + 1),
+    name: stg.name || '',
+    competitionTypeId: stg.competitionTypeId || '',
+    competitionLapId: stg.competitionLapId || '',
+    tieBreakerCriterionId: stg.tieBreakerCriterionId || '',
+  };
+
+  if (Array.isArray(stg.tieBreakerCriteria) && stg.tieBreakerCriteria.length > 0) {
+    formCategoryStageCriteria.value = JSON.parse(JSON.stringify(stg.tieBreakerCriteria)).map((c: any, cIdx: number) => ({
+      criterionId: c.criterionId || c.id,
+      id: c.id || c.criterionId,
+      description: c.description || getTieBreakerCriterionDescById(c.criterionId || c.id),
+      code: c.code || '',
+      observation: c.observation || '',
+      order: Number(c.order) || (cIdx + 1),
+    }));
+  } else if (stg.tieBreakerCriterionId) {
+    const item = tieBreakerCriteriaList.value.find((c) => c.id === stg.tieBreakerCriterionId);
+    formCategoryStageCriteria.value = [{
+      criterionId: stg.tieBreakerCriterionId,
+      id: stg.tieBreakerCriterionId,
+      description: item?.description || stg.tieBreakerCriterionDescription || getTieBreakerCriterionDescById(stg.tieBreakerCriterionId),
+      code: item?.code || '',
+      observation: item?.observation || '',
+      order: 1,
+    }];
+  } else {
+    formCategoryStageCriteria.value = [];
+  }
+  selectedCriterionToAdd.value = '';
+};
+
+const cancelEditCategoryStage = () => {
+  editingCategoryStageIndex.value = null;
+  formCategoryStage.value = {
+    stageOrder: (selectedCategoryForStages.value?.stages?.length || 0) + 1,
+    name: '',
+    competitionTypeId: competitionTypesList.value.length > 0 ? competitionTypesList.value[0].id : '',
+    competitionLapId: competitionLapsList.value.length > 0 ? competitionLapsList.value[0].id : '',
+    tieBreakerCriterionId: '',
+  };
+  formCategoryStageCriteria.value = [];
+  selectedCriterionToAdd.value = '';
+};
+
 const getCompetitionTypeDescById = (id: string): string => {
   if (!id) return '';
   const item = competitionTypesList.value.find((c) => c.id === id);
@@ -5352,12 +6181,15 @@ const getTieBreakerCriterionDescById = (id: string): string => {
   return item ? item.description : id;
 };
 
-const openCategoryStagesModal = (item: any, idx: number) => {
+const openCategoryStagesModal = (item: any, idx: number, stageIdxToEdit?: number) => {
   selectedCategoryForStages.value = item;
   selectedCategoryStagesIndex.value = idx;
+  editingCategoryStageIndex.value = null;
   if (!item.stages) {
     item.stages = [];
   }
+  formCategoryStageCriteria.value = [];
+  selectedCriterionToAdd.value = '';
   formCategoryStage.value = {
     stageOrder: (item.stages.length || 0) + 1,
     name: '',
@@ -5365,6 +6197,9 @@ const openCategoryStagesModal = (item: any, idx: number) => {
     competitionLapId: competitionLapsList.value.length > 0 ? competitionLapsList.value[0].id : '',
     tieBreakerCriterionId: '',
   };
+  if (typeof stageIdxToEdit === 'number' && stageIdxToEdit >= 0) {
+    editCategoryStageRecord(stageIdxToEdit);
+  }
   showCategoryStagesModal.value = true;
 };
 
@@ -5388,23 +6223,44 @@ const addCategoryStageRecord = () => {
 
   const ctDesc = getCompetitionTypeDescById(formCategoryStage.value.competitionTypeId);
   const clDesc = getCompetitionLapDescById(formCategoryStage.value.competitionLapId);
-  const tbDesc = getTieBreakerCriterionDescById(formCategoryStage.value.tieBreakerCriterionId);
 
-  selectedCategoryForStages.value.stages.push({
-    stageOrder: Number(formCategoryStage.value.stageOrder) || (selectedCategoryForStages.value.stages.length + 1),
+  // Al momento de guardar en un campo nuevo guarda según el orden del array sumando al índice del array 1
+  const tieBreakerCriteria = formCategoryStageCriteria.value.map((c, idx) => ({
+    criterionId: c.criterionId || c.id,
+    id: c.id || c.criterionId,
+    description: c.description || getTieBreakerCriterionDescById(c.criterionId || c.id),
+    code: c.code || '',
+    observation: c.observation || '',
+    order: idx + 1,
+  }));
+
+  const tbDesc = tieBreakerCriteria.length > 0
+    ? tieBreakerCriteria.map((c) => `#${c.order} ${c.code || c.description}`).join(' → ')
+    : null;
+
+  const stageData = {
+    stageOrder: Number(formCategoryStage.value.stageOrder) || (editingCategoryStageIndex.value !== null ? (editingCategoryStageIndex.value + 1) : (selectedCategoryForStages.value.stages.length + 1)),
     name: formCategoryStage.value.name.trim(),
     competitionTypeId: formCategoryStage.value.competitionTypeId,
     competitionTypeDescription: ctDesc,
     competitionLapId: formCategoryStage.value.competitionLapId,
     competitionLapDescription: clDesc,
-    tieBreakerCriterionId: formCategoryStage.value.tieBreakerCriterionId || null,
-    tieBreakerCriterionDescription: tbDesc || null,
-  });
+    tieBreakerCriteria: tieBreakerCriteria,
+    tieBreakerCriterionId: tieBreakerCriteria.length > 0 ? tieBreakerCriteria[0].criterionId : null,
+    tieBreakerCriterionDescription: tbDesc,
+  };
+
+  if (editingCategoryStageIndex.value !== null && editingCategoryStageIndex.value >= 0) {
+    selectedCategoryForStages.value.stages[editingCategoryStageIndex.value] = stageData;
+    toast.success('Etapa actualizada correctamente');
+    editingCategoryStageIndex.value = null;
+  } else {
+    selectedCategoryForStages.value.stages.push(stageData);
+    toast.success('Etapa agregada a la categoría');
+  }
 
   // Ordenar por stageOrder
   selectedCategoryForStages.value.stages.sort((a: any, b: any) => (Number(a.stageOrder) || 0) - (Number(b.stageOrder) || 0));
-
-  toast.success('Etapa agregada a la categoría');
 
   // Preparar siguiente etapa en orden sucesivo
   formCategoryStage.value = {
@@ -5414,10 +6270,15 @@ const addCategoryStageRecord = () => {
     competitionLapId: competitionLapsList.value.length > 0 ? competitionLapsList.value[0].id : '',
     tieBreakerCriterionId: '',
   };
+  formCategoryStageCriteria.value = [];
+  selectedCriterionToAdd.value = '';
 };
 
 const removeCategoryStageRecord = (index: number) => {
   if (!selectedCategoryForStages.value || !selectedCategoryForStages.value.stages) return;
+  if (editingCategoryStageIndex.value === index) {
+    cancelEditCategoryStage();
+  }
   selectedCategoryForStages.value.stages.splice(index, 1);
   toast.info('Etapa eliminada de la categoría');
 };
@@ -5430,18 +6291,46 @@ const applyStageTemplateToCategory = (event: any) => {
     toast.warning('La plantilla seleccionada no tiene etapas configuradas');
     return;
   }
-  const stagesToApply = template.details.map((d: any, idx: number) => ({
-    stageOrder: Number(d.stageOrder) || idx + 1,
-    name: d.name,
-    competitionTypeId: d.competitionTypeId,
-    competitionTypeDescription: d.competitionType?.description || getCompetitionTypeDescById(d.competitionTypeId),
-    competitionLapId: d.competitionLapId,
-    competitionLapDescription: d.competitionLap?.description || getCompetitionLapDescById(d.competitionLapId),
-    tieBreakerCriterionId: d.tieBreakerCriterionId || null,
-    tieBreakerCriterionDescription: d.tieBreakerCriterion?.description || (d.tieBreakerCriterionId ? getTieBreakerCriterionDescById(d.tieBreakerCriterionId) : null),
-  }));
+  const stagesToApply = template.details.map((d: any, idx: number) => {
+    const rawCriteria = Array.isArray(d.tieBreakerCriteria) && d.tieBreakerCriteria.length > 0
+      ? d.tieBreakerCriteria
+      : (d.tieBreakerCriterionId ? [{
+          criterionId: d.tieBreakerCriterionId,
+          id: d.tieBreakerCriterionId,
+          description: d.tieBreakerCriterion?.description || getTieBreakerCriterionDescById(d.tieBreakerCriterionId),
+          code: d.tieBreakerCriterion?.code || '',
+          observation: d.tieBreakerCriterion?.observation || '',
+          order: 1,
+        }] : []);
+
+    const tieBreakerCriteria = rawCriteria.map((c: any, cIdx: number) => ({
+      criterionId: c.criterionId || c.id,
+      id: c.id || c.criterionId,
+      description: c.description || getTieBreakerCriterionDescById(c.criterionId || c.id),
+      code: c.code || '',
+      observation: c.observation || '',
+      order: Number(c.order) || (cIdx + 1),
+    }));
+
+    const tbDesc = tieBreakerCriteria.length > 0
+      ? tieBreakerCriteria.map((c) => `#${c.order} ${c.code || c.description}`).join(' → ')
+      : (d.tieBreakerCriterion?.description || (d.tieBreakerCriterionId ? getTieBreakerCriterionDescById(d.tieBreakerCriterionId) : null));
+
+    return {
+      stageOrder: Number(d.stageOrder) || idx + 1,
+      name: d.name,
+      competitionTypeId: d.competitionTypeId,
+      competitionTypeDescription: d.competitionType?.description || getCompetitionTypeDescById(d.competitionTypeId),
+      competitionLapId: d.competitionLapId,
+      competitionLapDescription: d.competitionLap?.description || getCompetitionLapDescById(d.competitionLapId),
+      tieBreakerCriteria: tieBreakerCriteria,
+      tieBreakerCriterionId: tieBreakerCriteria.length > 0 ? tieBreakerCriteria[0].criterionId : null,
+      tieBreakerCriterionDescription: tbDesc,
+    };
+  });
   selectedCategoryForStages.value.stages = stagesToApply;
   formCategoryStage.value.stageOrder = stagesToApply.length + 1;
+  cancelEditCategoryStage();
   toast.success(`Se aplicaron ${stagesToApply.length} etapa(s) desde la plantilla "${template.name}"`);
   event.target.value = '';
 };
@@ -5842,6 +6731,32 @@ const onPlayerPhotoSelected = async (e: Event) => {
   } finally {
     uploadingImage.value = false;
     input.value = '';
+  }
+};
+
+const handleUploadTeamLogo = async (file: File): Promise<string> => {
+  const companyId = getActiveCompanyId();
+  try {
+    const url = await uploadTeamLogo(file, companyId);
+    toast.success('Escudo optimizado y subido correctamente');
+    return url;
+  } catch (err) {
+    console.warn('Error al subir a storage, usando fallback local:', err);
+    toast.info('Escudo optimizado y preparado');
+    return URL.createObjectURL(file);
+  }
+};
+
+const handleUploadPlayerPhoto = async (file: File): Promise<string> => {
+  const companyId = getActiveCompanyId();
+  try {
+    const url = await uploadPlayerPhoto(file, companyId);
+    toast.success('Foto oficial del jugador subida correctamente');
+    return url;
+  } catch (err) {
+    console.warn('Error al subir a storage, usando fallback local:', err);
+    toast.info('Foto optimizada y preparada');
+    return URL.createObjectURL(file);
   }
 };
 
@@ -6496,6 +7411,7 @@ const openCreateForm = () => {
         stages: [],
       },
     ];
+    expandedCategoryRows.value = new Set([0]);
   } else if (activeTab.value === 'categories') {
     formData.value = {};
   } else if (activeTab.value === 'players') {
@@ -6581,9 +7497,33 @@ const openEditForm = (item: any) => {
           breakDurationMinutes: det.breakDurationMinutes !== undefined && det.breakDurationMinutes !== null ? Number(det.breakDurationMinutes) : (Number(item.breakDurationMinutes) || 10),
           waitBetweenMatchesMinutes: det.waitBetweenMatchesMinutes !== undefined && det.waitBetweenMatchesMinutes !== null ? Number(det.waitBetweenMatchesMinutes) : (Number(item.waitBetweenMatchesMinutes) || 10),
           classifications: Array.isArray(det.classifications) ? det.classifications : [],
-          stages: Array.isArray(det.stages) ? det.stages : [],
+          stages: (Array.isArray(det.stages) ? det.stages : []).map((stg: any, sIdx: number) => {
+            const rawCriteria = Array.isArray(stg.tieBreakerCriteria) && stg.tieBreakerCriteria.length > 0
+              ? stg.tieBreakerCriteria
+              : (stg.tieBreakerCriterionId ? [{
+                  criterionId: stg.tieBreakerCriterionId,
+                  id: stg.tieBreakerCriterionId,
+                  description: stg.tieBreakerCriterionDescription || getTieBreakerCriterionDescById(stg.tieBreakerCriterionId),
+                  code: '',
+                  observation: '',
+                  order: 1,
+                }] : []);
+            return {
+              ...stg,
+              stageOrder: Number(stg.stageOrder) || (sIdx + 1),
+              tieBreakerCriteria: rawCriteria.map((c: any, cIdx: number) => ({
+                criterionId: c.criterionId || c.id,
+                id: c.id || c.criterionId,
+                description: c.description || getTieBreakerCriterionDescById(c.criterionId || c.id),
+                code: c.code || '',
+                observation: c.observation || '',
+                order: Number(c.order) || (cIdx + 1),
+              })),
+            };
+          }),
         }))
       : [];
+    expandedCategoryRows.value = new Set([0]);
   } else if (activeTab.value === 'categories') {
     // Mantener los datos del item para edición
   } else if (activeTab.value === 'players') {
@@ -6641,6 +7581,7 @@ const closeForm = () => {
   isEditing.value = false;
   editingId.value = null;
   editionCategoriesDetail.value = [];
+  expandedCategoryRows.value = new Set();
   templateStagesDetail.value = [];
   if (scenaryMapInstance) {
     scenaryMapInstance.remove();
@@ -6708,16 +7649,31 @@ const saveForm = async () => {
           maxInactivityMonths: c.maxInactivityMonths !== undefined && c.maxInactivityMonths !== null ? Number(c.maxInactivityMonths) : null,
           maxMonths: c.maxMonths !== undefined && c.maxMonths !== null ? Number(c.maxMonths) : null,
         })),
-        stages: (d.stages || []).map((s: any, sIdx: number) => ({
-          stageOrder: Number(s.stageOrder) || (sIdx + 1),
-          name: s.name,
-          competitionTypeId: s.competitionTypeId,
-          competitionTypeDescription: s.competitionTypeDescription || getCompetitionTypeDescById(s.competitionTypeId),
-          competitionLapId: s.competitionLapId,
-          competitionLapDescription: s.competitionLapDescription || getCompetitionLapDescById(s.competitionLapId),
-          tieBreakerCriterionId: s.tieBreakerCriterionId || null,
-          tieBreakerCriterionDescription: s.tieBreakerCriterionDescription || (s.tieBreakerCriterionId ? getTieBreakerCriterionDescById(s.tieBreakerCriterionId) : null),
-        })),
+        stages: (d.stages || []).map((s: any, sIdx: number) => {
+          const rawCriteria = Array.isArray(s.tieBreakerCriteria) ? s.tieBreakerCriteria : [];
+          const formattedCriteria = rawCriteria.map((c: any, cIdx: number) => ({
+            criterionId: c.criterionId || c.id,
+            id: c.id || c.criterionId,
+            description: c.description || getTieBreakerCriterionDescById(c.criterionId || c.id),
+            code: c.code || '',
+            observation: c.observation || '',
+            order: Number(c.order) || (cIdx + 1),
+          }));
+
+          return {
+            stageOrder: Number(s.stageOrder) || (sIdx + 1),
+            name: s.name,
+            competitionTypeId: s.competitionTypeId,
+            competitionTypeDescription: s.competitionTypeDescription || getCompetitionTypeDescById(s.competitionTypeId),
+            competitionLapId: s.competitionLapId,
+            competitionLapDescription: s.competitionLapDescription || getCompetitionLapDescById(s.competitionLapId),
+            tieBreakerCriteria: formattedCriteria,
+            tieBreakerCriterionId: s.tieBreakerCriterionId || (formattedCriteria[0]?.criterionId || null),
+            tieBreakerCriterionDescription: formattedCriteria.length > 0
+              ? formattedCriteria.map((c) => `#${c.order} ${c.code || c.description}`).join(' → ')
+              : (s.tieBreakerCriterionDescription || (s.tieBreakerCriterionId ? getTieBreakerCriterionDescById(s.tieBreakerCriterionId) : null)),
+          };
+        }),
       }));
     } else if (activeTab.value === 'categories') {
       if (!formData.value.code) {

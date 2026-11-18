@@ -1,11 +1,11 @@
 <template>
   <div class="crud-page-wrapper">
     <!-- VISTA 1: LISTADO (TABLAS Y FILTROS) -->
-    <div v-if="!showModal" class="card rounded-4 border-0 shadow-sm p-4 bg-navy-card text-white">
+    <div v-if="!showModal" class="card rounded-4 border shadow-sm p-4 bg-navy-card">
       <!-- Encabezado con Botón de Acción -->
       <div class="d-flex flex-wrap justify-content-between align-items-center gap-3 mb-3">
         <div>
-          <h5 class="fw-bold text-white mb-1 d-flex align-items-center gap-2">
+          <h5 class="fw-bold text-body-emphasis mb-1 d-flex align-items-center gap-2">
             <iconify-icon :icon="currentMeta.icon" class="fs-4 text-primary"></iconify-icon>
             <span>{{ currentMeta.title }}</span>
           </h5>
@@ -34,22 +34,22 @@
       </div>
 
     <!-- Barra de Filtros y Búsqueda -->
-    <div class="d-flex flex-wrap align-items-center gap-2 mb-4 p-2 rounded-3 bg-dark-subtle border border-secondary-subtle">
+    <div class="d-flex flex-wrap align-items-center gap-2 mb-4 p-2 rounded-3 bg-body-tertiary border border-secondary-subtle">
       <div class="input-group flex-grow-1" style="max-width: 380px;">
-        <span class="input-group-text bg-dark border-secondary-subtle text-secondary" style="height: 40px;">
+        <span class="input-group-text bg-body border-secondary-subtle text-secondary" style="height: 40px;">
           <iconify-icon icon="solar:magnifer-line-duotone"></iconify-icon>
         </span>
         <input
           v-model="searchQuery"
           type="text"
-          class="form-control bg-dark border-secondary-subtle text-white"
+          class="form-control bg-body border-secondary-subtle text-body"
           style="height: 40px;"
           :placeholder="`Buscar en ${currentMeta.title.toLowerCase()}...`"
           @input="onSearchInput"
         />
       </div>
       <div class="ms-auto pe-2 text-secondary fs-2 d-none d-sm-block">
-        Total: <span class="text-white fw-bold">{{ items.length }}</span> registro(s)
+        Total: <span class="text-body fw-bold">{{ items.length }}</span> registro(s)
       </div>
     </div>
 
@@ -67,7 +67,7 @@
             <th>Clasificación</th>
             <th>Contacto</th>
             <th class="text-center">Estado</th>
-            <th class="text-end">Acciones</th>
+            <th class="text-end" style="width: 70px;">Acciones</th>
           </tr>
         </thead>
         <tbody>
@@ -136,14 +136,14 @@
             <td class="text-end">
               <div class="dropdown">
                 <button
-                  class="btn bg-secondary-subtle text-secondary btn-sm dropdown-toggle d-inline-flex align-items-center gap-1 fw-semibold"
+                  class="btn btn-action-kebab"
                   type="button"
                   data-bs-toggle="dropdown"
-                  data-bs-popper-config='{"strategy":"fixed"}'
+                  data-bs-display="static"
                   aria-expanded="false"
+                  title="Acciones"
                 >
-                  <iconify-icon icon="solar:menu-dots-bold" class="fs-4"></iconify-icon>
-                  <span>Acciones</span>
+                  <iconify-icon icon="solar:menu-dots-vertical-bold" class="fs-4"></iconify-icon>
                 </button>
                 <ul class="dropdown-menu dropdown-menu-end shadow-lg py-1">
                   <li>
@@ -176,7 +176,7 @@
             <th>Descripción / Nombre</th>
             <th>Siglas</th>
             <th class="text-center">Estado</th>
-            <th class="text-end">Acciones</th>
+            <th class="text-end" style="width: 70px;">Acciones</th>
           </tr>
         </thead>
         <tbody>
@@ -206,14 +206,14 @@
             <td class="text-end">
               <div class="dropdown">
                 <button
-                  class="btn bg-secondary-subtle text-secondary btn-sm dropdown-toggle d-inline-flex align-items-center gap-1 fw-semibold"
+                  class="btn btn-action-kebab"
                   type="button"
                   data-bs-toggle="dropdown"
-                  data-bs-popper-config='{"strategy":"fixed"}'
+                  data-bs-display="static"
                   aria-expanded="false"
+                  title="Acciones"
                 >
-                  <iconify-icon icon="solar:menu-dots-bold" class="fs-4"></iconify-icon>
-                  <span>Acciones</span>
+                  <iconify-icon icon="solar:menu-dots-vertical-bold" class="fs-4"></iconify-icon>
                 </button>
                 <ul class="dropdown-menu dropdown-menu-end shadow-lg py-1">
                   <li>
@@ -247,7 +247,7 @@
             <th>Gremio / Núcleo</th>
             <th>Contacto</th>
             <th class="text-center">Estado</th>
-            <th class="text-end">Acciones</th>
+            <th class="text-end" style="width: 70px;">Acciones</th>
           </tr>
         </thead>
         <tbody>
@@ -289,14 +289,14 @@
             <td class="text-end">
               <div class="dropdown">
                 <button
-                  class="btn bg-secondary-subtle text-secondary btn-sm dropdown-toggle d-inline-flex align-items-center gap-1 fw-semibold"
+                  class="btn btn-action-kebab"
                   type="button"
                   data-bs-toggle="dropdown"
-                  data-bs-popper-config='{"strategy":"fixed"}'
+                  data-bs-display="static"
                   aria-expanded="false"
+                  title="Acciones"
                 >
-                  <iconify-icon icon="solar:menu-dots-bold" class="fs-4"></iconify-icon>
-                  <span>Acciones</span>
+                  <iconify-icon icon="solar:menu-dots-vertical-bold" class="fs-4"></iconify-icon>
                 </button>
                 <ul class="dropdown-menu dropdown-menu-end shadow-lg py-1">
                   <li>
@@ -329,7 +329,7 @@
             <th>Código</th>
             <th>Observación</th>
             <th class="text-center">Estado</th>
-            <th class="text-end">Acciones</th>
+            <th class="text-end" style="width: 70px;">Acciones</th>
           </tr>
         </thead>
         <tbody>
@@ -359,14 +359,14 @@
             <td class="text-end">
               <div class="dropdown">
                 <button
-                  class="btn bg-secondary-subtle text-secondary btn-sm dropdown-toggle d-inline-flex align-items-center gap-1 fw-semibold"
+                  class="btn btn-action-kebab"
                   type="button"
                   data-bs-toggle="dropdown"
-                  data-bs-popper-config='{"strategy":"fixed"}'
+                  data-bs-display="static"
                   aria-expanded="false"
+                  title="Acciones"
                 >
-                  <iconify-icon icon="solar:menu-dots-bold" class="fs-4"></iconify-icon>
-                  <span>Acciones</span>
+                  <iconify-icon icon="solar:menu-dots-vertical-bold" class="fs-4"></iconify-icon>
                 </button>
                 <ul class="dropdown-menu dropdown-menu-end shadow-lg py-1">
                   <li>
@@ -400,7 +400,7 @@
             <th>Zona de Juego</th>
             <th>Límite Máx. x Equipo</th>
             <th class="text-center">Orden</th>
-            <th class="text-end">Acciones</th>
+            <th class="text-end" style="width: 70px;">Acciones</th>
           </tr>
         </thead>
         <tbody>
@@ -436,14 +436,14 @@
             <td class="text-end">
               <div class="dropdown">
                 <button
-                  class="btn bg-secondary-subtle text-secondary btn-sm dropdown-toggle d-inline-flex align-items-center gap-1 fw-semibold"
+                  class="btn btn-action-kebab"
                   type="button"
                   data-bs-toggle="dropdown"
-                  data-bs-popper-config='{"strategy":"fixed"}'
+                  data-bs-display="static"
                   aria-expanded="false"
+                  title="Acciones"
                 >
-                  <iconify-icon icon="solar:menu-dots-bold" class="fs-4"></iconify-icon>
-                  <span>Acciones</span>
+                  <iconify-icon icon="solar:menu-dots-vertical-bold" class="fs-4"></iconify-icon>
                 </button>
                 <ul class="dropdown-menu dropdown-menu-end shadow-lg py-1">
                   <li>
@@ -479,7 +479,7 @@
             <th>Desempate Play-offs</th>
             <th>Grupos</th>
             <th class="text-center">Estado</th>
-            <th class="text-end">Acciones</th>
+            <th class="text-end" style="width: 70px;">Acciones</th>
           </tr>
         </thead>
         <tbody>
@@ -547,14 +547,14 @@
             <td class="text-end">
               <div class="dropdown">
                 <button
-                  class="btn bg-secondary-subtle text-secondary btn-sm dropdown-toggle d-inline-flex align-items-center gap-1 fw-semibold"
+                  class="btn btn-action-kebab"
                   type="button"
                   data-bs-toggle="dropdown"
-                  data-bs-popper-config='{"strategy":"fixed"}'
+                  data-bs-display="static"
                   aria-expanded="false"
+                  title="Acciones"
                 >
-                  <iconify-icon icon="solar:menu-dots-bold" class="fs-4"></iconify-icon>
-                  <span>Acciones</span>
+                  <iconify-icon icon="solar:menu-dots-vertical-bold" class="fs-4"></iconify-icon>
                 </button>
                 <ul class="dropdown-menu dropdown-menu-end shadow-lg py-1">
                   <li>
@@ -589,7 +589,7 @@
             <th v-if="tab === 'competition_laps'" class="text-center">N° Vueltas</th>
             <th>Observación / Regla</th>
             <th class="text-center">Estado</th>
-            <th class="text-end">Acciones</th>
+            <th class="text-end" style="width: 70px;">Acciones</th>
           </tr>
         </thead>
         <tbody>
@@ -631,14 +631,14 @@
             <td class="text-end">
               <div class="dropdown">
                 <button
-                  class="btn bg-secondary-subtle text-secondary btn-sm dropdown-toggle d-inline-flex align-items-center gap-1 fw-semibold"
+                  class="btn btn-action-kebab"
                   type="button"
                   data-bs-toggle="dropdown"
-                  data-bs-popper-config='{"strategy":"fixed"}'
+                  data-bs-display="static"
                   aria-expanded="false"
+                  title="Acciones"
                 >
-                  <iconify-icon icon="solar:menu-dots-bold" class="fs-4"></iconify-icon>
-                  <span>Acciones</span>
+                  <iconify-icon icon="solar:menu-dots-vertical-bold" class="fs-4"></iconify-icon>
                 </button>
                 <ul class="dropdown-menu dropdown-menu-end shadow-lg py-1">
                   <li>
@@ -1110,11 +1110,11 @@
                       </label>
                     </div>
                   </div>
-                  <div class="col-md-6">
+                  <div v-if="isEditing" class="col-md-6">
                     <div class="form-check form-switch mt-2">
                       <input class="form-check-input" type="checkbox" v-model="formData.isActive" id="fmt_is_active" />
                       <label class="form-check-label text-white fw-semibold small ms-2" for="fmt_is_active">
-                        Formato Habilitado / Activo
+                        {{ formData.isActive ? 'Formato Habilitado / Activo' : 'Formato Deshabilitado / Inactivo' }}
                       </label>
                     </div>
                   </div>
@@ -1170,11 +1170,11 @@
                       placeholder="Detalle o descripción explicativa de esta opción reglamentaria..."
                     ></textarea>
                   </div>
-                  <div class="col-12">
+                  <div v-if="isEditing" class="col-12">
                     <div class="form-check form-switch mt-1">
                       <input class="form-check-input" type="checkbox" v-model="formData.isActive" id="cat_is_active" />
                       <label class="form-check-label text-white fw-semibold small ms-2" for="cat_is_active">
-                        Estado Activo / Habilitado por defecto
+                        {{ formData.isActive ? 'Registro Habilitado / Activo' : 'Registro Deshabilitado / Inactivo' }}
                       </label>
                     </div>
                   </div>
@@ -1198,6 +1198,7 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, watch } from 'vue';
 import { CampeonatoApi, uploadPlayerPhoto } from '@/services/campeonato.service';
+import { compressImageToWebP } from '@/utils/image-processor';
 import { toast } from '@/utils/toastr';
 
 const props = defineProps<{
@@ -1338,9 +1339,10 @@ const onPhotoSelected = async (e: Event) => {
   if (!file) return;
   try {
     uploadingPhoto.value = true;
-    const url = await uploadPlayerPhoto(file);
+    const { file: compressed } = await compressImageToWebP(file, { maxWidth: 800, maxHeight: 1000, quality: 0.85 });
+    const url = await uploadPlayerPhoto(compressed);
     formData.value.photo = url;
-    toast.success('Foto cargada exitosamente');
+    toast.success('Foto optimizada a WebP y cargada exitosamente');
   } catch (err) {
     console.error('Error al subir foto:', err);
     toast.error('Error al procesar la fotografía');
@@ -1507,6 +1509,10 @@ const submitForm = async () => {
     delete payload.playerClassification;
     delete payload.guild;
 
+    if (!isEditing.value) {
+      payload.isActive = true;
+    }
+
     if (props.tab === 'global_players') {
       if (payload.birthDate) {
         const calc = calculateAge(payload.birthDate);
@@ -1631,6 +1637,7 @@ const deleteItem = async (id: string, isGlobal = false) => {
 };
 
 watch(() => props.tab, () => {
+  closeModal();
   searchQuery.value = '';
   loadData();
 });
@@ -1642,8 +1649,21 @@ onMounted(() => {
 
 <style scoped>
 .bg-navy-card {
-  background: #111c2d;
+  background: var(--bs-card-bg, #111c2d);
+  color: var(--bs-body-color);
 }
+
+[data-bs-theme="dark"] .bg-navy-card {
+  background-color: #111c2d !important;
+}
+
+[data-bs-theme="light"] .bg-navy-card {
+  background-color: #ffffff !important;
+  border: 1px solid #e6ecf1 !important;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.05) !important;
+  color: #2a3547 !important;
+}
+
 .cursor-pointer {
   cursor: pointer;
 }
