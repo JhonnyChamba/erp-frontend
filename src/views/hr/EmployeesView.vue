@@ -66,6 +66,14 @@ const isEmployeeFormOpen = ref(false)
 const isEditingEmployee = ref(false)
 const editingEmployeeId = ref<number | null>(null)
 
+// En modo "crear usuario" la contraseña es obligatoria salvo que el colaborador
+// editado ya tenga un usuario vinculado (ahí en blanco significa "no cambiar").
+const userPasswordRequired = computed(() => {
+  if (!isEditingEmployee.value) return true
+  const current = employeesList.value.find((e) => e.id === editingEmployeeId.value)
+  return !(current?.user_id || current?.user?.id)
+})
+
 const employeeForm = ref({
   first_name: '',
   last_name: '',
@@ -298,7 +306,8 @@ const saveEmployee = async () => {
         toast.warning('Debes ingresar un correo electrónico válido para crear el usuario de acceso.', 'Usuario ERP Requerido')
         return
       }
-      if (!isEditingEmployee.value && (!employeeForm.value.user_password || employeeForm.value.user_password.length < 4)) {
+      const typedPassword = employeeForm.value.user_password || ''
+      if ((userPasswordRequired.value || typedPassword.length > 0) && typedPassword.length < 4) {
         toast.warning('Debes asignar una contraseña de acceso de al menos 4 caracteres.', 'Contraseña Requerida')
         return
       }
@@ -313,19 +322,34 @@ const saveEmployee = async () => {
   saving.value = true
   const companyId = getActiveCompanyId()
   try {
+    // enable_system_user / user_mode son solo de la interfaz: el backend rechaza (400)
+    // cualquier campo que no esté en su DTO. Los datos de usuario se agregan abajo.
+    const {
+      enable_system_user: _enableSystemUser,
+      user_mode: _userMode,
+      user_id: _userId,
+      user_email: _userEmail,
+      user_password: _userPassword,
+      user_role_id: _userRoleId,
+      ...employeeFields
+    } = employeeForm.value
+
     const payload: any = {
-      ...employeeForm.value,
+      ...employeeFields,
+      // Vacíos como null: '' no pasa @IsEmail y no es válido para una columna date.
+      email: employeeFields.email.trim() || null,
+      birth_date: employeeFields.birth_date || null,
       base_salary: Number(employeeForm.value.base_salary || 0),
       commission_rate: Number(employeeForm.value.commission_rate || 0),
     }
+    if (!payload.hire_date) delete payload.hire_date
 
     if (employeeForm.value.enable_system_user) {
       if (employeeForm.value.user_mode === 'create') {
         payload.create_user_account = true
         payload.user_email = employeeForm.value.user_email.trim()
-        payload.user_password = employeeForm.value.user_password
-        payload.user_role_id = employeeForm.value.user_role_id || undefined
-        payload.user_id = undefined
+        if (employeeForm.value.user_password) payload.user_password = employeeForm.value.user_password
+        if (employeeForm.value.user_role_id) payload.user_role_id = employeeForm.value.user_role_id
       } else {
         payload.create_user_account = false
         payload.user_id = Number(employeeForm.value.user_id)
@@ -990,7 +1014,7 @@ onUnmounted(() => {
                     </div>
                     <div class="col-md-3">
                       <label class="form-label text-secondary fs-2 fw-semibold">
-                        Contraseña de Acceso <span v-if="!isEditingEmployee" class="text-danger">*</span>
+                        Contraseña de Acceso <span v-if="userPasswordRequired" class="text-danger">*</span>
                       </label>
                       <div class="input-group">
                         <span class="input-group-text bg-dark border-secondary-subtle text-secondary">
@@ -1000,7 +1024,7 @@ onUnmounted(() => {
                           v-model="employeeForm.user_password"
                           type="password"
                           class="form-control bg-dark border-secondary-subtle text-white"
-                          :placeholder="isEditingEmployee ? 'En blanco para no cambiar' : 'Mín. 4 caracteres'"
+                          :placeholder="userPasswordRequired ? 'Mín. 4 caracteres' : 'En blanco para no cambiar'"
                         />
                       </div>
                     </div>

@@ -1232,7 +1232,7 @@ watch(showModal, (val) => {
   emit('update:formOpen', val);
 });
 const isEditing = ref(false);
-const editingId = ref<string | null>(null);
+const editingId = ref<number | null>(null);
 const formData = ref<Record<string, any>>({});
 
 const metaMap = {
@@ -1497,19 +1497,45 @@ const closeModal = () => {
   editingId.value = null;
 };
 
+// Campos aceptados por el DTO (create/update) de cada catálogo
+const catalogDtoFields = ['description', 'code', 'observation', 'isActive'];
+const dtoFieldsByTab: Record<string, string[]> = {
+  global_players: [
+    'code', 'ageYears', 'ageMonths', 'demarcationId', 'playerClassificationId', 'name', 'lastName', 'identification',
+    'isForeigner', 'birthDate', 'gender', 'jerseyNumber', 'address', 'phone', 'email', 'photo', 'bloodType', 'dominantFoot',
+    'emergencyContactName', 'emergencyContactPhone', 'medicalClearanceExpiry', 'isActive', 'currentTeamId', 'passOwnerType',
+    'passOwnerTeamId',
+  ],
+  referee_guilds: ['description', 'acronyms', 'isActive'],
+  global_referees: ['name', 'lastName', 'identification', 'guildId', 'phone', 'email', 'category', 'isActive'],
+  player_classifications: catalogDtoFields,
+  demarcations: ['name', 'code', 'zone', 'order', 'maxPlayers'],
+  stage_formats: ['name', 'code', 'description', 'formatType', 'defaultLaps', 'defaultTieBreaker', 'requiresGroups', 'isActive'],
+  competition_types: catalogDtoFields,
+  competition_laps: [...catalogDtoFields, 'numberOfLaps'],
+  tie_breaker_criteria: catalogDtoFields,
+};
+const emptyAsNullFields = ['email', 'birthDate', 'medicalClearanceExpiry'];
+
 const submitForm = async () => {
   try {
     saving.value = true;
-    const payload = { ...formData.value };
-    delete payload.id;
-    delete payload._id;
-    delete payload.createdAt;
-    delete payload.updatedAt;
-    delete payload.demarcation;
-    delete payload.playerClassification;
-    delete payload.guild;
+    // El backend rechaza (400) cualquier campo no declarado en el DTO (companyId, createdBy, relaciones...):
+    // se envían únicamente los campos del DTO de cada catálogo.
+    const allowed = dtoFieldsByTab[props.tab] || [];
+    const payload: Record<string, any> = {};
+    for (const key of allowed) {
+      const value = formData.value[key];
+      if (value === undefined) continue;
+      if (value === '') {
+        // Campo vacío: al crear no se envía; al editar se limpia (null en ids, fechas y correo)
+        if (isEditing.value) payload[key] = key.endsWith('Id') || emptyAsNullFields.includes(key) ? null : '';
+        continue;
+      }
+      payload[key] = value;
+    }
 
-    if (!isEditing.value) {
+    if (!isEditing.value && allowed.includes('isActive')) {
       payload.isActive = true;
     }
 
@@ -1606,15 +1632,16 @@ const submitForm = async () => {
   }
 };
 
-const deleteItem = async (id: string, isGlobal = false) => {
+const deleteItem = async (id: number, isGlobal = false) => {
   if (!confirm('¿Estás seguro de que deseas eliminar este registro del catálogo global?')) return;
   try {
     if (props.tab === 'global_players') {
-      await CampeonatoApi.players.delete(id);
+      // Padrón global: borrado físico solo para super admin y solo si el jugador no tiene historial
+      await CampeonatoApi.players.delete(id, undefined, isGlobal ? { global: true } : undefined);
     } else if (props.tab === 'referee_guilds') {
       await CampeonatoApi.refereeGuilds.delete(id);
     } else if (props.tab === 'global_referees') {
-      await CampeonatoApi.referees.delete(id);
+      await CampeonatoApi.referees.delete(id, undefined, isGlobal ? { global: true } : undefined);
     } else if (props.tab === 'player_classifications') {
       await CampeonatoApi.playerClassifications.delete(id);
     } else if (props.tab === 'demarcations') {

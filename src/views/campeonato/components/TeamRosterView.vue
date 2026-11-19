@@ -248,15 +248,15 @@ import { toast } from '@/utils/toastr';
 
 const props = defineProps<{
   teamRegistrations: any[];
-  initialTeamRegId?: string;
+  initialTeamRegId?: number;
 }>();
 
 const emit = defineEmits<{
   (e: 'close'): void;
-  (e: 'view-history', playerId: string): void;
+  (e: 'view-history', playerId: number): void;
 }>();
 
-const selectedTeamRegId = ref(props.initialTeamRegId || '');
+const selectedTeamRegId = ref<number | ''>(props.initialTeamRegId || '');
 const roster = ref<any>(null);
 const loading = ref(false);
 

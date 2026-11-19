@@ -191,6 +191,9 @@ const loading = ref(false);
 const saving = ref(false);
 const specialists = ref<EmployeeItem[]>([]);
 const selectedEmployeeId = ref<number | null>(null);
+// Especialista cuyo horario está realmente cargado en la tabla. Si la carga falla
+// queda en null y no se permite guardar (se grabaría el horario del anterior).
+const loadedEmployeeId = ref<number | null>(null);
 
 const defaultWeekDays: DayConfig[] = [
   { day_of_week: 1, name: 'Lunes', start_time: '09:00', end_time: '19:00', break_start: '13:00', break_end: '14:00', active: true },
@@ -218,9 +221,13 @@ const loadSpecialists = async () => {
 
 const loadEmployeeSchedule = async () => {
   if (!selectedEmployeeId.value) return;
+  const employeeId = selectedEmployeeId.value;
+  loadedEmployeeId.value = null;
   loading.value = true;
   try {
-    const existing = await appointmentsService.getSchedules(selectedEmployeeId.value);
+    const existing = await appointmentsService.getSchedules(employeeId);
+    // El usuario cambió de especialista mientras se cargaba: esta respuesta ya no aplica.
+    if (employeeId !== selectedEmployeeId.value) return;
     if (existing && existing.length > 0) {
       weekDays.value = defaultWeekDays.map((defDay) => {
         const found = existing.find((e) => e.day_of_week === defDay.day_of_week);
@@ -230,8 +237,9 @@ const loadEmployeeSchedule = async () => {
             name: defDay.name,
             start_time: found.start_time?.substring(0, 5) || defDay.start_time,
             end_time: found.end_time?.substring(0, 5) || defDay.end_time,
-            break_start: found.break_start?.substring(0, 5) || defDay.break_start,
-            break_end: found.break_end?.substring(0, 5) || defDay.break_end,
+            // Un día guardado sin receso se muestra sin receso (no se rellena con el de por defecto).
+            break_start: found.break_start?.substring(0, 5) || '',
+            break_end: found.break_end?.substring(0, 5) || '',
             active: found.active,
           };
         }
@@ -240,10 +248,14 @@ const loadEmployeeSchedule = async () => {
     } else {
       weekDays.value = JSON.parse(JSON.stringify(defaultWeekDays));
     }
+    loadedEmployeeId.value = employeeId;
   } catch (err) {
     console.error('Error loading schedule:', err);
+    if (employeeId === selectedEmployeeId.value) {
+      toast.error('No se pudo cargar el horario de la especialista. Vuelve a seleccionarla antes de guardar.', 'Error');
+    }
   } finally {
-    loading.value = false;
+    if (employeeId === selectedEmployeeId.value) loading.value = false;
   }
 };
 
@@ -264,14 +276,24 @@ const copyMondayToAll = () => {
 
 const saveSchedules = async () => {
   if (!selectedEmployeeId.value) return;
+  if (loadedEmployeeId.value !== selectedEmployeeId.value) {
+    toast.warning('El horario de esta especialista no se cargó. Vuelve a seleccionarla antes de guardar.', 'Horario no cargado');
+    return;
+  }
+  const incompleteBreak = weekDays.value.find((d) => Boolean(d.break_start) !== Boolean(d.break_end));
+  if (incompleteBreak) {
+    toast.warning(`Completa o borra ambas horas del receso del día ${incompleteBreak.name}.`, 'Receso incompleto');
+    return;
+  }
   saving.value = true;
   try {
+    // Receso vacío = día sin receso (el backend lo guarda como null).
     const payload = weekDays.value.map((d) => ({
       day_of_week: d.day_of_week,
       start_time: d.start_time,
       end_time: d.end_time,
-      break_start: d.break_start,
-      break_end: d.break_end,
+      break_start: d.break_start || undefined,
+      break_end: d.break_end || undefined,
       active: d.active,
     }));
 

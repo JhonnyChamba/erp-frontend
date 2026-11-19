@@ -81,8 +81,8 @@ const userPhotoPreview = ref<string>('')
 const onCompanyLogoChange = async (e: Event) => {
   const file = (e.target as HTMLInputElement).files?.[0]
   if (!file) return
-  if (!/^image\/(png|jpe?g|webp|svg\+xml)$/i.test(file.type)) {
-    toast.error('Formato no permitido. Solo se aceptan imágenes (PNG, JPG, WEBP, SVG).')
+  if (!/^image\/(png|jpe?g|webp)$/i.test(file.type)) {
+    toast.error('Formato no permitido. Solo se aceptan imágenes (PNG, JPG, WEBP).')
     return
   }
   if (file.size > 10 * 1024 * 1024) {
@@ -102,8 +102,8 @@ const onCompanyLogoChange = async (e: Event) => {
 const onBranchLogoChange = async (e: Event) => {
   const file = (e.target as HTMLInputElement).files?.[0]
   if (!file) return
-  if (!/^image\/(png|jpe?g|webp|svg\+xml)$/i.test(file.type)) {
-    toast.error('Formato no permitido. Solo se aceptan imágenes (PNG, JPG, WEBP, SVG).')
+  if (!/^image\/(png|jpe?g|webp)$/i.test(file.type)) {
+    toast.error('Formato no permitido. Solo se aceptan imágenes (PNG, JPG, WEBP).')
     return
   }
   if (file.size > 10 * 1024 * 1024) {
@@ -123,8 +123,8 @@ const onBranchLogoChange = async (e: Event) => {
 const onUserPhotoChange = async (e: Event) => {
   const file = (e.target as HTMLInputElement).files?.[0]
   if (!file) return
-  if (!/^image\/(png|jpe?g|webp|svg\+xml)$/i.test(file.type)) {
-    toast.error('Formato no permitido. Solo se aceptan imágenes (PNG, JPG, WEBP, SVG).')
+  if (!/^image\/(png|jpe?g|webp)$/i.test(file.type)) {
+    toast.error('Formato no permitido. Solo se aceptan imágenes (PNG, JPG, WEBP).')
     return
   }
   if (file.size > 10 * 1024 * 1024) {
@@ -910,10 +910,23 @@ const formSubscription = ref({
   subModuleIds: [] as number[],
 })
 
+// Catálogo de permisos (suscripciones, módulos y submódulos) de la pestaña Roles.
+// Si alguna de esas cargas falla, la lista de módulos queda vacía y guardar un rol
+// enviaría moduleIds: [] (borraría todos sus permisos): se marca y se bloquea el guardado.
+const roleCatalogFailed = ref(false)
+const ROLE_CATALOG_ERROR =
+  'No se pudieron cargar los módulos o la suscripción de la empresa. Recarga la página antes de crear o editar roles.'
+const onRoleCatalogError = (err: any) => {
+  console.error('Error cargando el catálogo de permisos:', err)
+  roleCatalogFailed.value = true
+  return { data: [] as any[] }
+}
+
 const loadCurrentTabData = async () => {
   successMsg.value = ''
   errorMsg.value = ''
   loading.value = true
+  if (activeTab.value === 'roles') roleCatalogFailed.value = false
   try {
     if (activeTab.value === 'companies') {
       const res = await getCompanies({ page: 1, limit: 50 })
@@ -929,9 +942,9 @@ const loadCurrentTabData = async () => {
     } else if (activeTab.value === 'roles') {
       const [rolesRes, subsRes, modsRes, allSubModsRes] = await Promise.all([
         getRoles(currentCompanyId.value, { page: 1, limit: 50 }).catch(() => ({ data: [] })),
-        getSubscriptions(currentCompanyId.value, { page: 1, limit: 50 }).catch(() => ({ data: [] })),
-        getModules({ page: 1, limit: 100 }).catch(() => ({ data: [] })),
-        getSubModules({ page: 1, limit: 200 }).catch(() => ({ data: [] })),
+        getSubscriptions(currentCompanyId.value, { page: 1, limit: 50 }).catch(onRoleCatalogError),
+        getModules({ page: 1, limit: 100 }).catch(onRoleCatalogError),
+        getSubModules({ page: 1, limit: 200 }).catch(onRoleCatalogError),
       ])
       roles.value = Array.isArray(rolesRes?.data) ? rolesRes.data : Array.isArray(rolesRes) ? rolesRes : []
       rolesByCompany.value = {
@@ -941,6 +954,9 @@ const loadCurrentTabData = async () => {
       subscriptions.value = Array.isArray(subsRes?.data) ? subsRes.data : Array.isArray(subsRes) ? subsRes : []
       modulesList.value = Array.isArray(modsRes?.data) ? modsRes.data : Array.isArray(modsRes) ? modsRes : []
       allSubModulesList.value = Array.isArray(allSubModsRes?.data) ? allSubModsRes.data : Array.isArray(allSubModsRes) ? allSubModsRes : []
+      if (roleCatalogFailed.value) {
+        errorMsg.value = ROLE_CATALOG_ERROR
+      }
     }
   } catch (err: any) {
     console.error('Error cargando datos de configuración:', err)
@@ -1287,6 +1303,9 @@ const submitUser = async () => {
 
     let savedUserId = editingUserId.value
     if (isEditingUser.value && editingUserId.value) {
+      // Al editar NO se envían super_admin / developer / multi_company / companyIds:
+      // el backend conserva los valores actuales del usuario. Enviarlos fijos degradaba
+      // a un super admin y borraba las demás empresas de un usuario multiempresa.
       const payload: any = {
         companyId: effectiveCompanyId,
         num_document: formUser.value.num_document,
@@ -1294,14 +1313,27 @@ const submitUser = async () => {
         name_user: formUser.value.name_user,
         last_name_user: formUser.value.last_name_user,
         email: formUser.value.email,
-        super_admin: false,
-        developer: false,
-        multi_company: false,
-        companyIds: [effectiveCompanyId],
-        roleId: effectiveRoleId,
-        companyRoles: companyRolesPayload,
         theme_color: formUser.value.theme_color || 'Blue_Theme',
         theme_mode: formUser.value.theme_mode || 'dark',
+      }
+      const editedUser = users.value.find((u) => u.id === editingUserId.value)
+      if (editedUser && !editedUser.super_admin && !editedUser.developer) {
+        if (editedUser.multi_company) {
+          // Solo cambia el rol de la empresa activa; los roles de sus otras empresas se reenvían tal cual
+          // (el backend reemplaza la lista completa de roles por empresa).
+          payload.companyRoles = [
+            ...(editedUser.companyRoles || [])
+              .filter((cr) => Number(cr.companyId) !== Number(effectiveCompanyId))
+              .map((cr) => ({ companyId: Number(cr.companyId), roleId: cr.roleId ? Number(cr.roleId) : null })),
+            ...companyRolesPayload,
+          ]
+          if (Number(editedUser.companyId) === Number(effectiveCompanyId)) {
+            payload.roleId = effectiveRoleId
+          }
+        } else {
+          payload.roleId = effectiveRoleId
+          payload.companyRoles = companyRolesPayload
+        }
       }
       if (formUser.value.password) {
         payload.password = formUser.value.password
@@ -1462,17 +1494,20 @@ const setAllRoleAccess = (val: boolean) => {
 const openCreateRole = async () => {
   isEditingRole.value = false
   editingRoleId.value = null
-  if (modulesList.value.length === 0 || allSubModulesList.value.length === 0) {
-    try {
-      const [subsRes, modsRes, subModsRes] = await Promise.all([
-        getSubscriptions(currentCompanyId.value, { page: 1, limit: 50 }).catch(() => ({ data: [] })),
-        getModules({ page: 1, limit: 100 }),
-        getSubModules({ page: 1, limit: 200 }),
-      ])
-      subscriptions.value = Array.isArray(subsRes?.data) ? subsRes.data : Array.isArray(subsRes) ? subsRes : []
-      modulesList.value = Array.isArray(modsRes?.data) ? modsRes.data : Array.isArray(modsRes) ? modsRes : []
-      allSubModulesList.value = Array.isArray(subModsRes?.data) ? subModsRes.data : Array.isArray(subModsRes) ? subModsRes : []
-    } catch (e) {}
+  if (roleCatalogFailed.value || modulesList.value.length === 0 || allSubModulesList.value.length === 0) {
+    roleCatalogFailed.value = false
+    const [subsRes, modsRes, subModsRes] = await Promise.all([
+      getSubscriptions(currentCompanyId.value, { page: 1, limit: 50 }).catch(onRoleCatalogError),
+      getModules({ page: 1, limit: 100 }).catch(onRoleCatalogError),
+      getSubModules({ page: 1, limit: 200 }).catch(onRoleCatalogError),
+    ])
+    if (roleCatalogFailed.value) {
+      errorMsg.value = ROLE_CATALOG_ERROR
+      return
+    }
+    subscriptions.value = Array.isArray(subsRes?.data) ? subsRes.data : Array.isArray(subsRes) ? subsRes : []
+    modulesList.value = Array.isArray(modsRes?.data) ? modsRes.data : Array.isArray(modsRes) ? modsRes : []
+    allSubModulesList.value = Array.isArray(subModsRes?.data) ? subModsRes.data : Array.isArray(subModsRes) ? subModsRes : []
   }
 
   const modMap: Record<number, boolean> = {}
@@ -1502,17 +1537,20 @@ const openEditRole = async (role: RoleItem) => {
   }
   isEditingRole.value = true
   editingRoleId.value = role.id
-  if (modulesList.value.length === 0 || allSubModulesList.value.length === 0) {
-    try {
-      const [subsRes, modsRes, subModsRes] = await Promise.all([
-        getSubscriptions(currentCompanyId.value, { page: 1, limit: 50 }).catch(() => ({ data: [] })),
-        getModules({ page: 1, limit: 100 }),
-        getSubModules({ page: 1, limit: 200 }),
-      ])
-      subscriptions.value = Array.isArray(subsRes?.data) ? subsRes.data : Array.isArray(subsRes) ? subsRes : []
-      modulesList.value = Array.isArray(modsRes?.data) ? modsRes.data : Array.isArray(modsRes) ? modsRes : []
-      allSubModulesList.value = Array.isArray(subModsRes?.data) ? subModsRes.data : Array.isArray(subModsRes) ? subModsRes : []
-    } catch (e) {}
+  if (roleCatalogFailed.value || modulesList.value.length === 0 || allSubModulesList.value.length === 0) {
+    roleCatalogFailed.value = false
+    const [subsRes, modsRes, subModsRes] = await Promise.all([
+      getSubscriptions(currentCompanyId.value, { page: 1, limit: 50 }).catch(onRoleCatalogError),
+      getModules({ page: 1, limit: 100 }).catch(onRoleCatalogError),
+      getSubModules({ page: 1, limit: 200 }).catch(onRoleCatalogError),
+    ])
+    if (roleCatalogFailed.value) {
+      errorMsg.value = ROLE_CATALOG_ERROR
+      return
+    }
+    subscriptions.value = Array.isArray(subsRes?.data) ? subsRes.data : Array.isArray(subsRes) ? subsRes : []
+    modulesList.value = Array.isArray(modsRes?.data) ? modsRes.data : Array.isArray(modsRes) ? modsRes : []
+    allSubModulesList.value = Array.isArray(subModsRes?.data) ? subModsRes.data : Array.isArray(subModsRes) ? subModsRes : []
   }
 
   const modSet = new Set((role.moduleIds || []).map(Number))
@@ -1552,6 +1590,16 @@ const openEditRole = async (role: RoleItem) => {
 }
 
 const submitRole = async () => {
+  // Sin catálogo de permisos no se guarda: se enviaría moduleIds: [] y el rol perdería todos sus accesos.
+  if (roleCatalogFailed.value) {
+    errorMsg.value = ROLE_CATALOG_ERROR
+    return
+  }
+  if (companyAccessibleModules.value.length === 0) {
+    errorMsg.value =
+      'La empresa no tiene módulos disponibles en su suscripción vigente; no se puede guardar el rol sin permisos que asignar.'
+    return
+  }
   loading.value = true
   errorMsg.value = ''
   try {
@@ -2369,14 +2417,14 @@ const submitSubscription = async () => {
                       <div>
                         <h6 class="text-white fw-bold mb-1">Logotipo Propio de la Sucursal</h6>
                         <p class="text-secondary fs-2 mb-0">Prioridad #1 en la impresión RIDE. Si no se sube, se usará automáticamente el de la empresa.</p>
-                        <small class="text-white-50 fs-1">Formatos: PNG, JPG, WEBP, SVG (Máx. 5MB). Guardado en Supabase Storage.</small>
+                        <small class="text-white-50 fs-1">Formatos: PNG, JPG, WEBP (Máx. 5MB). Guardado en Supabase Storage.</small>
                       </div>
                     </div>
                     <div>
                       <label class="btn btn-outline-primary btn-sm rounded-pill px-3 cursor-pointer d-inline-flex align-items-center gap-2 mb-0">
                         <iconify-icon icon="solar:upload-track-2-line-duotone" class="fs-4"></iconify-icon>
                         <span>{{ branchLogoPreview ? 'Cambiar Logotipo' : 'Subir Logotipo' }}</span>
-                        <input type="file" accept="image/png,image/jpeg,image/webp,image/svg+xml" class="d-none" @change="onBranchLogoChange" />
+                        <input type="file" accept="image/png,image/jpeg,image/webp" class="d-none" @change="onBranchLogoChange" />
                       </label>
                     </div>
                   </div>
@@ -2496,14 +2544,14 @@ const submitSubscription = async () => {
                         <div>
                           <h6 class="text-white fw-bold mb-1">Logotipo de la Empresa</h6>
                           <p class="text-secondary fs-2 mb-0">Se mostrará en la impresión de facturas y notas de crédito (RIDE A4 y Ticket) de las sucursales sin logo propio.</p>
-                          <small class="text-white-50 fs-1">Formatos: PNG, JPG, WEBP, SVG (Máx. 5MB). Guardado en Supabase Storage.</small>
+                          <small class="text-white-50 fs-1">Formatos: PNG, JPG, WEBP (Máx. 5MB). Guardado en Supabase Storage.</small>
                         </div>
                       </div>
                       <div>
                         <label class="btn btn-outline-primary btn-sm rounded-pill px-3 cursor-pointer d-inline-flex align-items-center gap-2 mb-0">
                           <iconify-icon icon="solar:upload-track-2-line-duotone" class="fs-4"></iconify-icon>
                           <span>{{ companyLogoPreview ? 'Cambiar Logotipo' : 'Subir Logotipo' }}</span>
-                          <input type="file" accept="image/png,image/jpeg,image/webp,image/svg+xml" class="d-none" @change="onCompanyLogoChange" />
+                          <input type="file" accept="image/png,image/jpeg,image/webp" class="d-none" @change="onCompanyLogoChange" />
                         </label>
                       </div>
                     </div>

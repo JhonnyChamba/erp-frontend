@@ -328,8 +328,7 @@ const promptApproval = async (role: string, status: 'APPROVED' | 'REJECTED') => 
     await campeonatoService.approveTransfer(props.transfer.id, {
       role,
       status,
-      notes: reason || undefined,
-      rejection_reason: status === 'REJECTED' ? reason : undefined
+      comments: reason?.trim() || undefined,
     });
     emit('updated');
   } catch (error: any) {

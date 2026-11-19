@@ -58,19 +58,14 @@ const handleFileSelected = async (file: File) => {
   errorMsg.value = null
   successMsg.value = null
 
-  if (!file.type.startsWith('image/')) {
-    errorMsg.value = 'Por favor selecciona un archivo de imagen válido (JPG, PNG, WEBP, SVG).'
+  // El backend solo acepta PNG, JPG y WEBP (SVG se rechaza por seguridad).
+  if (!/^image\/(png|jpe?g|webp)$/i.test(file.type)) {
+    errorMsg.value = 'Por favor selecciona un archivo de imagen válido (JPG, PNG, WEBP).'
     return
   }
 
   if (file.size > props.maxSizeMB * 1024 * 1024) {
     errorMsg.value = `La imagen supera el límite de ${props.maxSizeMB}MB.`
-    return
-  }
-
-  // SVG se sube directamente sin recorte
-  if (file.type === 'image/svg+xml') {
-    await processAndUpload(file)
     return
   }
 
@@ -201,7 +196,7 @@ const handleReCrop = () => {
     <input
       ref="fileInputRef"
       type="file"
-      accept="image/png, image/jpeg, image/webp, image/svg+xml"
+      accept="image/png, image/jpeg, image/webp"
       class="d-none"
       @change="(e: any) => e.target.files?.[0] && handleFileSelected(e.target.files[0])"
     />

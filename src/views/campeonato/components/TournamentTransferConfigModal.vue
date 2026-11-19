@@ -205,7 +205,7 @@ import { campeonatoService } from '@/services/campeonato.service';
 
 const props = defineProps<{
   isOpen: boolean;
-  editionId: string | null;
+  editionId: number | null;
   editionName: string;
 }>();
 
@@ -251,23 +251,23 @@ const loadConfig = async () => {
   try {
     const data = await campeonatoService.getTournamentTransferConfig(props.editionId);
     if (data) {
+      // El backend responde en camelCase (TournamentTransferConfigOrmEntity); el formulario usa sus propias claves.
+      const toInput = (value: unknown) => (value ? String(value).substring(0, 16) : '');
       form.value = {
-        registrations_enabled: data.registrations_enabled ?? true,
-        registration_start_date: data.registration_start_date ? data.registration_start_date.substring(0, 16) : '',
-        registration_end_date: data.registration_end_date ? data.registration_end_date.substring(0, 16) : '',
-        require_registration_approval: data.require_registration_approval ?? false,
-        allowed_roles_registration: data.allowed_roles_registration ?? 'CLUB_AND_ADMIN',
-        allow_mass_registration: data.allow_mass_registration ?? true,
-        allow_re_registration: data.allow_re_registration ?? true,
-        transfers_enabled: data.transfers_enabled ?? true,
-        transfer_start_date: data.transfer_start_date ? data.transfer_start_date.substring(0, 16) : '',
-        transfer_end_date: data.transfer_end_date ? data.transfer_end_date.substring(0, 16) : '',
-        max_transfers_per_player: data.max_transfers_per_player ?? 1,
-        require_origin_club_approval: data.require_origin_club_approval ?? true,
-        require_destination_club_approval: data.require_destination_club_approval ?? true,
-        require_admin_approval: data.require_admin_approval ?? true,
-        enforce_classification_limits: data.enforce_classification_limits ?? true,
-        enforce_roster_limit: data.enforce_roster_limit ?? true,
+        ...form.value,
+        registrations_enabled: data.inscriptionsEnabled ?? true,
+        registration_start_date: toInput(data.inscriptionsStartDate),
+        registration_end_date: toInput(data.inscriptionsEndDate),
+        require_registration_approval: data.inscriptionsRequireApproval ?? false,
+        allow_mass_registration: data.allowMassInscription ?? true,
+        allow_re_registration: data.allowReinscription ?? true,
+        transfers_enabled: data.transfersEnabled ?? true,
+        transfer_start_date: toInput(data.transfersStartDate),
+        transfer_end_date: toInput(data.transfersEndDate),
+        max_transfers_per_player: data.maxTransfersPerPlayer ?? 1,
+        require_origin_club_approval: data.requireOriginTeamApproval ?? true,
+        require_destination_club_approval: data.requireDestinationTeamApproval ?? true,
+        require_admin_approval: data.requireAdminApproval ?? true,
       };
     }
   } catch (error) {
@@ -281,15 +281,23 @@ const save = async () => {
   if (!props.editionId) return;
   saving.value = true;
   try {
+    // Solo los campos de UpsertTournamentTransferConfigDto (camelCase): cualquier otro campo responde 400.
     const payload = {
-      ...form.value,
-      edition_id: props.editionId,
-      registration_start_date: form.value.registration_start_date || null,
-      registration_end_date: form.value.registration_end_date || null,
-      transfer_start_date: form.value.transfer_start_date || null,
-      transfer_end_date: form.value.transfer_end_date || null,
+      inscriptionsEnabled: Boolean(form.value.registrations_enabled),
+      inscriptionsStartDate: form.value.registration_start_date || null,
+      inscriptionsEndDate: form.value.registration_end_date || null,
+      inscriptionsRequireApproval: Boolean(form.value.require_registration_approval),
+      allowMassInscription: Boolean(form.value.allow_mass_registration),
+      allowReinscription: Boolean(form.value.allow_re_registration),
+      transfersEnabled: Boolean(form.value.transfers_enabled),
+      transfersStartDate: form.value.transfer_start_date || null,
+      transfersEndDate: form.value.transfer_end_date || null,
+      maxTransfersPerPlayer: Math.max(0, Math.trunc(Number(form.value.max_transfers_per_player) || 0)),
+      requireOriginTeamApproval: Boolean(form.value.require_origin_club_approval),
+      requireDestinationTeamApproval: Boolean(form.value.require_destination_club_approval),
+      requireAdminApproval: Boolean(form.value.require_admin_approval),
     };
-    await campeonatoService.saveTournamentTransferConfig(payload);
+    await campeonatoService.saveTournamentTransferConfig(props.editionId, payload);
     emit('saved');
     emit('close');
   } catch (error: any) {

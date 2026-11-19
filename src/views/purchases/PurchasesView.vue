@@ -20,6 +20,7 @@ import {
 } from '@/services/inventory.service'
 import { getDocumentTypes, type DocumentTypeItem } from '@/services/document-types.service'
 import { toast } from '@/utils/toastr'
+import { todayLocalISO } from '@/utils/local-date'
 import AppSelect2 from '@/components/common/AppSelect2.vue'
 
 const route = useRoute()
@@ -144,7 +145,7 @@ const purchaseForm = ref({
   emission_point: '001',
   sequential: '',
   authorization_number: '',
-  issue_date: new Date().toISOString().slice(0, 10),
+  issue_date: todayLocalISO(),
   warehouse_id: null as number | null,
   payment_method: 'contado',
   notes: '',
@@ -357,7 +358,7 @@ const openCreatePurchase = () => {
     emission_point: '001',
     sequential: '',
     authorization_number: '',
-    issue_date: new Date().toISOString().slice(0, 10),
+    issue_date: todayLocalISO(),
     warehouse_id: defWh ? defWh.id : null,
     payment_method: 'contado',
     notes: '',
@@ -462,7 +463,24 @@ const savePurchase = async () => {
     }
 
     await createPurchase(payload, companyId)
-    showFeedback(`¡Compra e ingreso de inventario registrados con éxito en la bodega seleccionada!`)
+    // Solo las filas de producto vinculadas a un artículo del catálogo ingresan a inventario (misma regla que el backend).
+    const totalRows = payload.items.length
+    const stockRows = payload.items.filter(
+      (row: any) => row.item_id && (row.item_type === 'PRODUCT' || row.item_type === 'ITEM'),
+    ).length
+    if (stockRows === totalRows) {
+      showFeedback(`¡Compra e ingreso de inventario registrados con éxito en la bodega seleccionada!`)
+    } else if (stockRows > 0) {
+      showFeedback(
+        `Compra registrada. Ingresaron a inventario ${stockRows} de ${totalRows} filas; las demás no están vinculadas a un artículo del catálogo.`,
+        'warning',
+      )
+    } else {
+      showFeedback(
+        'Compra registrada. No se ingresó inventario: ninguna fila está vinculada a un artículo del catálogo.',
+        'warning',
+      )
+    }
     isFormOpen.value = false
     await loadPurchasesData()
   } catch (err: any) {
@@ -1023,7 +1041,7 @@ watch(() => [route.path, route.query], () => {
             <div class="col-md-5">
               <div class="totals-card">
                 <div class="tot-row">
-                  <span>Subtotal 15% (Gravado):</span>
+                  <span>Subtotal gravado:</span>
                   <span class="font-mono">${{ formatNumber(formSubtotal15) }}</span>
                 </div>
                 <div class="tot-row">
@@ -1031,7 +1049,7 @@ watch(() => [route.path, route.query], () => {
                   <span class="font-mono">${{ formatNumber(formSubtotal0) }}</span>
                 </div>
                 <div class="tot-row">
-                  <span>IVA 15%:</span>
+                  <span>IVA:</span>
                   <span class="font-mono">${{ formatNumber(formTaxTotal) }}</span>
                 </div>
                 <div class="tot-divider"></div>

@@ -1,5 +1,6 @@
 import axios from 'axios'
 import { useLoadingStore } from '@/stores/loading.store'
+import { useAuthStore } from '@/stores/auth.store'
 import { toast } from '@/utils/toastr'
 
 const API_URL = import.meta.env.VITE_API_URL
@@ -99,6 +100,11 @@ api.interceptors.response.use(
     if (error.response?.status === 401 && !error.config?.url?.includes('/auth/login')) {
       const token = localStorage.getItem('token')
       if (token) {
+        // Limpiar también el token en memoria del store: si solo se borra de localStorage,
+        // el store sigue "autenticado" hasta recargar la página.
+        try {
+          useAuthStore().logout()
+        } catch (_) {}
         localStorage.removeItem('token')
         localStorage.removeItem('userPhoto')
         localStorage.removeItem('selectedCompany')

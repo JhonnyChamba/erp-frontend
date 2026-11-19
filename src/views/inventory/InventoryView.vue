@@ -1526,6 +1526,7 @@ import {
   updateInventoryWarehouse,
   deleteInventoryWarehouse,
   getInventoryKardex,
+  getWarehouseStock,
   createInventoryTransfer,
   createInventoryAdjustment,
   type InventoryArticle,
@@ -2204,11 +2205,12 @@ const saveServiceForm = async () => {
   saving.value = true
   const companyId = getActiveCompanyId()
   try {
+    // tab_inventory_service solo guarda el nombre de la categoría (category):
+    // categoryId es un dato del formulario y el backend lo rechaza (400) si se envía.
+    const { categoryId: _categoryId, ...serviceFields } = serviceForm.value
     const payload = {
-      ...serviceForm.value,
+      ...serviceFields,
       companyId,
-      categoryId: serviceForm.value.categoryId,
-      category_id: serviceForm.value.categoryId,
       category: serviceForm.value.category
     }
     if (editingServiceId.value) {
@@ -2289,7 +2291,8 @@ const openEditSubcontract = (sub: InventorySubcontractItem) => {
   subcontractForm.value = {
     code: sub.code || '',
     name: sub.name || '',
-    categoryId: (sub as any).categoryId || null,
+    // El rubro no guarda categoría: se preselecciona la que coincide con su especialidad.
+    categoryId: laborCategories.value.find(c => sub.specialty && c.name.toLowerCase() === sub.specialty.toLowerCase())?.id ?? null,
     specialty: sub.specialty || 'General',
     contractorName: sub.contractorName || '',
     contractorTaxId: sub.contractorTaxId || '',
@@ -2308,11 +2311,14 @@ const saveSubcontractForm = async () => {
   saving.value = true
   const companyId = getActiveCompanyId()
   try {
+    // tab_inventory_subcontract no tiene categoría (la elegida ya quedó copiada en
+    // specialty): categoryId no se envía porque el backend lo rechaza (400).
+    const { categoryId: _categoryId, ...subcontractFields } = subcontractForm.value
     if (editingSubcontractId.value) {
-      await updateInventorySubcontract(editingSubcontractId.value, { ...subcontractForm.value, companyId })
+      await updateInventorySubcontract(editingSubcontractId.value, { ...subcontractFields, companyId })
       showFeedback('Rubro de subcontratación / mano de obra actualizado')
     } else {
-      await createInventorySubcontract({ ...subcontractForm.value, companyId })
+      await createInventorySubcontract({ ...subcontractFields, companyId })
       showFeedback('Rubro de subcontratación / mano de obra registrado con éxito')
     }
     showSubcontractModal.value = false
@@ -2602,9 +2608,39 @@ const adjustmentForm = ref({
   product_id: null as number | null,
   warehouse_id: null as number | null,
   new_stock: 0,
-  unit_cost: 0,
+  unit_cost: null as number | null | '',
   reason: 'COUNT_CORRECTION'
 })
+
+// El backend ajusta el saldo de UNA bodega, así que el "nuevo stock" se precarga con
+// el saldo de la bodega elegida (no con el total del producto). adjustmentStockKey
+// recuerda para qué producto/bodega se cargó; sin esa carga no se permite guardar.
+const adjustmentStockKey = ref('')
+const currentAdjustmentKey = () => `${adjustmentForm.value.product_id ?? ''}:${adjustmentForm.value.warehouse_id ?? ''}`
+
+const loadAdjustmentWarehouseStock = async () => {
+  const { product_id, warehouse_id } = adjustmentForm.value
+  const key = currentAdjustmentKey()
+  adjustmentStockKey.value = ''
+  if (!product_id || !warehouse_id) return
+  try {
+    const rows = await getWarehouseStock(warehouse_id, getActiveCompanyId(), product_id)
+    if (key !== currentAdjustmentKey()) return
+    const row = Array.isArray(rows) ? rows.find((r: any) => Number(r.productId) === Number(product_id)) : null
+    adjustmentForm.value.new_stock = Number(row?.stock || 0)
+    adjustmentStockKey.value = key
+  } catch {
+    if (key !== currentAdjustmentKey()) return
+    showFeedback('No se pudo consultar el stock de la bodega seleccionada', 'error')
+  }
+}
+
+watch(
+  () => [adjustmentForm.value.product_id, adjustmentForm.value.warehouse_id],
+  () => {
+    if (showAdjustmentModal.value) loadAdjustmentWarehouseStock()
+  }
+)
 
 const openCreateAdjustment = () => {
   const p = itemsList.value[0] || null
@@ -2612,18 +2648,18 @@ const openCreateAdjustment = () => {
   adjustmentForm.value = {
     product_id: p ? p.id : null,
     warehouse_id: wh ? wh.id : null,
-    new_stock: p ? Number(p.stockCurrent || 0) : 0,
-    unit_cost: p ? Number(p.costPrice || 0) : 0,
+    new_stock: 0,
+    unit_cost: p && Number(p.costPrice) > 0 ? Number(p.costPrice) : null,
     reason: 'COUNT_CORRECTION'
   }
   showAdjustmentModal.value = true
+  loadAdjustmentWarehouseStock()
 }
 
 const onAdjustmentProductChange = () => {
   const p = itemsList.value.find(i => i.id === adjustmentForm.value.product_id)
   if (p) {
-    adjustmentForm.value.unit_cost = Number(p.costPrice || 0)
-    adjustmentForm.value.new_stock = Number(p.stockCurrent || 0)
+    adjustmentForm.value.unit_cost = Number(p.costPrice) > 0 ? Number(p.costPrice) : null
   }
 }
 
@@ -2640,6 +2676,10 @@ const saveAdjustmentForm = async () => {
     showFeedback('El nuevo stock físico no puede ser negativo', 'error')
     return
   }
+  if (adjustmentStockKey.value !== currentAdjustmentKey()) {
+    showFeedback('Aún no se cargó el stock de la bodega seleccionada. Vuelva a elegir la bodega e intente de nuevo.', 'error')
+    return
+  }
 
   saving.value = true
   try {
@@ -2648,7 +2688,11 @@ const saveAdjustmentForm = async () => {
       product_id: adjustmentForm.value.product_id,
       warehouse_id: adjustmentForm.value.warehouse_id,
       new_stock: Number(adjustmentForm.value.new_stock),
-      unit_cost: Number(adjustmentForm.value.unit_cost || 0),
+      // Costo vacío = no se envía: el backend usa entonces el costo promedio de la
+      // bodega. Enviarlo como 0 diluiría ese costo promedio.
+      ...(adjustmentForm.value.unit_cost === '' || adjustmentForm.value.unit_cost === null
+        ? {}
+        : { unit_cost: Number(adjustmentForm.value.unit_cost) }),
       reason: adjustmentForm.value.reason
     })
     showFeedback('Ajuste de inventario registrado con éxito')

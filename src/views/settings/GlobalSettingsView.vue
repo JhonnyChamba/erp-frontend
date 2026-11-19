@@ -112,8 +112,8 @@ const userPhotoPreview = ref<string>('')
 const onCompanyLogoChange = (e: Event) => {
   const file = (e.target as HTMLInputElement).files?.[0]
   if (!file) return
-  if (!/^image\/(png|jpe?g|webp|svg\+xml)$/i.test(file.type)) {
-    toast.error('Formato no permitido. Solo se aceptan imágenes (PNG, JPG, WEBP, SVG).')
+  if (!/^image\/(png|jpe?g|webp)$/i.test(file.type)) {
+    toast.error('Formato no permitido. Solo se aceptan imágenes (PNG, JPG, WEBP).')
     return
   }
   if (file.size > 5 * 1024 * 1024) {
@@ -127,8 +127,8 @@ const onCompanyLogoChange = (e: Event) => {
 const onBranchLogoChange = (e: Event) => {
   const file = (e.target as HTMLInputElement).files?.[0]
   if (!file) return
-  if (!/^image\/(png|jpe?g|webp|svg\+xml)$/i.test(file.type)) {
-    toast.error('Formato no permitido. Solo se aceptan imágenes (PNG, JPG, WEBP, SVG).')
+  if (!/^image\/(png|jpe?g|webp)$/i.test(file.type)) {
+    toast.error('Formato no permitido. Solo se aceptan imágenes (PNG, JPG, WEBP).')
     return
   }
   if (file.size > 5 * 1024 * 1024) {
@@ -142,8 +142,8 @@ const onBranchLogoChange = (e: Event) => {
 const onUserPhotoChange = (e: Event) => {
   const file = (e.target as HTMLInputElement).files?.[0]
   if (!file) return
-  if (!/^image\/(png|jpe?g|webp|svg\+xml)$/i.test(file.type)) {
-    toast.error('Formato no permitido. Solo se aceptan imágenes (PNG, JPG, WEBP, SVG).')
+  if (!/^image\/(png|jpe?g|webp)$/i.test(file.type)) {
+    toast.error('Formato no permitido. Solo se aceptan imágenes (PNG, JPG, WEBP).')
     return
   }
   if (file.size > 5 * 1024 * 1024) {

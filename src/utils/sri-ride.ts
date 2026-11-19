@@ -2,6 +2,7 @@
  * Generador e Impresor Oficial de RIDE SRI Ecuador y Ticket Térmico 80mm
  * Incluye generador de Código de Barras Code 128 SVG puro (sin dependencias externas).
  */
+import { api } from '@/services/axios'
 
 // Patrones oficiales Code 128 (anchos de barras y espacios, suma de cada patrón = 11 módulos, stop = 13)
 const CODE128_PATTERNS: number[][] = [
@@ -117,15 +118,130 @@ const PAYMENT_NAMES: Record<string, string> = {
   '20': 'OTROS CON UTILIZACION DEL SISTEMA FINANCIERO (TRANSFERENCIA / CHEQUE)',
 }
 
+/** Datos del emisor que imprime el RIDE. Un campo sin dato queda vacío/undefined: nunca se rellena con un valor inventado. */
+export interface RideIssuer {
+  ruc: string
+  business_name: string
+  trade_name: string
+  address_matriz: string
+  /** undefined = dato desconocido (no se imprime la leyenda) */
+  obligated_accounting?: boolean
+  special_taxpayer: string
+  tax_regime: string
+  sri_environment: string
+  logo_url: string | null
+  branch_logo_url: string | null
+}
+
+/**
+ * Normaliza los datos del emisor. Acepta la empresa tal como la devuelve el backend (GET /company/:id:
+ * business_name, trade_name y los datos fiscales dentro de `fiscal`) y también el resumen de
+ * localStorage.selectedCompany (razon_social, nombre_comercial), que no trae los datos fiscales.
+ */
+export function normalizeRideIssuer(raw: any): RideIssuer {
+  const c = raw || {}
+  const f = c.fiscal || {}
+  const obligated = c.obligated_accounting ?? f.obligated_accounting
+  return {
+    ruc: String(c.ruc || ''),
+    business_name: String(c.business_name || c.razon_social || ''),
+    trade_name: String(c.trade_name || c.nombre_comercial || ''),
+    address_matriz: String(c.address_matriz || f.address_matriz || ''),
+    obligated_accounting: obligated === undefined || obligated === null ? undefined : Boolean(obligated),
+    special_taxpayer: String(c.special_taxpayer || f.special_taxpayer || ''),
+    tax_regime: String(c.tax_regime || f.tax_regime || ''),
+    sri_environment: String(c.sri_environment || f.sri_environment || ''),
+    logo_url: c.logo_url || f.logo_url || null,
+    branch_logo_url: c.branch_logo_url || null,
+  }
+}
+
+/**
+ * Obtiene del backend los datos reales del emisor (razón social, dirección matriz, obligado a llevar
+ * contabilidad, régimen, ambiente). El resumen guardado en localStorage no los incluye.
+ */
+export async function fetchRideIssuer(companyId: number): Promise<RideIssuer> {
+  const { data } = await api.get(`/company/${companyId}`)
+  if (!data) throw new Error('No se pudieron obtener los datos de la empresa emisora.')
+  return normalizeRideIssuer(data)
+}
+
+/** Tipo de comprobante (01 factura, 04 nota de crédito): dato explícito, número de NC o posiciones 9-10 de la clave de acceso. */
+const resolveDocumentType = (inv: any): string => {
+  if (inv?.document_type) return String(inv.document_type)
+  if (inv?.credit_note_number) return '04'
+  const key = String(inv?.access_key || '')
+  if (/^\d{49}$/.test(key)) return key.slice(8, 10)
+  return '01'
+}
+
+/**
+ * Ambiente del comprobante (1 pruebas, 2 producción). Se toma de la clave de acceso del propio documento
+ * (posición 24), que es lo que realmente se emitió; si no hay clave válida, de la empresa. '' = desconocido.
+ */
+const resolveEnvironment = (inv: any, issuer: RideIssuer): string => {
+  const key = String(inv?.access_key || '')
+  if (/^\d{49}$/.test(key)) return key.charAt(23)
+  return String(inv?.sri_environment || issuer.sri_environment || '')
+}
+
+const environmentLabel = (env: string): string => (env === '2' ? 'PRODUCCIÓN' : env === '1' ? 'PRUEBAS' : '')
+
+const rateLabel = (rate: number): string => String(Number(rate.toFixed(2)))
+
+/**
+ * Bases imponibles e IVA agrupados por la tarifa real de cada línea (15 %, 5 %, 0 %...).
+ * Sin detalle no se puede saber la tarifa: se devuelve `known: false` y se imprime sin porcentaje.
+ */
+const taxBreakdown = (inv: any): { known: boolean; taxed: { rate: number; base: number; tax: number }[]; zeroBase: number } => {
+  const details: any[] = Array.isArray(inv?.details) ? inv.details : []
+  if (details.length === 0) {
+    return { known: false, taxed: [], zeroBase: Number(inv?.subtotal_zero_tax || 0) }
+  }
+  const byRate = new Map<number, { base: number; tax: number }>()
+  for (const d of details) {
+    const rate = Number(d.tax_rate ?? 0)
+    const cur = byRate.get(rate) || { base: 0, tax: 0 }
+    cur.base += Number(d.subtotal || 0)
+    cur.tax += Number(d.tax_value || 0)
+    byRate.set(rate, cur)
+  }
+  const taxed = [...byRate.entries()]
+    .filter(([rate]) => rate > 0)
+    .sort((a, b) => b[0] - a[0])
+    .map(([rate, t]) => ({ rate, base: t.base, tax: t.tax }))
+  return { known: true, taxed, zeroBase: byRate.get(0)?.base || 0 }
+}
+
 /**
  * Genera el documento HTML oficial RIDE (A4) según la normativa del SRI Ecuador
  */
-export function generateRideA4Html(inv: any, company: any): string {
-  const isPruebas = String(company?.sri_environment || inv?.sri_environment || '1') === '1'
+export function generateRideA4Html(inv: any, companyData: any): string {
+  const company = normalizeRideIssuer(companyData)
+  const environment = environmentLabel(resolveEnvironment(inv, company))
   const barcodeSvg = inv?.access_key ? generateBarcode128Svg(inv.access_key, { height: 40, showText: false }) : ''
-  const isInvoice = (inv?.document_type || '01') === '01'
+  const isInvoice = resolveDocumentType(inv) === '01'
   const docTitle = isInvoice ? 'FACTURA' : 'NOTA DE CRÉDITO'
-  const printLogoUrl = inv?.logo_url || inv?.branch_logo_url || company?.branch_logo_url || company?.logo_url || null
+  const printLogoUrl = inv?.logo_url || inv?.branch_logo_url || company.branch_logo_url || company.logo_url || null
+  const taxes = taxBreakdown(inv)
+  const subtotalTaxedRows = taxes.known
+    ? taxes.taxed.map((t) => `<tr>
+          <td>SUBTOTAL ${rateLabel(t.rate)}%</td>
+          <td>${formatNum(t.base)}</td>
+        </tr>`).join('')
+    : `<tr>
+          <td>SUBTOTAL GRAVADO</td>
+          <td>${formatNum(inv.subtotal_taxable)}</td>
+        </tr>`
+  const ivaRows = taxes.known
+    ? taxes.taxed.map((t) => `<tr>
+          <td>IVA ${rateLabel(t.rate)}%</td>
+          <td>${formatNum(t.tax)}</td>
+        </tr>`).join('')
+    : `<tr>
+          <td>IVA</td>
+          <td>${formatNum(inv.tax_total)}</td>
+        </tr>`
 
   const detailsRows = (inv.details || [])
     .map(
@@ -184,19 +300,19 @@ export function generateRideA4Html(inv: any, company: any): string {
         <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 8px;">
           <img id="ride-logo-img" src="${esc(printLogoUrl)}" alt="Logo" crossorigin="anonymous" referrerpolicy="no-referrer" style="max-height: 55px; max-width: 125px; object-fit: contain; border-radius: 4px;" />
           <div style="flex: 1; min-width: 0;">
-            <div class="company-title">${esc(company.business_name || company.razon_social || 'EMPRESA')}</div>
-            <div class="company-trade">${esc(company.trade_name || company.nombre_comercial || '')}</div>
+            <div class="company-title">${esc(company.business_name)}</div>
+            <div class="company-trade">${esc(company.trade_name)}</div>
           </div>
         </div>
         ` : `
-        <div class="company-title">${esc(company.business_name || company.razon_social || 'EMPRESA')}</div>
-        <div class="company-trade">${esc(company.trade_name || company.nombre_comercial || '')}</div>
+        <div class="company-title">${esc(company.business_name)}</div>
+        <div class="company-trade">${esc(company.trade_name)}</div>
         `}
         <div style="margin-top: 6px; line-height: 1.4;">
-          <b>Dirección Matriz:</b> ${esc(company.address_matriz || 'Ecuador')}<br>
-          <b>Dirección Sucursal:</b> ${esc(inv.branch_address || company.address_matriz || 'Ecuador')}<br>
+          <b>Dirección Matriz:</b> ${esc(company.address_matriz)}<br>
+          <b>Dirección Sucursal:</b> ${esc(inv.branch_address || company.address_matriz)}<br>
           ${company.special_taxpayer ? `<b>Contribuyente Especial Nro:</b> ${esc(company.special_taxpayer)}<br>` : ''}
-          <b>OBLIGADO A LLEVAR CONTABILIDAD:</b> ${company.obligated_accounting ? 'SI' : 'NO'}<br>
+          ${company.obligated_accounting === undefined ? '' : `<b>OBLIGADO A LLEVAR CONTABILIDAD:</b> ${company.obligated_accounting ? 'SI' : 'NO'}<br>`}
           ${company.tax_regime === 'RIMPE_EMPRENDEDOR' ? '<b>CONTRIBUYENTE RÉGIMEN RIMPE</b><br>' : ''}
           ${company.tax_regime === 'RIMPE_NEGOCIO_POPULAR' ? '<b>CONTRIBUYENTE NEGOCIO POPULAR - RÉGIMEN RIMPE</b><br>' : ''}
         </div>
@@ -205,14 +321,14 @@ export function generateRideA4Html(inv: any, company: any): string {
 
     <!-- RUC y Autorización SRI -->
     <div class="box">
-      <div class="ruc-box-title">R.U.C.: ${esc(company.ruc || '')}</div>
+      <div class="ruc-box-title">R.U.C.: ${esc(company.ruc)}</div>
       <div class="doc-type-title">${docTitle}</div>
-      <div class="doc-number">No. ${esc(inv.invoice_number || inv.credit_note_number || '001-001-000000001')}</div>
+      <div class="doc-number">No. ${esc(inv.invoice_number || inv.credit_note_number || '')}</div>
       <div style="line-height: 1.35; margin-bottom: 4px;">
         <b>NÚMERO DE AUTORIZACIÓN:</b><br>
         <span style="font-family: monospace; font-size: 10.5px;">${esc(inv.sri_authorization_number || inv.access_key || 'PENDIENTE')}</span><br>
         <b>FECHA Y HORA DE AUTORIZACIÓN:</b> ${esc(inv.sri_authorization_date ? new Date(inv.sri_authorization_date).toLocaleString('es-EC') : 'NO AUTORIZADO')}<br>
-        <b>AMBIENTE:</b> ${isPruebas ? 'PRUEBAS' : 'PRODUCCIÓN'}<br>
+        <b>AMBIENTE:</b> ${environment}<br>
         <b>EMISIÓN:</b> NORMAL<br>
         <b>CLAVE DE ACCESO:</b>
       </div>
@@ -287,13 +403,10 @@ export function generateRideA4Html(inv: any, company: any): string {
     <!-- Totales -->
     <div>
       <table class="totals-table box" style="margin: 0;">
-        <tr>
-          <td>SUBTOTAL 15%</td>
-          <td>${formatNum(inv.subtotal_taxable)}</td>
-        </tr>
+        ${subtotalTaxedRows}
         <tr>
           <td>SUBTOTAL 0%</td>
-          <td>${formatNum(inv.subtotal_zero_tax)}</td>
+          <td>${formatNum(taxes.known ? taxes.zeroBase : inv.subtotal_zero_tax)}</td>
         </tr>
         <tr>
           <td>SUBTOTAL NO OBJETO DE IVA</td>
@@ -315,10 +428,7 @@ export function generateRideA4Html(inv: any, company: any): string {
           <td>ICE</td>
           <td>0.00</td>
         </tr>
-        <tr>
-          <td>IVA 15%</td>
-          <td>${formatNum(inv.tax_total)}</td>
-        </tr>
+        ${ivaRows}
         <tr>
           <td>PROPINA</td>
           <td>0.00</td>
@@ -337,11 +447,19 @@ export function generateRideA4Html(inv: any, company: any): string {
 /**
  * Genera el Ticket Térmico de 80mm para puntos de venta (POS)
  */
-export function generateRideTicketHtml(inv: any, company: any, cashInfo?: { received?: number; change?: number }): string {
+export function generateRideTicketHtml(inv: any, companyData: any, cashInfo?: { received?: number; change?: number }): string {
+  const company = normalizeRideIssuer(companyData)
   const barcodeSvg = inv?.access_key ? generateBarcode128Svg(inv.access_key, { height: 35, barWidth: 0.9, showText: false }) : ''
-  const isInvoice = (inv?.document_type || '01') === '01'
+  const isInvoice = resolveDocumentType(inv) === '01'
   const docTitle = isInvoice ? 'FACTURA ELECTRÓNICA' : 'NOTA DE CRÉDITO ELECTRÓNICA'
-  const printLogoUrl = inv?.logo_url || inv?.branch_logo_url || company?.branch_logo_url || company?.logo_url || null
+  const printLogoUrl = inv?.logo_url || inv?.branch_logo_url || company.branch_logo_url || company.logo_url || null
+  const taxes = taxBreakdown(inv)
+  const subtotalTaxedRows = taxes.known
+    ? taxes.taxed.map((t) => `<div class="row-flex"><span>Subtotal ${rateLabel(t.rate)}%:</span> <span>$${formatNum(t.base)}</span></div>`).join('')
+    : `<div class="row-flex"><span>Subtotal gravado:</span> <span>$${formatNum(inv.subtotal_taxable)}</span></div>`
+  const ivaRows = taxes.known
+    ? taxes.taxed.map((t) => `<div class="row-flex"><span>IVA (${rateLabel(t.rate)}%):</span> <span>$${formatNum(t.tax)}</span></div>`).join('')
+    : `<div class="row-flex"><span>IVA:</span> <span>$${formatNum(inv.tax_total)}</span></div>`
 
   const items = (inv.details || [])
     .map(
@@ -390,11 +508,11 @@ export function generateRideTicketHtml(inv: any, company: any, cashInfo?: { rece
   <!-- Encabezado Emisor -->
   <div class="text-center">
     ${printLogoUrl ? `<div style="margin-bottom: 6px;"><img id="ride-ticket-logo-img" src="${esc(printLogoUrl)}" alt="Logo" crossorigin="anonymous" referrerpolicy="no-referrer" style="max-height: 48px; max-width: 140px; object-fit: contain; filter: grayscale(100%);" /></div>` : ''}
-    <div style="font-size: 13px; font-weight: bold;">${esc(company.trade_name || company.business_name || 'DESKOUNTA')}</div>
-    <div style="font-size: 11px;">${esc(company.business_name || '')}</div>
-    <div>R.U.C.: ${esc(company.ruc || '')}</div>
-    <div>Dir: ${esc(inv.branch_address || company.address_matriz || 'Ecuador')}</div>
-    ${company.obligated_accounting ? '<div>Obligado a llevar contabilidad: SI</div>' : ''}
+    <div style="font-size: 13px; font-weight: bold;">${esc(company.trade_name || company.business_name)}</div>
+    <div style="font-size: 11px;">${esc(company.business_name)}</div>
+    <div>R.U.C.: ${esc(company.ruc)}</div>
+    <div>Dir: ${esc(inv.branch_address || company.address_matriz)}</div>
+    ${company.obligated_accounting === undefined ? '' : `<div>Obligado a llevar contabilidad: ${company.obligated_accounting ? 'SI' : 'NO'}</div>`}
     ${company.tax_regime === 'RIMPE_EMPRENDEDOR' ? '<div>CONTRIBUYENTE RÉGIMEN RIMPE</div>' : ''}
     ${company.tax_regime === 'RIMPE_NEGOCIO_POPULAR' ? '<div>CONTRIBUYENTE NEGOCIO POPULAR</div>' : ''}
   </div>
@@ -428,10 +546,10 @@ export function generateRideTicketHtml(inv: any, company: any, cashInfo?: { rece
 
   <!-- Totales -->
   <div>
-    <div class="row-flex"><span>Subtotal 15%:</span> <span>$${formatNum(inv.subtotal_taxable)}</span></div>
-    <div class="row-flex"><span>Subtotal 0%:</span> <span>$${formatNum(inv.subtotal_zero_tax)}</span></div>
+    ${subtotalTaxedRows}
+    <div class="row-flex"><span>Subtotal 0%:</span> <span>$${formatNum(taxes.known ? taxes.zeroBase : inv.subtotal_zero_tax)}</span></div>
     ${Number(inv.discount_total) > 0 ? `<div class="row-flex"><span>Descuento:</span> <span>-$${formatNum(inv.discount_total)}</span></div>` : ''}
-    <div class="row-flex"><span>IVA (15%):</span> <span>$${formatNum(inv.tax_total)}</span></div>
+    ${ivaRows}
     <div class="divider"></div>
     <div class="row-flex" style="font-size: 14px; font-weight: bold;">
       <span>TOTAL:</span>

@@ -382,7 +382,7 @@
                 <div class="row g-3">
                   <!-- Selector de Cliente Registrado -->
                   <div class="col-lg-6 col-12">
-                    <label class="form-label fw-semibold">Seleccionar Cliente Existente (Opcional)</label>
+                    <label class="form-label fw-semibold">Seleccionar Cliente Registrado <span class="text-danger">*</span></label>
                     <AppSelect2
                       v-model="form.customer_id"
                       :options="customerOptions"
@@ -1411,9 +1411,10 @@ const openEditForm = async (order: WorkOrder) => {
       reported_failure: detail.reported_failure,
       technical_diagnosis: detail.technical_diagnosis || '',
       solution_applied: detail.solution_applied || '',
-      estimated_delivery_date: detail.estimated_delivery_date || '',
+      estimated_delivery_date: (detail.estimated_delivery_date || '').substring(0, 10),
       warranty_days: detail.warranty_days || 30,
-      labor_cost: Number(detail.labor_cost || 0),
+      // Solo la mano de obra base: los ítems de mano de obra/servicio ya están en la tabla.
+      labor_cost: Number(detail.base_labor_cost || 0),
       advance_payment: Number(detail.advance_payment || 0),
       notes: detail.notes || '',
       items: (detail.items || []).map((it) => ({
@@ -1442,6 +1443,11 @@ const closeForm = () => {
 };
 
 const submitForm = async () => {
+  // El backend exige un cliente registrado (customerId obligatorio).
+  if (!form.value.customer_id) {
+    toast.warning('Por favor seleccione un cliente registrado');
+    return;
+  }
   if (!form.value.customer_name.trim()) {
     toast.warning('Por favor ingrese el nombre del cliente');
     return;
@@ -1454,12 +1460,12 @@ const submitForm = async () => {
   saving.value = true;
   try {
     const payload = {
-      branch_id: form.value.branch_id,
-      customer_id: form.value.customer_id || undefined,
+      branch_id: form.value.branch_id || null,
+      customer_id: form.value.customer_id,
       customer_name: form.value.customer_name,
       customer_phone: form.value.customer_phone,
       customer_email: form.value.customer_email,
-      technician_id: form.value.technician_id || undefined,
+      technician_id: form.value.technician_id || null,
       technician_name: form.value.technician_name,
       service_type: form.value.service_type,
       priority: form.value.priority,
@@ -1474,19 +1480,19 @@ const submitForm = async () => {
       reported_failure: form.value.reported_failure,
       technical_diagnosis: form.value.technical_diagnosis,
       solution_applied: form.value.solution_applied,
-      estimated_delivery_date: form.value.estimated_delivery_date || undefined,
-      warranty_days: form.value.warranty_days,
-      labor_cost: form.value.labor_cost,
-      advance_payment: form.value.advance_payment,
+      estimated_delivery_date: form.value.estimated_delivery_date || null,
+      warranty_days: Number(form.value.warranty_days) || 0,
+      labor_cost: Number(form.value.labor_cost) || 0,
+      // El backend no calcula el IVA: guarda el total que se le envía.
+      tax_amount: Math.round(calculatedTaxAmount.value * 100) / 100,
+      advance_payment: Number(form.value.advance_payment) || 0,
       notes: form.value.notes,
+      // IVA %, garantía y notas por ítem no existen en el backend: no se envían.
       items: form.value.items.map((it) => ({
         item_type: it.item_type,
         description: it.description,
         quantity: it.quantity,
         unit_price: it.unit_price,
-        tax_rate: it.tax_rate,
-        warranty_days: it.warranty_days,
-        notes: it.notes,
       })),
     };
 

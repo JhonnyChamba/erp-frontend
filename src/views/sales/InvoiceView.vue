@@ -34,7 +34,8 @@ import {
 } from '@/services/emission-points.service'
 import { getDocumentTypes, type DocumentTypeItem } from '@/services/document-types.service'
 import SriResponseModal from '@/components/common/SriResponseModal.vue'
-import { printRideDoc } from '@/utils/sri-ride'
+import { printRideDoc, fetchRideIssuer } from '@/utils/sri-ride'
+import { todayLocalISO, toLocalISODate } from '@/utils/local-date'
 
 const route = useRoute()
 const router = useRouter()
@@ -170,7 +171,7 @@ const initialInvoiceForm = () => ({
   warehouseId: undefined as number | undefined,
   establishment: '001',
   emission_point: '001',
-  issue_date: new Date().toISOString().slice(0, 10),
+  issue_date: todayLocalISO(),
   customer_id_type: '05' as string, // 04: RUC, 05: Cédula, 07: Consumidor Final
   customer_id_number: '',
   customer_name: '',
@@ -226,14 +227,28 @@ const formatCurrency = (val: number) => {
 }
 
 const totalInvoicesCount = computed(() => invoices.value.length)
+// Factura vigente: emitida o ya autorizada por el SRI (al autorizar, el backend pasa status a AUTHORIZED).
+const isValidInvoice = (inv: InvoiceItem) => inv.status === 'ISSUED' || inv.status === 'AUTHORIZED'
 const totalInvoicedAmount = computed(() =>
   invoices.value
-    .filter((inv) => inv.status === 'ISSUED')
+    .filter(isValidInvoice)
     .reduce((sum, inv) => sum + Number(inv.total || 0), 0)
 )
 const issuedInvoicesCount = computed(() =>
-  invoices.value.filter((inv) => inv.status === 'ISSUED').length
+  invoices.value.filter(isValidInvoice).length
 )
+
+// Acciones disponibles según el estado local y el estado en el SRI
+// Nota de crédito: solo sobre facturas autorizadas por el SRI y no anuladas (misma regla que Notas de Crédito y el backend).
+const canIssueCreditNote = (inv: InvoiceItem) => inv.sri_status === 'AUTHORIZED' && inv.status !== 'CANCELED'
+// Anulación local: nunca con la factura recibida (en proceso) o autorizada por el SRI.
+const canCancelInvoice = (inv: InvoiceItem) =>
+  inv.status === 'ISSUED' && inv.sri_status !== 'IN_PROCESS' && inv.sri_status !== 'AUTHORIZED'
+// Consulta de autorización: facturas en proceso, o devueltas por un error de envío del sistema (el SRI pudo haberlas recibido).
+const canCheckSri = (inv: InvoiceItem) =>
+  inv.status !== 'CANCELED' &&
+  (inv.sri_status === 'IN_PROCESS' ||
+    (inv.sri_status === 'RETURNED' && (inv.sri_messages || []).some((m) => m.identificador === 'ERR-ENVIO')))
 const canceledInvoicesCount = computed(() =>
   invoices.value.filter((inv) => inv.status === 'CANCELED').length
 )
@@ -313,7 +328,7 @@ const filteredInvoices = computed(() => {
       if (statusFilter.value === 'AUTHORIZED') {
         if (inv.sri_status !== 'AUTHORIZED' || inv.status === 'CANCELED') return false
       } else if (statusFilter.value === 'ISSUED') {
-        if (inv.status !== 'ISSUED') return false
+        if (!isValidInvoice(inv)) return false
       } else if (statusFilter.value === 'CANCELED') {
         if (inv.status !== 'CANCELED') return false
       } else if (statusFilter.value === 'RETURNED') {
@@ -334,37 +349,64 @@ const filteredInvoices = computed(() => {
 })
 
 // Cálculos dinámicos en tiempo real del formulario SRI
+// Mismo cálculo que el backend (invoice.service.ts): IVA por línea con la tarifa de la línea, redondeado
+// a 2 decimales por línea; el total es la suma de bases más la suma de los IVA ya redondeados.
 const calculatedTotals = computed(() => {
-  let subtotal15 = 0
+  let subtotalTaxable = 0
   let subtotal0 = 0
   let discountTotal = 0
+  let taxTotal = 0
+  const byRate = new Map<number, { base: number; tax: number }>()
 
   for (const d of form.value.details) {
     const qty = Number(d.quantity || 0)
     const price = Number(d.unit_price || 0)
     const disc = Number(d.discount || 0)
+    const rate = Number(d.tax_rate ?? 15)
     const lineSubtotal = Math.max(0, qty * price - disc)
+    const lineTax = Number(((lineSubtotal * rate) / 100).toFixed(2))
     discountTotal += disc
+    taxTotal += lineTax
 
-    if (Number(d.tax_rate) > 0) {
-      subtotal15 += lineSubtotal
+    if (rate > 0) {
+      subtotalTaxable += lineSubtotal
+      const group = byRate.get(rate) || { base: 0, tax: 0 }
+      group.base += lineSubtotal
+      group.tax += lineTax
+      byRate.set(rate, group)
     } else {
       subtotal0 += lineSubtotal
     }
   }
 
-  const subtotalTotal = subtotal15 + subtotal0
-  const taxTotal = subtotal15 * 0.15
-  const grandTotal = subtotalTotal + taxTotal
+  const grandTotal = Number((subtotalTaxable + subtotal0 + taxTotal).toFixed(2))
 
   return {
-    subtotal15: Number(subtotal15.toFixed(2)),
+    // Desglose por tarifa gravada real (15 %, 5 %...), de mayor a menor
+    taxedByRate: [...byRate.entries()]
+      .sort((a, b) => b[0] - a[0])
+      .map(([rate, g]) => ({ rate, base: Number(g.base.toFixed(2)), tax: Number(g.tax.toFixed(2)) })),
+    subtotalTaxable: Number(subtotalTaxable.toFixed(2)),
     subtotal0: Number(subtotal0.toFixed(2)),
     discountTotal: Number(discountTotal.toFixed(2)),
-    subtotalTotal: Number(subtotalTotal.toFixed(2)),
+    subtotalTotal: Number((subtotalTaxable + subtotal0).toFixed(2)),
     taxTotal: Number(taxTotal.toFixed(2)),
-    grandTotal: Number(grandTotal.toFixed(2)),
+    grandTotal,
   }
+})
+
+// Desglose por tarifa de una factura ya emitida, con los valores que guardó el backend en cada línea
+const viewingTaxGroups = computed(() => {
+  const byRate = new Map<number, { base: number; tax: number }>()
+  for (const d of viewingInvoice.value?.details || []) {
+    const rate = Number(d.tax_rate ?? 0)
+    if (rate <= 0) continue
+    const group = byRate.get(rate) || { base: 0, tax: 0 }
+    group.base += Number(d.subtotal || 0)
+    group.tax += Number(d.tax_value || 0)
+    byRate.set(rate, group)
+  }
+  return [...byRate.entries()].sort((a, b) => b[0] - a[0]).map(([rate, g]) => ({ rate, base: g.base, tax: g.tax }))
 })
 
 // Estado del nav de ítems de la factura: 'ITEM' (Artículos) | 'SERVICE' (Servicios) | 'SUBCONTRACT' (Subcontratos) | 'ALL' (Todos)
@@ -747,10 +789,29 @@ const submitInvoice = async () => {
     return
   }
 
-  const firstDetail = form.value.details[0]
-  if (form.value.details.length === 0 || !firstDetail?.description) {
+  // El formulario nace con una fila vacía: las filas sin ítem, descripción ni precio se ignoran y se validan todas las demás.
+  const detailRows = form.value.details.filter(
+    (d) => d.item_id || String(d.description || '').trim() || Number(d.unit_price || 0) > 0,
+  )
+  if (detailRows.length === 0) {
     errorMsg.value = 'Debes agregar al menos un ítem o servicio a la factura.'
     return
+  }
+  for (const d of detailRows) {
+    const label = String(d.description || '').trim()
+    const qty = Number(d.quantity)
+    const price = Number(d.unit_price)
+    const disc = Number(d.discount || 0)
+    let rowError = ''
+    if (!label) rowError = 'Hay una línea sin descripción. Complétala o elimínala.'
+    else if (!Number.isFinite(qty) || qty <= 0) rowError = `La cantidad de "${label}" debe ser mayor a 0.`
+    else if (!Number.isFinite(price) || price < 0) rowError = `El precio unitario de "${label}" no puede ser negativo.`
+    else if (!Number.isFinite(disc) || disc < 0) rowError = `El descuento de "${label}" no puede ser negativo.`
+    else if (disc > qty * price) rowError = `El descuento de "${label}" no puede superar el importe de la línea.`
+    if (rowError) {
+      errorMsg.value = rowError
+      return
+    }
   }
 
   saving.value = true
@@ -773,7 +834,7 @@ const submitInvoice = async () => {
       customer_phone: form.value.customer_phone,
       payment_method: form.value.payment_method,
       notes: form.value.notes,
-      details: form.value.details.map((d) => ({
+      details: detailRows.map((d) => ({
         item_type: d.item_type,
         item_id: d.item_id,
         warehouse_id: d.warehouse_id || form.value.warehouseId || undefined,
@@ -787,7 +848,13 @@ const submitInvoice = async () => {
       })),
     }
 
+    // Efectivo y vuelto de ESTA venta: se guardan ligados a la factura creada para imprimirlos solo en su ticket.
+    const received = form.value.payment_method === '01' ? Number(cashReceived.value || 0) : 0
     const created = await createInvoice(payload)
+    lastCashInfo.value =
+      received > 0
+        ? { invoiceId: created.id, received, change: Math.max(0, Number((received - Number(created.total || 0)).toFixed(2))) }
+        : null
     showCreateModal.value = false
     await loadData()
 
@@ -1009,8 +1076,19 @@ const getActiveCompany = (): any => {
   return {}
 }
 
-const printRide = (inv: InvoiceItem, format: 'a4' | 'ticket' = 'a4') => {
-  const comp: any = { ...getActiveCompany() }
+// Efectivo recibido y vuelto de la última factura emitida en esta sesión (solo aplican al ticket de esa factura)
+const lastCashInfo = ref<{ invoiceId: number; received: number; change: number } | null>(null)
+
+const printRide = async (inv: InvoiceItem, format: 'a4' | 'ticket' = 'a4') => {
+  // Los datos legales del emisor (razón social, dirección matriz, obligado a llevar contabilidad, régimen) se piden
+  // al backend: el resumen de empresa guardado en el navegador no los trae. Sin ellos no se imprime el RIDE.
+  let comp: any
+  try {
+    comp = await fetchRideIssuer(getActiveCompanyId())
+  } catch (err: any) {
+    errorMsg.value = err?.response?.data?.message || 'No se pudieron obtener los datos de la empresa emisora para imprimir el RIDE.'
+    return
+  }
   // Obtener la sucursal emisora para tomar su logo_url prioritario
   let branch: any = branchesList.value.find(
     (b: any) => b.id === (inv as any).branch_id || b.code === (inv as any).branch_code
@@ -1024,10 +1102,8 @@ const printRide = (inv: InvoiceItem, format: 'a4' | 'ticket' = 'a4') => {
   if (branch?.logo_url) {
     comp.branch_logo_url = branch.logo_url
   }
-  printRideDoc(inv, comp, format, {
-    received: cashReceived.value || undefined,
-    change: cashChange.value || undefined,
-  })
+  const cash = lastCashInfo.value?.invoiceId === inv.id ? lastCashInfo.value : null
+  printRideDoc(inv, comp, format, cash ? { received: cash.received, change: cash.change } : undefined)
 }
 
 const onPrintA4 = (inv: InvoiceItem) => {
@@ -1127,13 +1203,15 @@ const setQuickCash = (amount: number) => {
 // Cuadre de Caja Diario
 const showDailyCashModal = ref(false)
 const dailyCashSummary = computed(() => {
-  const todayStr = new Date().toISOString().slice(0, 10)
+  // Día local del equipo (no UTC): desde las 19:00 de Ecuador la fecha UTC ya es la del día siguiente.
+  const todayStr = todayLocalISO()
   const todayInvoices = invoices.value.filter(
     (inv) =>
       (inv.issue_date && inv.issue_date.slice(0, 10) === todayStr) ||
-      (inv.created_at && inv.created_at.slice(0, 10) === todayStr)
+      (inv.created_at && toLocalISODate(new Date(inv.created_at)) === todayStr)
   )
-  const issued = todayInvoices.filter((i) => i.status === 'ISSUED')
+  // Las autorizadas por el SRI también son ventas del día
+  const issued = todayInvoices.filter(isValidInvoice)
   const canceled = todayInvoices.filter((i) => i.status === 'CANCELED')
 
   let totalCash = 0
@@ -1179,7 +1257,7 @@ const printDailyClosure = () => {
     .hr { border-top: 1px dashed #000; margin: 5px 0; }
     .row { display: flex; justify-content: space-between; margin: 2px 0; }
   </style></head><body>
-  <div class="c b" style="font-size:13px">${esc(comp.trade_name || comp.business_name || 'DESKOUNTA')}</div>
+  <div class="c b" style="font-size:13px">${esc(comp.nombre_comercial || comp.razon_social || comp.trade_name || comp.business_name || '')}</div>
   <div class="c">CIERRE DE CAJA DIARIO</div>
   <div class="c">Fecha: ${sum.date}</div>
   <div class="hr"></div>
@@ -1377,7 +1455,7 @@ watch(() => [route.path, route.query], () => {
                 <th>Cliente / Razón Social</th>
                 <th>Identificación</th>
                 <th class="text-end">Subtotal</th>
-                <th class="text-end">IVA (15%)</th>
+                <th class="text-end">IVA</th>
                 <th class="text-end">Total</th>
                 <th class="text-center">Estado</th>
                 <th class="text-end">Acciones</th>
@@ -1490,7 +1568,7 @@ watch(() => [route.path, route.query], () => {
                       </li>
 
                       <!-- Consultar SRI -->
-                      <li v-if="inv.sri_status === 'IN_PROCESS'">
+                      <li v-if="canCheckSri(inv)">
                         <a
                           class="dropdown-item py-2 text-warning"
                           href="javascript:void(0)"
@@ -1536,7 +1614,7 @@ watch(() => [route.path, route.query], () => {
                       </li>
 
                       <!-- Emitir Nota de Crédito -->
-                      <li v-if="inv.sign_status === 'SIGNED' && inv.status !== 'CANCELED'">
+                      <li v-if="canIssueCreditNote(inv)">
                         <a class="dropdown-item py-2 text-warning" href="javascript:void(0)" @click="goToCreditNote(inv)">
                           <iconify-icon icon="solar:bill-cross-line-duotone" class="fs-5 text-warning"></iconify-icon>
                           <span>Emitir Nota de Crédito</span>
@@ -1544,7 +1622,7 @@ watch(() => [route.path, route.query], () => {
                       </li>
 
                       <!-- Anular Factura -->
-                      <li v-if="inv.status === 'ISSUED'">
+                      <li v-if="canCancelInvoice(inv)">
                         <hr class="dropdown-divider">
                         <a
                           class="dropdown-item py-2 text-danger"
@@ -1999,9 +2077,9 @@ watch(() => [route.path, route.query], () => {
             </div>
             <div class="col-md-5">
               <div class="card rounded-3 border-secondary p-3 bg-dark-subtle">
-                <div class="d-flex justify-content-between text-secondary mb-1">
-                  <span>Subtotal 15%:</span>
-                  <span class="font-monospace text-white">${{ formatNumber(calculatedTotals.subtotal15) }}</span>
+                <div v-for="g in calculatedTotals.taxedByRate" :key="'sub-' + g.rate" class="d-flex justify-content-between text-secondary mb-1">
+                  <span>Subtotal {{ g.rate }}%:</span>
+                  <span class="font-monospace text-white">${{ formatNumber(g.base) }}</span>
                 </div>
                 <div class="d-flex justify-content-between text-secondary mb-1">
                   <span>Subtotal 0%:</span>
@@ -2011,8 +2089,12 @@ watch(() => [route.path, route.query], () => {
                   <span>Descuento:</span>
                   <span class="font-monospace text-danger">-${{ formatNumber(calculatedTotals.discountTotal) }}</span>
                 </div>
-                <div class="d-flex justify-content-between text-secondary mb-1">
-                  <span>IVA (15%):</span>
+                <div v-for="g in calculatedTotals.taxedByRate" :key="'iva-' + g.rate" class="d-flex justify-content-between text-secondary mb-1">
+                  <span>IVA ({{ g.rate }}%):</span>
+                  <span class="font-monospace text-white">${{ formatNumber(g.tax) }}</span>
+                </div>
+                <div v-if="calculatedTotals.taxedByRate.length !== 1" class="d-flex justify-content-between text-secondary mb-1">
+                  <span>IVA total:</span>
                   <span class="font-monospace text-white">${{ formatNumber(calculatedTotals.taxTotal) }}</span>
                 </div>
                 <hr class="border-secondary my-2" />
@@ -2134,16 +2216,20 @@ watch(() => [route.path, route.query], () => {
           <!-- Resumen de Totales -->
           <div class="d-flex justify-content-end mt-3">
             <div class="p-3 bg-body-tertiary rounded-3 border" style="min-width: 250px;">
-              <div class="d-flex justify-content-between mb-1">
-                <span class="text-secondary">Subtotal 15%:</span>
-                <span class="font-monospace">${{ formatNumber(viewingInvoice.subtotal_taxable) }}</span>
+              <div v-for="g in viewingTaxGroups" :key="'sub-' + g.rate" class="d-flex justify-content-between mb-1">
+                <span class="text-secondary">Subtotal {{ g.rate }}%:</span>
+                <span class="font-monospace">${{ formatNumber(g.base) }}</span>
               </div>
               <div class="d-flex justify-content-between mb-1">
                 <span class="text-secondary">Subtotal 0%:</span>
                 <span class="font-monospace">${{ formatNumber(viewingInvoice.subtotal_zero_tax) }}</span>
               </div>
-              <div class="d-flex justify-content-between mb-1">
-                <span class="text-secondary">IVA (15%):</span>
+              <div v-for="g in viewingTaxGroups" :key="'iva-' + g.rate" class="d-flex justify-content-between mb-1">
+                <span class="text-secondary">IVA ({{ g.rate }}%):</span>
+                <span class="font-monospace">${{ formatNumber(g.tax) }}</span>
+              </div>
+              <div v-if="viewingTaxGroups.length !== 1" class="d-flex justify-content-between mb-1">
+                <span class="text-secondary">IVA total:</span>
                 <span class="font-monospace">${{ formatNumber(viewingInvoice.tax_total) }}</span>
               </div>
               <hr class="my-2" />
@@ -2187,7 +2273,7 @@ watch(() => [route.path, route.query], () => {
             <span>{{ sendingSri ? 'Enviando al SRI…' : 'Enviar al SRI' }}</span>
           </button>
           <button
-            v-if="viewingInvoice.sri_status === 'IN_PROCESS'"
+            v-if="canCheckSri(viewingInvoice)"
             class="btn btn-outline-warning d-flex align-items-center gap-2"
             :disabled="sendingSri"
             @click="onCheckSri(viewingInvoice)"
@@ -2225,7 +2311,7 @@ watch(() => [route.path, route.query], () => {
             <span>Ticket (80mm)</span>
           </button>
           <button
-            v-if="viewingInvoice.sign_status === 'SIGNED' && viewingInvoice.status !== 'CANCELED'"
+            v-if="canIssueCreditNote(viewingInvoice)"
             class="btn btn-outline-danger d-flex align-items-center gap-2"
             @click="showDetailModal = false; goToCreditNote(viewingInvoice)"
             title="Emitir Nota de Crédito para esta factura"

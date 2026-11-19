@@ -119,7 +119,11 @@ watch(
 )
 
 const currentSelectedOption = computed(() => {
-  return selectedOption.value || rememberedOption.value
+  if (selectedOption.value) return selectedOption.value
+  // La opción recordada solo vale mientras siga siendo el valor actual (sirve cuando la
+  // búsqueda remota ya no la trae). Si el valor pasó a null u otro, no se muestra la anterior.
+  const remembered = rememberedOption.value
+  return remembered && remembered.value === props.modelValue ? remembered : null
 })
 
 // Ejecutar búsqueda remota en base de datos

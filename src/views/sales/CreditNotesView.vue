@@ -250,7 +250,7 @@
                       </li>
 
                       <!-- Firmar y Enviar al SRI -->
-                      <li v-if="cn.sri_status !== 'AUTHORIZED'">
+                      <li v-if="cn.sri_status !== 'AUTHORIZED' && cn.sri_status !== 'IN_PROCESS'">
                         <a
                           class="dropdown-item py-2 text-primary"
                           href="javascript:void(0)"
@@ -260,6 +260,20 @@
                           <span v-if="actionLoadingId === cn.id" class="spinner-grow spinner-grow-sm text-primary" role="status"></span>
                           <iconify-icon v-else icon="solar:send-square-line-duotone" class="fs-5 text-primary"></iconify-icon>
                           <span>Firmar y Enviar SRI</span>
+                        </a>
+                      </li>
+
+                      <!-- Consultar autorización en el SRI (NC ya recibida, en proceso) -->
+                      <li v-if="cn.sri_status === 'IN_PROCESS'">
+                        <a
+                          class="dropdown-item py-2 text-warning"
+                          href="javascript:void(0)"
+                          :class="{ disabled: actionLoadingId === cn.id }"
+                          @click="handleCheckSri(cn)"
+                        >
+                          <span v-if="actionLoadingId === cn.id" class="spinner-grow spinner-grow-sm text-warning" role="status"></span>
+                          <iconify-icon v-else icon="solar:refresh-circle-bold-duotone" class="fs-5 text-warning"></iconify-icon>
+                          <span>Consultar SRI</span>
                         </a>
                       </li>
 
@@ -564,6 +578,7 @@
                       <td class="text-center">
                         <input
                           v-model.number="row.quantity"
+                          @input="prorateDiscount(row)"
                           type="number"
                           step="0.0001"
                           min="0.0001"
@@ -648,7 +663,7 @@
               <div class="col-12 col-md-6">
                 <div class="p-3 rounded-3 bg-body-secondary border border-secondary-subtle ms-auto" style="max-width: 380px;">
                   <div class="d-flex justify-content-between mb-1 small text-muted">
-                    <span>Subtotal Gravado (15%):</span>
+                    <span>Subtotal Gravado:</span>
                     <span class="text-body-emphasis font-monospace">${{ formatMoney(calculatedTotals.subtotalTaxable) }}</span>
                   </div>
                   <div class="d-flex justify-content-between mb-1 small text-muted">
@@ -810,7 +825,19 @@
               </button>
 
               <button
-                v-if="selectedDetail.sri_status !== 'AUTHORIZED'"
+                v-if="selectedDetail.sri_status === 'IN_PROCESS'"
+                type="button"
+                class="btn btn-outline-warning rounded-pill px-3 d-inline-flex align-items-center gap-1"
+                :disabled="actionLoadingId === selectedDetail.id"
+                @click="handleCheckSri(selectedDetail)"
+              >
+                <span v-if="actionLoadingId === selectedDetail.id" class="spinner-grow spinner-grow-sm text-warning" role="status" aria-hidden="true"></span>
+                <iconify-icon v-else icon="solar:refresh-circle-bold-duotone" class="fs-4"></iconify-icon>
+                <span>Consultar SRI</span>
+              </button>
+
+              <button
+                v-if="selectedDetail.sri_status !== 'AUTHORIZED' && selectedDetail.sri_status !== 'IN_PROCESS'"
                 type="button"
                 class="btn btn-outline-primary rounded-pill px-3 d-inline-flex align-items-center gap-1"
                 :disabled="actionLoadingId === selectedDetail.id"
@@ -856,6 +883,7 @@ import {
   listCreditNotes,
   createCreditNote,
   sendCreditNoteSri,
+  checkCreditNoteSri,
   downloadCreditNoteXml,
   getNextCreditNoteSequential,
   type CreditNoteItem
@@ -863,6 +891,7 @@ import {
 import { getEmissionPoints, type EmissionPointItem } from '@/services/emission-points.service'
 import { getBranches, type BranchItem } from '@/services/config.service'
 import SriResponseModal from '@/components/common/SriResponseModal.vue'
+import { todayLocalISO } from '@/utils/local-date'
 
 const route = useRoute()
 const router = useRouter()
@@ -953,7 +982,7 @@ const form = ref({
   invoiceId: undefined as number | undefined,
   branchId: null as number | null,
   emission_point: '001',
-  issue_date: new Date().toISOString().slice(0, 10),
+  issue_date: todayLocalISO(),
   modified_document_type: '01',
   modified_document_number: '',
   modified_document_date: '',
@@ -1167,7 +1196,7 @@ const openCreateForm = () => {
     invoiceId: undefined,
     branchId: defaultBranchId,
     emission_point: defaultSerie,
-    issue_date: new Date().toISOString().slice(0, 10),
+    issue_date: todayLocalISO(),
     modified_document_type: '01',
     modified_document_number: '',
     modified_document_date: '',
@@ -1232,8 +1261,19 @@ const resetOriginalItems = () => {
     original_quantity: Number(d.quantity || 1),
     unit_price: Number(d.unit_price || 0),
     discount: Number(d.discount || 0),
+    original_discount: Number(d.discount || 0),
     tax_rate: Number(d.tax_rate ?? 15)
   }))
+}
+
+// En una devolución parcial el descuento de la línea se prorratea por la cantidad devuelta
+// (devolver 2 de 10 unidades acredita 2/10 del descuento, no el descuento completo).
+const prorateDiscount = (row: any) => {
+  const originalQty = Number(row.original_quantity || 0)
+  const originalDiscount = Number(row.original_discount || 0)
+  if (originalQty <= 0 || originalDiscount <= 0) return
+  const qty = Math.min(Math.max(Number(row.quantity || 0), 0), originalQty)
+  row.discount = Number(((originalDiscount * qty) / originalQty).toFixed(2))
 }
 
 const onQuickReasonChange = () => {
@@ -1352,6 +1392,30 @@ const handleSendSri = async (cn: CreditNoteItem) => {
     openSriModalForCreditNote(cn, res)
   } catch (err: any) {
     toast.error(err?.response?.data?.message || 'Error al comunicarse con el SRI.')
+  } finally {
+    actionLoadingId.value = null
+  }
+}
+
+// Una NC ya recibida por el SRI (en proceso) no se reenvía: se consulta su autorización.
+const handleCheckSri = async (cn: CreditNoteItem) => {
+  actionLoadingId.value = cn.id
+  try {
+    const res = await checkCreditNoteSri(cn.id)
+    if (res.status === 'AUTHORIZED') {
+      toast.success(`¡NC ${cn.credit_note_number} AUTORIZADA por el SRI!`, 'SRI Ecuador')
+    } else if (res.status === 'IN_PROCESS') {
+      toast.warning(`NC ${cn.credit_note_number} sigue en proceso de autorización. Consulta de nuevo en unos minutos.`, 'SRI Ecuador')
+    } else {
+      toast.error(res.message || 'El SRI no autorizó la nota de crédito.', 'SRI Ecuador')
+    }
+    await loadData()
+    if (selectedDetail.value?.id === cn.id) {
+      selectedDetail.value = creditNotesList.value.find((c) => c.id === cn.id) || selectedDetail.value
+    }
+    openSriModalForCreditNote(cn, res)
+  } catch (err: any) {
+    toast.error(err?.response?.data?.message || 'No se pudo consultar la autorización en el SRI.')
   } finally {
     actionLoadingId.value = null
   }

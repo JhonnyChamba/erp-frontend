@@ -241,7 +241,7 @@ import { CampeonatoApi } from '@/services/campeonato.service';
 import { toast } from '@/utils/toastr';
 
 const props = defineProps<{
-  playerId: string;
+  playerId: number;
 }>();
 
 defineEmits<{

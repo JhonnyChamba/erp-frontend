@@ -49,6 +49,22 @@ export interface UserCompanyAccessInfo {
   menu: SidebarModuleItem[]
 }
 
+// Carga de permisos en curso (no reactiva). Permite que quien llame a fetchCompanyAccess
+// mientras ya hay una petición para la misma empresa espere esa misma respuesta, y que una
+// respuesta antigua no pise a la de una empresa pedida después.
+let pendingAccess: { companyId: number; promise: Promise<UserCompanyAccessInfo | null> } | null = null
+
+// ¿Alguna URL permitida es exactamente `<basePath>?tab=<tab>`? Se compara el valor del
+// parámetro, no un "includes": tab=rol no debe coincidir con tab=roles.
+const allowsTab = (allowedUrls: string[], basePath: string, tab: string): boolean => {
+  const wanted = tab.toLowerCase()
+  return (allowedUrls || []).some((u) => {
+    const [rawPath = '', query = ''] = (u || '').trim().toLowerCase().split('?')
+    const path = '/' + rawPath.replace(/^\/+|\/+$/g, '')
+    return path === basePath && new URLSearchParams(query).get('tab') === wanted
+  })
+}
+
 export const useAuthStore = defineStore('auth', {
   state: () => ({
     token: localStorage.getItem('token') as string | null,
@@ -138,25 +154,42 @@ export const useAuthStore = defineStore('auth', {
         }
       }
 
+      // Ya hay una carga en curso para esta misma empresa: se espera esa respuesta
+      if (pendingAccess && pendingAccess.companyId === Number(targetCompanyId)) {
+        return pendingAccess.promise
+      }
+
       // Si la empresa solicitada es diferente a la almacenada en el estado actual, limpiar inmediatamente para evitar mezclar caché
       if (this.accessInfo && Number(this.accessInfo.companyId) !== Number(targetCompanyId)) {
         this.accessInfo = null
       }
 
       this.loadingAccess = true
-      try {
-        const { data } = await api.get<UserCompanyAccessInfo>('/auth/access', {
-          params: { companyId: targetCompanyId },
-        })
-        this.accessInfo = data
-        return data
-      } catch (err) {
-        console.error('Error al cargar permisos de la empresa activa:', err)
-        this.accessInfo = null
-        return null
-      } finally {
-        this.loadingAccess = false
+      const request: { companyId: number; promise: Promise<UserCompanyAccessInfo | null> } = {
+        companyId: Number(targetCompanyId),
+        promise: Promise.resolve(null),
       }
+      request.promise = (async () => {
+        try {
+          const { data } = await api.get<UserCompanyAccessInfo>('/auth/access', {
+            params: { companyId: targetCompanyId },
+          })
+          // Solo la petición más reciente escribe en el estado
+          if (pendingAccess === request) this.accessInfo = data
+          return data
+        } catch (err) {
+          console.error('Error al cargar permisos de la empresa activa:', err)
+          if (pendingAccess === request) this.accessInfo = null
+          return null
+        } finally {
+          if (pendingAccess === request) {
+            pendingAccess = null
+            this.loadingAccess = false
+          }
+        }
+      })()
+      pendingAccess = request
+      return request.promise
     },
 
     hasModuleAccess(code: string): boolean {
@@ -353,10 +386,7 @@ export const useAuthStore = defineStore('auth', {
           if (!tabParam) {
             return this.accessInfo.allowedUrls.some((u) => u.toLowerCase().startsWith('/configuracion'))
           }
-          return this.accessInfo.allowedUrls.some((u) => {
-            const uLower = u.toLowerCase()
-            return uLower.includes(`tab=${tabParam.toLowerCase()}`)
-          })
+          return allowsTab(this.accessInfo.allowedUrls, '/configuracion', tabParam)
         }
 
         // Validación específica para /inventario y sus pestañas
@@ -365,10 +395,7 @@ export const useAuthStore = defineStore('auth', {
           if (!tabParam) {
             return this.accessInfo.allowedUrls.some((u) => u.toLowerCase().startsWith('/inventario'))
           }
-          return this.accessInfo.allowedUrls.some((u) => {
-            const uLower = u.toLowerCase()
-            return uLower.includes(`tab=${tabParam.toLowerCase()}`)
-          })
+          return allowsTab(this.accessInfo.allowedUrls, '/inventario', tabParam)
         }
 
         // Validación específica para /contactos y sus pestañas
@@ -377,10 +404,7 @@ export const useAuthStore = defineStore('auth', {
           if (!tabParam) {
             return this.accessInfo.allowedUrls.some((u) => u.toLowerCase().startsWith('/contactos'))
           }
-          return this.accessInfo.allowedUrls.some((u) => {
-            const uLower = u.toLowerCase()
-            return uLower.includes(`tab=${tabParam.toLowerCase()}`)
-          })
+          return allowsTab(this.accessInfo.allowedUrls, '/contactos', tabParam)
         }
 
         return this.accessInfo.allowedUrls.some((u) => {
@@ -404,6 +428,8 @@ export const useAuthStore = defineStore('auth', {
     logout() {
       this.token = null
       this.accessInfo = null
+      pendingAccess = null
+      this.loadingAccess = false
       localStorage.removeItem('token')
       localStorage.removeItem('userPhoto')
       localStorage.removeItem('selectedCompany')

@@ -493,11 +493,12 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, watch } from 'vue'
 import { getInvoices, type InvoiceItem } from '@/services/invoices.service'
 import { listCreditNotes, type CreditNoteItem } from '@/services/credit-notes.service'
 import { getBranches, type BranchItem } from '@/services/config.service'
-import { printRideDoc } from '@/utils/sri-ride'
+import { printRideDoc, fetchRideIssuer } from '@/utils/sri-ride'
+import { todayLocalISO, toLocalISODate } from '@/utils/local-date'
 import { toast } from '@/utils/toastr'
 
 // Tipos unificados para el reporte
@@ -538,8 +539,9 @@ const currentPage = ref(1)
 const pageSize = ref(30)
 
 // Filtros
-const todayStr = new Date().toISOString().slice(0, 10)
-const firstDayOfMonthStr = new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString().slice(0, 10)
+// Fechas locales del equipo (no UTC): desde las 19:00 de Ecuador la fecha UTC ya es la del día siguiente.
+const todayStr = todayLocalISO()
+const firstDayOfMonthStr = toLocalISODate(new Date(new Date().getFullYear(), new Date().getMonth(), 1))
 
 const filters = ref({
   dateFrom: firstDayOfMonthStr,
@@ -709,6 +711,11 @@ const filteredRows = computed(() => {
 })
 
 // Paginación
+// Al cambiar un filtro o el tamaño de página se vuelve a la primera página (si no, la tabla puede quedar vacía).
+watch([filters, pageSize], () => {
+  currentPage.value = 1
+}, { deep: true })
+
 const totalPages = computed(() => Math.ceil(filteredRows.value.length / pageSize.value))
 const paginatedRows = computed(() => {
   const start = (currentPage.value - 1) * pageSize.value
@@ -750,7 +757,8 @@ const monthlySummary = computed(() => {
       item.base15 += row.base15
       item.base0 += row.base0
       item.tax15 += row.tax15
-    } else {
+    } else if (row.sriStatus !== 'RETURNED' && row.sriStatus !== 'NOT_AUTHORIZED') {
+      // Una nota de crédito devuelta o no autorizada por el SRI no tiene validez: no reduce las ventas netas.
       item.creditNotesCount++
       item.creditNotesTotal += row.total
     }
@@ -878,9 +886,17 @@ const copyAccessKey = (key?: string | null) => {
 }
 
 // Imprimir RIDE individual
-const printSingleDoc = (row: UnifiedReportRow) => {
-  const comp = getActiveCompany()
-  printRideDoc(row.raw, comp, 'a4')
+const printSingleDoc = async (row: UnifiedReportRow) => {
+  // Los datos legales del emisor se piden al backend: el resumen de empresa guardado en el navegador no los trae.
+  let issuer
+  try {
+    issuer = await fetchRideIssuer(Number(getActiveCompany().id))
+  } catch (err: any) {
+    toast.error(err?.response?.data?.message || 'No se pudieron obtener los datos de la empresa emisora para imprimir el RIDE.', 'RIDE')
+    return
+  }
+  // El tipo de comprobante se indica de forma explícita: una nota de crédito no debe titularse FACTURA.
+  printRideDoc({ ...row.raw, document_type: row.isCreditNote ? '04' : '01' }, issuer, 'a4')
 }
 
 // Helper para escapar caracteres especiales en SpreadsheetML XML

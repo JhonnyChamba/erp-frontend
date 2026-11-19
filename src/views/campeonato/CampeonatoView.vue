@@ -3124,7 +3124,7 @@
                     />
                     <div class="text-start">
                       <small class="d-block text-muted font-monospace fs-1">CÓDIGO DE VALIDACIÓN</small>
-                      <small class="fw-bold font-monospace text-dark">{{ selectedCarnet.carnetNumber || selectedCarnet.id?.substring(0, 8).toUpperCase() }}</small>
+                      <small class="fw-bold font-monospace text-dark">{{ selectedCarnet.carnetNumber || String(selectedCarnet.id ?? '').padStart(8, '0') }}</small>
                       <small class="d-block text-muted fs-1 mt-1">Escanee para verificar habilitación en mesa</small>
                     </div>
                   </div>
@@ -3573,6 +3573,14 @@
               </div>
 
               <div class="row g-3">
+                <div class="col-md-12">
+                  <label class="form-label text-secondary small fw-semibold">Edición del Campeonato *</label>
+                  <select v-model="formTransfer.editionId" class="form-select" required>
+                    <option value="" disabled>Seleccionar edición...</option>
+                    <option v-for="ed in categoryEditionsList" :key="ed.id" :value="ed.id">{{ ed.name }}</option>
+                  </select>
+                </div>
+
                 <div class="col-md-6">
                   <label class="form-label text-secondary small fw-semibold">Club de Destino (Nuevo Equipo) *</label>
                   <AppSelect2
@@ -4545,15 +4553,12 @@ const tabs: TabConfig[] = [
     columns: [
       { key: 'team.name', label: 'Equipo' },
       { key: 'categoryEdition.name', label: 'Edición Torneo' },
-      { key: 'registrationNumber', label: '# Inscripción' },
       { key: 'status', label: 'Estado Inscripción' },
-      { key: 'paidAmount', label: 'Monto Pagado ($)' },
       { key: 'paymentStatus', label: 'Estado Pago' },
     ],
     fields: [
       { key: 'teamId', label: 'Equipo', type: 'select', colClass: 'col-md-6', options: [] },
       { key: 'categoryEditionId', label: 'Edición de Categoría', type: 'select', colClass: 'col-md-6', options: [] },
-      { key: 'registrationNumber', label: 'Número de Registro', type: 'text', colClass: 'col-md-4' },
       {
         key: 'status',
         label: 'Estado de Inscripción',
@@ -4578,8 +4583,6 @@ const tabs: TabConfig[] = [
         ],
         colClass: 'col-md-4',
       },
-      { key: 'paidAmount', label: 'Monto Abonado ($)', type: 'number', colClass: 'col-md-6' },
-      { key: 'observations', label: 'Observaciones', type: 'text', colClass: 'col-md-6' },
     ],
   },
   {
@@ -4928,7 +4931,7 @@ const defaultDailySchedules = (): Record<WeekDayKey, DayScheduleItem> => ({
 });
 
 const scheduleConfig = ref<{
-  editionId: string;
+  editionId: number | '';
   dailySchedules: Record<WeekDayKey, DayScheduleItem>;
   matchDurationMinutes: number;
   intervalMinutes: number;
@@ -5205,7 +5208,7 @@ const saveScheduleConfig = () => {
 };
 
 interface ScheduleTableItem {
-  editionId: string;
+  editionId: number;
   editionName: string;
   categoryName: string;
   courtNames: string[];
@@ -5476,7 +5479,7 @@ const loading = ref(false);
 const isFormOpen = ref(false);
 const showModal = ref(false);
 const isEditing = ref(false);
-const editingId = ref<string | null>(null);
+const editingId = ref<number | null>(null);
 const formData = ref<Record<string, any>>({});
 const saving = ref(false);
 
@@ -5974,7 +5977,7 @@ const openTeamManagementModal = (team: any) => {
   loadTeamManagement(team.id);
 };
 
-const loadTeamManagement = async (teamId: string) => {
+const loadTeamManagement = async (teamId: number) => {
   try {
     loadingTeamManagement.value = true;
     const res = await TeamManagementsService.listByTeam(teamId);
@@ -6019,7 +6022,7 @@ const saveTeamManagementRecord = async () => {
   }
 };
 
-const deleteTeamManagementRecord = async (id: string) => {
+const deleteTeamManagementRecord = async (id: number) => {
   if (!confirm('¿Estás seguro de eliminar este directivo del club?')) return;
   try {
     await TeamManagementsService.delete(id);
@@ -6996,7 +6999,7 @@ const standingsGoalsAverage = computed(() => {
 const loadStandings = async () => {
   try {
     loadingStandings.value = true;
-    const res = await CampeonatoApi.matches.getStandings(selectedStageId.value || undefined);
+    const res = await CampeonatoApi.matches.getStandings(selectedStageId.value ? Number(selectedStageId.value) : undefined);
     standingsList.value = res.data.standings || [];
     topScorersList.value = res.data.topScorers || [];
   } catch (err: any) {
@@ -7028,9 +7031,9 @@ const generateFixture = async () => {
   try {
     generatingFixture.value = true;
     const res = await CampeonatoApi.matches.generateFixture({
-      stageId: formFixture.value.stageId,
-      teamIds: formFixture.value.teamIds,
-      scenaryId: formFixture.value.scenaryId || undefined,
+      stageId: Number(formFixture.value.stageId),
+      teamIds: formFixture.value.teamIds.map((teamId) => Number(teamId)),
+      scenaryId: formFixture.value.scenaryId ? Number(formFixture.value.scenaryId) : undefined,
       startDate: formFixture.value.startDate,
       intervalDays: formFixture.value.intervalDays,
       matchDurationMinutes: formFixture.value.matchDurationMinutes,
@@ -7062,7 +7065,7 @@ const openCarnetModal = (item: any) => {
       name: item.teamName || 'Equipo',
       logo: item.teamLogo,
     },
-    carnetNumber: item.carnetCode || item.carnetNumber || item.id?.substring(0, 8).toUpperCase(),
+    carnetNumber: item.carnetCode || item.carnetNumber || String(item.id ?? '').padStart(8, '0'),
     dorsalNumber: item.jerseyNumber || item.player?.jerseyNumber || 'S/N',
   };
   showCarnetModal.value = true;
@@ -7126,10 +7129,10 @@ const fetchTeamsOptions = async (query: string) => {
 // ==========================================
 const isMassRegistrationOpen = ref(false);
 const isTeamRosterOpen = ref(false);
-const selectedTeamRegIdForRoster = ref<string | null>(null);
+const selectedTeamRegIdForRoster = ref<number | null>(null);
 
 const isSportsHistoryOpen = ref(false);
-const selectedPlayerIdForHistory = ref<string | null>(null);
+const selectedPlayerIdForHistory = ref<number | null>(null);
 
 const isTransferConfigOpen = ref(false);
 const selectedEditionForConfig = ref<any>(null);
@@ -7151,12 +7154,12 @@ const openGeneralRosterModal = () => {
   isTeamRosterOpen.value = true;
 };
 
-const openRosterForTeamReg = (teamRegId: string) => {
+const openRosterForTeamReg = (teamRegId: number) => {
   selectedTeamRegIdForRoster.value = teamRegId;
   isTeamRosterOpen.value = true;
 };
 
-const openSportsHistory = (playerId: string) => {
+const openSportsHistory = (playerId: number) => {
   if (!playerId) return;
   selectedPlayerIdForHistory.value = playerId;
   isSportsHistoryOpen.value = true;
@@ -7247,7 +7250,7 @@ const openTeamCategoryHistory = (team: any) => {
   loadTeamCategoryHistory(team.id);
 };
 
-const loadTeamCategoryHistory = async (teamId: string) => {
+const loadTeamCategoryHistory = async (teamId: number) => {
   try {
     loadingTeamCategoryHistory.value = true;
     const res = await CampeonatoApi.teamCategoryHistory.listByTeam(teamId);
@@ -7287,7 +7290,7 @@ const saveTeamCategoryRecord = async () => {
   }
 };
 
-const deleteTeamCategoryRecord = async (id: string) => {
+const deleteTeamCategoryRecord = async (id: number) => {
   if (!confirm('¿Deseas eliminar este registro del historial de categorías?')) return;
   try {
     await CampeonatoApi.teamCategoryHistory.delete(id);
@@ -7308,6 +7311,7 @@ const showTransferModal = ref(false);
 const selectedPlayerForTransfer = ref<any>(null);
 const savingTransfer = ref(false);
 const formTransfer = ref({
+  editionId: '' as number | '',
   destinationTeamId: '',
   seasonYear: new Date().getFullYear(),
   transferType: 'DEFINITIVE',
@@ -7325,7 +7329,11 @@ const loadingPlayerTransfers = ref(false);
 
 const openTransferModal = (player: any) => {
   selectedPlayerForTransfer.value = player;
+  if (categoryEditionsList.value.length === 0) {
+    loadAuxiliaryTournamentData();
+  }
   formTransfer.value = {
+    editionId: categoryEditionsList.value.length > 0 ? categoryEditionsList.value[0].id : '',
     destinationTeamId: '',
     seasonYear: new Date().getFullYear(),
     transferType: 'DEFINITIVE',
@@ -7343,13 +7351,25 @@ const processTransfer = async () => {
     toast.warning('Debe seleccionar el club de destino para transferir al jugador');
     return;
   }
+  if (!formTransfer.value.editionId) {
+    toast.warning('Debe seleccionar la edición del campeonato en la que se tramita la transferencia');
+    return;
+  }
   try {
     savingTransfer.value = true;
-    const originTeamId = selectedPlayerForTransfer.value.currentTeamId || null;
-    await CampeonatoApi.playerTransfers.create({
-      playerId: selectedPlayerForTransfer.value.id,
-      originTeamId,
-      ...formTransfer.value,
+    // Payload según CreatePlayerTransferDto: el club de origen lo detecta el backend desde la inscripción vigente.
+    const form = formTransfer.value;
+    await CampeonatoApi.playerTransfers.createRequest({
+      editionId: Number(form.editionId),
+      playerId: Number(selectedPlayerForTransfer.value.id),
+      destinationTeamId: Number(form.destinationTeamId),
+      seasonYear: String(form.seasonYear),
+      transferType: form.transferType,
+      passOwnerType: form.passOwnerType,
+      passOwnerTeamId: form.passOwnerType === 'TEAM' && form.passOwnerTeamId ? Number(form.passOwnerTeamId) : undefined,
+      transferFee: Number(form.transferFee) || 0,
+      transferDate: form.transferDate || undefined,
+      observations: form.observations?.trim() || undefined,
     });
     toast.success('Transferencia del jugador registrada con éxito');
     showTransferModal.value = false;
@@ -7368,7 +7388,7 @@ const openPlayerTransfersModal = (player: any) => {
   loadPlayerTransfersHistory(player.id);
 };
 
-const loadPlayerTransfersHistory = async (playerId: string) => {
+const loadPlayerTransfersHistory = async (playerId: number) => {
   try {
     loadingPlayerTransfers.value = true;
     const res = await CampeonatoApi.playerTransfers.listByPlayer(playerId);
@@ -7381,7 +7401,7 @@ const loadPlayerTransfersHistory = async (playerId: string) => {
   }
 };
 
-const deletePlayerTransferRecord = async (id: string) => {
+const deletePlayerTransferRecord = async (id: number) => {
   if (!confirm('¿Deseas eliminar este registro del historial de transferencias?')) return;
   try {
     await CampeonatoApi.playerTransfers.delete(id);
@@ -7515,9 +7535,13 @@ const setMapLocation = async (lat: number, lng: number, L?: any) => {
     : `Coordenadas: ${formData.value.cardinalPoints}`;
 
   if (scenaryMarkerInstance) {
-    scenaryMarkerInstance.bindPopup(`<b>${formData.value.name || 'Cancha'}</b><br/>${formData.value.location}`).openPopup();
+    scenaryMarkerInstance.bindPopup(`<b>${escapeHtml(formData.value.name || 'Cancha')}</b><br/>${escapeHtml(formData.value.location)}`).openPopup();
   }
 };
+
+// bindPopup() de Leaflet interpreta el string como HTML: todo texto del usuario/servidor se escapa antes.
+const escapeHtml = (value: unknown): string =>
+  String(value ?? '').replace(/[&<>"']/g, (ch) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[ch] as string);
 
 const initScenaryMap = async () => {
   try {
@@ -7545,7 +7569,7 @@ const initScenaryMap = async () => {
     if (formData.value.latitude && formData.value.longitude) {
       scenaryMarkerInstance = L.marker([defaultLat, defaultLng]).addTo(scenaryMapInstance);
       if (formData.value.address) {
-        scenaryMarkerInstance.bindPopup(formData.value.address).openPopup();
+        scenaryMarkerInstance.bindPopup(escapeHtml(formData.value.address)).openPopup();
       }
     }
 
@@ -7582,7 +7606,7 @@ const searchLocationOnMap = async () => {
   }
 };
 
-const toggleScenarySelection = (id: string) => {
+const toggleScenarySelection = (id: number) => {
   if (!formData.value.availableScenaryIds) {
     formData.value.availableScenaryIds = [];
   }
@@ -7987,11 +8011,32 @@ const saveForm = async () => {
       }
     }
 
+    // Ajuste por pestaña al DTO del backend (whitelist + forbidNonWhitelisted: un campo de más responde 400)
+    let body: Record<string, any> = payload;
+    if (activeTab.value === 'playerTransfers') {
+      // CreatePlayerTransferDto es camelCase; el formulario usa claves propias
+      body = {
+        editionId: Number(payload.edition_id),
+        playerId: Number(payload.player_id),
+        destinationTeamId: Number(payload.destination_team_id),
+        stageId: payload.stage_id ? Number(payload.stage_id) : undefined,
+        observations: payload.reason?.trim() || undefined,
+      };
+    } else if (activeTab.value === 'referees') {
+      // El listado por liga añade companyRefereeId / isActiveInCompany, que no son campos del árbitro
+      body = {};
+      for (const key of ['name', 'lastName', 'identification', 'guildId', 'phone', 'email', 'category', 'isActive']) {
+        const value = (payload as any)[key];
+        if (value === undefined) continue;
+        body[key] = value === '' ? null : value;
+      }
+    }
+
     if (isEditing.value && editingId.value) {
-      await currentTabConfig.value.api.update(editingId.value, payload);
+      await currentTabConfig.value.api.update(editingId.value, body);
       toast.success('Registro actualizado exitosamente');
     } else {
-      await currentTabConfig.value.api.create(payload);
+      await currentTabConfig.value.api.create(body);
       toast.success('Registro creado exitosamente');
     }
     closeForm();
@@ -8005,7 +8050,7 @@ const saveForm = async () => {
   }
 };
 
-const confirmDelete = async (id: string) => {
+const confirmDelete = async (id: number) => {
   if (!confirm('¿Estás seguro de eliminar este registro?')) return;
   try {
     await currentTabConfig.value.api.delete(id);

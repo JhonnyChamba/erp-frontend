@@ -227,6 +227,20 @@ router.beforeEach(async (to, from) => {
     return { path: '/dashboard' }
   }
 
+  // Las rutas del ERP operan sobre una empresa: sin empresa seleccionada (p. ej. un usuario
+  // multiempresa o super admin que escribe /dashboard tras el login) se trabajaría sobre la
+  // empresa del token o la 1. Se exige la selección antes de entrar.
+  const operatesOnCompany = !isPublic && to.path !== '/companies' && to.path !== '/configuracion-global'
+  let selectedCompanyId = 0
+  try {
+    selectedCompanyId = Number(JSON.parse(selectedCompany || 'null')?.id) || 0
+  } catch (_) {
+    selectedCompanyId = 0
+  }
+  if (token && operatesOnCompany && !selectedCompanyId) {
+    return { path: '/companies' }
+  }
+
   // Si ya tiene empresa seleccionada y está en el ERP, bloquear volver a /companies con el botón atrás del navegador a menos que sea explícito, venga de configuración global o sea Super Admin
   if (token && selectedCompany && to.path === '/companies' && to.query.cambiar !== 'true' && from.path !== '/configuracion-global') {
     const isSuper = Boolean(
@@ -258,12 +272,25 @@ router.beforeEach(async (to, from) => {
   }
 
   // Protección de acceso al ERP según la suscripción activa de la empresa (no aplica a /companies ni a /configuracion-global)
-  if (token && !isPublic && to.path !== '/companies' && to.path !== '/configuracion-global') {
-    if (!authStore.accessInfo && !authStore.loadingAccess) {
+  if (token && operatesOnCompany) {
+    // Se espera SIEMPRE a tener los permisos de la empresa seleccionada: si ya hay una carga
+    // en curso, fetchCompanyAccess devuelve esa misma promesa (antes no se esperaba y la
+    // navegación pasaba sin validar).
+    if (!authStore.accessInfo || Number(authStore.accessInfo.companyId) !== selectedCompanyId) {
       try {
-        await authStore.fetchCompanyAccess()
+        await authStore.fetchCompanyAccess(selectedCompanyId)
       } catch (err) {
         console.error('Error cargando permisos en guardia de navegación:', err)
+      }
+    }
+
+    // Sin permisos cargados (falló /auth/access) no se puede validar la ruta: se niega
+    // (falla cerrado). Solo se deja el dashboard, que no depende de permisos por rol.
+    if (!authStore.accessInfo) {
+      const isSuperByToken = Boolean(authStore.tokenPayload?.super_admin || authStore.tokenPayload?.developer)
+      if (!isSuperByToken && to.path !== '/dashboard') {
+        toast.error('No se pudieron verificar tus permisos. Intenta nuevamente en unos segundos.')
+        return { path: '/dashboard' }
       }
     }
 
@@ -300,7 +327,7 @@ router.beforeEach(async (to, from) => {
 
     // Validación de permisos por URL según el rol
     const isSuperAdmin = Boolean(authStore.tokenPayload?.super_admin || authStore.accessInfo?.isSuperAdmin)
-    if (!isSuperAdmin && to.path !== '/dashboard' && authStore.accessInfo && !authStore.canAccessUrl(to.fullPath)) {
+    if (!isSuperAdmin && to.path !== '/dashboard' && !authStore.canAccessUrl(to.fullPath)) {
       console.warn(`[Guardia de Navegación] Acceso denegado a la ruta: ${to.fullPath}`)
       toast.warning('No tienes permisos en esta empresa para acceder a esta sección.')
       return { path: '/dashboard' }

@@ -104,9 +104,27 @@ export const createCreditNote = async (payload: CreateCreditNotePayload): Promis
   return res.data
 }
 
-export const sendCreditNoteSri = async (id: number): Promise<{ success: boolean; status: string; message: string; authorizationNumber?: string; authorizationDate?: string; sriMessages?: any[] }> => {
+export interface CreditNoteSriResult {
+  success: boolean
+  status: string
+  sri_status?: string
+  message: string
+  authorizationNumber?: string | null
+  authorizationDate?: string | null
+  sriMessages?: any[]
+}
+
+export const sendCreditNoteSri = async (id: number): Promise<CreditNoteSriResult> => {
   const res = await api.post(`/sales/credit-notes/${id}/send-sri`, null, {
     loadingMessage: 'Enviando y autorizando nota de crédito en el SRI...',
+  } as any)
+  return res.data
+}
+
+/** Consulta en el SRI la autorización de una nota de crédito ya recibida (estado EN PROCESO). */
+export const checkCreditNoteSri = async (id: number): Promise<CreditNoteSriResult> => {
+  const res = await api.post(`/sales/credit-notes/${id}/check-sri`, null, {
+    loadingMessage: 'Consultando estado en el SRI...',
   } as any)
   return res.data
 }

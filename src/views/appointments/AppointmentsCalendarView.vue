@@ -501,14 +501,27 @@ const formAppointment = ref<{
   items: [],
 });
 
-// Time slots from 08:00 to 19:30 in 30-min increments
+// Índice del bloque de 30 min que contiene una hora HH:mm[:ss] (09:15 -> bloque de 09:00)
+const slotIndexOf = (time: string): number => {
+  const [h, m] = String(time || '').split(':').map(Number);
+  return (h || 0) * 2 + ((m || 0) >= 30 ? 1 : 0);
+};
+
+const slotLabel = (index: number): string =>
+  `${String(Math.floor(index / 2)).padStart(2, '0')}:${index % 2 === 0 ? '00' : '30'}`;
+
+// Time slots from 08:00 to 19:30 in 30-min increments; el rango se amplía si hay
+// citas del día antes de las 08:00 o después de las 19:30 para que no queden ocultas.
 const timeSlots = computed(() => {
-  const slots: string[] = [];
-  for (let h = 8; h <= 19; h++) {
-    const hh = String(h).padStart(2, '0');
-    slots.push(`${hh}:00`);
-    slots.push(`${hh}:30`);
+  let first = slotIndexOf('08:00');
+  let last = slotIndexOf('19:30');
+  for (const apt of appointments.value) {
+    const idx = slotIndexOf(apt.start_time);
+    if (idx < first) first = idx;
+    if (idx > last) last = idx;
   }
+  const slots: string[] = [];
+  for (let i = first; i <= last; i++) slots.push(slotLabel(i));
   return slots;
 });
 
@@ -620,8 +633,9 @@ const loadInitialData = async () => {
 const getAppointmentsForSlot = (employeeId: number, slotTime: string) => {
   return appointments.value.filter((apt) => {
     if (apt.employee_id !== employeeId) return false;
-    const aptStart = apt.start_time.substring(0, 5);
-    return aptStart === slotTime;
+    // La cita se pinta en el bloque de 30 min que contiene su hora de inicio
+    // (una cita de las 09:15 aparece en el bloque 09:00).
+    return slotLabel(slotIndexOf(apt.start_time)) === slotTime;
   });
 };
 

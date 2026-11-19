@@ -195,14 +195,14 @@ const emit = defineEmits<{
   (e: 'saved'): void;
 }>();
 
-const selectedTeamRegId = ref('');
+const selectedTeamRegId = ref<number | ''>('');
 const rosterData = ref<any>(null);
 const loadingRoster = ref(false);
 const saving = ref(false);
 
 const rows = ref<Array<{
   _uid: string;
-  playerId: string;
+  playerId: number | '';
   playerClassificationId: string;
   jerseyNumber: number | null;
   isCaptain: boolean;
@@ -286,11 +286,11 @@ const submitMass = async () => {
   try {
     saving.value = true;
     const payload = {
-      teamRegistrationId: selectedTeamRegId.value,
+      teamRegistrationId: Number(selectedTeamRegId.value),
       registrations: rows.value.map((r) => ({
-        playerId: r.playerId,
+        playerId: Number(r.playerId),
         jerseyNumber: Number(r.jerseyNumber),
-        playerClassificationId: r.playerClassificationId || undefined,
+        playerClassificationId: r.playerClassificationId ? Number(r.playerClassificationId) : undefined,
         isCaptain: Boolean(r.isCaptain),
         carnetCode: r.carnetCode || undefined,
       })),

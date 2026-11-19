@@ -95,8 +95,13 @@ const loadDocTypes = async () => {
   }
 }
 
+// El backend de contactos solo admite estos tipos de documento (contacts.dto.ts):
+// cualquier otro del catálogo (p. ej. 08) se rechaza con 400, así que no se ofrece.
+const CONTACT_DOC_TYPE_CODES = ['04', '05', '06', '07']
+const isContactDocType = (dt: DocumentTypeItem) => CONTACT_DOC_TYPE_CODES.includes(String(dt.code))
+
 const customerDocTypeOptions = computed(() => {
-  const filtered = docTypes.value.filter((dt) => dt.type === 'TODOS' || dt.type === 'CLIENTE')
+  const filtered = docTypes.value.filter((dt) => isContactDocType(dt) && (dt.type === 'TODOS' || dt.type === 'CLIENTE'))
   if (filtered.length === 0) {
     return [
       { value: '05', label: 'Cédula (05)' },
@@ -112,7 +117,7 @@ const customerDocTypeOptions = computed(() => {
 })
 
 const providerDocTypeOptions = computed(() => {
-  const filtered = docTypes.value.filter((dt) => dt.type === 'TODOS' || dt.type === 'PROVEEDOR')
+  const filtered = docTypes.value.filter((dt) => isContactDocType(dt) && (dt.type === 'TODOS' || dt.type === 'PROVEEDOR'))
   if (filtered.length === 0) {
     return [
       { value: '04', label: 'RUC (04)' },
@@ -127,7 +132,7 @@ const providerDocTypeOptions = computed(() => {
 })
 
 const sellerDocTypeOptions = computed(() => {
-  const filtered = docTypes.value.filter((dt) => dt.type === 'TODOS' || dt.type === 'VENDEDOR')
+  const filtered = docTypes.value.filter((dt) => isContactDocType(dt) && (dt.type === 'TODOS' || dt.type === 'VENDEDOR'))
   if (filtered.length === 0) {
     return [
       { value: '05', label: 'Cédula (05)' },

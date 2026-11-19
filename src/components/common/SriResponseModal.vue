@@ -44,16 +44,21 @@ const close = () => {
 }
 
 const normalizedStatus = computed(() => {
+  // El estado explícito manda sobre `success`: un comprobante EN PROCESO no es un comprobante autorizado.
   const s = props.result?.sri_status || props.result?.status
-  if (s === 'AUTHORIZED' || props.result?.success === true) return 'AUTHORIZED'
+  if (s === 'AUTHORIZED') return 'AUTHORIZED'
   if (s === 'IN_PROCESS') return 'IN_PROCESS'
   if (s === 'NOT_AUTHORIZED') return 'NOT_AUTHORIZED'
-  if (s === 'RETURNED' || props.result?.error || props.result?.success === false) return 'RETURNED'
-  return s || 'NOT_SENT'
+  if (s === 'RETURNED') return 'RETURNED'
+  if (s) return s
+  if (props.result?.success === true) return 'AUTHORIZED'
+  if (props.result?.error || props.result?.success === false) return 'RETURNED'
+  return 'NOT_SENT'
 })
 
+// Solo el número que devolvió el SRI: la clave de acceso no es un número de autorización.
 const authNumber = computed(() => {
-  return props.result?.sri_authorization_number || props.result?.authorizationNumber || props.accessKey || ''
+  return props.result?.sri_authorization_number || props.result?.authorizationNumber || ''
 })
 
 const authDate = computed(() => {

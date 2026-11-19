@@ -90,37 +90,42 @@ export const SRI_ERROR_CATALOG: Record<string, SriErrorInfo> = {
  */
 export function resolveSriErrorInfo(code?: string | null, message?: string | null): SriErrorInfo | null {
   const cleanCode = String(code || '').trim()
-  if (cleanCode && SRI_ERROR_CATALOG[cleanCode]) {
-    return SRI_ERROR_CATALOG[cleanCode] || null
+
+  // Un código numérico del SRI se compara de forma exacta: si no está en el catálogo no se adivina otro
+  // (antes un "15" dentro de una clave de acceso, un importe o un "IVA 15%" disparaba un diagnóstico ajeno).
+  if (/^\d+$/.test(cleanCode)) {
+    return SRI_ERROR_CATALOG[String(Number(cleanCode))] || null
   }
 
-  const text = `${cleanCode} ${message || ''}`.toLowerCase()
+  // Sin código del SRI (errores propios del sistema: firma, conexión...) se orienta solo por frases del
+  // mensaje, nunca por números sueltos ni por palabras genéricas como "total".
+  const text = String(message || '').toLowerCase()
 
-  if (text.includes('39') || text.includes('firma') || text.includes('certificado') || text.includes('xades')) {
+  if (text.includes('firma') || text.includes('certificado') || text.includes('xades')) {
     return SRI_ERROR_CATALOG['39'] || null
   }
-  if (text.includes('15') || (text.includes('secuencial') && text.includes('registrado')) || text.includes('duplicad')) {
+  if ((text.includes('secuencial') && text.includes('registrado')) || text.includes('duplicad')) {
     return SRI_ERROR_CATALOG['15'] || null
   }
-  if (text.includes('35') || text.includes('descuadr') || text.includes('total')) {
+  if (text.includes('descuadr')) {
     return SRI_ERROR_CATALOG['35'] || null
   }
-  if (text.includes('43') || (text.includes('ruc') && text.includes('no autorizado'))) {
+  if (text.includes('ruc') && text.includes('no autorizado')) {
     return SRI_ERROR_CATALOG['43'] || null
   }
-  if (text.includes('45') || text.includes('establecimiento')) {
+  if (text.includes('establecimiento')) {
     return SRI_ERROR_CATALOG['45'] || null
   }
-  if (text.includes('47') || text.includes('60') || text.includes('fuera de plazo') || text.includes('plazo')) {
+  if (text.includes('fuera de plazo')) {
     return SRI_ERROR_CATALOG['47'] || null
   }
-  if (text.includes('49') || (text.includes('modificado') && text.includes('no existe'))) {
+  if (text.includes('modificado') && text.includes('no existe')) {
     return SRI_ERROR_CATALOG['49'] || null
   }
-  if (text.includes('56') || (text.includes('modificado') && text.includes('fecha'))) {
+  if (text.includes('modificado') && text.includes('fecha')) {
     return SRI_ERROR_CATALOG['56'] || null
   }
-  if (text.includes('65') || text.includes('caracter') || text.includes('sintaxis')) {
+  if (text.includes('caracter') || text.includes('sintaxis')) {
     return SRI_ERROR_CATALOG['65'] || null
   }
 
