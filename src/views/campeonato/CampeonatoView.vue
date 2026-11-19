@@ -240,6 +240,69 @@
     <!-- 3. TABLA DE POSICIONES Y GOLEADORES        -->
     <!-- ========================================== -->
     <div v-else-if="!isFormOpen && activeTab === 'standings'" class="row g-3">
+      <!-- 4 TARJETAS KPI DE RESUMEN (Inspiradas en soccerAdminEC) -->
+      <div class="col-12">
+        <div class="row g-3">
+          <!-- 1. Líder / Puntero -->
+          <div class="col-6 col-lg-3">
+            <div class="stat-kpi-card">
+              <div class="p-2 rounded-3 bg-warning-subtle text-warning d-flex align-items-center justify-content-center flex-shrink-0" style="width: 44px; height: 44px;">
+                <iconify-icon icon="solar:cup-star-bold" class="fs-3 text-warning"></iconify-icon>
+              </div>
+              <div class="min-w-0 flex-grow-1">
+                <span class="text-uppercase fw-semibold text-muted d-block text-truncate" style="font-size: 0.72rem; letter-spacing: 0.5px;">Puntero / Líder</span>
+                <span class="fw-bold text-body-emphasis d-block text-truncate fs-5">{{ standingsLeader ? standingsLeader.teamName : 'Sin disputar' }}</span>
+                <small class="text-warning fw-semibold font-monospace" style="font-size: 0.75rem;">
+                  {{ standingsLeader ? `${standingsLeader.pts} pts (GD: ${standingsLeader.gd > 0 ? '+' + standingsLeader.gd : standingsLeader.gd})` : '0 pts' }}
+                </small>
+              </div>
+            </div>
+          </div>
+
+          <!-- 2. Partidos Jugados -->
+          <div class="col-6 col-lg-3">
+            <div class="stat-kpi-card">
+              <div class="p-2 rounded-3 bg-primary-subtle text-primary d-flex align-items-center justify-content-center flex-shrink-0" style="width: 44px; height: 44px;">
+                <iconify-icon icon="solar:football-bold" class="fs-3 text-primary"></iconify-icon>
+              </div>
+              <div class="min-w-0 flex-grow-1">
+                <span class="text-uppercase fw-semibold text-muted d-block text-truncate" style="font-size: 0.72rem; letter-spacing: 0.5px;">Partidos Jugados</span>
+                <span class="fw-bold text-body-emphasis d-block fs-4 font-monospace">{{ totalStandingsMatches }}</span>
+                <small class="text-muted" style="font-size: 0.75rem;">{{ standingsList.length }} clubes activos</small>
+              </div>
+            </div>
+          </div>
+
+          <!-- 3. Goles Totales -->
+          <div class="col-6 col-lg-3">
+            <div class="stat-kpi-card">
+              <div class="p-2 rounded-3 bg-success-subtle text-success d-flex align-items-center justify-content-center flex-shrink-0" style="width: 44px; height: 44px;">
+                <iconify-icon icon="solar:target-bold-duotone" class="fs-3 text-success"></iconify-icon>
+              </div>
+              <div class="min-w-0 flex-grow-1">
+                <span class="text-uppercase fw-semibold text-muted d-block text-truncate" style="font-size: 0.72rem; letter-spacing: 0.5px;">Goles Totales</span>
+                <span class="fw-bold text-success d-block fs-4 font-monospace">{{ totalStandingsGoals }}</span>
+                <small class="text-muted" style="font-size: 0.75rem;">En esta etapa</small>
+              </div>
+            </div>
+          </div>
+
+          <!-- 4. Promedio de Gol -->
+          <div class="col-6 col-lg-3">
+            <div class="stat-kpi-card">
+              <div class="p-2 rounded-3 bg-info-subtle text-info d-flex align-items-center justify-content-center flex-shrink-0" style="width: 44px; height: 44px;">
+                <iconify-icon icon="solar:chart-2-bold-duotone" class="fs-3 text-info"></iconify-icon>
+              </div>
+              <div class="min-w-0 flex-grow-1">
+                <span class="text-uppercase fw-semibold text-muted d-block text-truncate" style="font-size: 0.72rem; letter-spacing: 0.5px;">Promedio de Gol</span>
+                <span class="fw-bold text-info d-block fs-4 font-monospace">{{ standingsGoalsAverage }}</span>
+                <small class="text-muted" style="font-size: 0.75rem;">Goles por encuentro</small>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
       <!-- Tabla de Clasificación -->
       <div class="col-lg-8">
         <div class="crud-table-card p-3">
@@ -248,12 +311,42 @@
               <iconify-icon icon="solar:ranking-bold-duotone" class="fs-4 text-warning"></iconify-icon>
               <h5 class="mb-0 fw-bold text-body-emphasis">Tabla General de Clasificación</h5>
             </div>
-            <div class="d-flex align-items-center gap-2">
-              <label class="small text-muted fw-semibold">Etapa:</label>
-              <select v-model="selectedStageId" class="form-select form-select-sm w-auto" @change="loadStandings">
-                <option value="">Todas las etapas</option>
-                <option v-for="s in stagesList" :key="s.id" :value="s.id">{{ s.name }}</option>
-              </select>
+            <div class="d-flex align-items-center gap-2 flex-wrap">
+              <!-- Tabs de Local / Visitante estilo soccerAdminEC -->
+              <div class="btn-group btn-group-sm p-1 rounded-pill bg-body-tertiary border" role="group">
+                <button
+                  type="button"
+                  class="btn btn-sm rounded-pill px-2.5 py-0.5 fw-semibold"
+                  :class="standingsViewScope === 'general' ? 'btn-primary' : 'btn-link text-body text-decoration-none'"
+                  @click="standingsViewScope = 'general'"
+                >
+                  General
+                </button>
+                <button
+                  type="button"
+                  class="btn btn-sm rounded-pill px-2.5 py-0.5 fw-semibold"
+                  :class="standingsViewScope === 'home' ? 'btn-primary' : 'btn-link text-body text-decoration-none'"
+                  @click="standingsViewScope = 'home'"
+                >
+                  Local
+                </button>
+                <button
+                  type="button"
+                  class="btn btn-sm rounded-pill px-2.5 py-0.5 fw-semibold"
+                  :class="standingsViewScope === 'away' ? 'btn-primary' : 'btn-link text-body text-decoration-none'"
+                  @click="standingsViewScope = 'away'"
+                >
+                  Visita
+                </button>
+              </div>
+
+              <div class="d-flex align-items-center gap-1">
+                <label class="small text-muted fw-semibold">Etapa:</label>
+                <select v-model="selectedStageId" class="form-select form-select-sm w-auto" @change="loadStandings">
+                  <option value="">Todas las etapas</option>
+                  <option v-for="s in stagesList" :key="s.id" :value="s.id">{{ s.name }}</option>
+                </select>
+              </div>
             </div>
           </div>
 
@@ -271,20 +364,27 @@
                   <th class="text-center" title="Goles en Contra">GC</th>
                   <th class="text-center" title="Diferencia de Gol">GD</th>
                   <th class="text-center fw-bold text-primary" title="Puntos">PTS</th>
+                  <th class="text-center" style="width: 80px;" title="Forma reciente">FORMA</th>
                 </tr>
               </thead>
               <tbody>
                 <tr v-if="loadingStandings">
-                  <td colspan="10" class="text-center py-4 text-secondary">
+                  <td colspan="11" class="text-center py-4 text-secondary">
                     <span class="spinner-border spinner-border-sm me-2"></span> Calculando posiciones del campeonato...
                   </td>
                 </tr>
                 <tr v-else-if="standingsList.length === 0">
-                  <td colspan="10" class="text-center py-4 text-secondary">
+                  <td colspan="11" class="text-center py-4 text-secondary">
                     No hay partidos finalizados para calcular la tabla de posiciones de esta etapa.
                   </td>
                 </tr>
-                <tr v-for="(row, idx) in standingsList" :key="row.teamId">
+                <tr
+                  v-for="(row, idx) in standingsList"
+                  :key="row.teamId"
+                  :class="[
+                    idx < 4 ? 'border-start border-4 border-success' : (idx >= standingsList.length - 2 && standingsList.length > 4 ? 'border-start border-4 border-danger' : '')
+                  ]"
+                >
                   <td class="fw-bold font-monospace">
                     <span v-if="idx === 0" class="badge bg-warning text-dark">1° 🏆</span>
                     <span v-else-if="idx === 1" class="badge bg-secondary text-white">2° 🥈</span>
@@ -294,7 +394,7 @@
                   </td>
                   <td>
                     <div class="d-flex align-items-center gap-2">
-                      <img v-if="row.logoUrl" :src="row.logoUrl" class="rounded-circle" style="width: 26px; height: 26px; object-fit: cover;" />
+                      <img v-if="row.logoUrl" :src="row.logoUrl" class="rounded-circle shadow-xs" style="width: 26px; height: 26px; object-fit: cover;" />
                       <iconify-icon v-else icon="solar:shield-bold-duotone" class="fs-4 text-secondary"></iconify-icon>
                       <span class="fw-semibold text-body-emphasis">{{ row.teamName }}</span>
                     </div>
@@ -309,9 +409,40 @@
                     {{ row.gd > 0 ? '+' + row.gd : row.gd }}
                   </td>
                   <td class="text-center fw-bold fs-3 text-primary font-monospace">{{ row.pts }}</td>
+                  <td class="text-center">
+                    <div class="d-flex align-items-center justify-content-center gap-1">
+                      <span
+                        v-if="row.pg > 0"
+                        class="form-badge-w"
+                        title="Victoria reciente"
+                      >G</span>
+                      <span
+                        v-if="row.pe > 0"
+                        class="form-badge-d"
+                        title="Empate reciente"
+                      >E</span>
+                      <span
+                        v-if="row.pp > 0"
+                        class="form-badge-l"
+                        title="Derrota reciente"
+                      >P</span>
+                    </div>
+                  </td>
                 </tr>
               </tbody>
             </table>
+          </div>
+
+          <!-- Leyenda de Zonas estilo soccerAdminEC -->
+          <div class="d-flex align-items-center gap-3 pt-2 mt-2 border-top small text-muted flex-wrap">
+            <span class="d-flex align-items-center gap-1">
+              <span class="border-start border-4 border-success d-inline-block ps-1" style="height: 12px;"></span>
+              <span>Puestos 1-4: Clasificación / Playoffs</span>
+            </span>
+            <span class="d-flex align-items-center gap-1">
+              <span class="border-start border-4 border-danger d-inline-block ps-1" style="height: 12px;"></span>
+              <span>Últimos puestos: Zona de Descenso</span>
+            </span>
           </div>
         </div>
       </div>
@@ -431,6 +562,65 @@
                     </div>
                   </div>
                 </div>
+
+                <!-- Partidos: Equipo Local con Escudo -->
+                <div v-else-if="activeTab === 'matches' && col.key === 'localTeam.name'" class="d-flex align-items-center gap-2">
+                  <img
+                    v-if="item.localTeam?.logo"
+                    :src="item.localTeam.logo"
+                    class="rounded-circle shadow-xs border"
+                    style="width: 26px; height: 26px; object-fit: cover;"
+                  />
+                  <iconify-icon v-else icon="solar:shield-bold-duotone" class="fs-5 text-primary"></iconify-icon>
+                  <span class="text-body-emphasis fw-bold">{{ item.localTeam?.name || item.localTeam?.shortName || '-' }}</span>
+                </div>
+
+                <!-- Partidos: Marcador Goles Local vs Visita -->
+                <span v-else-if="activeTab === 'matches' && (col.key === 'homeGoals' || col.key === 'awayGoals')">
+                  <span class="badge bg-primary-subtle text-primary border border-primary-subtle font-monospace px-2 py-1 fs-3">
+                    {{ item[col.key] !== null && item[col.key] !== undefined ? item[col.key] : '-' }}
+                  </span>
+                </span>
+
+                <!-- Partidos: Equipo Visita con Escudo -->
+                <div v-else-if="activeTab === 'matches' && col.key === 'awayTeam.name'" class="d-flex align-items-center gap-2">
+                  <img
+                    v-if="item.awayTeam?.logo"
+                    :src="item.awayTeam.logo"
+                    class="rounded-circle shadow-xs border"
+                    style="width: 26px; height: 26px; object-fit: cover;"
+                  />
+                  <iconify-icon v-else icon="solar:shield-bold-duotone" class="fs-5 text-info"></iconify-icon>
+                  <span class="text-body-emphasis fw-bold">{{ item.awayTeam?.name || item.awayTeam?.shortName || '-' }}</span>
+                </div>
+
+                <!-- Partidos: Estado del Encuentro -->
+                <span v-else-if="activeTab === 'matches' && col.key === 'status'">
+                  <span
+                    v-if="item.status === 'PLAYED' || item.status === 'FINISHED'"
+                    class="badge bg-success-subtle text-success border border-success-subtle font-monospace px-2 py-1"
+                  >
+                    🟢 Finalizado
+                  </span>
+                  <span
+                    v-else-if="item.status === 'IN_PROGRESS'"
+                    class="badge bg-warning-subtle text-warning border border-warning-subtle font-monospace px-2 py-1 animate-pulse"
+                  >
+                    ⚽ En Juego
+                  </span>
+                  <span
+                    v-else-if="item.status === 'POSTPONED'"
+                    class="badge bg-danger-subtle text-danger border border-danger-subtle font-monospace px-2 py-1"
+                  >
+                    ⏸️ Pospuesto
+                  </span>
+                  <span
+                    v-else
+                    class="badge bg-info-subtle text-info border border-info-subtle font-monospace px-2 py-1"
+                  >
+                    ⏳ Programado
+                  </span>
+                </span>
 
                 <!-- Código Secuencial de Jugador o Categoría -->
                 <span v-else-if="(activeTab === 'players' || activeTab === 'categories') && col.key === 'code'">
@@ -6774,6 +6964,29 @@ const viewTeamPlayers = (team: any) => {
   loadData();
   toast.info(`Listando jugadores y carnets de ${team.name}`);
 };
+
+const standingsViewScope = ref<'general' | 'home' | 'away'>('general');
+
+const standingsLeader = computed(() => {
+  return standingsList.value.length > 0 ? standingsList.value[0] : null;
+});
+
+const totalStandingsMatches = computed(() => {
+  if (!standingsList.value.length) return 0;
+  const totalPJ = standingsList.value.reduce((sum: number, r: any) => sum + (Number(r.pj) || 0), 0);
+  return Math.floor(totalPJ / 2);
+});
+
+const totalStandingsGoals = computed(() => {
+  if (!standingsList.value.length) return 0;
+  return standingsList.value.reduce((sum: number, r: any) => sum + (Number(r.gf) || 0), 0);
+});
+
+const standingsGoalsAverage = computed(() => {
+  const matches = totalStandingsMatches.value;
+  if (!matches) return '0.00';
+  return (totalStandingsGoals.value / matches).toFixed(2);
+});
 
 const loadStandings = async () => {
   try {
