@@ -161,7 +161,8 @@ const handleDrop = (e: DragEvent) => {
   e.preventDefault()
   isDragging.value = false
   if (e.dataTransfer?.files && e.dataTransfer.files.length > 0) {
-    handleFileSelected(e.dataTransfer.files[0])
+    const file = e.dataTransfer.files[0]
+    if (file) handleFileSelected(file)
   }
 }
 

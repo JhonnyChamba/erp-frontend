@@ -1180,7 +1180,7 @@
 
                   <!-- Título principal -->
                   <div class="fw-bold text-body-emphasis fs-3 text-truncate">
-                    {{ item.name || item.fullName || (item.player ? item.player.name : '') || getNestedValue(item, columns[0]?.key) || '-' }}
+                    {{ item.name || item.fullName || (item.player ? item.player.name : '') || getNestedValue(item, columns[0]?.key || '') || '-' }}
                   </div>
 
                   <!-- Subtítulo complementario -->
@@ -2243,22 +2243,22 @@
             <!-- ======================================================== -->
             <!-- SECCIÓN MAESTRO-DETALLE: CATEGORÍAS DE LA EDICIÓN        -->
             <!-- ======================================================== -->
-            <div v-if="activeTab === 'categoryEditions'" class="card p-3 mt-4 border rounded-3 bg-body-tertiary">
+            <div v-if="activeTab === 'categoryEditions'" class="card p-3 mt-4 border border-light-subtle rounded-3 bg-white shadow-sm">
               <div class="d-flex align-items-center justify-content-between mb-3 flex-wrap gap-2">
                 <div class="d-flex align-items-center gap-2">
-                  <iconify-icon icon="solar:cup-bold" class="fs-4 text-primary"></iconify-icon>
+                  <iconify-icon icon="solar:cart-bold" class="fs-3 text-primary"></iconify-icon>
                   <div>
-                    <h6 class="fw-bold mb-0 text-body-emphasis">Detalle de Categorías del Torneo (Edición de Torneo Detalle Categorías)</h6>
+                    <h5 class="fw-bold mb-0 text-dark">Detalle <span class="fs-6 fw-normal text-muted">(Detalle de Categorías del Torneo)</span></h5>
                     <small class="text-muted">Agrega las categorías que competirán en esta edición, con sus fechas oficiales, costo y clasificaciones.</small>
                   </div>
                 </div>
                 <div class="d-flex align-items-center gap-2">
-                  <span class="badge bg-primary-subtle text-primary border border-primary-subtle px-3 py-2 fw-semibold">
+                  <span class="badge bg-primary-subtle text-primary border border-primary-subtle px-3 py-2 fw-semibold rounded-pill">
                     {{ editionCategoriesDetail.length }} Categoría(s) Agregada(s)
                   </span>
                   <button
                     type="button"
-                    class="btn btn-sm btn-outline-primary d-inline-flex align-items-center gap-1 rounded-pill px-3 py-1 fw-semibold shadow-sm"
+                    class="btn btn-sm btn-outline-primary d-inline-flex align-items-center gap-1 rounded-3 px-3 py-1 fw-semibold shadow-xs"
                     @click="addCategoryToEditionDetail"
                   >
                     <iconify-icon icon="solar:add-circle-bold" class="fs-5"></iconify-icon>
@@ -2270,17 +2270,17 @@
               <!-- Tabla Maestro-Detalle idéntica al formato de referencia -->
               <div class="table-responsive border rounded-3 bg-body shadow-sm">
                 <table class="table table-hover table-sm align-middle mb-0">
-                  <thead class="table-light fs-1 text-uppercase">
+                  <thead class="table-light fs-2">
                     <tr>
-                      <th style="width: 70px;" class="text-center">#</th>
-                      <th style="min-width: 220px; width: 22%;">Categoría *</th>
-                      <th style="min-width: 140px; width: 14%;">Fechas (Inicio - Fin)</th>
-                      <th style="min-width: 100px; width: 9%;" class="text-end">Costo ($)</th>
-                      <th style="min-width: 70px; width: 6%;" class="text-center">Máx. Jug. *</th>
-                      <th style="min-width: 150px; width: 15%;" class="text-center">Tiempos (Dur./Desc./Esp.)</th>
-                      <th style="min-width: 110px; width: 11%;" class="text-center">Clasificaciones</th>
-                      <th style="min-width: 110px; width: 11%;" class="text-center">Etapas / Fases</th>
-                      <th style="width: 85px;" class="text-center">Acciones</th>
+                      <th style="width: 70px;" class="text-center text-secondary fw-semibold">#</th>
+                      <th style="min-width: 220px; width: 22%;" class="text-secondary fw-semibold">Categoría *</th>
+                      <th style="min-width: 140px; width: 14%;" class="text-secondary fw-semibold">Fechas (Inicio - Fin)</th>
+                      <th style="min-width: 100px; width: 9%;" class="text-end text-secondary fw-semibold">Costo ($)</th>
+                      <th style="min-width: 70px; width: 6%;" class="text-center text-secondary fw-semibold">Máx. Jug. *</th>
+                      <th style="min-width: 150px; width: 15%;" class="text-center text-secondary fw-semibold">Tiempos (Dur./Desc./Esp.)</th>
+                      <th style="min-width: 110px; width: 11%;" class="text-center text-secondary fw-semibold">Clasificaciones</th>
+                      <th style="min-width: 110px; width: 11%;" class="text-center text-secondary fw-semibold">Etapas / Fases</th>
+                      <th style="width: 85px;" class="text-center text-secondary fw-semibold">Acciones</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -2517,39 +2517,39 @@
                       <!-- Sub-Tarjeta Anidada: Detalle de Etapas / Fases de la Categoría -->
                       <tr v-if="isCategoryRowExpanded(idx)" class="bg-transparent">
                         <td colspan="9" class="p-3 bg-transparent">
-                          <div class="card border border-primary-subtle rounded-3 shadow-sm bg-body-tertiary p-3">
-                            <!-- Encabezado de la sub-tarjeta -->
+                          <div class="card rounded-3 shadow-xs p-3" style="background-color: #f0f7ff; border: 1px solid #bfdbfe !important;">
+                            <!-- Encabezado de la sub-tarjeta (idéntico al formato de referencia) -->
                             <div class="d-flex align-items-center justify-content-between mb-3 flex-wrap gap-2">
                               <div class="d-flex align-items-center gap-2">
-                                <iconify-icon icon="solar:diagram-up-bold-duotone" class="fs-4 text-primary"></iconify-icon>
-                                <span class="fw-bold text-body-emphasis fs-6">Etapas y Fases de la Categoría</span>
-                                <span class="badge bg-primary-subtle text-primary border border-primary-subtle rounded-pill px-2 py-1 fs-1">
+                                <iconify-icon icon="solar:box-bold" class="fs-4 text-primary"></iconify-icon>
+                                <span class="fw-bold text-dark fs-6">Componentes de la Categoría (Etapas y Fases)</span>
+                                <span class="badge bg-primary-subtle text-primary border border-primary-subtle rounded-pill px-2.5 py-1 fs-1 fw-semibold">
                                   {{ item.stages?.length || 0 }} registros
                                 </span>
                               </div>
                               <div class="d-flex align-items-center gap-2">
                                 <button
                                   type="button"
-                                  class="btn btn-sm btn-link text-muted p-0 text-decoration-none d-flex align-items-center"
+                                  class="btn btn-sm btn-link text-secondary p-0 text-decoration-none d-flex align-items-center"
                                   @click="toggleCategoryRow(idx)"
                                   title="Colapsar Etapas"
                                 >
-                                  <iconify-icon icon="solar:alt-arrow-up-linear" class="fs-5"></iconify-icon>
+                                  <iconify-icon icon="solar:alt-arrow-up-linear" class="fs-4 fw-bold"></iconify-icon>
                                 </button>
                               </div>
                             </div>
 
-                            <!-- Sub-tabla anidada editable 100% en línea -->
-                            <div class="table-responsive rounded-2 border bg-body shadow-sm">
+                            <!-- Sub-tabla anidada editable 100% en línea sobre fondo blanco -->
+                            <div class="table-responsive rounded-3 border bg-white shadow-xs">
                               <table class="table table-sm table-hover align-middle mb-0">
-                                <thead class="table-light fs-1 text-uppercase">
+                                <thead class="table-light fs-2">
                                   <tr>
-                                    <th style="width: 50px;" class="text-center">#</th>
-                                    <th style="min-width: 180px; width: 22%;">Nombre de la Etapa / Fase *</th>
-                                    <th style="min-width: 160px; width: 20%;">Tipo de Competencia *</th>
-                                    <th style="min-width: 150px; width: 18%;">Vueltas / Modalidad *</th>
-                                    <th style="min-width: 300px; width: 34%;">Criterios de Desempate (Jerarquía en Línea)</th>
-                                    <th style="width: 60px;" class="text-center">Acción</th>
+                                    <th style="width: 50px;" class="text-center text-secondary fw-semibold">#</th>
+                                    <th style="min-width: 180px; width: 22%;" class="text-secondary fw-semibold">Nombre de la Etapa / Fase *</th>
+                                    <th style="min-width: 160px; width: 20%;" class="text-secondary fw-semibold">Tipo de Competencia *</th>
+                                    <th style="min-width: 150px; width: 18%;" class="text-secondary fw-semibold">Vueltas / Modalidad *</th>
+                                    <th style="min-width: 300px; width: 34%;" class="text-secondary fw-semibold">Criterios de Desempate (Jerarquía en Línea)</th>
+                                    <th style="width: 60px;" class="text-center text-secondary fw-semibold">Acción</th>
                                   </tr>
                                 </thead>
                                 <tbody>
@@ -2650,8 +2650,8 @@
                                                   type="button"
                                                   class="btn btn-sm btn-outline-secondary py-0 px-1"
                                                   style="font-size: 0.7rem; line-height: 1.2;"
-                                                  :disabled="cIdx === 0"
-                                                  @click="moveStageCriterionUp(stg, cIdx)"
+                                                  :disabled="Number(cIdx) === 0"
+                                                  @click="moveStageCriterionUp(stg, Number(cIdx))"
                                                   title="Subir orden"
                                                 >
                                                   ▲
@@ -2660,15 +2660,15 @@
                                                   type="button"
                                                   class="btn btn-sm btn-outline-secondary py-0 px-1"
                                                   style="font-size: 0.7rem; line-height: 1.2;"
-                                                  :disabled="cIdx === stg.tieBreakerCriteria.length - 1"
-                                                  @click="moveStageCriterionDown(stg, cIdx)"
+                                                  :disabled="Number(cIdx) === stg.tieBreakerCriteria.length - 1"
+                                                  @click="moveStageCriterionDown(stg, Number(cIdx))"
                                                   title="Bajar orden"
                                                 >
                                                   ▼
                                                 </button>
                                               </div>
                                               <span class="badge bg-primary-subtle text-primary border border-primary-subtle font-monospace py-0 px-1 fs-1 flex-shrink-0">
-                                                #{{ c.order || (cIdx + 1) }}
+                                                #{{ c.order || (Number(cIdx) + 1) }}
                                               </span>
                                               <span class="small fw-semibold text-truncate text-body" :title="c.description">
                                                 {{ c.description }}
@@ -2677,7 +2677,7 @@
                                             <button
                                               type="button"
                                               class="btn btn-sm btn-link text-danger p-0 px-1 text-decoration-none"
-                                              @click="removeStageCriterion(stg, cIdx)"
+                                              @click="removeStageCriterion(stg, Number(cIdx))"
                                               title="Quitar criterio"
                                             >
                                               ✕
@@ -2707,15 +2707,15 @@
                               </table>
                             </div>
 
-                            <!-- Pie de la sub-tarjeta: botón + Agregar Etapa en Línea -->
+                            <!-- Pie de la sub-tarjeta: botón + Agregar Etapa en Línea (exacto al diseño) -->
                             <div class="mt-2 pt-1">
                               <button
                                 type="button"
-                                class="btn btn-sm btn-outline-primary rounded-pill px-3 py-1 fw-semibold d-inline-flex align-items-center gap-1 shadow-sm"
+                                class="btn btn-sm btn-link text-primary text-decoration-none fw-semibold d-inline-flex align-items-center gap-1 p-0"
                                 @click="addStageToCategoryDirect(item)"
                               >
                                 <iconify-icon icon="solar:add-circle-bold" class="fs-5"></iconify-icon>
-                                <span>+ Agregar Etapa / Fase</span>
+                                <span>+ Agregar</span>
                               </button>
                             </div>
                           </div>
@@ -4264,7 +4264,7 @@
                     <tr v-for="(stg, sIdx) in (selectedCategoryForStages.stages || [])" :key="sIdx">
                       <td class="text-center ps-3">
                         <span class="badge bg-secondary-subtle text-body font-monospace px-2 py-1 fs-2">
-                          #{{ stg.stageOrder || (sIdx + 1) }}
+                          #{{ stg.stageOrder || (Number(sIdx) + 1) }}
                         </span>
                       </td>
                       <td>
@@ -4290,7 +4290,7 @@
                             class="badge bg-success-subtle text-success border border-success-subtle px-2 py-1 d-inline-flex align-items-center gap-1 shadow-2xs"
                             :title="crit.description + (crit.observation ? ': ' + crit.observation : '')"
                           >
-                            <span class="badge bg-success text-white rounded-pill px-1" style="font-size: 0.65rem;">#{{ crit.order || (cIdx + 1) }}</span>
+                            <span class="badge bg-success text-white rounded-pill px-1" style="font-size: 0.65rem;">#{{ crit.order || (Number(cIdx) + 1) }}</span>
                             <span>{{ crit.code || crit.description }}</span>
                           </span>
                         </div>
@@ -5723,10 +5723,15 @@ const editionCategoriesDetail = ref<Array<{
   id?: string;
   categoryId: string;
   categoryDescription?: string;
+  categoryAcronyms?: string;
   startDate?: string;
   endDate?: string;
   registrationFee?: number;
   maxPlayers?: number;
+  matchDurationMinutes?: number;
+  breakDurationMinutes?: number;
+  waitBetweenMatchesMinutes?: number;
+  stages?: any[];
   classifications?: Array<{
     id?: string;
     playerClassificationId: string;
@@ -6436,7 +6441,7 @@ const addCategoryStageRecord = () => {
     competitionLapId: formCategoryStage.value.competitionLapId,
     competitionLapDescription: clDesc,
     tieBreakerCriteria: tieBreakerCriteria,
-    tieBreakerCriterionId: tieBreakerCriteria.length > 0 ? tieBreakerCriteria[0].criterionId : null,
+    tieBreakerCriterionId: tieBreakerCriteria.length > 0 ? (tieBreakerCriteria[0]?.criterionId || null) : null,
     tieBreakerCriterionDescription: tbDesc,
   };
 
@@ -6503,7 +6508,7 @@ const applyStageTemplateToCategory = (event: any) => {
     }));
 
     const tbDesc = tieBreakerCriteria.length > 0
-      ? tieBreakerCriteria.map((c) => `#${c.order} ${c.code || c.description}`).join(' → ')
+      ? tieBreakerCriteria.map((c: any) => `#${c.order} ${c.code || c.description}`).join(' → ')
       : (d.tieBreakerCriterion?.description || (d.tieBreakerCriterionId ? getTieBreakerCriterionDescById(d.tieBreakerCriterionId) : null));
 
     return {
@@ -6514,7 +6519,7 @@ const applyStageTemplateToCategory = (event: any) => {
       competitionLapId: d.competitionLapId,
       competitionLapDescription: d.competitionLap?.description || getCompetitionLapDescById(d.competitionLapId),
       tieBreakerCriteria: tieBreakerCriteria,
-      tieBreakerCriterionId: tieBreakerCriteria.length > 0 ? tieBreakerCriteria[0].criterionId : null,
+      tieBreakerCriterionId: tieBreakerCriteria.length > 0 ? (tieBreakerCriteria[0]?.criterionId || null) : null,
       tieBreakerCriterionDescription: tbDesc,
     };
   });
@@ -7883,7 +7888,7 @@ const saveForm = async () => {
             tieBreakerCriteria: formattedCriteria,
             tieBreakerCriterionId: s.tieBreakerCriterionId || (formattedCriteria[0]?.criterionId || null),
             tieBreakerCriterionDescription: formattedCriteria.length > 0
-              ? formattedCriteria.map((c) => `#${c.order} ${c.code || c.description}`).join(' → ')
+              ? formattedCriteria.map((c: any) => `#${c.order} ${c.code || c.description}`).join(' → ')
               : (s.tieBreakerCriterionDescription || (s.tieBreakerCriterionId ? getTieBreakerCriterionDescById(s.tieBreakerCriterionId) : null)),
           };
         }),

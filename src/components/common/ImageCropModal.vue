@@ -65,8 +65,9 @@ const handleMouseUp = () => {
 
 const handleTouchStart = (e: TouchEvent) => {
   if (e.touches.length === 1) {
-    isDragging.value = true
     const touch = e.touches[0]
+    if (!touch) return
+    isDragging.value = true
     dragStart.value = {
       x: touch.clientX - position.value.x,
       y: touch.clientY - position.value.y,
@@ -77,6 +78,7 @@ const handleTouchStart = (e: TouchEvent) => {
 const handleTouchMove = (e: TouchEvent) => {
   if (!isDragging.value || e.touches.length !== 1) return
   const touch = e.touches[0]
+  if (!touch) return
   position.value = {
     x: touch.clientX - dragStart.value.x,
     y: touch.clientY - dragStart.value.y,
