@@ -2466,25 +2466,16 @@ const togglePlanSubModule = (subMod: SubModuleItem) => {
   }
 }
 
-// Módulos comerciales disponibles para Planes SaaS (los módulos generales solo deben aparecer en su pestaña de catálogo maestro)
-const planAvailableModules = computed(() => {
-  return modulesList.value.filter((m) => {
-    const code = (m.code || '').toUpperCase()
-    const desc = (m.description || '').toLowerCase()
-    if (code === 'MOD-006' || desc.includes('configuraci') || desc.includes('sistema general')) {
-      return false
-    }
-    return m.enabled !== false
-  })
-})
+// Módulos disponibles para Planes SaaS: todos los habilitados, incluido Configuración (sin él, las empresas del plan
+// no pueden entrar a Empresa, Sucursales, Usuarios ni Roles). Lo que no se ofrece son sus submódulos de administración
+// global: ver getSubModulesForModule.
+const planAvailableModules = computed(() => modulesList.value.filter((m) => m.enabled !== false))
 
 const toggleAllPlanModulesAndSubModules = (select: boolean) => {
   if (select) {
     const validModIds = planAvailableModules.value.map((m) => m.id)
     formPlan.value.moduleIds = validModIds
-    formPlan.value.subModuleIds = allSubModulesList.value
-      .filter((sm) => sm.enabled !== false && validModIds.includes(sm.moduleId))
-      .map((sm) => sm.id)
+    formPlan.value.subModuleIds = validModIds.flatMap((modId) => getSubModulesForModule(modId).map((sm) => sm.id))
   } else {
     formPlan.value.moduleIds = []
     formPlan.value.subModuleIds = []
@@ -2541,8 +2532,16 @@ const getPlanNameById = (planId?: number) => {
   return found ? `${found.description} ($${found.price})` : `Plan #${planId}`
 }
 
+// Submódulos que se pueden asignar a un plan o a una suscripción. Quedan fuera los de administración global
+// (Módulos & Submódulos, Suscripciones, Impuestos y Tipos de Documentos), que solo existen en Configuración Global
+// para el super administrador y no son una pantalla de la empresa.
 const getSubModulesForModule = (modId: number) => {
-  return allSubModulesList.value.filter((sm) => sm.moduleId === modId && sm.enabled !== false)
+  return allSubModulesList.value.filter(
+    (sm) =>
+      sm.moduleId === modId &&
+      sm.enabled !== false &&
+      !/[?&]tab=(modules|subscriptions|taxes|document_types)(&|$)/i.test(sm.url_desc || ''),
+  )
 }
 
 const getSubModuleNameById = (subModId: number) => {

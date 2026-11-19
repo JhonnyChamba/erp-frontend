@@ -42,11 +42,8 @@
           <span>Tabla de Posiciones</span>
         </button>
 
-        <button class="btn btn-secondary d-flex align-items-center gap-2" @click="activeTab === 'schedules' ? loadScheduleConfig() : loadData()" :disabled="loading">
-          <iconify-icon icon="solar:refresh-line-duotone" :class="{ 'spin-anim': loading }"></iconify-icon>
-          <span>Actualizar</span>
-        </button>
-        <button v-if="activeTab !== 'standings'" class="btn btn-primary d-flex align-items-center gap-2" @click="activeTab === 'schedules' ? openCreateSchedule() : openCreateForm()">
+        <!-- Se oculta mientras el formulario está abierto; vuelve a mostrarse al guardar o al volver al listado. -->
+        <button v-if="activeTab !== 'standings' && !isFormOpen" class="btn btn-primary d-flex align-items-center gap-2" @click="activeTab === 'schedules' ? openCreateSchedule() : openCreateForm()">
           <iconify-icon icon="solar:add-circle-bold" class="fs-5"></iconify-icon>
           <span>+ Nuevo {{ activeTabLabel }}</span>
         </button>
@@ -85,20 +82,15 @@
               type="text"
               class="form-control"
               :placeholder="'Buscar en ' + activeTabLabel + '...'"
-              @input="activeTab === 'schedules' ? null : loadData()"
+              @keyup.enter="searchList"
             />
           </div>
         </div>
 
         <div class="d-flex align-items-center gap-2">
-          <button
-            type="button"
-            class="btn btn-outline-secondary d-flex align-items-center gap-1 rounded-pill px-3"
-            :disabled="loading"
-            @click="activeTab === 'schedules' ? loadScheduleConfig() : loadData()"
-          >
-            <iconify-icon icon="solar:refresh-line-duotone" class="fs-4" :class="{ 'spin-anim': loading }"></iconify-icon>
-            <span>Refrescar</span>
+          <button type="button" class="btn btn-primary d-flex align-items-center gap-1 rounded-pill px-3" :disabled="loading" @click="searchList">
+            <iconify-icon icon="solar:magnifer-line-duotone" class="fs-4"></iconify-icon>
+            <span>Buscar</span>
           </button>
         </div>
       </div>
@@ -1463,7 +1455,7 @@
             
 
             <!-- SECCIÓN: CONSULTA EN PADRÓN GLOBAL DE FUTBOLISTAS -->
-            <div v-if="activeTab === 'players'" class="card p-3 mb-4 border rounded-3 bg-body-tertiary">
+            <div v-if="activeTab === 'players'" class="mb-4">
               <div class="d-flex align-items-center justify-content-between flex-wrap gap-2 mb-2">
                 <div class="d-flex align-items-center gap-2">
                   <iconify-icon icon="solar:user-id-bold-duotone" class="fs-4 text-primary"></iconify-icon>
@@ -1895,7 +1887,7 @@
 
             
 
-            <div v-if="activeTab !== 'schedules'" class="row g-4">
+            <div v-if="activeTab !== 'schedules' && (activeTab !== 'players' || isEditing || globalPlayerSearched)" class="row g-4">
               <div v-for="field in formFields" :key="field.key" :class="field.colClass || 'col-md-6'">
                 <label class="form-label text-secondary small fw-semibold">
                   {{ field.label }}
@@ -5515,7 +5507,7 @@ const computedPlayerAge = computed(() => {
 // ==========================================
 const isFieldLockedByGlobal = (field: any): boolean => {
   if (activeTab.value === 'players' && globalPlayerFound.value) {
-    return true;
+    return ['name', 'lastName', 'identification', 'birthDate', 'ageYears', 'ageMonths'].includes(field.key);
   }
   if (activeTab.value === 'referees' && globalRefereeFound.value) {
     return true;
@@ -7426,6 +7418,16 @@ const selectTab = (id: string) => {
 
 const getNestedValue = (obj: any, path: string) => {
   return path.split('.').reduce((acc, part) => acc && acc[part], obj);
+};
+
+// Botón «Buscar» (y Enter en el buscador): aplica el texto escrito desde la primera página. Sin texto lista todo.
+const searchList = () => {
+  page.value = 1;
+  if (activeTab.value === 'schedules') {
+    loadScheduleConfig();
+  } else {
+    loadData();
+  }
 };
 
 const loadData = async () => {
