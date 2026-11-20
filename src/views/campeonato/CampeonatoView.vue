@@ -1469,7 +1469,15 @@
                 Ingresa la cédula o identificación del futbolista. Si ya existe en la base general, sus datos se cargarán automáticamente para asociarlo a tu liga.
               </p>
               <div class="row g-2 align-items-center">
-                <div class="col-md-5">
+                <div class="col-md-3">
+                  <AppSelect2
+                    v-model="formData.documentType"
+                    :options="playerDocumentTypeOptions"
+                    placeholder="Tipo de Documento..."
+                    search-placeholder="Buscar tipo..."
+                  />
+                </div>
+                <div class="col-md-4">
                   <div class="input-group">
                     <span class="input-group-text bg-body-secondary">
                       <iconify-icon icon="solar:card-2-bold-duotone" class="text-secondary"></iconify-icon>
@@ -1478,7 +1486,7 @@
                       type="text"
                       v-model="formData.identification"
                       class="form-control font-monospace"
-                      placeholder="Cédula / DNI del futbolista..."
+                      :placeholder="identificationPlaceholder"
                       @keyup.enter="searchGlobalPlayer"
                     />
                     <button
@@ -1494,7 +1502,7 @@
                   </div>
                 </div>
 
-                <div class="col-md-7">
+                <div class="col-md-5">
                   <!-- Banner cuando fue encontrado en el padrón global -->
                   <div v-if="globalPlayerFound" class="alert alert-success py-2 px-3 mb-0 rounded-3 border-0 bg-success-subtle text-success-emphasis d-flex align-items-center gap-2">
                     <iconify-icon icon="solar:check-circle-bold" class="fs-4 text-success"></iconify-icon>
@@ -4359,6 +4367,12 @@ interface TabConfig {
   fields: { key: string; label: string; type: string; options?: { label: string; value: any }[]; colClass?: string; placeholder?: string; readonly?: boolean; disabled?: boolean }[];
 }
 
+const playerDocumentTypeOptions = [
+  { value: '05', label: 'Cédula de Identidad (05)' },
+  { value: '06', label: 'Pasaporte (06)' },
+  { value: '08', label: 'Identificación del Exterior / DNI (08)' },
+];
+
 const tabs: TabConfig[] = [
   {
     id: 'teams',
@@ -4402,11 +4416,33 @@ const tabs: TabConfig[] = [
       { key: 'isActive', label: 'Estado', type: 'boolean' },
     ],
     fields: [
-      { key: 'identification', label: 'Cédula / Identificación *', type: 'text', colClass: 'col-md-4', placeholder: 'Ingrese cédula y presione Consultar...' },
-      { key: 'code', label: 'Código Secuencial de Jugador', type: 'text', colClass: 'col-md-4', placeholder: 'Autogenerado ej. JUG-00001', readonly: true, disabled: true },
+      {
+        key: 'documentType',
+        label: 'Tipo de Documento *',
+        type: 'select',
+        colClass: 'col-md-4',
+        options: playerDocumentTypeOptions,
+        placeholder: 'Seleccionar Tipo de Documento...',
+      },
+      {
+        key: 'identification',
+        label: 'Cédula / DNI / Pasaporte *',
+        type: 'text',
+        colClass: 'col-md-4',
+        placeholder: 'Ingrese documento y presione Consultar...',
+      },
+      {
+        key: 'code',
+        label: 'Código Secuencial de Jugador',
+        type: 'text',
+        colClass: 'col-md-4',
+        placeholder: 'Autogenerado ej. JUG-00001',
+        readonly: true,
+        disabled: true,
+      },
       { key: 'birthDate', label: 'Fecha de Nacimiento', type: 'date', colClass: 'col-md-4' },
-      { key: 'name', label: 'Nombres *', type: 'text', colClass: 'col-md-6' },
-      { key: 'lastName', label: 'Apellidos *', type: 'text', colClass: 'col-md-6' },
+      { key: 'name', label: 'Nombres *', type: 'text', colClass: 'col-md-4' },
+      { key: 'lastName', label: 'Apellidos *', type: 'text', colClass: 'col-md-4' },
       { key: 'ageYears', label: 'Edad en Años', type: 'number', colClass: 'col-md-3', placeholder: 'Autocalculado', readonly: true, disabled: true },
       { key: 'ageMonths', label: 'Edad en Meses', type: 'number', colClass: 'col-md-3', placeholder: 'Autocalculado', readonly: true, disabled: true },
       { key: 'demarcationId', label: 'Posición / Demarcación en Campo', type: 'select', colClass: 'col-md-3', options: [] },
@@ -4440,6 +4476,7 @@ const tabs: TabConfig[] = [
       },
       { key: 'phone', label: 'Teléfono Personal', type: 'text', colClass: 'col-md-3' },
       { key: 'email', label: 'Correo Electrónico', type: 'text', colClass: 'col-md-3' },
+      { key: 'address', label: 'Dirección', type: 'text', colClass: 'col-md-6', placeholder: 'Dirección domiciliaria (calle principal, secundaria, sector)' },
       { key: 'emergencyContactName', label: 'Contacto de Emergencia', type: 'text', colClass: 'col-md-6' },
       { key: 'emergencyContactPhone', label: 'Teléfono de Emergencia', type: 'text', colClass: 'col-md-6' },
     ],
@@ -5534,14 +5571,42 @@ const isFieldReadonly = (field: any): boolean => {
 // ==========================================
 // PADRÓN GLOBAL DE FUTBOLISTAS
 // ==========================================
+const identificationPlaceholder = computed(() => {
+  if (formData.value?.documentType === '06') return 'Número de Pasaporte...';
+  if (formData.value?.documentType === '08') return 'DNI / Identificación Extranjera...';
+  return 'Cédula de Identidad (10 dígitos)...';
+});
+
 const searchingGlobalPlayer = ref(false);
 const globalPlayerFound = ref(false);
 const globalPlayerSearched = ref(false);
+
+const validarCedulaEcuadorLocal = (cedula: string): boolean => {
+  if (!cedula || !/^\d{10}$/.test(cedula.trim())) return false;
+  const prov = parseInt(cedula.substring(0, 2), 10);
+  if (!((prov >= 1 && prov <= 24) || prov === 30)) return false;
+  if (parseInt(cedula.charAt(2), 10) >= 6) return false;
+
+  const coef = [2, 1, 2, 1, 2, 1, 2, 1, 2];
+  let sum = 0;
+  for (let i = 0; i < 9; i++) {
+    let p = parseInt(cedula.charAt(i), 10) * (coef[i] ?? 1);
+    if (p >= 10) p -= 9;
+    sum += p;
+  }
+  const digitoVerificador = sum % 10 === 0 ? 0 : 10 - (sum % 10);
+  return digitoVerificador === parseInt(cedula.charAt(9), 10);
+};
 
 const searchGlobalPlayer = async () => {
   const ident = (formData.value.identification || '').trim();
   if (!ident) {
     toast.warning('Ingresa el número de cédula o identificación para consultar');
+    return;
+  }
+
+  if (formData.value.documentType === '05' && !validarCedulaEcuadorLocal(ident)) {
+    toast.error('La cédula ingresada no es válida según el algoritmo oficial del Registro Civil de Ecuador.');
     return;
   }
 
@@ -5567,10 +5632,16 @@ const searchGlobalPlayer = async () => {
       formData.value.bloodType = p.bloodType || formData.value.bloodType || '';
       formData.value.phone = p.phone || '';
       formData.value.email = p.email || '';
+      formData.value.address = p.address || p.direccion || p.domicilio || formData.value.address || '';
       formData.value.emergencyContactName = p.emergencyContactName || '';
       formData.value.emergencyContactPhone = p.emergencyContactPhone || '';
       formData.value.passOwnerType = p.passOwnerType || 'PLAYER';
       formData.value.isActive = true;
+      if (p.isForeigner) {
+        formData.value.documentType = '06';
+      } else if (!formData.value.documentType) {
+        formData.value.documentType = '05';
+      }
 
       if (formData.value.birthDate) {
         const calculated = calculatePlayerAgeDirect(formData.value.birthDate);
@@ -7660,6 +7731,7 @@ const openCreateForm = () => {
     formData.value = {};
   } else if (activeTab.value === 'players') {
     formData.value = {
+      documentType: '05',
       isActive: true,
       passOwnerType: 'PLAYER',
     };
@@ -7771,6 +7843,9 @@ const openEditForm = (item: any) => {
   } else if (activeTab.value === 'categories') {
     // Mantener los datos del item para edición
   } else if (activeTab.value === 'players') {
+    if (!formData.value.documentType) {
+      formData.value.documentType = item.isForeigner ? '06' : '05';
+    }
     if (item.birthDate) {
       const calculated = calculatePlayerAgeDirect(item.birthDate);
       if (calculated) {
@@ -7933,6 +8008,11 @@ const saveForm = async () => {
           formData.value.ageMonths = calculated.months;
         }
       }
+      if (formData.value.documentType === '06' || formData.value.documentType === '08') {
+        formData.value.isForeigner = true;
+      } else if (formData.value.documentType === '05') {
+        formData.value.isForeigner = false;
+      }
       if (!formData.value.code) {
         delete formData.value.code;
       }
@@ -8003,6 +8083,7 @@ const saveForm = async () => {
       'updatedBy',
       'updatedAt',
       'deletedAt',
+      'documentType',
     ];
     for (const k of forbiddenKeys) {
       delete (payload as any)[k];

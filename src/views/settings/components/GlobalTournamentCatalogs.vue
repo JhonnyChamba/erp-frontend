@@ -740,14 +740,38 @@
                   </div>
 
                   <div class="col-md-4">
-                    <label class="form-label text-secondary small fw-semibold">Cédula / DNI / Pasaporte *</label>
-                    <input
-                      v-model="formData.identification"
-                      type="text"
-                      class="form-control bg-dark border-secondary-subtle text-white font-monospace"
-                      placeholder="Identificación del jugador"
-                      required
+                    <label class="form-label text-secondary small fw-semibold">Tipo de Documento *</label>
+                    <AppSelect2
+                      v-model="formData.documentType"
+                      :options="playerDocumentTypeOptions"
+                      placeholder="Seleccionar tipo de documento..."
+                      search-placeholder="Buscar..."
                     />
+                  </div>
+
+                  <div class="col-md-4">
+                    <label class="form-label text-secondary small fw-semibold">Cédula / DNI / Pasaporte *</label>
+                    <div class="input-group">
+                      <input
+                        v-model="formData.identification"
+                        type="text"
+                        class="form-control bg-dark border-secondary-subtle text-white font-monospace"
+                        :placeholder="identificationPlaceholder"
+                        required
+                        @keyup.enter="consultarCedulaRegistroCivil"
+                      />
+                      <button
+                        type="button"
+                        class="btn btn-primary d-inline-flex align-items-center gap-1 px-3"
+                        :disabled="consultandoCedula || !formData.identification"
+                        @click="consultarCedulaRegistroCivil"
+                        title="Consultar por Cédula"
+                      >
+                        <span v-if="consultandoCedula" class="spinner-border spinner-border-sm" role="status"></span>
+                        <iconify-icon v-else icon="solar:magnifer-bold" class="fs-5"></iconify-icon>
+                        <span class="d-none d-sm-inline">Consultar</span>
+                      </button>
+                    </div>
                   </div>
 
                   <div class="col-md-4">
@@ -771,16 +795,7 @@
                     />
                   </div>
 
-                  <div v-if="computedPlayerAge" class="col-12">
-                    <div class="alert alert-info py-2 px-3 mb-0 rounded-3 border-0 bg-info-subtle text-info-emphasis d-flex align-items-center gap-2">
-                      <iconify-icon icon="solar:cake-bold-duotone" class="fs-4 text-info"></iconify-icon>
-                      <span class="small">
-                        Edad calculada: <strong>{{ computedPlayerAge.years }} años</strong> (en meses: <strong>{{ computedPlayerAge.months }} meses</strong> acumulados)
-                      </span>
-                    </div>
-                  </div>
-
-                  <div class="col-md-6">
+                  <div class="col-md-4">
                     <label class="form-label text-secondary small fw-semibold">Nombres *</label>
                     <input
                       v-model="formData.name"
@@ -791,7 +806,7 @@
                     />
                   </div>
 
-                  <div class="col-md-6">
+                  <div class="col-md-4">
                     <label class="form-label text-secondary small fw-semibold">Apellidos *</label>
                     <input
                       v-model="formData.lastName"
@@ -800,6 +815,15 @@
                       placeholder="Apellidos completos"
                       required
                     />
+                  </div>
+
+                  <div v-if="computedPlayerAge" class="col-12">
+                    <div class="alert alert-info py-2 px-3 mb-0 rounded-3 border-0 bg-info-subtle text-info-emphasis d-flex align-items-center gap-2">
+                      <iconify-icon icon="solar:cake-bold-duotone" class="fs-4 text-info"></iconify-icon>
+                      <span class="small">
+                        Edad calculada: <strong>{{ computedPlayerAge.years }} años</strong> (en meses: <strong>{{ computedPlayerAge.months }} meses</strong> acumulados)
+                      </span>
+                    </div>
                   </div>
 
                   <div class="col-md-6">
@@ -866,23 +890,33 @@
                     />
                   </div>
 
-                  <div class="col-md-4">
+                  <div class="col-md-8">
+                    <label class="form-label text-secondary small fw-semibold">Dirección</label>
+                    <input
+                      v-model="formData.address"
+                      type="text"
+                      class="form-control bg-dark border-secondary-subtle text-white"
+                      placeholder="Dirección domiciliaria (calle principal, secundaria, sector)"
+                    />
+                  </div>
+
+                  <div class="col-md-6">
                     <label class="form-label text-secondary small fw-semibold">Contacto de Emergencia</label>
                     <input
                       v-model="formData.emergencyContactName"
                       type="text"
                       class="form-control bg-dark border-secondary-subtle text-white"
-                      placeholder="Nombre del familiar"
+                      placeholder="Nombre del familiar o contacto"
                     />
                   </div>
 
-                  <div class="col-md-4">
+                  <div class="col-md-6">
                     <label class="form-label text-secondary small fw-semibold">Teléfono de Emergencia</label>
                     <input
                       v-model="formData.emergencyContactPhone"
                       type="text"
                       class="form-control bg-dark border-secondary-subtle text-white"
-                      placeholder="Teléfono del contacto"
+                      placeholder="Teléfono del contacto de emergencia"
                     />
                   </div>
                 </div>
@@ -1200,6 +1234,13 @@ import { ref, computed, onMounted, watch } from 'vue';
 import { CampeonatoApi, uploadPlayerPhoto } from '@/services/campeonato.service';
 import { compressImageToWebP } from '@/utils/image-processor';
 import { toast } from '@/utils/toastr';
+import AppSelect2 from '@/components/common/AppSelect2.vue';
+
+const playerDocumentTypeOptions = [
+  { value: '05', label: 'Cédula de Identidad (05)' },
+  { value: '06', label: 'Pasaporte (06)' },
+  { value: '08', label: 'Identificación del Exterior / DNI (08)' },
+];
 
 const props = defineProps<{
   tab:
@@ -1234,6 +1275,12 @@ watch(showModal, (val) => {
 const isEditing = ref(false);
 const editingId = ref<number | null>(null);
 const formData = ref<Record<string, any>>({});
+
+const identificationPlaceholder = computed(() => {
+  if (formData.value?.documentType === '06') return 'Número de Pasaporte...';
+  if (formData.value?.documentType === '08') return 'DNI / Identificación Extranjera...';
+  return 'Número de Cédula de Identidad (10 dígitos)...';
+});
 
 const metaMap = {
   global_players: {
@@ -1334,6 +1381,89 @@ const onBirthDateChange = () => {
   }
 };
 
+const consultandoCedula = ref(false);
+
+const validarCedulaEcuadorLocal = (cedula: string): boolean => {
+  if (!cedula || !/^\d{10}$/.test(cedula.trim())) return false;
+  const prov = parseInt(cedula.substring(0, 2), 10);
+  if (!((prov >= 1 && prov <= 24) || prov === 30)) return false;
+  if (parseInt(cedula.charAt(2), 10) >= 6) return false;
+
+  const coef = [2, 1, 2, 1, 2, 1, 2, 1, 2];
+  let sum = 0;
+  for (let i = 0; i < 9; i++) {
+    let p = parseInt(cedula.charAt(i), 10) * (coef[i] ?? 1);
+    if (p >= 10) p -= 9;
+    sum += p;
+  }
+  const digitoVerificador = sum % 10 === 0 ? 0 : 10 - (sum % 10);
+  return digitoVerificador === parseInt(cedula.charAt(9), 10);
+};
+
+const consultarCedulaRegistroCivil = async () => {
+  if (formData.value?.documentType && formData.value?.documentType !== '05') {
+    toast.info('La consulta oficial aplica únicamente para Cédula de Identidad (Ecuador).');
+    return;
+  }
+
+  const ident = (formData.value?.identification || '').trim();
+  if (!ident) {
+    toast.warning('Ingresa el número de cédula para consultar');
+    return;
+  }
+
+  if (!validarCedulaEcuadorLocal(ident)) {
+    toast.error('La cédula ingresada no es válida según el algoritmo oficial del Registro Civil de Ecuador.');
+    return;
+  }
+
+  try {
+    consultandoCedula.value = true;
+    const res = await CampeonatoApi.players.consultaRegistroCivil(ident);
+    const data = res.data;
+
+    if (data?.exists && data?.player) {
+      const p = data.player;
+      formData.value.name = p.name || formData.value.name;
+      formData.value.lastName = p.lastName || formData.value.lastName;
+      formData.value.code = p.code || formData.value.code;
+      if (p.birthDate) {
+        formData.value.birthDate = String(p.birthDate).slice(0, 10);
+        const calc = calculateAge(formData.value.birthDate);
+        if (calc) {
+          formData.value.ageYears = calc.years;
+          formData.value.ageMonths = calc.months;
+        }
+      }
+      if (p.photo) formData.value.photo = p.photo;
+      if (p.gender) formData.value.gender = p.gender;
+      if (p.demarcationId) formData.value.demarcationId = p.demarcationId;
+      if (p.playerClassificationId) formData.value.playerClassificationId = p.playerClassificationId;
+      if (p.dominantFoot) formData.value.dominantFoot = p.dominantFoot;
+      if (p.bloodType) formData.value.bloodType = p.bloodType;
+      if (p.phone) formData.value.phone = p.phone;
+      if (p.email) formData.value.email = p.email;
+      if (p.address || p.direccion || p.domicilio) {
+        formData.value.address = p.address || p.direccion || p.domicilio;
+      }
+
+      if (data.source === 'REGISTRO_CIVIL') {
+        toast.success(`Datos extraídos del Registro Civil: ${p.name} ${p.lastName}`);
+      } else {
+        toast.success(`Datos cargados del padrón de futbolistas: ${p.name} ${p.lastName}`);
+      }
+      return;
+    }
+
+    toast.info('Cédula verificada con éxito. Puedes ingresar los datos del futbolista.');
+  } catch (err: any) {
+    console.error('Error al consultar cédula:', err);
+    toast.error('Error al realizar la consulta de la cédula');
+  } finally {
+    consultandoCedula.value = false;
+  }
+};
+
 const onPhotoSelected = async (e: Event) => {
   const file = (e.target as HTMLInputElement).files?.[0];
   if (!file) return;
@@ -1428,6 +1558,7 @@ const openCreateModal = async () => {
       } catch {}
     }
     formData.value = {
+      documentType: '05',
       isActive: true,
       dominantFoot: 'RIGHT',
       demarcationId: '',
@@ -1479,12 +1610,17 @@ const openEditModal = (item: any) => {
   isEditing.value = true;
   editingId.value = item.id;
   formData.value = { ...item };
-  if (props.tab === 'global_players' && item.birthDate) {
-    formData.value.birthDate = String(item.birthDate).slice(0, 10);
-    const calc = calculateAge(formData.value.birthDate);
-    if (calc) {
-      formData.value.ageYears = calc.years;
-      formData.value.ageMonths = calc.months;
+  if (props.tab === 'global_players') {
+    if (!formData.value.documentType) {
+      formData.value.documentType = item.isForeigner ? '06' : '05';
+    }
+    if (item.birthDate) {
+      formData.value.birthDate = String(item.birthDate).slice(0, 10);
+      const calc = calculateAge(formData.value.birthDate);
+      if (calc) {
+        formData.value.ageYears = calc.years;
+        formData.value.ageMonths = calc.months;
+      }
     }
   }
   showModal.value = true;
@@ -1540,6 +1676,11 @@ const submitForm = async () => {
     }
 
     if (props.tab === 'global_players') {
+      if (formData.value.documentType === '06' || formData.value.documentType === '08') {
+        payload.isForeigner = true;
+      } else if (formData.value.documentType === '05') {
+        payload.isForeigner = false;
+      }
       if (payload.birthDate) {
         const calc = calculateAge(payload.birthDate);
         if (calc) {

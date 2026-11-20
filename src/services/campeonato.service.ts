@@ -455,6 +455,18 @@ export const PlayersService = {
       `/campeonato/players/find-global/${encodeURIComponent(identification.trim())}`,
       withCompany(companyId)
     ),
+  consultaRegistroCivil: (identification: string, companyId?: number) =>
+    api.get<{
+      exists: boolean;
+      source?: 'LOCAL_PADRON' | 'REGISTRO_CIVIL' | null;
+      isValidCedula: boolean;
+      player?: any;
+      isLinkedToCurrentCompany?: boolean;
+      message?: string;
+    }>(
+      `/campeonato/players/consulta-registro-civil/${encodeURIComponent(identification.trim())}`,
+      withCompany(companyId)
+    ),
 };
 export const CategoriesService = createCrudService<CategoryItem>('categories');
 export const CategoryEditionsService = createCrudService<CategoryEditionItem>('category-editions');
