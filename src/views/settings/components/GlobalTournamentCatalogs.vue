@@ -13,6 +13,7 @@
         </div>
         <div class="d-flex align-items-center gap-2">
           <button
+            v-if="tab !== 'global_players'"
             type="button"
             class="btn btn-outline-secondary d-flex align-items-center gap-1 rounded-pill px-3"
             :disabled="loading"
@@ -28,14 +29,14 @@
             @click="openCreateModal"
           >
             <iconify-icon icon="solar:add-circle-line-duotone" class="fs-5"></iconify-icon>
-            <span>+ Nuevo {{ currentMeta.entityName }}</span>
+            <span>{{ tab === 'global_players' ? 'Nuevo' : `+ Nuevo ${currentMeta.entityName}` }}</span>
           </button>
         </div>
       </div>
 
     <!-- Barra de Filtros y Búsqueda -->
     <div class="d-flex flex-wrap align-items-center gap-2 mb-4 p-2 rounded-3 bg-body-tertiary border border-secondary-subtle">
-      <div class="input-group flex-grow-1" style="max-width: 380px;">
+      <div v-if="tab !== 'global_players'" class="input-group flex-grow-1" style="max-width: 380px;">
         <span class="input-group-text bg-body border-secondary-subtle text-secondary" style="height: 40px;">
           <iconify-icon icon="solar:magnifer-line-duotone"></iconify-icon>
         </span>
@@ -48,7 +49,55 @@
           @input="onSearchInput"
         />
       </div>
-      <div class="ms-auto pe-2 text-secondary fs-2 d-none d-sm-block">
+      <!-- Filtros de Futbolistas: se aplican con el botón Buscar -->
+      <template v-if="tab === 'global_players'">
+        <select
+          v-model="filterStatus"
+          class="form-select bg-body border-secondary-subtle text-body"
+          style="height: 40px; width: 160px;"
+          @keyup.enter="loadData"
+        >
+          <option value="">Estado: Todos</option>
+          <option value="true">Activo</option>
+          <option value="false">Inactivo</option>
+        </select>
+        <input
+          v-model="filterIdentification"
+          type="text"
+          class="form-control bg-body border-secondary-subtle text-body"
+          style="height: 40px; width: 190px;"
+          placeholder="Número de documento"
+          @keyup.enter="loadData"
+        />
+        <input
+          v-model="filterName"
+          type="text"
+          class="form-control bg-body border-secondary-subtle text-body"
+          style="height: 40px; width: 190px;"
+          placeholder="Nombre"
+          @keyup.enter="loadData"
+        />
+        <input
+          v-model="filterLastName"
+          type="text"
+          class="form-control bg-body border-secondary-subtle text-body"
+          style="height: 40px; width: 190px;"
+          placeholder="Apellido"
+          @keyup.enter="loadData"
+        />
+      </template>
+      <button
+        v-if="tab === 'global_players'"
+        type="button"
+        class="btn btn-outline-primary bg-body d-flex align-items-center gap-1 px-3 ms-auto"
+        style="height: 40px;"
+        :disabled="loading"
+        @click="loadData"
+      >
+        <iconify-icon icon="solar:magnifer-line-duotone" class="fs-5"></iconify-icon>
+        <span>Buscar</span>
+      </button>
+      <div v-if="tab !== 'global_players'" class="pe-2 text-secondary fs-2 d-none d-sm-block ms-auto">
         Total: <span class="text-body fw-bold">{{ items.length }}</span> registro(s)
       </div>
     </div>
@@ -757,7 +806,10 @@
                         type="text"
                         class="form-control bg-dark border-secondary-subtle text-white font-monospace"
                         :placeholder="identificationPlaceholder"
+                        :maxlength="isCedulaType ? 10 : undefined"
+                        :inputmode="isCedulaType ? 'numeric' : 'text'"
                         required
+                        @input="onIdentificationInput"
                         @keyup.enter="consultarCedulaRegistroCivil"
                       />
                       <button
@@ -774,23 +826,14 @@
                     </div>
                   </div>
 
+                  <!-- El código secuencial JUG-XXXXX se genera automáticamente en el backend al registrar -->
                   <div class="col-md-4">
-                    <label class="form-label text-secondary small fw-semibold">Código Secuencial de Jugador</label>
-                    <input
-                      v-model="formData.code"
-                      type="text"
-                      class="form-control bg-dark border-secondary-subtle text-white font-monospace"
-                      placeholder="Autogenerado ej. JUG-00001"
-                      readonly
-                    />
-                  </div>
-
-                  <div class="col-md-4">
-                    <label class="form-label text-secondary small fw-semibold">Fecha de Nacimiento</label>
+                    <label class="form-label text-secondary small fw-semibold">Fecha de Nacimiento *</label>
                     <input
                       v-model="formData.birthDate"
                       type="date"
                       class="form-control bg-dark border-secondary-subtle text-white"
+                      required
                       @change="onBirthDateChange"
                     />
                   </div>
@@ -817,66 +860,16 @@
                     />
                   </div>
 
-                  <div v-if="computedPlayerAge" class="col-12">
-                    <div class="alert alert-info py-2 px-3 mb-0 rounded-3 border-0 bg-info-subtle text-info-emphasis d-flex align-items-center gap-2">
-                      <iconify-icon icon="solar:cake-bold-duotone" class="fs-4 text-info"></iconify-icon>
-                      <span class="small">
-                        Edad calculada: <strong>{{ computedPlayerAge.years }} años</strong> (en meses: <strong>{{ computedPlayerAge.months }} meses</strong> acumulados)
-                      </span>
-                    </div>
-                  </div>
-
-                  <div class="col-md-6">
-                    <label class="form-label text-secondary small fw-semibold">Posición / Demarcación en Campo</label>
-                    <select v-model="formData.demarcationId" class="form-select bg-dark border-secondary-subtle text-white">
-                      <option value="">-- Seleccionar Demarcación --</option>
-                      <option v-for="d in demarcationsList" :key="d.id" :value="d.id">
-                        {{ d.name }} ({{ d.code }})
-                      </option>
-                    </select>
-                  </div>
-
-                  <div class="col-md-6">
-                    <label class="form-label text-secondary small fw-semibold">Clasificación de Futbolista</label>
-                    <select v-model="formData.playerClassificationId" class="form-select bg-dark border-secondary-subtle text-white">
-                      <option value="">-- Seleccionar Clasificación --</option>
-                      <option v-for="c in classificationsList" :key="c.id" :value="c.id">
-                        {{ c.description }} {{ c.code ? '(' + c.code + ')' : '' }}
-                      </option>
-                    </select>
-                  </div>
-
-                  <div class="col-md-4">
-                    <label class="form-label text-secondary small fw-semibold">Pie Dominante</label>
-                    <select v-model="formData.dominantFoot" class="form-select bg-dark border-secondary-subtle text-white">
-                      <option value="RIGHT">Diestro (Derecho)</option>
-                      <option value="LEFT">Zurdo (Izquierdo)</option>
-                      <option value="BOTH">Ambidiestro</option>
-                    </select>
-                  </div>
-
-                  <div class="col-md-4">
-                    <label class="form-label text-secondary small fw-semibold">Tipo de Sangre</label>
-                    <select v-model="formData.bloodType" class="form-select bg-dark border-secondary-subtle text-white">
-                      <option value="">-- Seleccionar --</option>
-                      <option value="O+">O Positivo (O+)</option>
-                      <option value="O-">O Negativo (O-)</option>
-                      <option value="A+">A Positivo (A+)</option>
-                      <option value="A-">A Negativo (A-)</option>
-                      <option value="B+">B Positivo (B+)</option>
-                      <option value="B-">B Negativo (B-)</option>
-                      <option value="AB+">AB Positivo (AB+)</option>
-                      <option value="AB-">AB Negativo (AB-)</option>
-                    </select>
-                  </div>
-
                   <div class="col-md-4">
                     <label class="form-label text-secondary small fw-semibold">Teléfono Personal</label>
                     <input
                       v-model="formData.phone"
                       type="text"
+                      inputmode="numeric"
+                      maxlength="12"
                       class="form-control bg-dark border-secondary-subtle text-white"
                       placeholder="Ej. 0991234567"
+                      @input="onlyDigitsInput($event, 'phone')"
                     />
                   </div>
 
@@ -886,8 +879,10 @@
                       v-model="formData.email"
                       type="email"
                       class="form-control bg-dark border-secondary-subtle text-white"
+                      :class="{ 'is-invalid': isPlayerEmailInvalid }"
                       placeholder="futbolista@ejemplo.com"
                     />
+                    <div v-if="isPlayerEmailInvalid" class="invalid-feedback d-block">Correo electrónico no válido</div>
                   </div>
 
                   <div class="col-md-8">
@@ -915,9 +910,65 @@
                     <input
                       v-model="formData.emergencyContactPhone"
                       type="text"
+                      inputmode="numeric"
+                      maxlength="12"
                       class="form-control bg-dark border-secondary-subtle text-white"
                       placeholder="Teléfono del contacto de emergencia"
+                      @input="onlyDigitsInput($event, 'emergencyContactPhone')"
                     />
+                  </div>
+
+                  <div class="col-md-3">
+                    <label class="form-label text-secondary small fw-semibold">Tipo de Sangre</label>
+                    <select v-model="formData.bloodType" class="form-select bg-dark border-secondary-subtle text-white">
+                      <option value="">-- Seleccionar --</option>
+                      <option value="O+">O Positivo (O+)</option>
+                      <option value="O-">O Negativo (O-)</option>
+                      <option value="A+">A Positivo (A+)</option>
+                      <option value="A-">A Negativo (A-)</option>
+                      <option value="B+">B Positivo (B+)</option>
+                      <option value="B-">B Negativo (B-)</option>
+                      <option value="AB+">AB Positivo (AB+)</option>
+                      <option value="AB-">AB Negativo (AB-)</option>
+                    </select>
+                  </div>
+
+                  <div class="col-md-3">
+                    <label class="form-label text-secondary small fw-semibold">Clasificación de Futbolista</label>
+                    <select v-model="formData.playerClassificationId" class="form-select bg-dark border-secondary-subtle text-white">
+                      <option value="">-- Seleccionar Clasificación --</option>
+                      <option v-for="c in classificationsList" :key="c.id" :value="c.id">
+                        {{ c.description }} {{ c.code ? '(' + c.code + ')' : '' }}
+                      </option>
+                    </select>
+                  </div>
+
+                  <div class="col-md-3">
+                    <label class="form-label text-secondary small fw-semibold">Posición / Demarcación en Campo</label>
+                    <select v-model="formData.demarcationId" class="form-select bg-dark border-secondary-subtle text-white">
+                      <option value="">-- Seleccionar Demarcación --</option>
+                      <option v-for="d in demarcationsList" :key="d.id" :value="d.id">
+                        {{ d.name }} ({{ d.code }})
+                      </option>
+                    </select>
+                  </div>
+
+                  <div class="col-md-3">
+                    <label class="form-label text-secondary small fw-semibold">Pie Dominante</label>
+                    <select v-model="formData.dominantFoot" class="form-select bg-dark border-secondary-subtle text-white">
+                      <option value="RIGHT">Diestro (Derecho)</option>
+                      <option value="LEFT">Zurdo (Izquierdo)</option>
+                      <option value="BOTH">Ambidiestro</option>
+                    </select>
+                  </div>
+
+                  <div v-if="computedPlayerAge" class="col-12">
+                    <div class="alert alert-info py-2 px-3 mb-0 rounded-3 border-0 bg-info-subtle text-info-emphasis d-flex align-items-center gap-2">
+                      <iconify-icon icon="solar:cake-bold-duotone" class="fs-4 text-info"></iconify-icon>
+                      <span class="small">
+                        Edad calculada: <strong>{{ computedPlayerAge.years }} años</strong> (en meses: <strong>{{ computedPlayerAge.months }} meses</strong> acumulados)
+                      </span>
+                    </div>
                   </div>
                 </div>
 
@@ -1215,7 +1266,16 @@
                 </div>
           </div>
 
-          <div class="form-page-footer">
+          <!-- Estilo de botones de plantilla (solo Futbolistas, para probar) -->
+          <div v-if="tab === 'global_players'" class="border-top pt-3 mt-3 pb-4 px-4 d-flex align-items-center justify-content-end gap-3">
+            <button type="button" class="btn bg-danger-subtle text-danger" @click="closeModal">Cancelar</button>
+            <button type="submit" class="btn btn-primary d-flex align-items-center gap-2" :disabled="saving || uploadingPhoto">
+              <span v-if="saving" class="spinner-grow spinner-grow-sm text-white" role="status"></span>
+              {{ isEditing ? 'Guardar Cambios' : 'Registrar' }}
+            </button>
+          </div>
+
+          <div v-else class="form-page-footer">
             <button type="button" class="btn btn-outline-secondary rounded-pill px-4" @click="closeModal">Cancelar</button>
             <button type="submit" class="btn btn-primary rounded-pill px-4 fw-semibold d-flex align-items-center gap-2" :disabled="saving || uploadingPhoto">
               <span v-if="saving" class="spinner-grow spinner-grow-sm text-white" role="status"></span>
@@ -1267,6 +1327,10 @@ const loading = ref(false);
 const saving = ref(false);
 const uploadingPhoto = ref(false);
 const searchQuery = ref('');
+const filterStatus = ref('');
+const filterIdentification = ref('');
+const filterName = ref('');
+const filterLastName = ref('');
 const showModal = ref(false);
 
 watch(showModal, (val) => {
@@ -1275,6 +1339,43 @@ watch(showModal, (val) => {
 const isEditing = ref(false);
 const editingId = ref<number | null>(null);
 const formData = ref<Record<string, any>>({});
+
+// Correo: formato usuario@dominio.ext
+const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
+const isPlayerEmailInvalid = computed(() => {
+  const email = String(formData.value?.email || '').trim();
+  return Boolean(email) && !EMAIL_REGEX.test(email);
+});
+
+// Teléfonos: solo dígitos (se eliminan letras y símbolos al escribir o pegar)
+const onlyDigitsInput = (e: Event, field: string) => {
+  const target = e.target as HTMLInputElement;
+  const clean = target.value.replace(/\D/g, '').slice(0, 12);
+  if (clean !== target.value) target.value = clean;
+  formData.value[field] = clean;
+};
+
+const isCedulaType = computed(() => !formData.value?.documentType || formData.value.documentType === '05');
+
+// Cédula: solo dígitos y máximo 10. Pasaporte / DNI extranjero: sin límite y admite letras.
+const sanitizeCedula = (value: string) => String(value ?? '').replace(/\D/g, '').slice(0, 10);
+
+const onIdentificationInput = (e: Event) => {
+  if (!isCedulaType.value) return;
+  const target = e.target as HTMLInputElement;
+  const clean = sanitizeCedula(target.value);
+  if (clean !== target.value) target.value = clean;
+  formData.value.identification = clean;
+};
+
+watch(
+  () => formData.value?.documentType,
+  () => {
+    if (isCedulaType.value && formData.value?.identification) {
+      formData.value.identification = sanitizeCedula(formData.value.identification);
+    }
+  },
+);
 
 const identificationPlaceholder = computed(() => {
   if (formData.value?.documentType === '06') return 'Número de Pasaporte...';
@@ -1488,6 +1589,10 @@ const loadData = async () => {
 
     if (props.tab === 'global_players') {
       query.global = 'true';
+      query.status = filterStatus.value || undefined;
+      query.identification = filterIdentification.value.trim() || undefined;
+      query.name = filterName.value.trim() || undefined;
+      query.lastName = filterLastName.value.trim() || undefined;
       const [plRes, dmRes, pcRes] = await Promise.all([
         CampeonatoApi.players.list(query),
         CampeonatoApi.demarcations.list({ limit: 100 }).catch(() => ({ data: { data: [] } })),
@@ -1676,6 +1781,16 @@ const submitForm = async () => {
     }
 
     if (props.tab === 'global_players') {
+      if (!formData.value.birthDate) {
+        toast.error('La fecha de nacimiento es obligatoria');
+        return;
+      }
+      const email = String(formData.value.email || '').trim();
+      if (email && !EMAIL_REGEX.test(email)) {
+        toast.error('Ingresa un correo electrónico válido (ej. futbolista@ejemplo.com)');
+        return;
+      }
+      if (email) payload.email = email;
       if (formData.value.documentType === '06' || formData.value.documentType === '08') {
         payload.isForeigner = true;
       } else if (formData.value.documentType === '05') {
@@ -1807,6 +1922,10 @@ const deleteItem = async (id: number, isGlobal = false) => {
 watch(() => props.tab, () => {
   closeModal();
   searchQuery.value = '';
+  filterStatus.value = '';
+  filterIdentification.value = '';
+  filterName.value = '';
+  filterLastName.value = '';
   loadData();
 });
 
