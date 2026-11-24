@@ -515,6 +515,26 @@ export const TeamRegistrationsService = {
 };
 export const PlayerRegistrationsService = {
   ...createCrudService<PlayerRegistrationItem>('player-registrations'),
+  listGrouped: (params?: Record<string, any>, companyId?: number) =>
+    api.get<any>('/campeonato/player-registrations/grouped', { params, ...withCompany(companyId) }),
+  syncTeamRoster: (
+    data: {
+      categoryEditionId: number;
+      teamId: number;
+      categories: Array<{
+        teamRegistrationId: number;
+        players: Array<{
+          id?: number;
+          playerId: number;
+          jerseyNumber: number;
+          carnetCode?: string;
+          playerClassificationId?: number;
+          isCaptain?: boolean;
+        }>;
+      }>;
+    },
+    companyId?: number,
+  ) => api.post<any>('/campeonato/player-registrations/sync-team-roster', data, withCompany(companyId)),
   massCreate: (data: { teamRegistrationId: number; stageId?: number; registrations: any[] }, companyId?: number) =>
     api.post<any>('/campeonato/player-registrations/mass', data, withCompany(companyId)),
   updateStatus: (id: number, data: { status: string; comments?: string }, companyId?: number) =>

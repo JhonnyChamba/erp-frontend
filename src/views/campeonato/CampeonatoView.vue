@@ -42,9 +42,9 @@
           <span>Tabla de Posiciones</span>
         </button>
 
-        <!-- Se oculta mientras el formulario está abierto; vuelve a mostrarse al guardar o al volver al listado. -->
+        <!-- Se oculta mientras el formulario está abierto; en Inscripción y Carnets no hay botón Nuevo porque se alimenta de Inscripción de Equipos -->
         <button
-          v-if="activeTab !== 'standings' && !isFormOpen"
+          v-if="activeTab !== 'standings' && activeTab !== 'playerRegistrations' && !isFormOpen"
           class="btn btn-primary rounded-pill px-4 d-flex align-items-center gap-2"
           style="height: 40px;"
           @click="activeTab === 'schedules' ? openCreateSchedule() : openCreateForm()"
@@ -246,6 +246,41 @@
         class="form-control bg-dark border-secondary-subtle text-white"
         style="height: 40px; width: 290px;"
         placeholder="Buscar por equipo, edición o grupo..."
+        @keyup.enter="searchList"
+      />
+
+      <button
+        type="button"
+        class="btn btn-outline-primary bg-dark d-flex align-items-center gap-1 px-3 ms-auto"
+        style="height: 40px;"
+        :disabled="loading"
+        @click="searchList"
+      >
+        <iconify-icon icon="solar:magnifer-line-duotone" class="fs-5"></iconify-icon>
+        <span>Buscar</span>
+      </button>
+    </div>
+
+    <!-- Barra de Filtros y Búsqueda Estandarizada para Inscripción y Carnets -->
+    <div v-else-if="!isFormOpen && activeTab === 'playerRegistrations'" class="d-flex flex-wrap align-items-center gap-2 mb-4 p-2 rounded-3 bg-dark-subtle border border-secondary-subtle">
+      <select
+        v-model="filterPlayerRegEditionId"
+        class="form-select bg-dark border-secondary-subtle text-white"
+        style="height: 40px; width: 250px;"
+        @change="searchList"
+      >
+        <option value="todos">Edición: Todas las Ediciones</option>
+        <option v-for="ed in categoryEditionsList" :key="ed.id" :value="String(ed.id)">
+          {{ ed.name }}
+        </option>
+      </select>
+
+      <input
+        v-model="searchQuery"
+        type="text"
+        class="form-control bg-dark border-secondary-subtle text-white"
+        style="height: 40px; width: 320px;"
+        placeholder="Buscar por equipo, siglas, edición o categoría..."
         @keyup.enter="searchList"
       />
 
@@ -1035,38 +1070,57 @@
                   </span>
                 </span>
 
-                <!-- Inscripción y Carnets: Jugador con Foto -->
-                <div v-else-if="activeTab === 'playerRegistrations' && col.key === 'player.name'" class="d-flex align-items-center gap-2">
+                <!-- Inscripción y Carnets: Cabecera del Equipo -->
+                <div v-else-if="activeTab === 'playerRegistrations' && col.key === 'team.name'" class="d-flex align-items-center gap-2">
                   <img
-                    v-if="item.player?.photo"
-                    :src="item.player.photo"
-                    class="rounded-circle shadow-sm border border-info-subtle"
-                    style="width: 28px; height: 28px; object-fit: cover;"
+                    v-if="item.team?.logo"
+                    :src="item.team.logo"
+                    class="rounded-circle shadow-sm border border-secondary-subtle flex-shrink-0"
+                    style="width: 30px; height: 30px; object-fit: cover;"
                   />
                   <div
                     v-else
-                    class="rounded-circle bg-secondary-subtle text-secondary d-flex align-items-center justify-content-center"
-                    style="width: 28px; height: 28px;"
+                    class="rounded-circle bg-secondary-subtle text-secondary d-flex align-items-center justify-content-center flex-shrink-0"
+                    style="width: 30px; height: 30px;"
                   >
-                    <iconify-icon icon="solar:user-bold-duotone" class="fs-5 text-info"></iconify-icon>
+                    <iconify-icon icon="solar:shield-bold-duotone" class="fs-5 text-primary"></iconify-icon>
                   </div>
                   <div>
-                    <span class="text-body-emphasis fw-semibold d-block">{{ item.player?.name }} {{ item.player?.lastName }}</span>
-                    <small class="text-muted font-monospace fs-1">{{ item.player?.identification }}</small>
+                    <span class="text-body-emphasis fw-bold d-block">{{ item.team?.name || '-' }}</span>
+                    <span v-if="item.team?.acronyms" class="badge bg-secondary-subtle text-secondary font-monospace px-1.5 py-0 fs-1">
+                      {{ item.team.acronyms }}
+                    </span>
                   </div>
                 </div>
 
-                <!-- Inscripción y Carnets: Equipo con Logo -->
-                <div v-else-if="activeTab === 'playerRegistrations' && col.key === 'teamRegistration.team.name'" class="d-flex align-items-center gap-2">
-                  <img
-                    v-if="item.teamRegistration?.team?.logo"
-                    :src="item.teamRegistration.team.logo"
-                    class="rounded-circle shadow-sm border"
-                    style="width: 24px; height: 24px; object-fit: cover;"
-                  />
-                  <iconify-icon v-else icon="solar:shield-bold-duotone" class="fs-5 text-secondary"></iconify-icon>
-                  <span class="text-body-emphasis fw-medium">{{ item.teamRegistration?.team?.name || item.teamRegistration?.team?.shortName || '-' }}</span>
+                <!-- Inscripción y Carnets: Edición del Torneo -->
+                <span v-else-if="activeTab === 'playerRegistrations' && col.key === 'categoryEdition.name'">
+                  <span class="badge bg-primary-subtle text-primary border border-primary-subtle font-monospace px-2 py-1">
+                    🏆 {{ item.categoryEdition?.name || '-' }}
+                  </span>
+                </span>
+
+                <!-- Inscripción y Carnets: Categorías Permitidas del Equipo -->
+                <div v-else-if="activeTab === 'playerRegistrations' && col.key === 'categoriesSummary'" class="d-flex flex-wrap align-items-center gap-1.5">
+                  <span
+                    v-for="cat in (item.categories || [])"
+                    :key="cat.teamRegistrationId || cat.categoryId"
+                    class="badge bg-info-subtle text-info border border-info-subtle font-monospace px-2 py-1"
+                  >
+                    ⚽ {{ cat.categoryName }}
+                    <span class="opacity-75">({{ cat.gender === 'FEMALE' ? 'Mujeres' : cat.gender === 'MIXED' ? 'Mixto' : 'Varones' }} · {{ cat.playersCount || 0 }}/{{ cat.maxPlayers || 25 }})</span>
+                  </span>
                 </div>
+
+                <!-- Inscripción y Carnets: Total Jugadores Inscritos -->
+                <span v-else-if="activeTab === 'playerRegistrations' && col.key === 'playersCount'">
+                  <span
+                    class="badge rounded-pill font-monospace px-3 py-1 border"
+                    :class="(item.playersCount || 0) > 0 ? 'bg-success-subtle text-success border-success-subtle' : 'bg-secondary-subtle text-secondary border-secondary-subtle'"
+                  >
+                    👥 {{ item.playersCount || 0 }} Jugador(es)
+                  </span>
+                </span>
 
                 <!-- Transferencias de Jugadores: Futbolista con Foto -->
                 <div v-else-if="activeTab === 'playerTransfers' && col.key === 'player.name'" class="d-flex align-items-center gap-2">
@@ -1307,10 +1361,10 @@
                   <span v-else class="text-muted small">Sin clasificar</span>
                 </span>
 
-                <!-- Badge para Código de Carnet -->
+                <!-- Badge para Código de Carnet (toma código de la ficha del jugador o carnetCode) -->
                 <span v-else-if="col.key === 'carnetCode'">
-                  <span class="badge bg-secondary-subtle text-body-emphasis font-monospace border">
-                    🪪 {{ item.carnetCode || '-' }}
+                  <span class="badge bg-secondary-subtle text-body-emphasis font-monospace border px-2 py-1">
+                    🪪 {{ item.carnetCode || item.player?.code || '-' }}
                   </span>
                 </span>
 
@@ -1364,26 +1418,19 @@
                     </li>
                     <li v-if="activeTab === 'playerTransfers'"><hr class="dropdown-divider"></li>
 
-                    <!-- Ver Carnet QR y Ficha si es inscripción de jugador -->
+                    <!-- Inscripción y Carnets: Agregar / Configurar Plantilla por Categoría -->
                     <li v-if="activeTab === 'playerRegistrations'">
-                      <a class="dropdown-item py-2 text-info d-flex align-items-center gap-2" href="javascript:void(0)" @click="openCarnetModal(item)">
-                        <iconify-icon icon="solar:card-2-bold-duotone" class="fs-5 text-info"></iconify-icon>
-                        <span>Ver Carnet (QR)</span>
+                      <a class="dropdown-item py-2 text-primary fw-semibold d-flex align-items-center gap-2" href="javascript:void(0)" @click="openEditForm(item)">
+                        <iconify-icon icon="solar:users-group-two-rounded-bold-duotone" class="fs-5 text-primary"></iconify-icon>
+                        <span>Agregar / Configurar Plantilla</span>
                       </a>
                     </li>
-                    <li v-if="activeTab === 'playerRegistrations'">
-                      <a class="dropdown-item py-2 text-info d-flex align-items-center gap-2" href="javascript:void(0)" @click="openRosterForTeamReg(item.teamRegistrationId)">
+                    <li v-if="activeTab === 'playerRegistrations' && item.categories?.[0]?.teamRegistrationId">
+                      <a class="dropdown-item py-2 text-info d-flex align-items-center gap-2" href="javascript:void(0)" @click="openRosterForTeamReg(item.categories[0].teamRegistrationId)">
                         <iconify-icon icon="solar:clipboard-list-bold-duotone" class="fs-5 text-info"></iconify-icon>
                         <span>Ver Plantilla del Club</span>
                       </a>
                     </li>
-                    <li v-if="activeTab === 'playerRegistrations'">
-                      <a class="dropdown-item py-2 text-primary d-flex align-items-center gap-2" href="javascript:void(0)" @click="openSportsHistory(item.playerId || item.player?.id)">
-                        <iconify-icon icon="solar:history-bold-duotone" class="fs-5 text-primary"></iconify-icon>
-                        <span>Historial Deportivo</span>
-                      </a>
-                    </li>
-                    <li v-if="activeTab === 'playerRegistrations'"><hr class="dropdown-divider"></li>
 
                     <!-- Inscripción de equipos: ver categorías / equipos de la edición -->
                     <li v-if="activeTab === 'teamRegistrations'">
@@ -1451,19 +1498,19 @@
                     </li>
                     <li v-if="activeTab === 'players'"><hr class="dropdown-divider"></li>
 
-                    <!-- Editar -->
-                    <li>
+                    <!-- Editar (En playerRegistrations ya está Agregar / Configurar Plantilla arriba) -->
+                    <li v-if="activeTab !== 'playerRegistrations'">
                       <a class="dropdown-item py-2 text-warning d-flex align-items-center gap-2" href="javascript:void(0)" @click="openEditForm(item)">
                         <iconify-icon icon="solar:pen-new-square-line-duotone" class="fs-5 text-warning"></iconify-icon>
                         <span>Editar</span>
                       </a>
                     </li>
 
-                    <!-- Separador (la fila de inscripción de equipos es una edición completa: no se elimina desde aquí) -->
-                    <li v-if="activeTab !== 'teamRegistrations'"><hr class="dropdown-divider"></li>
+                    <!-- Separador (las filas de teamRegistrations y playerRegistrations son cabeceras agrupadas) -->
+                    <li v-if="activeTab !== 'teamRegistrations' && activeTab !== 'playerRegistrations'"><hr class="dropdown-divider"></li>
 
                     <!-- Eliminar -->
-                    <li v-if="activeTab !== 'teamRegistrations'">
+                    <li v-if="activeTab !== 'teamRegistrations' && activeTab !== 'playerRegistrations'">
                       <a class="dropdown-item py-2 text-danger d-flex align-items-center gap-2" href="javascript:void(0)" @click="confirmDelete(item.id)">
                         <iconify-icon icon="solar:trash-bin-trash-line-duotone" class="fs-5 text-danger"></iconify-icon>
                         <span>Eliminar</span>
@@ -1605,26 +1652,19 @@
                   </li>
                   <li v-if="activeTab === 'playerTransfers'"><hr class="dropdown-divider"></li>
 
-                  <!-- Ver Carnet QR y Ficha si es inscripción de jugador -->
+                  <!-- Inscripción y Carnets en vista móvil -->
                   <li v-if="activeTab === 'playerRegistrations'">
-                    <a class="dropdown-item py-2 text-info d-flex align-items-center gap-2" href="javascript:void(0)" @click="openCarnetModal(item)">
-                      <iconify-icon icon="solar:card-2-bold-duotone" class="fs-5 text-info"></iconify-icon>
-                      <span>Ver Carnet (QR)</span>
+                    <a class="dropdown-item py-2 text-primary fw-semibold d-flex align-items-center gap-2" href="javascript:void(0)" @click="openEditForm(item)">
+                      <iconify-icon icon="solar:users-group-two-rounded-bold-duotone" class="fs-5 text-primary"></iconify-icon>
+                      <span>Agregar / Configurar Plantilla</span>
                     </a>
                   </li>
-                  <li v-if="activeTab === 'playerRegistrations'">
-                    <a class="dropdown-item py-2 text-info d-flex align-items-center gap-2" href="javascript:void(0)" @click="openRosterForTeamReg(item.teamRegistrationId)">
+                  <li v-if="activeTab === 'playerRegistrations' && item.categories?.[0]?.teamRegistrationId">
+                    <a class="dropdown-item py-2 text-info d-flex align-items-center gap-2" href="javascript:void(0)" @click="openRosterForTeamReg(item.categories[0].teamRegistrationId)">
                       <iconify-icon icon="solar:clipboard-list-bold-duotone" class="fs-5 text-info"></iconify-icon>
                       <span>Ver Plantilla del Club</span>
                     </a>
                   </li>
-                  <li v-if="activeTab === 'playerRegistrations'">
-                    <a class="dropdown-item py-2 text-primary d-flex align-items-center gap-2" href="javascript:void(0)" @click="openSportsHistory(item.playerId || item.player?.id)">
-                      <iconify-icon icon="solar:history-bold-duotone" class="fs-5 text-primary"></iconify-icon>
-                      <span>Historial Deportivo</span>
-                    </a>
-                  </li>
-                  <li v-if="activeTab === 'playerRegistrations'"><hr class="dropdown-divider"></li>
 
                   <!-- Reglas de Pases en Ediciones de Torneo -->
                   <li v-if="activeTab === 'categoryEditions'">
@@ -1692,18 +1732,18 @@
                   <li v-if="activeTab === 'teamRegistrations'"><hr class="dropdown-divider"></li>
 
                   <!-- Editar -->
-                  <li>
+                  <li v-if="activeTab !== 'playerRegistrations'">
                     <a class="dropdown-item py-2 text-warning d-flex align-items-center gap-2" href="javascript:void(0)" @click="openEditForm(item)">
                       <iconify-icon icon="solar:pen-new-square-line-duotone" class="fs-5 text-warning"></iconify-icon>
                       <span>Editar</span>
                     </a>
                   </li>
 
-                  <!-- Separador (la fila de inscripción de equipos es una edición completa: no se elimina desde aquí) -->
-                  <li v-if="activeTab !== 'teamRegistrations'"><hr class="dropdown-divider"></li>
+                  <!-- Separador -->
+                  <li v-if="activeTab !== 'teamRegistrations' && activeTab !== 'playerRegistrations'"><hr class="dropdown-divider"></li>
 
                   <!-- Eliminar -->
-                  <li v-if="activeTab !== 'teamRegistrations'">
+                  <li v-if="activeTab !== 'teamRegistrations' && activeTab !== 'playerRegistrations'">
                     <a class="dropdown-item py-2 text-danger d-flex align-items-center gap-2" href="javascript:void(0)" @click="confirmDelete(item.id)">
                       <iconify-icon icon="solar:trash-bin-trash-line-duotone" class="fs-5 text-danger"></iconify-icon>
                       <span>Eliminar</span>
@@ -1798,6 +1838,8 @@
                     ? (isEditing ? 'Modificar Edición de Torneo' : 'Nueva Edición de Torneo')
                     : activeTab === 'teamRegistrations'
                     ? (isEditing ? 'Modificar Inscripción de Equipo' : 'Nueva Inscripción de Equipo')
+                    : activeTab === 'playerRegistrations'
+                    ? 'Configurar Plantilla y Carnets del Equipo'
                     : (isEditing ? `Modificar ${activeTabLabel}` : `Nuevo ${activeTabLabel}`)
                 }}
               </h5>
@@ -2522,16 +2564,16 @@
                                           >
                                             <iconify-icon icon="solar:shield-bold-duotone" class="fs-5 text-primary"></iconify-icon>
                                           </div>
-                                          <div class="flex-grow-1">
-                                            <AppSelect2
-                                              v-model="tm.teamId"
-                                              :options="getAvailableTeamsOptionsForRow(tm.teamId)"
-                                              direction="down"
-                                              placeholder="Seleccionar equipo / club..."
-                                              search-placeholder="Buscar club por nombre o siglas..."
-                                              @update:modelValue="onTeamRowSelectChange(tm, $event)"
-                                            />
-                                          </div>
+                                            <div class="flex-grow-1">
+                                              <AppSelect2
+                                                v-model="tm.teamId"
+                                                :options="getAvailableTeamsOptionsForCategoryRow(cat, tm.teamId)"
+                                                direction="down"
+                                                placeholder="Seleccionar equipo / club..."
+                                                search-placeholder="Buscar club por nombre o siglas..."
+                                                @update:modelValue="onTeamRowSelectChange(tm, $event)"
+                                              />
+                                            </div>
                                         </div>
                                       </td>
 
@@ -2602,7 +2644,391 @@
               </div>
             </div>
 
-            <div v-if="activeTab !== 'schedules' && activeTab !== 'teamRegistrations' && (activeTab !== 'players' || isEditing || globalPlayerSearched)" class="row g-4">
+            <!-- ========================================================================= -->
+            <!-- FORMULARIO JERÁRQUICO 3 NIVELES: INSCRIPCIÓN Y CARNETS (POR EQUIPO)       -->
+            <!-- Nivel 1: Cabecera del Equipo · Nivel 2: Categorías Permitidas · Nivel 3: Array de Jugadores -->
+            <!-- ========================================================================= -->
+            <div v-if="activeTab === 'playerRegistrations'" class="d-flex flex-column gap-4">
+              <!-- NIVEL 1: CABECERA DEL EQUIPO Y EDICIÓN DEL TORNEO (DATOS BLOQUEADOS) -->
+              <div class="card p-4 rounded-4 border border-secondary-subtle bg-dark-subtle shadow-sm">
+                <div class="d-flex align-items-center justify-content-between mb-3 flex-wrap gap-2">
+                  <div class="d-flex align-items-center gap-2">
+                    <iconify-icon icon="solar:shield-user-bold-duotone" class="fs-3 text-primary"></iconify-icon>
+                    <div>
+                      <h5 class="fw-bold mb-0 text-body-emphasis">
+                        1. Cabecera del Equipo <span class="fs-6 fw-normal text-secondary">(Datos Oficiales del Club en el Torneo)</span>
+                      </h5>
+                      <small class="text-secondary">
+                        Datos cargados automáticamente desde <strong>Inscripción de Equipos</strong>.
+                      </small>
+                    </div>
+                  </div>
+                  <div class="d-flex align-items-center gap-2">
+                    <span class="badge bg-info-subtle text-info border border-info-subtle px-3 py-2 fw-semibold rounded-pill">
+                      {{ playerRegCategoriesArray.length }} Categoría(s) Habilitada(s)
+                    </span>
+                    <span class="badge bg-primary-subtle text-primary border border-primary-subtle px-3 py-2 fw-semibold rounded-pill">
+                      👥 {{ totalPlayersInTeamRosterForm }} Jugador(es) en Plantilla
+                    </span>
+                  </div>
+                </div>
+
+                <div class="row g-3 align-items-center">
+                  <div class="col-md-5">
+                    <label class="form-label text-secondary small fw-semibold mb-1">
+                      Equipo / Club Deportivo <span class="badge bg-secondary-subtle text-secondary ms-1 fw-normal font-monospace" style="font-size: 0.68rem;">Bloqueado</span>
+                    </label>
+                    <div class="d-flex align-items-center gap-2 p-2 rounded-3 border border-secondary-subtle bg-body-secondary">
+                      <img
+                        v-if="playerRegHeaderTeam.logo"
+                        :src="playerRegHeaderTeam.logo"
+                        class="rounded-circle border border-secondary-subtle flex-shrink-0"
+                        style="width: 32px; height: 32px; object-fit: cover;"
+                      />
+                      <div
+                        v-else
+                        class="rounded-circle bg-primary-subtle text-primary d-flex align-items-center justify-content-center flex-shrink-0"
+                        style="width: 32px; height: 32px;"
+                      >
+                        <iconify-icon icon="solar:shield-bold-duotone" class="fs-5"></iconify-icon>
+                      </div>
+                      <div class="min-w-0 flex-grow-1">
+                        <span class="fw-bold text-body-emphasis d-block text-truncate">{{ playerRegHeaderTeam.name || '-' }}</span>
+                      </div>
+                      <span v-if="playerRegHeaderTeam.acronyms" class="badge bg-primary-subtle text-primary border border-primary-subtle font-monospace">
+                        {{ playerRegHeaderTeam.acronyms }}
+                      </span>
+                    </div>
+                  </div>
+
+                  <div class="col-md-4">
+                    <label class="form-label text-secondary small fw-semibold mb-1">
+                      Edición del Campeonato <span class="badge bg-secondary-subtle text-secondary ms-1 fw-normal font-monospace" style="font-size: 0.68rem;">Bloqueado</span>
+                    </label>
+                    <input
+                      type="text"
+                      class="form-control bg-body-secondary text-secondary cursor-not-allowed fw-semibold"
+                      :value="playerRegHeaderTeam.editionName || '-'"
+                      readonly
+                      disabled
+                    />
+                  </div>
+
+                  <div class="col-md-3">
+                    <label class="form-label text-secondary small fw-semibold mb-1">
+                      Categorías Permitidas <span class="badge bg-secondary-subtle text-secondary ms-1 fw-normal font-monospace" style="font-size: 0.68rem;">Bloqueado</span>
+                    </label>
+                    <input
+                      type="text"
+                      class="form-control bg-body-secondary text-secondary cursor-not-allowed font-monospace"
+                      :value="playerRegCategoriesArray.map((c) => c.categoryName).join(', ') || '-'"
+                      readonly
+                      disabled
+                    />
+                  </div>
+                </div>
+              </div>
+
+              <!-- NIVEL 2: DETALLE DE CATEGORÍAS PERMITIDAS DEL EQUIPO -->
+              <div class="card p-3 rounded-4 border border-secondary-subtle bg-dark-subtle shadow-sm">
+                <div class="d-flex align-items-center justify-content-between mb-3 flex-wrap gap-2">
+                  <div class="d-flex align-items-center gap-2">
+                    <iconify-icon icon="solar:medal-star-bold-duotone" class="fs-3 text-primary"></iconify-icon>
+                    <div>
+                      <h5 class="fw-bold mb-0 text-body-emphasis">
+                        2. Categorías Habilitadas del Equipo <span class="fs-6 fw-normal text-secondary">(Plantilla y Carnets por Categoría)</span>
+                      </h5>
+                      <small class="text-secondary">
+                        Expande cada categoría en la que participa <strong>{{ playerRegHeaderTeam.name }}</strong> para agregar o configurar el array de jugadores.
+                      </small>
+                    </div>
+                  </div>
+                </div>
+
+                <div class="table-responsive">
+                  <table class="table table-hover table-sm align-middle mb-0 app-table app-table-framed">
+                    <thead class="table-primary fs-2">
+                      <tr>
+                        <th style="width: 70px;" class="text-center fw-semibold">#</th>
+                        <th style="min-width: 240px;" class="fw-semibold">Categoría Permitida</th>
+                        <th style="min-width: 140px;" class="text-center fw-semibold">Género</th>
+                        <th style="min-width: 160px;" class="text-center fw-semibold">Cupo Máx. Jugadores</th>
+                        <th style="min-width: 220px;" class="fw-semibold">Clasificaciones Reglamentarias</th>
+                        <th style="min-width: 170px;" class="text-center fw-semibold">Plantilla de Jugadores</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      <template v-for="(cat, catIdx) in playerRegCategoriesArray" :key="cat.teamRegistrationId || catIdx">
+                        <!-- Fila Maestra: Categoría del Equipo -->
+                        <tr>
+                          <td class="text-center">
+                            <div class="d-flex align-items-center justify-content-center gap-2">
+                              <span class="fw-bold font-monospace text-secondary fs-3">{{ catIdx + 1 }}</span>
+                              <button
+                                type="button"
+                                class="btn btn-sm btn-link p-0 text-decoration-none d-inline-flex align-items-center justify-content-center text-body-emphasis"
+                                @click="togglePlayerRegCategoryRow(catIdx)"
+                                :title="isPlayerRegCategoryExpanded(catIdx) ? 'Colapsar plantilla de la categoría' : 'Expandir plantilla de la categoría'"
+                              >
+                                <iconify-icon
+                                  :icon="isPlayerRegCategoryExpanded(catIdx) ? 'solar:alt-arrow-up-linear' : 'solar:alt-arrow-down-linear'"
+                                  class="fs-5 fw-bold"
+                                ></iconify-icon>
+                              </button>
+                            </div>
+                          </td>
+
+                          <td>
+                            <div class="d-flex align-items-center gap-2">
+                              <div class="p-2 rounded-2 bg-primary-subtle text-primary d-flex align-items-center justify-content-center flex-shrink-0" style="width: 36px; height: 36px;">
+                                <iconify-icon icon="solar:cup-bold" class="fs-4"></iconify-icon>
+                              </div>
+                              <div>
+                                <span class="fw-bold text-body-emphasis d-block">{{ cat.categoryName }}</span>
+                                <span v-if="cat.categoryAcronyms" class="badge bg-primary-subtle text-primary border border-primary-subtle font-monospace px-1.5 py-0 fs-1">
+                                  {{ cat.categoryAcronyms }}
+                                </span>
+                              </div>
+                            </div>
+                          </td>
+
+                          <td class="text-center">
+                            <span
+                              class="badge font-monospace px-2 py-1"
+                              :class="cat.gender === 'FEMALE' ? 'bg-danger-subtle text-danger border border-danger-subtle' : cat.gender === 'MIXED' ? 'bg-warning-subtle text-warning border border-warning-subtle' : 'bg-info-subtle text-info border border-info-subtle'"
+                            >
+                              {{ cat.gender === 'FEMALE' ? 'Mujeres (Femenino)' : cat.gender === 'MIXED' ? 'Mixto' : 'Varones (Masculino)' }}
+                            </span>
+                          </td>
+
+                          <td class="text-center">
+                            <span class="badge bg-secondary-subtle text-secondary font-monospace px-2 py-1">
+                              👥 {{ getValidPlayersCountInCat(cat) }} / {{ cat.maxPlayers || 25 }} jug.
+                            </span>
+                          </td>
+
+                          <td>
+                            <div v-if="cat.allowedClassifications && cat.allowedClassifications.length > 0" class="d-flex flex-wrap gap-1">
+                              <span
+                                v-for="cl in cat.allowedClassifications"
+                                :key="cl.playerClassificationId"
+                                class="badge bg-info-subtle text-info border border-info-subtle font-monospace px-2 py-0.5 fs-1"
+                              >
+                                {{ cl.description }}: {{ getClassificationUsedCount(cat, cl.playerClassificationId) }}/{{ cl.maxPlayers }}
+                              </span>
+                            </div>
+                            <span v-else class="text-muted small">Libre (Hasta {{ cat.maxPlayers || 25 }} cupos)</span>
+                          </td>
+
+                          <td class="text-center">
+                            <button
+                              type="button"
+                              class="btn btn-sm rounded-pill px-3 py-1 d-inline-flex align-items-center gap-1 border"
+                              :class="cat.players.length > 0 ? 'bg-primary-subtle text-primary border-primary-subtle' : 'bg-secondary-subtle text-secondary border-secondary-subtle'"
+                              @click="togglePlayerRegCategoryRow(catIdx)"
+                            >
+                              <iconify-icon icon="solar:users-group-two-rounded-bold-duotone" class="fs-6"></iconify-icon>
+                              <span class="small fw-semibold">{{ getValidPlayersCountInCat(cat) }} Jugador(es)</span>
+                              <iconify-icon :icon="isPlayerRegCategoryExpanded(catIdx) ? 'solar:alt-arrow-up-linear' : 'solar:alt-arrow-down-linear'" class="fs-6 ms-1"></iconify-icon>
+                            </button>
+                          </td>
+                        </tr>
+
+                        <!-- NIVEL 3: SUB-TARJETA EXPANDIBLE CON EL ARRAY DE JUGADORES DE ESTA CATEGORÍA -->
+                        <tr v-if="isPlayerRegCategoryExpanded(catIdx)" class="bg-transparent">
+                          <td colspan="6" class="p-3 bg-transparent">
+                            <div class="card rounded-4 border border-primary-subtle bg-body p-3 shadow-xs">
+                              <div class="d-flex align-items-center justify-content-between mb-3 flex-wrap gap-2">
+                                <div class="d-flex align-items-center gap-2">
+                                  <iconify-icon icon="solar:card-2-bold-duotone" class="fs-4 text-primary"></iconify-icon>
+                                  <span class="fw-bold text-body-emphasis fs-6">
+                                    Plantilla de Jugadores · {{ playerRegHeaderTeam.name }} ({{ cat.categoryName }})
+                                  </span>
+                                  <span class="badge bg-primary-subtle text-primary border border-primary-subtle rounded-pill px-2.5 py-1 fs-1 fw-semibold">
+                                    {{ getValidPlayersCountInCat(cat) }} / {{ cat.maxPlayers || 25 }} inscritos
+                                  </span>
+                                </div>
+
+                                <button
+                                  type="button"
+                                  class="btn btn-sm btn-link text-secondary p-0 text-decoration-none d-flex align-items-center"
+                                  @click="togglePlayerRegCategoryRow(catIdx)"
+                                  title="Colapsar Plantilla"
+                                >
+                                  <iconify-icon icon="solar:alt-arrow-up-linear" class="fs-4 fw-bold"></iconify-icon>
+                                </button>
+                              </div>
+
+                              <!-- Sub-Tabla del Array de Jugadores de la Categoría -->
+                              <div class="table-responsive">
+                                <table class="table table-sm table-hover align-middle mb-0 app-table app-table-framed">
+                                  <thead class="table-primary fs-2">
+                                    <tr>
+                                      <th style="width: 55px;" class="text-center fw-semibold">N°</th>
+                                      <th style="min-width: 280px; width: 34%;" class="fw-semibold">Jugador / Futbolista *</th>
+                                      <th style="min-width: 155px; width: 16%;" class="fw-semibold">Código de Carnet</th>
+                                      <th style="min-width: 210px; width: 22%;" class="fw-semibold">Clasificación *</th>
+                                      <th style="min-width: 110px; width: 11%;" class="text-center fw-semibold">Dorsal # *</th>
+                                      <th style="min-width: 100px; width: 9%;" class="text-center fw-semibold">Capitán</th>
+                                      <th style="width: 80px;" class="text-center fw-semibold">Acciones</th>
+                                    </tr>
+                                  </thead>
+                                  <tbody>
+                                    <tr v-if="cat.players.length === 0">
+                                      <td colspan="7" class="text-center py-5 text-muted">
+                                        <iconify-icon icon="solar:box-minimalistic-bold-duotone" class="d-block mx-auto mb-2 text-secondary opacity-50" style="font-size: 3.2rem;"></iconify-icon>
+                                        <div class="fw-bold text-body-emphasis fs-5">Sin jugadores</div>
+                                        <div class="small text-secondary mt-1">Aún no se han agregado jugadores en la categoría <strong>{{ cat.categoryName }}</strong></div>
+                                      </td>
+                                    </tr>
+                                    <tr v-for="(pl, pIdx) in cat.players" :key="pl._uid || pIdx">
+                                      <td class="text-center fw-bold font-monospace text-secondary fs-2">
+                                        {{ (catIdx + 1) + '.' + (pIdx + 1) }}
+                                      </td>
+
+                                      <!-- Jugador (AppSelect2 directo en el array) -->
+                                      <td>
+                                        <div class="d-flex align-items-center gap-2">
+                                          <img
+                                            v-if="pl.photo"
+                                            :src="pl.photo"
+                                            class="rounded-circle shadow-xs border border-info-subtle flex-shrink-0"
+                                            style="width: 30px; height: 30px; object-fit: cover;"
+                                          />
+                                          <div
+                                            v-else
+                                            class="rounded-circle bg-secondary-subtle text-secondary d-flex align-items-center justify-content-center flex-shrink-0"
+                                            style="width: 30px; height: 30px;"
+                                          >
+                                            <iconify-icon icon="solar:user-bold-duotone" class="fs-5 text-info"></iconify-icon>
+                                          </div>
+                                          <div class="flex-grow-1">
+                                            <AppSelect2
+                                              v-model="pl.playerId"
+                                              :options="getAvailablePlayersOptionsForCategoryRow(cat, pl.playerId)"
+                                              direction="down"
+                                              placeholder="Seleccionar futbolista..."
+                                              search-placeholder="Buscar por nombre, apellido o cédula..."
+                                              @update:modelValue="onPlayerRowSelectChange(cat, pl, $event)"
+                                            />
+                                          </div>
+                                        </div>
+                                      </td>
+
+                                      <!-- Código de Carnet (Viene de la ficha del jugador y está bloqueado) -->
+                                      <td>
+                                        <input
+                                          type="text"
+                                          :value="pl.carnetCode"
+                                          class="form-control form-control-sm font-monospace bg-body-secondary text-secondary cursor-not-allowed"
+                                          placeholder="Automático (Ficha)"
+                                          readonly
+                                          disabled
+                                          title="Código de carnet generado automáticamente en la ficha del jugador (Bloqueado)"
+                                        />
+                                      </td>
+
+                                      <!-- Clasificación de Futbolista -->
+                                      <td>
+                                        <select
+                                          v-model="pl.playerClassificationId"
+                                          class="form-select form-select-sm"
+                                        >
+                                          <option value="">-- Seleccionar --</option>
+                                          <option
+                                            v-for="clOpt in getClassificationsOptionsForCatRow(cat, pl.playerClassificationId)"
+                                            :key="clOpt.value"
+                                            :value="clOpt.value"
+                                            :disabled="clOpt.disabled"
+                                          >
+                                            {{ clOpt.label }}
+                                          </option>
+                                        </select>
+                                      </td>
+
+                                      <!-- Dorsal / Camiseta -->
+                                      <td>
+                                        <input
+                                          type="number"
+                                          v-model.number="pl.jerseyNumber"
+                                          class="form-control form-control-sm text-center font-monospace fw-bold"
+                                          min="1"
+                                          max="999"
+                                          placeholder="Ej. 10"
+                                        />
+                                      </td>
+
+                                      <!-- Capitán -->
+                                      <td class="text-center">
+                                        <div class="form-check form-switch d-inline-flex align-items-center justify-content-center mb-0">
+                                          <input
+                                            class="form-check-input cursor-pointer"
+                                            type="checkbox"
+                                            v-model="pl.isCaptain"
+                                            @change="onPlayerRowCaptainChange(cat, pl)"
+                                            :title="pl.isCaptain ? 'Capitán de esta categoría' : 'Marcar como capitán'"
+                                          />
+                                        </div>
+                                      </td>
+
+                                      <!-- Acciones: Ver Carnet QR + Quitar Fila -->
+                                      <td class="text-center">
+                                        <div class="d-inline-flex align-items-center gap-1">
+                                          <button
+                                            v-if="pl.playerId"
+                                            type="button"
+                                            class="btn btn-sm btn-outline-info d-inline-flex align-items-center justify-content-center rounded-2 p-1"
+                                            style="width: 28px; height: 28px;"
+                                            @click="openCarnetFromPlayerRow(cat, pl)"
+                                            title="Ver Carnet Deportivo (QR)"
+                                          >
+                                            <iconify-icon icon="solar:card-2-bold-duotone" class="fs-6"></iconify-icon>
+                                          </button>
+                                          <button
+                                            type="button"
+                                            class="btn btn-sm btn-outline-danger d-inline-flex align-items-center justify-content-center rounded-2 p-1"
+                                            style="width: 28px; height: 28px;"
+                                            @click="removePlayerRowFromCategory(cat, pIdx)"
+                                            title="Quitar fila"
+                                          >
+                                            <iconify-icon icon="solar:trash-bin-trash-bold" class="fs-6"></iconify-icon>
+                                          </button>
+                                        </div>
+                                      </td>
+                                    </tr>
+                                  </tbody>
+                                </table>
+                              </div>
+
+                              <!-- Pie de la tabla con botón "+ Agregar fila" -->
+                              <div class="d-flex align-items-center justify-content-between flex-wrap gap-2 mt-3">
+                                <button
+                                  type="button"
+                                  class="btn btn-sm btn-outline-primary rounded-pill px-3 py-1.5 d-inline-flex align-items-center gap-1 fw-semibold shadow-xs"
+                                  :disabled="cat.players.length >= (cat.maxPlayers || 25)"
+                                  @click="addEmptyPlayerRowToCategory(cat)"
+                                >
+                                  <iconify-icon icon="solar:add-circle-line-duotone" class="fs-5"></iconify-icon>
+                                  <span>+ Agregar fila</span>
+                                </button>
+                                <small v-if="cat.players.length >= (cat.maxPlayers || 25)" class="text-warning fw-semibold">
+                                  Cupo máximo alcanzado ({{ cat.maxPlayers || 25 }} jugadores).
+                                </small>
+                              </div>
+                            </div>
+                          </td>
+                        </tr>
+                      </template>
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </div>
+
+            <div
+              v-if="activeTab !== 'schedules' && activeTab !== 'teamRegistrations' && activeTab !== 'playerRegistrations' && (activeTab !== 'players' || isEditing || globalPlayerSearched)"
+              class="row g-4"
+            >
               <div v-for="field in formFields" :key="field.key" :class="field.colClass || 'col-md-6'">
                 <label class="form-label text-secondary small fw-semibold">
                   {{ field.label }}
@@ -3786,119 +4212,153 @@
     <!-- ========================================== -->
     <!-- MODAL: VISOR DE CARNET DEPORTIVO (QR)      -->
     <!-- ========================================== -->
-    <div v-if="showCarnetModal && selectedCarnet" class="modal fade show d-block" tabindex="-1" style="background: rgba(0, 0, 0, 0.7); z-index: 1055;">
-      <div class="modal-dialog modal-md modal-dialog-centered">
-        <div class="modal-content border-0 shadow app-modal">
-          <div class="modal-header bg-dark text-white app-modal-header">
-            <h5 class="modal-title fw-bold text-white d-flex align-items-center gap-2 app-modal-title">
-              <iconify-icon icon="solar:card-2-bold-duotone" class="fs-4 text-warning"></iconify-icon>
-              <span>Credencial Deportiva Oficial</span>
-            </h5>
-            <button type="button" class="btn-close btn-close-white" @click="showCarnetModal = false"></button>
-          </div>
-          <div class="modal-body p-4 text-center app-modal-body">
-            <!-- Credencial Estilo PVC de Cancha -->
-            <div
-              id="printableCarnet"
-              class="card shadow-sm border-2 border-primary mx-auto position-relative overflow-hidden"
-              style="max-width: 380px; border-radius: 1.25rem; background: linear-gradient(145deg, #ffffff 0%, #f0f4f8 100%); text-align: left;"
-            >
-              <!-- Cabecera de la credencial -->
-              <div class="bg-primary text-white p-3 text-center">
-                <span class="badge bg-white text-primary fw-bold font-monospace mb-1">LIGA & TORNEO DEPORTIVO</span>
-                <h6 class="fw-bold mb-0 text-white text-uppercase tracking-wide">CARNET DE JUGADOR</h6>
+    <Teleport to="body">
+      <div
+        v-if="showCarnetModal && selectedCarnet"
+        class="modal fade show d-block"
+        tabindex="-1"
+        style="background: rgba(0, 0, 0, 0.75); z-index: 2050; backdrop-filter: blur(4px);"
+        role="dialog"
+        aria-modal="true"
+        @click.self="showCarnetModal = false"
+      >
+        <div class="modal-dialog modal-md modal-dialog-centered">
+          <div class="modal-content bg-navy-card border border-secondary-subtle rounded-4 shadow-lg overflow-hidden">
+            <div class="modal-header border-bottom border-secondary-subtle px-4 py-3 d-flex justify-content-between align-items-center">
+              <div class="d-flex align-items-center gap-3">
+                <span class="p-2 rounded-3 bg-warning-subtle text-warning d-flex align-items-center justify-content-center" style="width: 44px; height: 44px;">
+                  <iconify-icon icon="solar:card-2-bold-duotone" class="fs-3"></iconify-icon>
+                </span>
+                <div>
+                  <h5 class="modal-title fw-bold text-body-emphasis mb-0">
+                    Credencial Deportiva Oficial
+                  </h5>
+                  <small class="text-secondary font-monospace">
+                    Carnet: {{ selectedCarnet.carnetCode || selectedCarnet.player?.code || selectedCarnet.carnetNumber }}
+                  </small>
+                </div>
               </div>
-
-              <div class="p-3">
-                <div class="row align-items-center g-3">
-                  <!-- Foto del Jugador -->
-                  <div class="col-4 text-center">
-                    <img
-                      v-if="selectedCarnet.photo || selectedCarnet.player?.photo"
-                      :src="selectedCarnet.photo || selectedCarnet.player?.photo"
-                      class="rounded-3 border border-2 border-primary shadow-sm"
-                      style="width: 90px; height: 110px; object-fit: cover;"
-                    />
-                    <div
-                      v-else
-                      class="rounded-3 border border-2 border-secondary bg-light d-flex align-items-center justify-content-center mx-auto"
-                      style="width: 90px; height: 110px;"
-                    >
-                      <iconify-icon icon="solar:user-bold" class="fs-1 text-secondary"></iconify-icon>
-                    </div>
-                    <span class="badge bg-dark text-white font-monospace mt-2 d-block">
-                      DORSAL #{{ selectedCarnet.dorsalNumber || selectedCarnet.player?.jerseyNumber || 'S/N' }}
-                    </span>
-                  </div>
-
-                  <!-- Datos del Jugador -->
-                  <div class="col-8">
-                    <h5 class="fw-bold mb-1 text-dark">
-                      {{ selectedCarnet.player?.name || 'Nombre' }} {{ selectedCarnet.player?.lastName || '' }}
-                    </h5>
-                    <p class="mb-1 text-muted small font-monospace">
-                      Doc: <strong>{{ selectedCarnet.player?.identification || 'Sin Cédula' }}</strong>
-                    </p>
-                    <div class="mb-1 d-flex align-items-center gap-1">
-                      <img
-                        v-if="selectedCarnet.team?.logo || selectedCarnet.teamLogo"
-                        :src="selectedCarnet.team?.logo || selectedCarnet.teamLogo"
-                        class="rounded-circle shadow-sm border"
-                        style="width: 20px; height: 20px; object-fit: cover;"
-                      />
-                      <span class="badge bg-primary-subtle text-primary border border-primary-subtle fs-2">
-                        Club: {{ selectedCarnet.team?.name || selectedCarnet.teamName || 'Equipo' }}
-                      </span>
-                    </div>
-                    <div class="mb-1">
-                      <span class="badge bg-info-subtle text-info border border-info-subtle fs-1">
-                        Posición: {{ selectedCarnet.player?.demarcation?.name || 'Deportista' }}
-                      </span>
-                    </div>
-                    <div>
-                      <span
-                        class="badge"
-                        :class="selectedCarnet.status === 'APPROVED' || selectedCarnet.status === 'ACTIVE' || selectedCarnet.isActive ? 'bg-success text-white' : 'bg-warning text-dark'"
-                      >
-                        ● HABILITADO PARA CANCHA
-                      </span>
-                    </div>
-                  </div>
+              <button
+                type="button"
+                class="btn btn-sm btn-outline-secondary rounded-pill px-3 py-1 d-inline-flex align-items-center gap-1"
+                @click="showCarnetModal = false"
+              >
+                <iconify-icon icon="solar:close-circle-line-duotone" class="fs-5"></iconify-icon>
+                <span>Cerrar</span>
+              </button>
+            </div>
+            <div class="modal-body p-4 text-center">
+              <!-- Credencial Estilo PVC de Cancha -->
+              <div
+                id="printableCarnet"
+                class="card shadow-sm border-2 border-primary mx-auto position-relative overflow-hidden"
+                style="max-width: 380px; border-radius: 1.25rem; background: linear-gradient(145deg, #ffffff 0%, #f0f4f8 100%); text-align: left;"
+              >
+                <!-- Cabecera de la credencial -->
+                <div class="bg-primary text-white p-3 text-center">
+                  <span class="badge bg-white text-primary fw-bold font-monospace mb-1">LIGA & TORNEO DEPORTIVO</span>
+                  <h6 class="fw-bold mb-0 text-white text-uppercase tracking-wide">CARNET DE JUGADOR</h6>
                 </div>
 
-                <!-- Código QR de Validación en Cancha -->
-                <div class="border-top border-2 border-dark-subtle mt-3 pt-3 text-center">
-                  <div class="d-flex align-items-center justify-content-center gap-3">
-                    <img
-                      :src="`https://api.qrserver.com/v1/create-qr-code/?size=90x90&data=${encodeURIComponent('JUGADOR:' + (selectedCarnet.player?.identification || selectedCarnet.id) + '|CLUB:' + (selectedCarnet.team?.name || ''))}`"
-                      alt="QR Carnet"
-                      style="width: 80px; height: 80px;"
-                      class="border rounded p-1 bg-white"
-                    />
-                    <div class="text-start">
-                      <small class="d-block text-muted font-monospace fs-1">CÓDIGO DE VALIDACIÓN</small>
-                      <small class="fw-bold font-monospace text-dark">{{ selectedCarnet.carnetNumber || String(selectedCarnet.id ?? '').padStart(8, '0') }}</small>
-                      <small class="d-block text-muted fs-1 mt-1">Escanee para verificar habilitación en mesa</small>
+                <div class="p-3">
+                  <div class="row align-items-center g-3">
+                    <!-- Foto del Jugador -->
+                    <div class="col-4 text-center">
+                      <img
+                        v-if="selectedCarnet.photo || selectedCarnet.player?.photo"
+                        :src="selectedCarnet.photo || selectedCarnet.player?.photo"
+                        class="rounded-3 border border-2 border-primary shadow-sm"
+                        style="width: 90px; height: 110px; object-fit: cover;"
+                      />
+                      <div
+                        v-else
+                        class="rounded-3 border border-2 border-secondary bg-light d-flex align-items-center justify-content-center mx-auto"
+                        style="width: 90px; height: 110px;"
+                      >
+                        <iconify-icon icon="solar:user-bold" class="fs-1 text-secondary"></iconify-icon>
+                      </div>
+                      <span class="badge bg-dark text-white font-monospace mt-2 d-block">
+                        DORSAL #{{ selectedCarnet.dorsalNumber || selectedCarnet.player?.jerseyNumber || 'S/N' }}
+                      </span>
+                    </div>
+
+                    <!-- Datos del Jugador -->
+                    <div class="col-8">
+                      <h5 class="fw-bold mb-1 text-dark">
+                        {{ selectedCarnet.player?.name || 'Nombre' }} {{ selectedCarnet.player?.lastName || '' }}
+                      </h5>
+                      <p class="mb-1 text-muted small font-monospace">
+                        Doc: <strong>{{ selectedCarnet.player?.identification || 'Sin Cédula' }}</strong>
+                      </p>
+                      <div class="mb-1 d-flex align-items-center gap-1">
+                        <img
+                          v-if="selectedCarnet.team?.logo || selectedCarnet.teamLogo"
+                          :src="selectedCarnet.team?.logo || selectedCarnet.teamLogo"
+                          class="rounded-circle shadow-sm border"
+                          style="width: 20px; height: 20px; object-fit: cover;"
+                        />
+                        <span class="badge bg-primary-subtle text-primary border border-primary-subtle fs-2">
+                          Club: {{ selectedCarnet.team?.name || selectedCarnet.teamName || 'Equipo' }}
+                        </span>
+                      </div>
+                      <div class="mb-1">
+                        <span class="badge bg-info-subtle text-info border border-info-subtle fs-1">
+                          Posición: {{ selectedCarnet.player?.demarcation?.name || 'Deportista' }}
+                        </span>
+                      </div>
+                      <div>
+                        <span
+                          class="badge"
+                          :class="selectedCarnet.status === 'ELIGIBLE' || selectedCarnet.status === 'APPROVED' || selectedCarnet.status === 'ACTIVE' || selectedCarnet.isActive ? 'bg-success text-white' : 'bg-warning text-dark'"
+                        >
+                          ● HABILITADO PARA CANCHA
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+
+                  <!-- Código QR de Validación en Cancha -->
+                  <div class="border-top border-2 border-dark-subtle mt-3 pt-3 text-center">
+                    <div class="d-flex align-items-center justify-content-center gap-3">
+                      <img
+                        :src="`https://api.qrserver.com/v1/create-qr-code/?size=90x90&data=${encodeURIComponent('JUGADOR:' + (selectedCarnet.player?.identification || selectedCarnet.id) + '|CARNET:' + (selectedCarnet.carnetCode || selectedCarnet.player?.code || selectedCarnet.carnetNumber) + '|CLUB:' + (selectedCarnet.team?.name || ''))}`"
+                        alt="QR Carnet"
+                        style="width: 80px; height: 80px;"
+                        class="border rounded p-1 bg-white"
+                      />
+                      <div class="text-start">
+                        <small class="d-block text-muted font-monospace fs-1">CÓDIGO DE CARNET</small>
+                        <small class="fw-bold font-monospace text-dark">{{ selectedCarnet.carnetCode || selectedCarnet.player?.code || selectedCarnet.carnetNumber || String(selectedCarnet.id ?? '').padStart(8, '0') }}</small>
+                        <small class="d-block text-muted fs-1 mt-1">Escanee para verificar habilitación en mesa</small>
+                      </div>
                     </div>
                   </div>
                 </div>
               </div>
             </div>
-
-            
-          </div>
-          <div class="modal-footer bg-light app-modal-footer">
-            <button type="button" class="btn btn-outline-secondary rounded-pill px-4" @click="showCarnetModal = false">
-              Cerrar
-            </button>
-            <button type="button" class="btn btn-primary rounded-pill px-4 fw-semibold d-flex align-items-center gap-2" @click="printCarnet">
-              <iconify-icon icon="solar:printer-line-duotone" class="fs-5"></iconify-icon>
-              <span>Imprimir Credencial</span>
-            </button>
+            <div class="modal-footer border-top border-secondary-subtle px-4 py-3 d-flex justify-content-end gap-2">
+              <button
+                type="button"
+                class="btn btn-outline-secondary rounded-pill px-4"
+                style="height: 38px;"
+                @click="showCarnetModal = false"
+              >
+                Cerrar
+              </button>
+              <button
+                type="button"
+                class="btn btn-primary rounded-pill px-4 fw-semibold d-inline-flex align-items-center gap-2 shadow-sm"
+                style="height: 38px;"
+                @click="printCarnet"
+              >
+                <iconify-icon icon="solar:printer-line-duotone" class="fs-5"></iconify-icon>
+                <span>Imprimir Credencial</span>
+              </button>
+            </div>
           </div>
         </div>
       </div>
-    </div>
+    </Teleport>
 
     <!-- ========================================================= -->
     <!-- 5. MODAL: HISTORIAL DE CATEGORÍAS DEL EQUIPO             -->
@@ -5537,36 +5997,21 @@ const tabs: TabConfig[] = [
     id: 'playerRegistrations',
     label: 'Inscripción y Carnets',
     icon: 'solar:card-2-bold-duotone',
-    api: CampeonatoApi.playerRegistrations,
+    api: {
+      ...CampeonatoApi.playerRegistrations,
+      list: (params: any) =>
+        CampeonatoApi.playerRegistrations.listGrouped({
+          ...params,
+          categoryEditionId: filterPlayerRegEditionId.value !== 'todos' ? Number(filterPlayerRegEditionId.value) : undefined,
+        }),
+    },
     columns: [
-      { key: 'carnetCode', label: 'Carnet #' },
-      { key: 'player.name', label: 'Jugador' },
-      { key: 'teamRegistration.team.name', label: 'Equipo' },
-      { key: 'playerClassification.description', label: 'Clasificación' },
-      { key: 'jerseyNumber', label: 'Dorsal' },
-      { key: 'isCaptain', label: 'Capitán', type: 'boolean' },
-      { key: 'status', label: 'Estado Carnet' },
+      { key: 'team.name', label: 'Equipo / Club' },
+      { key: 'categoryEdition.name', label: 'Edición Torneo' },
+      { key: 'categoriesSummary', label: 'Categorías Permitidas' },
+      { key: 'playersCount', label: 'Jugadores Inscritos' },
     ],
-    fields: [
-      { key: 'teamRegistrationId', label: 'Inscripción de Equipo (Torneo)', type: 'select', colClass: 'col-md-6', options: [] },
-      { key: 'playerId', label: 'Jugador', type: 'select', colClass: 'col-md-6', options: [] },
-      { key: 'playerClassificationId', label: 'Clasificación de Futbolista', type: 'select', colClass: 'col-md-6', options: [] },
-      { key: 'jerseyNumber', label: 'Número de Dorsal / Camiseta', type: 'number', colClass: 'col-md-3' },
-      { key: 'carnetCode', label: 'Código de Carnet', type: 'text', colClass: 'col-md-3' },
-      {
-        key: 'status',
-        label: 'Estado de Habilitación',
-        type: 'select',
-        options: [
-          { label: 'Habilitado / Elegible', value: 'ELIGIBLE' },
-          { label: 'No Elegible', value: 'INELIGIBLE' },
-          { label: 'Suspendido', value: 'SUSPENDED' },
-          { label: 'Transferido', value: 'TRANSFERRED' },
-        ],
-        colClass: 'col-md-6',
-      },
-      { key: 'isCaptain', label: 'Es Capitán del Equipo', type: 'boolean', colClass: 'col-md-6' },
-    ],
+    fields: [],
   },
   {
     id: 'demarcations',
@@ -6423,6 +6868,8 @@ const filterCategoryGender = ref<'todos' | 'MALE' | 'FEMALE' | 'MIXED'>('todos')
 const filterEditionStatus = ref<'todos' | 'IN_PROGRESS' | 'FINISHED'>('todos');
 const filterTeamRegStatus = ref<'todos' | 'APPROVED' | 'PENDING' | 'REJECTED' | 'DISQUALIFIED'>('todos');
 const filterTeamRegPayment = ref<'todos' | 'PAID' | 'PARTIAL' | 'UNPAID' | 'REFUNDED'>('todos');
+const filterPlayerRegEditionId = ref<string>('todos');
+const filterPlayerRegStatus = ref<'todos' | 'ELIGIBLE' | 'PENDING_APPROVAL' | 'INELIGIBLE' | 'SUSPENDED' | 'TRANSFERRED'>('todos');
 
 const displayedItems = computed(() => {
   if (activeTab.value === 'teams') {
@@ -6449,6 +6896,16 @@ const displayedItems = computed(() => {
     return items.value.filter((item) => {
       const currentStatus = item.status || 'IN_PROGRESS';
       if (filterEditionStatus.value !== 'todos' && currentStatus !== filterEditionStatus.value) return false;
+      return true;
+    });
+  }
+  if (activeTab.value === 'playerRegistrations') {
+    return items.value.filter((item) => {
+      if (filterPlayerRegStatus.value !== 'todos') {
+        const st = item.status || 'ELIGIBLE';
+        if (filterPlayerRegStatus.value === 'TRANSFERRED' && (st === 'TRANSFERRED' || st === 'FINALIZED_BY_TRANSFER')) return true;
+        if (st !== filterPlayerRegStatus.value) return false;
+      }
       return true;
     });
   }
@@ -8232,18 +8689,274 @@ const allAssignedTeamIdsInTeamRegEdition = computed(() => {
   return used;
 });
 
-const getAvailableTeamsOptionsForRow = (currentTeamId?: number | string) => {
-  const used = allAssignedTeamIdsInTeamRegEdition.value;
+const getAvailableTeamsOptionsForCategoryRow = (cat: TeamRegCategoryEntry, currentTeamId?: number | string) => {
+  const usedInThisCat = new Set<string>();
+  for (const tm of cat.teams || []) {
+    if (tm.teamId) usedInThisCat.add(String(tm.teamId));
+  }
   return teamsList.value
     .filter((t: any) => {
       if (currentTeamId && String(t.id) === String(currentTeamId)) return true;
-      return t.isActive !== false && !used.has(String(t.id));
+      return t.isActive !== false && !usedInThisCat.has(String(t.id));
     })
     .map((t: any) => ({
       value: t.id,
       label: t.name,
       sublabel: [t.acronyms ? `[${t.acronyms}]` : '', t.shortName || '', t.city || ''].filter(Boolean).join(' · ') || undefined,
     }));
+};
+
+// =========================================================================
+// INSCRIPCIÓN Y CARNETS (3 NIVELES: CABECERA EQUIPO -> CATEGORÍAS -> JUGADORES)
+// =========================================================================
+interface PlayerRegRowEntry {
+  _uid: string;
+  id?: number;
+  teamRegistrationId: number;
+  playerId: number | string;
+  playerName: string;
+  identification: string;
+  photo: string;
+  carnetCode: string;
+  playerClassificationId: number | string;
+  jerseyNumber: number | null;
+  isCaptain: boolean;
+  status: string;
+}
+
+interface PlayerRegAllowedClassification {
+  playerClassificationId: number;
+  description: string;
+  code: string;
+  maxPlayers: number;
+}
+
+interface PlayerRegCategoryEntry {
+  _uid: string;
+  teamRegistrationId: number;
+  categoryId: number;
+  categoryName: string;
+  categoryAcronyms: string;
+  gender: string;
+  maxPlayers: number;
+  allowedClassifications: PlayerRegAllowedClassification[];
+  players: PlayerRegRowEntry[];
+}
+
+const playerRegHeaderTeam = ref<{
+  categoryEditionId: number | string;
+  editionName: string;
+  teamId: number | string;
+  name: string;
+  shortName: string;
+  acronyms: string;
+  logo: string;
+}>({
+  categoryEditionId: '',
+  editionName: '',
+  teamId: '',
+  name: '',
+  shortName: '',
+  acronyms: '',
+  logo: '',
+});
+
+const playerRegCategoriesArray = ref<PlayerRegCategoryEntry[]>([]);
+const expandedPlayerRegCategories = ref<Set<number>>(new Set());
+
+const totalPlayersInTeamRosterForm = computed(() => {
+  return playerRegCategoriesArray.value.reduce(
+    (acc, cat) => acc + (cat.players?.filter((p) => Boolean(p.playerId)).length || 0),
+    0,
+  );
+});
+
+const getValidPlayersCountInCat = (cat: PlayerRegCategoryEntry): number => {
+  return (cat.players || []).filter((p) => Boolean(p.playerId)).length;
+};
+
+const getClassificationUsedCount = (cat: PlayerRegCategoryEntry, classId: number | string): number => {
+  return (cat.players || []).filter(
+    (p) => Boolean(p.playerId) && String(p.playerClassificationId) === String(classId),
+  ).length;
+};
+
+const togglePlayerRegCategoryRow = (idx: number) => {
+  if (expandedPlayerRegCategories.value.has(idx)) {
+    expandedPlayerRegCategories.value.delete(idx);
+  } else {
+    expandedPlayerRegCategories.value.add(idx);
+  }
+};
+
+const isPlayerRegCategoryExpanded = (idx: number): boolean => {
+  return expandedPlayerRegCategories.value.has(idx);
+};
+
+const getAvailablePlayersOptionsForCategoryRow = (
+  cat: PlayerRegCategoryEntry,
+  currentPlayerId?: number | string,
+) => {
+  const usedInCat = new Set<string>();
+  for (const pl of cat.players || []) {
+    if (pl.playerId) usedInCat.add(String(pl.playerId));
+  }
+  return playersList.value
+    .filter((p: any) => {
+      if (currentPlayerId && String(p.id) === String(currentPlayerId)) return true;
+      return p.isActive !== false && !usedInCat.has(String(p.id));
+    })
+    .map((p: any) => {
+      const dem = p.demarcation?.name || demarcationsList.value.find((d) => d.id === p.demarcationId)?.name;
+      return {
+        value: p.id,
+        label: `${p.name} ${p.lastName}`.trim(),
+        sublabel: [
+          p.identification ? `CI: ${p.identification}` : '',
+          p.code ? `[${p.code}]` : '',
+          dem || '',
+        ]
+          .filter(Boolean)
+          .join(' · ') || undefined,
+      };
+    });
+};
+
+const getClassificationsOptionsForCatRow = (
+  cat: PlayerRegCategoryEntry,
+  currentClassId?: number | string,
+) => {
+  if (cat.allowedClassifications && cat.allowedClassifications.length > 0) {
+    return cat.allowedClassifications.map((cl) => {
+      const used = (cat.players || []).filter(
+        (p) =>
+          Boolean(p.playerId) &&
+          String(p.playerClassificationId) === String(cl.playerClassificationId) &&
+          String(cl.playerClassificationId) !== String(currentClassId),
+      ).length;
+      const totalUsed = getClassificationUsedCount(cat, cl.playerClassificationId);
+      const free = Math.max(0, (cl.maxPlayers || 0) - totalUsed);
+      const isFull = cl.maxPlayers > 0 && used >= cl.maxPlayers;
+      return {
+        value: cl.playerClassificationId,
+        label: `${cl.description} (${free} de ${cl.maxPlayers} disp.)`,
+        disabled: isFull,
+      };
+    });
+  }
+  return playerClassificationsList.value.map((pc: any) => ({
+    value: pc.id,
+    label: `${pc.description}${pc.code ? ' (' + pc.code + ')' : ''}`,
+    disabled: false,
+  }));
+};
+
+const onPlayerRowSelectChange = (
+  cat: PlayerRegCategoryEntry,
+  pl: PlayerRegRowEntry,
+  selectedId: string | number,
+) => {
+  const pId = Number(selectedId);
+  if (!pId) {
+    pl.playerId = '';
+    pl.playerName = '';
+    pl.identification = '';
+    pl.photo = '';
+    pl.carnetCode = '';
+    return;
+  }
+  const foundPlayer = playersList.value.find((p: any) => Number(p.id) === pId);
+  if (foundPlayer) {
+    pl.playerId = foundPlayer.id;
+    pl.playerName = `${foundPlayer.name || ''} ${foundPlayer.lastName || ''}`.trim();
+    pl.identification = foundPlayer.identification || '';
+    pl.photo = foundPlayer.photo || '';
+    pl.carnetCode = foundPlayer.code || `JUG-${String(foundPlayer.id).padStart(5, '0')}`;
+    if (!pl.playerClassificationId && foundPlayer.playerClassificationId) {
+      if (
+        !cat.allowedClassifications ||
+        cat.allowedClassifications.length === 0 ||
+        cat.allowedClassifications.some((c) => Number(c.playerClassificationId) === Number(foundPlayer.playerClassificationId))
+      ) {
+        pl.playerClassificationId = foundPlayer.playerClassificationId;
+      }
+    }
+    if (!pl.jerseyNumber) {
+      const usedJerseys = new Set((cat.players || []).map((r) => Number(r.jerseyNumber)).filter(Boolean));
+      let nextJersey = 1;
+      while (usedJerseys.has(nextJersey)) nextJersey++;
+      pl.jerseyNumber = nextJersey;
+    }
+  }
+};
+
+const onPlayerRowCaptainChange = (cat: PlayerRegCategoryEntry, changedPl: PlayerRegRowEntry) => {
+  if (changedPl.isCaptain) {
+    for (const pl of cat.players || []) {
+      if (pl._uid !== changedPl._uid) {
+        pl.isCaptain = false;
+      }
+    }
+  }
+};
+
+const addEmptyPlayerRowToCategory = (cat: PlayerRegCategoryEntry) => {
+  if (cat.players.length >= (cat.maxPlayers || 25)) {
+    toast.warning(`La categoría "${cat.categoryName}" tiene un límite máximo de ${cat.maxPlayers || 25} jugadores.`);
+    return;
+  }
+  const usedJerseys = new Set((cat.players || []).map((r) => Number(r.jerseyNumber)).filter(Boolean));
+  let nextJersey = 1;
+  while (usedJerseys.has(nextJersey)) nextJersey++;
+
+  const defaultClassId =
+    cat.allowedClassifications && cat.allowedClassifications.length > 0
+      ? cat.allowedClassifications[0].playerClassificationId
+      : '';
+
+  cat.players.push({
+    _uid: 'pr_new_' + Date.now() + '_' + Math.random().toString(36).substring(2, 7),
+    teamRegistrationId: cat.teamRegistrationId,
+    playerId: '',
+    playerName: '',
+    identification: '',
+    photo: '',
+    carnetCode: '',
+    playerClassificationId: defaultClassId,
+    jerseyNumber: nextJersey,
+    isCaptain: cat.players.length === 0,
+    status: 'ELIGIBLE',
+  });
+};
+
+const removePlayerRowFromCategory = (cat: PlayerRegCategoryEntry, pIdx: number) => {
+  if (!cat || !Array.isArray(cat.players)) return;
+  const removed = cat.players.splice(pIdx, 1)[0];
+  if (removed && removed.playerName) {
+    toast.info(`${removed.playerName} quitado de ${cat.categoryName}`);
+  }
+};
+
+const openCarnetFromPlayerRow = (cat: PlayerRegCategoryEntry, pl: PlayerRegRowEntry) => {
+  if (!pl.playerId) return;
+  const foundPlayer = playersList.value.find((p: any) => Number(p.id) === Number(pl.playerId));
+  openCarnetModal({
+    id: pl.id || pl.playerId,
+    carnetCode: pl.carnetCode || foundPlayer?.code,
+    jerseyNumber: pl.jerseyNumber,
+    status: pl.status || 'ELIGIBLE',
+    player: foundPlayer || {
+      name: pl.playerName,
+      lastName: '',
+      identification: pl.identification,
+      photo: pl.photo,
+      code: pl.carnetCode,
+    },
+    team: {
+      name: playerRegHeaderTeam.value.name,
+      logo: playerRegHeaderTeam.value.logo,
+    },
+  });
 };
 
 const onTeamRowSelectChange = (tm: TeamRegTeamEntry, selectedId: string | number) => {
@@ -9287,6 +10000,15 @@ const openCreateForm = () => {
       teamRegCategoriesArray.value = [];
       expandedTeamRegCategories.value = new Set();
     }
+  } else if (activeTab.value === 'playerRegistrations') {
+    formData.value = {
+      teamRegistrationId: '',
+      playerId: '',
+      playerClassificationId: '',
+      jerseyNumber: null,
+      carnetCode: '',
+      isCaptain: false,
+    };
   } else if (activeTab.value === 'playerTransfers') {
     formData.value = {
       edition_id: categoryEditionsList.value.length > 0 ? categoryEditionsList.value[0].id : '',
@@ -9333,6 +10055,44 @@ const openEditForm = (item: any) => {
     if (edId) {
       loadEditionCategoriesForTeamReg(edId);
     }
+  }
+  if (activeTab.value === 'playerRegistrations') {
+    playerRegHeaderTeam.value = {
+      categoryEditionId: item.categoryEditionId || item.categoryEdition?.id || '',
+      editionName: item.categoryEdition?.name || '',
+      teamId: item.teamId || item.team?.id || '',
+      name: item.team?.name || '',
+      shortName: item.team?.shortName || '',
+      acronyms: item.team?.acronyms || '',
+      logo: item.team?.logo || '',
+    };
+
+    const incomingCategories = Array.isArray(item.categories) ? item.categories : [];
+    playerRegCategoriesArray.value = incomingCategories.map((cat: any, cIdx: number) => ({
+      _uid: 'prcat_' + (cat.teamRegistrationId || cIdx),
+      teamRegistrationId: Number(cat.teamRegistrationId),
+      categoryId: Number(cat.categoryId),
+      categoryName: cat.categoryName || 'Categoría',
+      categoryAcronyms: cat.categoryAcronyms || '',
+      gender: cat.gender || 'MALE',
+      maxPlayers: Number(cat.maxPlayers) || 25,
+      allowedClassifications: Array.isArray(cat.allowedClassifications) ? cat.allowedClassifications : [],
+      players: (Array.isArray(cat.players) ? cat.players : []).map((pl: any, pIdx: number) => ({
+        _uid: 'pr_' + (pl.id || `${cIdx}_${pIdx}`),
+        id: pl.id,
+        teamRegistrationId: Number(cat.teamRegistrationId),
+        playerId: Number(pl.playerId),
+        playerName: pl.playerName || '',
+        identification: pl.identification || '',
+        photo: pl.photo || '',
+        carnetCode: pl.carnetCode || '',
+        playerClassificationId: pl.playerClassificationId || '',
+        jerseyNumber: Number(pl.jerseyNumber) || null,
+        isCaptain: Boolean(pl.isCaptain),
+        status: pl.status || 'ELIGIBLE',
+      })),
+    }));
+    expandedPlayerRegCategories.value = new Set(playerRegCategoriesArray.value.map((_, i) => i));
   }
   if (activeTab.value === 'categoryEditions') {
     formData.value.status = formData.value.status || 'IN_PROGRESS';
@@ -9739,6 +10499,54 @@ const saveForm = async () => {
       await loadData();
       await loadAuxiliaryTournamentData();
       return;
+    } else if (activeTab.value === 'playerRegistrations') {
+      if (!playerRegHeaderTeam.value.categoryEditionId || !playerRegHeaderTeam.value.teamId) {
+        toast.warning('No se identificó el equipo o la edición del torneo.', 'Validación');
+        saving.value = false;
+        return;
+      }
+      for (const cat of playerRegCategoriesArray.value) {
+        for (let i = 0; i < (cat.players || []).length; i++) {
+          const pl = cat.players[i];
+          if (!pl.playerId) {
+            toast.warning(`Selecciona el jugador en la fila #${i + 1} de la categoría "${cat.categoryName}" o elimina la fila vacía.`, 'Validación');
+            saving.value = false;
+            return;
+          }
+          if (!pl.jerseyNumber || Number(pl.jerseyNumber) <= 0) {
+            toast.warning(`Ingresa un número de dorsal válido en la fila #${i + 1} (${pl.playerName || 'Jugador'}) de la categoría "${cat.categoryName}".`, 'Validación');
+            saving.value = false;
+            return;
+          }
+          if (cat.allowedClassifications && cat.allowedClassifications.length > 0 && !pl.playerClassificationId) {
+            toast.warning(`Selecciona la clasificación de futbolista en la fila #${i + 1} (${pl.playerName || 'Jugador'}) de la categoría "${cat.categoryName}".`, 'Validación');
+            saving.value = false;
+            return;
+          }
+        }
+      }
+      await CampeonatoApi.playerRegistrations.syncTeamRoster({
+        categoryEditionId: Number(playerRegHeaderTeam.value.categoryEditionId),
+        teamId: Number(playerRegHeaderTeam.value.teamId),
+        categories: playerRegCategoriesArray.value.map((cat) => ({
+          teamRegistrationId: Number(cat.teamRegistrationId),
+          players: (cat.players || [])
+            .filter((pl) => Boolean(pl.playerId))
+            .map((pl) => ({
+              id: pl.id ? Number(pl.id) : undefined,
+              playerId: Number(pl.playerId),
+              jerseyNumber: Number(pl.jerseyNumber),
+              carnetCode: pl.carnetCode || undefined,
+              playerClassificationId: pl.playerClassificationId ? Number(pl.playerClassificationId) : undefined,
+              isCaptain: Boolean(pl.isCaptain),
+            })),
+        })),
+      });
+      toast.success('Plantilla y carnets del equipo guardados exitosamente');
+      closeForm();
+      await loadData();
+      await loadAuxiliaryTournamentData();
+      return;
     } else if (activeTab.value === 'playerTransfers') {
       if (!formData.value.edition_id) {
         toast.error('Debe seleccionar la edición del campeonato');
@@ -9968,6 +10776,25 @@ watch(
   (newTeamRegId) => {
     if (activeTab.value === 'playerRegistrations' && isFormOpen.value) {
       updatePlayerRegistrationClassifications(newTeamRegId);
+    }
+  }
+);
+
+watch(
+  () => formData.value.playerId,
+  (newPlayerId) => {
+    if (activeTab.value === 'playerRegistrations' && isFormOpen.value) {
+      if (!newPlayerId) {
+        formData.value.carnetCode = '';
+        return;
+      }
+      const selectedPlayer = playersList.value.find((p) => String(p.id) === String(newPlayerId));
+      if (selectedPlayer) {
+        formData.value.carnetCode = selectedPlayer.code || `JUG-${String(selectedPlayer.id).padStart(5, '0')}`;
+        if (!formData.value.playerClassificationId && selectedPlayer.playerClassificationId) {
+          formData.value.playerClassificationId = selectedPlayer.playerClassificationId;
+        }
+      }
     }
   }
 );
