@@ -471,7 +471,12 @@ export const PlayersService = {
     ),
 };
 export const CategoriesService = createCrudService<CategoryItem>('categories');
-export const CategoryEditionsService = createCrudService<CategoryEditionItem>('category-editions');
+export const CategoryEditionsService = {
+  ...createCrudService<CategoryEditionItem>('category-editions'),
+  // Inicia el campeonato de una categoría de la edición (una sola vez por categoría): su primera etapa pasa a EN PROCESO
+  start: (id: number, categoryId: number, companyId?: number) =>
+    api.post<any>(`/campeonato/category-editions/${id}/categories/${categoryId}/start`, {}, withCompany(companyId)),
+};
 export const StagesService = {
   ...createCrudService<StageItem>('stages'),
   listClassifications: (stageId: number, companyId?: number) =>
@@ -529,6 +534,7 @@ export const PlayerRegistrationsService = {
           jerseyNumber: number;
           carnetCode?: string;
           playerClassificationId?: number;
+          demarcationId?: number;
           isCaptain?: boolean;
         }>;
       }>;
@@ -560,16 +566,19 @@ export const MatchesService = {
       params: { stageId },
       ...withCompany(companyId),
     }),
-  generateFixture: (
-    data: { stageId: number; teamIds: number[]; scenaryId?: number; startDate: string; matchDurationMinutes?: number; intervalDays?: number; numberOfLaps?: number },
-    companyId?: number
-  ) =>
-    api.post<{ success: boolean; message: string; matchesCount: number; roundsCount: number }>('/campeonato/matches/generate-fixture', data, withCompany(companyId)),
+  // Campeonatos iniciados con sus etapas en proceso, categorías, equipos inscritos y si ya se puede generar el fixture
+  getFixtureOptions: (companyId?: number) =>
+    api.get<any[]>('/campeonato/matches/fixture-options', withCompany(companyId)),
+  // Genera solo los partidos (sin días, horarios ni canchas) de la etapa en proceso de cada categoría de las ediciones
+  generateFixture: (data: { editionIds: number[] }, companyId?: number) =>
+    api.post<{ success: boolean; message: string; matchesCount: number; results: any[] }>('/campeonato/matches/generate-fixture', data, withCompany(companyId)),
 };
 export const MatchLineupsService = createCrudService<MatchLineupItem>('match-lineups');
 export const MatchEventsService = createCrudService<MatchEventItem>('match-events');
 export const SanctionsService = createCrudService<SanctionItem>('sanctions');
 export const PaymentsService = createCrudService<PaymentItem>('payments');
+// Órdenes de pago generadas al inscribir equipos (solo consulta)
+export const TeamPaymentOrdersService = createCrudService<any>('team-payment-orders');
 export const TournamentCommitteesService = createCrudService<TournamentCommitteeItem>('committees');
 export const TeamManagementsService = {
   ...createCrudService<TeamManagementItem>('team-managements'),
@@ -658,6 +667,7 @@ export const CampeonatoApi = {
   matchEvents: MatchEventsService,
   sanctions: SanctionsService,
   payments: PaymentsService,
+  teamPaymentOrders: TeamPaymentOrdersService,
   committees: TournamentCommitteesService,
   teamManagements: TeamManagementsService,
   teamCategoryHistory: TeamCategoryHistoryService,

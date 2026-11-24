@@ -15,7 +15,7 @@
         </div>
         <h2 class="crud-title">{{ isConfigSection ? 'Configuraciones del Torneo' : activeTabLabel }}</h2>
         <p class="crud-subtitle">
-          {{ isConfigSection ? 'Parametrización general del torneo: categorías, canchas, días y horarios de juego, árbitros y vocales.' : `Gestión y administración de ${activeTabLabel.toLowerCase()} en el torneo deportivo.` }}
+          {{ isConfigSection ? 'Parametrización general del torneo: categorías, canchas, árbitros y vocales.' : `Gestión y administración de ${activeTabLabel.toLowerCase()} en el torneo deportivo.` }}
         </p>
       </div>
 
@@ -44,7 +44,7 @@
 
         <!-- Se oculta mientras el formulario está abierto; en Inscripción y Carnets no hay botón Nuevo porque se alimenta de Inscripción de Equipos -->
         <button
-          v-if="activeTab !== 'standings' && activeTab !== 'playerRegistrations' && !isFormOpen"
+          v-if="activeTab !== 'standings' && activeTab !== 'playerRegistrations' && !isPaymentOrdersView && !isFormOpen"
           class="btn btn-primary rounded-pill px-4 d-flex align-items-center gap-2"
           style="height: 40px;"
           @click="activeTab === 'schedules' ? openCreateSchedule() : openCreateForm()"
@@ -187,8 +187,9 @@
         @change="searchList"
       >
         <option value="todos">Estado: Todos</option>
-        <option value="IN_PROGRESS">Activo / En Curso</option>
-        <option value="FINISHED">Finalizado</option>
+        <option value="PENDING">Pendiente de Inicio</option>
+        <option value="IN_PROGRESS">En Curso</option>
+        <option value="COMPLETED">Finalizado</option>
       </select>
 
       <input
@@ -281,6 +282,126 @@
         class="form-control bg-dark border-secondary-subtle text-white"
         style="height: 40px; width: 320px;"
         placeholder="Buscar por equipo, siglas, edición o categoría..."
+        @keyup.enter="searchList"
+      />
+
+      <button
+        type="button"
+        class="btn btn-outline-primary bg-dark d-flex align-items-center gap-1 px-3 ms-auto"
+        style="height: 40px;"
+        :disabled="loading"
+        @click="searchList"
+      >
+        <iconify-icon icon="solar:magnifer-line-duotone" class="fs-5"></iconify-icon>
+        <span>Buscar</span>
+      </button>
+    </div>
+
+    <!-- Barra de Filtros y Búsqueda Estandarizada para Transferencias de Jugadores -->
+    <div v-else-if="!isFormOpen && activeTab === 'playerTransfers'" class="d-flex flex-wrap align-items-center gap-2 mb-4 p-2 rounded-3 bg-dark-subtle border border-secondary-subtle">
+      <select
+        v-model="filterTransferEditionId"
+        class="form-select bg-dark border-secondary-subtle text-white"
+        style="height: 40px; width: 230px;"
+        @change="onTransferEditionFilterChange"
+      >
+        <option value="todos">Edición: Todas las Ediciones</option>
+        <option v-for="ed in categoryEditionsList" :key="ed.id" :value="String(ed.id)">
+          {{ ed.name }}
+        </option>
+      </select>
+
+      <select
+        v-model="filterTransferCategoryId"
+        class="form-select bg-dark border-secondary-subtle text-white"
+        style="height: 40px; width: 200px;"
+        :disabled="transferFilterCategories.length === 0"
+        @change="searchList"
+      >
+        <option value="todos">Categoría: Todas</option>
+        <option v-for="cat in transferFilterCategories" :key="cat.id" :value="String(cat.id)">
+          {{ cat.name }}
+        </option>
+      </select>
+
+      <select
+        v-model="filterTransferStatus"
+        class="form-select bg-dark border-secondary-subtle text-white"
+        style="height: 40px; width: 185px;"
+        @change="searchList"
+      >
+        <option value="todos">Estado: Todos</option>
+        <option value="PENDING_APPROVAL">Pendiente de Firmas</option>
+        <option value="APPROVED">Aprobada (Lista)</option>
+        <option value="EXECUTED">Pase Ejecutado</option>
+        <option value="REJECTED">Rechazada</option>
+      </select>
+
+      <input
+        v-model="searchQuery"
+        type="text"
+        class="form-control bg-dark border-secondary-subtle text-white"
+        style="height: 40px; width: 280px;"
+        placeholder="Buscar por futbolista o club..."
+        @keyup.enter="searchList"
+      />
+
+      <button
+        type="button"
+        class="btn btn-outline-primary bg-dark d-flex align-items-center gap-1 px-3 ms-auto"
+        style="height: 40px;"
+        :disabled="loading"
+        @click="searchList"
+      >
+        <iconify-icon icon="solar:magnifer-line-duotone" class="fs-5"></iconify-icon>
+        <span>Buscar</span>
+      </button>
+    </div>
+
+    <!-- Barra de Filtros y Búsqueda Estandarizada para Pagos y Finanzas -->
+    <div v-else-if="!isFormOpen && activeTab === 'payments'" class="d-flex flex-wrap align-items-center gap-2 mb-4 p-2 rounded-3 bg-dark-subtle border border-secondary-subtle">
+      <div class="btn-group" role="group">
+        <button
+          type="button"
+          class="btn d-flex align-items-center gap-1 px-3"
+          :class="paymentsView === 'orders' ? 'btn-primary' : 'btn-outline-primary bg-dark'"
+          style="height: 40px;"
+          @click="setPaymentsView('orders')"
+        >
+          <iconify-icon icon="solar:document-text-bold-duotone" class="fs-5"></iconify-icon>
+          <span>Órdenes de Pago</span>
+        </button>
+        <button
+          type="button"
+          class="btn d-flex align-items-center gap-1 px-3"
+          :class="paymentsView === 'payments' ? 'btn-primary' : 'btn-outline-primary bg-dark'"
+          style="height: 40px;"
+          @click="setPaymentsView('payments')"
+        >
+          <iconify-icon icon="solar:wallet-money-bold-duotone" class="fs-5"></iconify-icon>
+          <span>Pagos Registrados</span>
+        </button>
+      </div>
+
+      <select
+        v-if="paymentsView === 'orders'"
+        v-model="filterPaymentOrderStatus"
+        class="form-select bg-dark border-secondary-subtle text-white"
+        style="height: 40px; width: 185px;"
+        @change="searchList"
+      >
+        <option value="todos">Estado: Todos</option>
+        <option value="PENDING">Pendiente de Pago</option>
+        <option value="PAID">Pagada</option>
+        <option value="CANCELLED">Anulada</option>
+      </select>
+
+      <input
+        v-model="searchQuery"
+        type="text"
+        class="form-control bg-dark border-secondary-subtle text-white"
+        style="height: 40px; width: 300px;"
+        :placeholder="paymentsView === 'orders' ? 'Buscar por equipo o edición...' : 'Buscar por recibo, notas o equipo...'"
         @keyup.enter="searchList"
       />
 
@@ -421,16 +542,6 @@
                         <span>Editar Horarios</span>
                       </button>
                     </li>
-                    <li>
-                      <button
-                        class="dropdown-item d-flex align-items-center gap-2"
-                        type="button"
-                        @click="applyScheduleFromItem(item)"
-                      >
-                        <iconify-icon icon="solar:calendar-add-bold" class="text-info fs-5"></iconify-icon>
-                        <span>Aplicar al Fixture</span>
-                      </button>
-                    </li>
                     <li><hr class="dropdown-divider" /></li>
                     <li>
                       <button
@@ -497,12 +608,6 @@
                       <button class="dropdown-item d-flex align-items-center gap-2" type="button" @click="openEditSchedule(item)">
                         <iconify-icon icon="solar:pen-bold" class="text-primary fs-5"></iconify-icon>
                         <span>Editar Horarios</span>
-                      </button>
-                    </li>
-                    <li>
-                      <button class="dropdown-item d-flex align-items-center gap-2" type="button" @click="applyScheduleFromItem(item)">
-                        <iconify-icon icon="solar:calendar-add-bold" class="text-info fs-5"></iconify-icon>
-                        <span>Aplicar al Fixture</span>
                       </button>
                     </li>
                     <li><hr class="dropdown-divider" /></li>
@@ -832,7 +937,10 @@
               <td :colspan="columns.length + 2" class="text-center py-5 text-secondary">
                 <iconify-icon icon="solar:box-minimalistic-line-duotone" class="fs-8 text-secondary mb-2 d-block"></iconify-icon>
                 <p class="mb-1 fw-semibold text-body-emphasis">No se encontraron registros en {{ activeTabLabel }}</p>
-                <p class="mb-0 fs-2 text-muted">Haz clic en <strong>+ Nuevo {{ activeTabLabel }}</strong> para registrar el primero.</p>
+                <p class="mb-0 fs-2 text-muted">
+            <template v-if="isPaymentOrdersView">Las órdenes de pago se generan al inscribir equipos en una edición.</template>
+            <template v-else>Haz clic en <strong>+ Nuevo {{ activeTabLabel }}</strong> para registrar el primero.</template>
+          </p>
               </td>
             </tr>
 
@@ -1143,6 +1251,63 @@
                   </div>
                 </div>
 
+                <!-- Pagos y Finanzas: N° de orden de pago -->
+                <span v-else-if="isPaymentOrdersView && col.key === 'orderNumber'">
+                  <span class="badge bg-primary-subtle text-primary border border-primary-subtle font-monospace px-2 py-1">
+                    ORD-{{ String(item.id).padStart(6, '0') }}
+                  </span>
+                </span>
+
+                <!-- Pagos y Finanzas: Equipo -->
+                <span v-else-if="isPaymentOrdersView && col.key === 'teamName'" class="d-inline-flex align-items-center gap-2">
+                  <iconify-icon icon="solar:shield-bold-duotone" class="fs-5 text-primary"></iconify-icon>
+                  <span class="text-body-emphasis fw-semibold">{{ item.teamName || '-' }}</span>
+                </span>
+
+                <!-- Pagos y Finanzas: Edición -->
+                <span v-else-if="isPaymentOrdersView && col.key === 'editionName'">
+                  <span class="badge bg-secondary-subtle text-secondary font-monospace px-2 py-1">🏆 {{ item.editionName || '-' }}</span>
+                </span>
+
+                <!-- Pagos y Finanzas: Categorías con su subtotal -->
+                <div v-else-if="isPaymentOrdersView && col.key === 'categoriesSummary'" class="d-flex flex-wrap gap-1">
+                  <span
+                    v-for="d in (item.details || [])"
+                    :key="d.id"
+                    class="badge bg-info-subtle text-info border border-info-subtle font-monospace px-2 py-1"
+                  >
+                    ⚽ {{ d.categoryName }} · ${{ Number(d.subtotal || 0).toFixed(2) }}
+                  </span>
+                  <span v-if="!item.details || item.details.length === 0" class="text-muted small">-</span>
+                </div>
+
+                <!-- Pagos y Finanzas: Valor total -->
+                <span v-else-if="isPaymentOrdersView && col.key === 'totalAmount'" class="fw-bold font-monospace text-body-emphasis">
+                  ${{ Number(item.totalAmount || 0).toFixed(2) }}
+                </span>
+
+                <!-- Pagos y Finanzas: Estado de la orden -->
+                <span v-else-if="isPaymentOrdersView && col.key === 'status'">
+                  <span v-if="item.status === 'PAID'" class="badge bg-success-subtle text-success border border-success-subtle font-monospace px-2 py-1">🟢 Pagada</span>
+                  <span v-else-if="item.status === 'CANCELLED'" class="badge bg-secondary-subtle text-secondary border border-secondary-subtle font-monospace px-2 py-1">⛔ Anulada</span>
+                  <span v-else class="badge bg-warning-subtle text-warning border border-warning-subtle font-monospace px-2 py-1">⏳ Pendiente de Pago</span>
+                </span>
+
+                <!-- Transferencias: N° de Orden -->
+                <span v-else-if="activeTab === 'playerTransfers' && col.key === 'orderNumber'">
+                  <span class="badge bg-primary-subtle text-primary border border-primary-subtle font-monospace px-2 py-1">
+                    TRF-{{ String(item.id).padStart(6, '0') }}
+                  </span>
+                </span>
+
+                <!-- Transferencias: Categoría -->
+                <span v-else-if="activeTab === 'playerTransfers' && col.key === 'category.name'">
+                  <span v-if="item.category?.name" class="badge bg-info-subtle text-info border border-info-subtle font-monospace px-2 py-1">
+                    ⚽ {{ item.category.name }}
+                  </span>
+                  <span v-else class="text-muted small">-</span>
+                </span>
+
                 <!-- Transferencias: Club Origen -->
                 <div v-else-if="activeTab === 'playerTransfers' && col.key === 'originTeam.name'" class="d-flex align-items-center gap-2">
                   <iconify-icon icon="solar:shield-bold-duotone" class="fs-5 text-secondary"></iconify-icon>
@@ -1272,10 +1437,11 @@
                     <span
                       v-for="det in item.categoriesDetail"
                       :key="det.id || det.categoryId"
-                      class="badge bg-primary-subtle text-primary border border-primary-subtle px-2 py-1"
-                      :title="'Inicio: ' + (det.startDate ? new Date(det.startDate).toLocaleDateString() : 'N/A') + ' | Fin: ' + (det.endDate ? new Date(det.endDate).toLocaleDateString() : 'N/A')"
+                      class="badge border px-2 py-1"
+                      :class="det.startedAt ? 'bg-success-subtle text-success border-success-subtle' : 'bg-primary-subtle text-primary border-primary-subtle'"
+                      :title="(det.startedAt ? 'Campeonato iniciado' : 'Pendiente de inicio') + ' | Inicio: ' + (det.startDate ? new Date(det.startDate).toLocaleDateString() : 'N/A') + ' | Fin: ' + (det.endDate ? new Date(det.endDate).toLocaleDateString() : 'N/A')"
                     >
-                      ⚽ {{ det.categoryDescription || det.category?.name || 'Categoría' }}
+                      {{ det.startedAt ? '🟢' : '⚽' }} {{ det.categoryDescription || det.category?.name || 'Categoría' }}
                       <span v-if="det.registrationFee" class="text-success ms-1 fw-bold">(${{ Number(det.registrationFee).toFixed(2) }})</span>
                     </span>
                   </div>
@@ -1345,9 +1511,10 @@
 
                 <!-- Estado en Ediciones de Torneo -->
                 <span v-else-if="activeTab === 'categoryEditions' && col.key === 'status'">
-                  <span class="badge bg-success-subtle text-success border border-success-subtle font-monospace px-2 py-1">
-                    🟢 {{ item.status === 'IN_PROGRESS' || !item.status ? 'Activo / En Curso' : item.status }}
-                  </span>
+                  <span v-if="item.status === 'COMPLETED'" class="badge bg-secondary-subtle text-secondary border border-secondary-subtle font-monospace px-2 py-1">🏁 Finalizado</span>
+                  <span v-else-if="item.status === 'CANCELLED'" class="badge bg-danger-subtle text-danger border border-danger-subtle font-monospace px-2 py-1">❌ Cancelado</span>
+                  <span v-else-if="item.startedAt" class="badge bg-success-subtle text-success border border-success-subtle font-monospace px-2 py-1">🟢 En Curso</span>
+                  <span v-else class="badge bg-warning-subtle text-warning border border-warning-subtle font-monospace px-2 py-1">⏳ Pendiente de Inicio</span>
                 </span>
 
                 <!-- Clasificación de Futbolistas -->
@@ -1403,6 +1570,14 @@
                     <iconify-icon icon="solar:menu-dots-vertical-bold" class="fs-4"></iconify-icon>
                   </button>
                   <ul class="dropdown-menu dropdown-menu-end shadow-lg py-1">
+                    <!-- Pagos y Finanzas: detalle de la orden de pago -->
+                    <li v-if="isPaymentOrdersView">
+                      <a class="dropdown-item py-2 text-primary d-flex align-items-center gap-2" href="javascript:void(0)" @click="openPaymentOrderDetail(item)">
+                        <iconify-icon icon="solar:document-text-bold-duotone" class="fs-5 text-primary"></iconify-icon>
+                        <span>Ver Detalle de la Orden</span>
+                      </a>
+                    </li>
+
                     <!-- Acciones para Transferencias de Jugadores -->
                     <li v-if="activeTab === 'playerTransfers'">
                       <a class="dropdown-item py-2 text-warning d-flex align-items-center gap-2" href="javascript:void(0)" @click="openTransferDetail(item)">
@@ -1498,8 +1673,19 @@
                     </li>
                     <li v-if="activeTab === 'players'"><hr class="dropdown-divider"></li>
 
+                    <!-- Ediciones de Torneo: iniciar el campeonato por categoría (una sola vez cada una) -->
+                    <template v-if="activeTab === 'categoryEditions' && pendingStartCategories(item).length">
+                      <li v-for="det in pendingStartCategories(item)" :key="'start-' + (det.id || det.categoryId)">
+                        <a class="dropdown-item py-2 text-success fw-semibold d-flex align-items-center gap-2" href="javascript:void(0)" @click="startEditionChampionship(item, det)">
+                          <iconify-icon icon="solar:play-circle-bold-duotone" class="fs-5 text-success"></iconify-icon>
+                          <span>Iniciar Campeonato: {{ det.categoryDescription || det.category?.name || 'Categoría' }}</span>
+                        </a>
+                      </li>
+                      <li><hr class="dropdown-divider"></li>
+                    </template>
+
                     <!-- Editar (En playerRegistrations ya está Agregar / Configurar Plantilla arriba) -->
-                    <li v-if="activeTab !== 'playerRegistrations'">
+                    <li v-if="activeTab !== 'playerRegistrations' && activeTab !== 'playerTransfers' && !isPaymentOrdersView">
                       <a class="dropdown-item py-2 text-warning d-flex align-items-center gap-2" href="javascript:void(0)" @click="openEditForm(item)">
                         <iconify-icon icon="solar:pen-new-square-line-duotone" class="fs-5 text-warning"></iconify-icon>
                         <span>Editar</span>
@@ -1507,10 +1693,10 @@
                     </li>
 
                     <!-- Separador (las filas de teamRegistrations y playerRegistrations son cabeceras agrupadas) -->
-                    <li v-if="activeTab !== 'teamRegistrations' && activeTab !== 'playerRegistrations'"><hr class="dropdown-divider"></li>
+                    <li v-if="activeTab !== 'teamRegistrations' && activeTab !== 'playerRegistrations' && activeTab !== 'playerTransfers' && !isPaymentOrdersView"><hr class="dropdown-divider"></li>
 
                     <!-- Eliminar -->
-                    <li v-if="activeTab !== 'teamRegistrations' && activeTab !== 'playerRegistrations'">
+                    <li v-if="activeTab !== 'teamRegistrations' && activeTab !== 'playerRegistrations' && !isPaymentOrdersView">
                       <a class="dropdown-item py-2 text-danger d-flex align-items-center gap-2" href="javascript:void(0)" @click="confirmDelete(item.id)">
                         <iconify-icon icon="solar:trash-bin-trash-line-duotone" class="fs-5 text-danger"></iconify-icon>
                         <span>Eliminar</span>
@@ -1538,7 +1724,10 @@
         <div v-else-if="displayedItems.length === 0" class="text-center py-5 text-secondary card border rounded-4 p-4 bg-body-tertiary">
           <iconify-icon icon="solar:box-minimalistic-line-duotone" class="fs-8 text-secondary mb-2 d-block"></iconify-icon>
           <p class="mb-1 fw-semibold text-body-emphasis">No se encontraron registros en {{ activeTabLabel }}</p>
-          <p class="mb-0 fs-2 text-muted">Haz clic en <strong>+ Nuevo {{ activeTabLabel }}</strong> para registrar el primero.</p>
+          <p class="mb-0 fs-2 text-muted">
+            <template v-if="isPaymentOrdersView">Las órdenes de pago se generan al inscribir equipos en una edición.</template>
+            <template v-else>Haz clic en <strong>+ Nuevo {{ activeTabLabel }}</strong> para registrar el primero.</template>
+          </p>
         </div>
 
         <div v-else class="crud-mobile-cards-view">
@@ -1637,6 +1826,14 @@
                   <iconify-icon icon="solar:menu-dots-vertical-bold" class="fs-4 text-body-emphasis"></iconify-icon>
                 </button>
                 <ul class="dropdown-menu dropdown-menu-end shadow-lg py-1">
+                  <!-- Pagos y Finanzas: detalle de la orden de pago -->
+                  <li v-if="isPaymentOrdersView">
+                    <a class="dropdown-item py-2 text-primary d-flex align-items-center gap-2" href="javascript:void(0)" @click="openPaymentOrderDetail(item)">
+                      <iconify-icon icon="solar:document-text-bold-duotone" class="fs-5 text-primary"></iconify-icon>
+                      <span>Ver Detalle de la Orden</span>
+                    </a>
+                  </li>
+
                   <!-- Acciones para Transferencias de Jugadores -->
                   <li v-if="activeTab === 'playerTransfers'">
                     <a class="dropdown-item py-2 text-warning d-flex align-items-center gap-2" href="javascript:void(0)" @click="openTransferDetail(item)">
@@ -1731,8 +1928,19 @@
                   </li>
                   <li v-if="activeTab === 'teamRegistrations'"><hr class="dropdown-divider"></li>
 
+                  <!-- Ediciones de Torneo: iniciar el campeonato por categoría (una sola vez cada una) -->
+                  <template v-if="activeTab === 'categoryEditions' && pendingStartCategories(item).length">
+                    <li v-for="det in pendingStartCategories(item)" :key="'start-' + (det.id || det.categoryId)">
+                      <a class="dropdown-item py-2 text-success fw-semibold d-flex align-items-center gap-2" href="javascript:void(0)" @click="startEditionChampionship(item, det)">
+                        <iconify-icon icon="solar:play-circle-bold-duotone" class="fs-5 text-success"></iconify-icon>
+                        <span>Iniciar Campeonato: {{ det.categoryDescription || det.category?.name || 'Categoría' }}</span>
+                      </a>
+                    </li>
+                    <li><hr class="dropdown-divider"></li>
+                  </template>
+
                   <!-- Editar -->
-                  <li v-if="activeTab !== 'playerRegistrations'">
+                  <li v-if="activeTab !== 'playerRegistrations' && activeTab !== 'playerTransfers' && !isPaymentOrdersView">
                     <a class="dropdown-item py-2 text-warning d-flex align-items-center gap-2" href="javascript:void(0)" @click="openEditForm(item)">
                       <iconify-icon icon="solar:pen-new-square-line-duotone" class="fs-5 text-warning"></iconify-icon>
                       <span>Editar</span>
@@ -1740,10 +1948,10 @@
                   </li>
 
                   <!-- Separador -->
-                  <li v-if="activeTab !== 'teamRegistrations' && activeTab !== 'playerRegistrations'"><hr class="dropdown-divider"></li>
+                  <li v-if="activeTab !== 'teamRegistrations' && activeTab !== 'playerRegistrations' && activeTab !== 'playerTransfers' && !isPaymentOrdersView"><hr class="dropdown-divider"></li>
 
                   <!-- Eliminar -->
-                  <li v-if="activeTab !== 'teamRegistrations' && activeTab !== 'playerRegistrations'">
+                  <li v-if="activeTab !== 'teamRegistrations' && activeTab !== 'playerRegistrations' && !isPaymentOrdersView">
                     <a class="dropdown-item py-2 text-danger d-flex align-items-center gap-2" href="javascript:void(0)" @click="confirmDelete(item.id)">
                       <iconify-icon icon="solar:trash-bin-trash-line-duotone" class="fs-5 text-danger"></iconify-icon>
                       <span>Eliminar</span>
@@ -1780,6 +1988,27 @@
                         <span v-if="item.colorAlternate" class="rounded-circle border" :style="{ backgroundColor: item.colorAlternate, width: '10px', height: '10px' }"></span>
                       </div>
                     </div>
+                    <!-- Pagos y Finanzas: orden de pago -->
+                    <span v-else-if="isPaymentOrdersView && col.key === 'orderNumber'" class="badge bg-primary-subtle text-primary border border-primary-subtle font-monospace">
+                      ORD-{{ String(item.id).padStart(6, '0') }}
+                    </span>
+                    <span v-else-if="isPaymentOrdersView && col.key === 'categoriesSummary'">
+                      {{ (item.details || []).map((d: any) => d.categoryName).join(', ') || '-' }}
+                    </span>
+                    <span v-else-if="isPaymentOrdersView && col.key === 'totalAmount'" class="fw-bold font-monospace">
+                      ${{ Number(item.totalAmount || 0).toFixed(2) }}
+                    </span>
+                    <span v-else-if="isPaymentOrdersView && col.key === 'status'">
+                      {{ item.status === 'PAID' ? '🟢 Pagada' : item.status === 'CANCELLED' ? '⛔ Anulada' : '⏳ Pendiente de Pago' }}
+                    </span>
+                    <!-- Transferencias: N° de Orden -->
+                    <span v-else-if="activeTab === 'playerTransfers' && col.key === 'orderNumber'" class="badge bg-primary-subtle text-primary border border-primary-subtle font-monospace">
+                      TRF-{{ String(item.id).padStart(6, '0') }}
+                    </span>
+                    <!-- Fechas -->
+                    <span v-else-if="col.type === 'date'">
+                      {{ item[col.key] ? new Date(item[col.key]).toLocaleDateString() : '-' }}
+                    </span>
                     <!-- Valor Genérico -->
                     <span v-else>
                       {{ getNestedValue(item, col.key) || '-' }}
@@ -1840,6 +2069,8 @@
                     ? (isEditing ? 'Modificar Inscripción de Equipo' : 'Nueva Inscripción de Equipo')
                     : activeTab === 'playerRegistrations'
                     ? 'Configurar Plantilla y Carnets del Equipo'
+                    : activeTab === 'playerTransfers'
+                    ? 'Nueva Orden de Transferencia'
                     : (isEditing ? `Modificar ${activeTabLabel}` : `Nuevo ${activeTabLabel}`)
                 }}
               </h5>
@@ -2288,19 +2519,8 @@
                     </div>
 
                     <p class="text-muted small mb-0">
-                      💡 <strong>Regla deportiva:</strong> Cada día tiene su propio horario independiente. El <strong>Generador de Fixture</strong> y la asignación de árbitros y vocales respetarán estos rangos exactos por cada día de la semana.
+                      💡 <strong>Regla deportiva:</strong> Cada día tiene su propio horario independiente. La asignación de árbitros y vocales respetará estos rangos exactos por cada día de la semana.
                     </p>
-                  </div>
-
-                  <div class="pt-3 border-top mt-3">
-                    <button
-                      type="button"
-                      class="btn btn-outline-info w-100 rounded-pill py-2 fw-semibold d-flex align-items-center justify-content-center gap-2"
-                      @click="applyScheduleToFixture"
-                    >
-                      <iconify-icon icon="solar:calendar-add-bold" class="fs-5"></iconify-icon>
-                      <span>Aplicar al Generador de Fixture</span>
-                    </button>
                   </div>
                 </div>
               </div>
@@ -2308,36 +2528,88 @@
 
             
 
-            <!-- TARJETA INFORMATIVA DE TRANSFERENCIA: DETECCIÓN AUTOMÁTICA DEL CLUB DE ORIGEN -->
-            <div v-if="activeTab === 'playerTransfers'" class="card p-3 mb-4 border rounded-3 bg-body-tertiary">
-              <div class="d-flex align-items-center gap-2 mb-2">
-                <iconify-icon icon="solar:shield-check-bold-duotone" class="fs-4 text-warning"></iconify-icon>
-                <h6 class="fw-bold mb-0 text-body-emphasis">Detección Automática de Club de Origen</h6>
-              </div>
-              <div v-if="checkingOriginRegistration" class="text-muted small py-2">
-                <span class="spinner-border spinner-border-sm me-2"></span>
-                Verificando inscripción activa del jugador en este torneo...
-              </div>
-              <div v-else-if="detectedOriginRegistration" class="alert alert-info py-2 px-3 mb-0 rounded-3 border-0 bg-info-subtle text-info-emphasis d-flex align-items-center justify-content-between flex-wrap gap-2">
+            <!-- ========================================================================= -->
+            <!-- FORMULARIO: ORDEN DE TRANSFERENCIA DE JUGADOR (se genera en estado pendiente) -->
+            <!-- ========================================================================= -->
+            <div v-if="activeTab === 'playerTransfers'" class="card p-3 mb-4 rounded-4 border border-secondary-subtle bg-dark-subtle shadow-sm">
+              <div class="d-flex align-items-center gap-2 mb-3">
+                <iconify-icon icon="solar:transfer-horizontal-bold-duotone" class="fs-3 text-primary"></iconify-icon>
                 <div>
-                  <span class="fw-bold">Club de Origen Identificado:</span>
-                  <span class="badge bg-primary text-white ms-2 px-2 py-1">
-                    🛡️ {{ detectedOriginRegistration.teamRegistration?.team?.name || 'Club de Origen' }}
-                  </span>
-                  <span class="small ms-2 text-muted">
-                    (Dorsal: {{ detectedOriginRegistration.jerseyNumber || 'S/N' }} · Clasificación: {{ detectedOriginRegistration.playerClassification?.description || 'General' }})
-                  </span>
+                  <h6 class="fw-bold mb-0 text-body-emphasis">Orden de Transferencia</h6>
+                  <small class="text-secondary">
+                    Se genera en estado <strong>pendiente</strong> y queda a la espera de las firmas que exija el campeonato.
+                  </small>
                 </div>
-                <span class="badge bg-success-subtle text-success border border-success-subtle font-monospace">
-                  ✓ Inscripción Activa Detectada
-                </span>
               </div>
-              <div v-else-if="formData.player_id && formData.edition_id" class="alert alert-warning py-2 px-3 mb-0 rounded-3 border-0 bg-warning-subtle text-warning-emphasis small">
-                <iconify-icon icon="solar:info-circle-bold" class="me-1"></iconify-icon>
-                El jugador seleccionado no registra una inscripción previa en este campeonato. Se tramitará como transferencia de jugador libre o incorporación inicial.
-              </div>
-              <div v-else class="text-muted small">
-                Selecciona la <strong>Edición del Campeonato</strong> y el <strong>Futbolista</strong>. El sistema identificará automáticamente su club de origen e historial sin permitir selecciones arbitrarias.
+
+              <div class="row g-3">
+                <div class="col-md-6">
+                  <label class="form-label text-secondary small fw-semibold mb-1">
+                    Edición del Campeonato <span class="text-danger">*</span>
+                  </label>
+                  <AppSelect2
+                    v-model="formData.edition_id"
+                    :options="transferEditionOptions"
+                    placeholder="Seleccionar la edición..."
+                    search-placeholder="Buscar edición..."
+                  />
+                </div>
+
+                <div class="col-md-6">
+                  <label class="form-label text-secondary small fw-semibold mb-1">
+                    Categoría <span class="text-danger">*</span>
+                  </label>
+                  <AppSelect2
+                    v-model="formData.category_id"
+                    :options="transferCategoryOptions"
+                    :disabled="!formData.edition_id"
+                    placeholder="Seleccionar la categoría..."
+                    search-placeholder="Buscar categoría..."
+                  />
+                </div>
+
+                <div class="col-md-6">
+                  <label class="form-label text-secondary small fw-semibold mb-1">
+                    Futbolista a Transferir <span class="text-danger">*</span>
+                  </label>
+                  <AppSelect2
+                    v-model="formData.player_id"
+                    :options="transferPlayerOptions"
+                    placeholder="Seleccionar el futbolista..."
+                    search-placeholder="Buscar por nombre, apellido o cédula..."
+                  />
+                </div>
+
+                <!-- Solo aparece si el jugador ya está inscrito en un equipo de esa categoría -->
+                <div v-if="transferOriginTeamName" class="col-md-6">
+                  <label class="form-label text-secondary small fw-semibold mb-1">
+                    Club de Origen (inscrito actualmente)
+                  </label>
+                  <input type="text" class="form-control bg-body-secondary text-secondary" :value="transferOriginTeamName" readonly disabled />
+                </div>
+
+                <div class="col-md-6">
+                  <label class="form-label text-secondary small fw-semibold mb-1">
+                    Club de Destino <span class="text-danger">*</span>
+                  </label>
+                  <AppSelect2
+                    v-model="formData.destination_team_id"
+                    :options="transferDestinationOptions"
+                    :disabled="!formData.category_id"
+                    placeholder="Seleccionar el club de destino..."
+                    search-placeholder="Buscar club..."
+                  />
+                </div>
+
+                <div class="col-12">
+                  <label class="form-label text-secondary small fw-semibold mb-1">Motivo / Justificación de la Transferencia</label>
+                  <textarea
+                    v-model="formData.reason"
+                    class="form-control"
+                    rows="3"
+                    placeholder="Ingrese el motivo del traspaso de derechos o cambio de club..."
+                  ></textarea>
+                </div>
               </div>
             </div>
 
@@ -2530,15 +2802,13 @@
                                   <thead class="table-primary fs-2">
                                     <tr>
                                       <th style="width: 60px;" class="text-center fw-semibold">N°</th>
-                                      <th style="min-width: 300px; width: 44%;" class="fw-semibold">Equipo / Club *</th>
-                                      <th style="min-width: 200px; width: 24%;" class="fw-semibold">Estado Inscripción</th>
-                                      <th style="min-width: 200px; width: 24%;" class="fw-semibold">Estado de Pago</th>
+                                      <th style="min-width: 300px;" class="fw-semibold">Equipo / Club *</th>
                                       <th style="width: 80px;" class="text-center fw-semibold">Acciones</th>
                                     </tr>
                                   </thead>
                                   <tbody>
                                     <tr v-if="cat.teams.length === 0">
-                                      <td colspan="5" class="text-center py-5 text-muted">
+                                      <td colspan="3" class="text-center py-5 text-muted">
                                         <iconify-icon icon="solar:box-minimalistic-bold-duotone" class="d-block mx-auto mb-2 text-secondary opacity-50" style="font-size: 3.2rem;"></iconify-icon>
                                         <div class="fw-bold text-body-emphasis fs-5">Sin equipos</div>
                                         <div class="small text-secondary mt-1">Aún no se han agregado equipos en <strong>{{ cat.categoryName }}</strong></div>
@@ -2575,24 +2845,6 @@
                                               />
                                             </div>
                                         </div>
-                                      </td>
-
-                                      <td>
-                                        <select v-model="tm.status" class="form-select form-select-sm">
-                                          <option value="APPROVED">🟢 Aprobado / Habilitado</option>
-                                          <option value="PENDING">⏳ Pendiente</option>
-                                          <option value="REJECTED">🔴 Rechazado</option>
-                                          <option value="DISQUALIFIED">⛔ Descalificado</option>
-                                        </select>
-                                      </td>
-
-                                      <td>
-                                        <select v-model="tm.paymentStatus" class="form-select form-select-sm">
-                                          <option value="PAID">💳 Pagado Completo</option>
-                                          <option value="PARTIAL">💵 Pago Parcial</option>
-                                          <option value="UNPAID">⏳ Pendiente de Pago</option>
-                                          <option value="REFUNDED">↩️ Reembolsado</option>
-                                        </select>
                                       </td>
 
                                       <td class="text-center">
@@ -2865,9 +3117,10 @@
                                   <thead class="table-primary fs-2">
                                     <tr>
                                       <th style="width: 55px;" class="text-center fw-semibold">N°</th>
-                                      <th style="min-width: 280px; width: 34%;" class="fw-semibold">Jugador / Futbolista *</th>
-                                      <th style="min-width: 155px; width: 16%;" class="fw-semibold">Código de Carnet</th>
-                                      <th style="min-width: 210px; width: 22%;" class="fw-semibold">Clasificación *</th>
+                                      <th style="min-width: 260px; width: 28%;" class="fw-semibold">Jugador / Futbolista *</th>
+                                      <th style="min-width: 140px; width: 12%;" class="fw-semibold">Código de Carnet</th>
+                                      <th style="min-width: 190px; width: 17%;" class="fw-semibold">Clasificación *</th>
+                                      <th style="min-width: 200px; width: 17%;" class="fw-semibold">Demarcación / Posición</th>
                                       <th style="min-width: 110px; width: 11%;" class="text-center fw-semibold">Dorsal # *</th>
                                       <th style="min-width: 100px; width: 9%;" class="text-center fw-semibold">Capitán</th>
                                       <th style="width: 80px;" class="text-center fw-semibold">Acciones</th>
@@ -2875,7 +3128,7 @@
                                   </thead>
                                   <tbody>
                                     <tr v-if="cat.players.length === 0">
-                                      <td colspan="7" class="text-center py-5 text-muted">
+                                      <td colspan="8" class="text-center py-5 text-muted">
                                         <iconify-icon icon="solar:box-minimalistic-bold-duotone" class="d-block mx-auto mb-2 text-secondary opacity-50" style="font-size: 3.2rem;"></iconify-icon>
                                         <div class="fw-bold text-body-emphasis fs-5">Sin jugadores</div>
                                         <div class="small text-secondary mt-1">Aún no se han agregado jugadores en la categoría <strong>{{ cat.categoryName }}</strong></div>
@@ -2942,6 +3195,16 @@
                                             :disabled="clOpt.disabled"
                                           >
                                             {{ clOpt.label }}
+                                          </option>
+                                        </select>
+                                      </td>
+
+                                      <!-- Demarcación / Posición en campo (por defecto la del jugador) -->
+                                      <td>
+                                        <select v-model="pl.demarcationId" class="form-select form-select-sm">
+                                          <option value="">-- Seleccionar --</option>
+                                          <option v-for="dem in demarcationsList" :key="dem.id" :value="dem.id">
+                                            {{ dem.name }}{{ dem.zone ? ' (' + dem.zone + ')' : '' }}
                                           </option>
                                         </select>
                                       </td>
@@ -3026,7 +3289,7 @@
             </div>
 
             <div
-              v-if="activeTab !== 'schedules' && activeTab !== 'teamRegistrations' && activeTab !== 'playerRegistrations' && (activeTab !== 'players' || isEditing || globalPlayerSearched)"
+              v-if="activeTab !== 'schedules' && activeTab !== 'teamRegistrations' && activeTab !== 'playerRegistrations' && activeTab !== 'playerTransfers' && (activeTab !== 'players' || isEditing || globalPlayerSearched)"
               class="row g-4"
             >
               <div v-for="field in formFields" :key="field.key" :class="field.colClass || 'col-md-6'">
@@ -3345,64 +3608,6 @@
             
 
             <!-- ======================================================== -->
-            <!-- SECCIÓN: CANCHAS DISPONIBLES PARA EL CAMPEONATO           -->
-            <!-- ======================================================== -->
-            <div v-if="activeTab === 'categoryEditions'" class="card p-3 mt-4 rounded-4 border border-secondary-subtle bg-dark-subtle">
-              <div class="d-flex align-items-center justify-content-between mb-3 flex-wrap gap-2">
-                <div class="d-flex align-items-center gap-2">
-                  <iconify-icon icon="solar:map-point-wave-bold-duotone" class="fs-4 text-success"></iconify-icon>
-                  <div>
-                    <h6 class="fw-bold mb-0 text-body-emphasis">Canchas Habilitadas para este Campeonato</h6>
-                    <small class="text-secondary">Selecciona las canchas o escenarios deportivos donde se disputará esta edición del campeonato.</small>
-                  </div>
-                </div>
-                <span class="badge bg-success-subtle text-success border border-success-subtle px-3 py-2 fw-semibold">
-                  {{ (formData.availableScenaryIds || []).length }} Cancha(s) Habilitada(s)
-                </span>
-              </div>
-
-              <div v-if="scenariesList.length === 0" class="alert alert-warning mb-0 py-2 d-flex align-items-center gap-2">
-                <iconify-icon icon="solar:danger-triangle-bold" class="fs-4 text-warning"></iconify-icon>
-                <span>No hay canchas registradas en el sistema. Registra canchas en la pestaña <strong>Escenarios / Canchas</strong>.</span>
-              </div>
-
-              <div v-else class="row g-3">
-                <div v-for="sc in scenariesList" :key="sc.id" class="col-md-6 col-lg-4">
-                  <div
-                    class="card h-100 p-3 border rounded-3 cursor-pointer transition-all"
-                    :class="(formData.availableScenaryIds || []).includes(sc.id) ? 'border-success bg-success-subtle shadow-sm' : 'border-secondary-subtle bg-body'"
-                    @click="toggleScenarySelection(sc.id)"
-                  >
-                    <div class="d-flex align-items-start gap-3">
-                      <input
-                        type="checkbox"
-                        class="form-check-input mt-1 cursor-pointer"
-                        :checked="(formData.availableScenaryIds || []).includes(sc.id)"
-                        @change.stop="toggleScenarySelection(sc.id)"
-                      />
-                      <div class="flex-grow-1">
-                        <div class="fw-bold text-body-emphasis">{{ sc.name }}</div>
-                        <div class="small text-muted mt-1" v-if="sc.address || sc.location">
-                          📍 {{ sc.address || sc.location }}
-                        </div>
-                        <div class="small font-monospace text-secondary mt-1" v-if="sc.cardinalPoints">
-                          🧭 {{ sc.cardinalPoints }}
-                        </div>
-                        <div class="mt-2">
-                          <span class="badge bg-secondary-subtle text-secondary font-monospace small">
-                            {{ sc.surfaceType === 'SYNTHETIC' ? 'Césped Sintético' : sc.surfaceType === 'NATURAL_GRASS' ? 'Césped Natural' : sc.surfaceType || 'Cancha Oficial' }}
-                          </span>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            
-
-            <!-- ======================================================== -->
             <!-- SECCIÓN MAESTRO-DETALLE: CATEGORÍAS DE LA EDICIÓN        -->
             <!-- ======================================================== -->
             <div v-if="activeTab === 'categoryEditions'" class="card p-3 mt-4 rounded-4 border border-secondary-subtle bg-dark-subtle shadow-sm">
@@ -3437,7 +3642,8 @@
                       <th style="width: 70px;" class="text-center fw-semibold">#</th>
                       <th style="min-width: 220px; width: 22%;" class="fw-semibold">Categoría *</th>
                       <th style="min-width: 140px; width: 14%;" class="fw-semibold">Fechas (Inicio - Fin)</th>
-                      <th style="min-width: 100px; width: 9%;" class="text-end fw-semibold">Costo ($)</th>
+                      <th style="min-width: 100px; width: 8%;" class="text-end fw-semibold">Inscripción ($)</th>
+                      <th style="min-width: 100px; width: 8%;" class="text-end fw-semibold">Garantía ($)</th>
                       <th style="min-width: 70px; width: 6%;" class="text-center fw-semibold">Máx. Jug. *</th>
                       <th style="min-width: 150px; width: 15%;" class="text-center fw-semibold">Tiempos (Dur./Desc./Esp.)</th>
                       <th style="min-width: 110px; width: 11%;" class="text-center fw-semibold">Clasificaciones</th>
@@ -3447,7 +3653,7 @@
                   </thead>
                   <tbody>
                     <tr v-if="editionCategoriesDetail.length === 0">
-                      <td colspan="9" class="text-center py-5 text-muted">
+                      <td colspan="10" class="text-center py-5 text-muted">
                         <iconify-icon icon="solar:info-circle-line-duotone" class="fs-2 d-block mb-2 text-secondary"></iconify-icon>
                         Aún no se han agregado categorías al detalle de esta edición de torneo.<br/>
                         <button
@@ -3533,7 +3739,7 @@
                           </div>
                         </td>
 
-                        <!-- Costo ($) -->
+                        <!-- Inscripción ($) -->
                         <td>
                           <div class="input-group input-group-sm" style="min-width: 90px;">
                             <span class="input-group-text px-1">$</span>
@@ -3542,6 +3748,21 @@
                               step="0.01"
                               min="0"
                               v-model.number="item.registrationFee"
+                              class="form-control form-control-sm text-end font-monospace px-1"
+                              placeholder="0.00"
+                            />
+                          </div>
+                        </td>
+
+                        <!-- Garantía ($) -->
+                        <td>
+                          <div class="input-group input-group-sm" style="min-width: 90px;">
+                            <span class="input-group-text px-1">$</span>
+                            <input
+                              type="number"
+                              step="0.01"
+                              min="0"
+                              v-model.number="item.guaranteeFee"
                               class="form-control form-control-sm text-end font-monospace px-1"
                               placeholder="0.00"
                             />
@@ -4092,7 +4313,7 @@
             >
               <span v-if="saving" class="spinner-grow spinner-grow-sm text-white" role="status" aria-hidden="true"></span>
               <iconify-icon v-else icon="solar:check-circle-line-duotone" class="fs-4"></iconify-icon>
-              <span>{{ saving ? 'Guardando...' : (isEditing ? 'Guardar Cambios' : 'Registrar ' + activeTabLabel) }}</span>
+              <span>{{ saving ? 'Guardando...' : (isEditing ? 'Guardar Cambios' : (activeTab === 'playerTransfers' ? 'Generar Orden de Transferencia' : 'Registrar ' + activeTabLabel)) }}</span>
             </button>
           </div>
         </form>
@@ -4100,96 +4321,93 @@
     </div>
 
     <!-- ========================================== -->
-    <!-- MODAL: GENERADOR DE FIXTURE AUTOMÁTICO     -->
+    <!-- MODAL: GENERAR FIXTURE (solo los partidos de la etapa en proceso) -->
     <!-- ========================================== -->
     <div v-if="showFixtureModal" class="modal fade show d-block" tabindex="-1" style="background: rgba(0, 0, 0, 0.7); z-index: 1055;">
-      <div class="modal-dialog modal-lg modal-dialog-centered">
+      <div class="modal-dialog modal-lg modal-dialog-centered modal-dialog-scrollable">
         <div class="modal-content border-0 shadow app-modal">
           <div class="modal-header bg-primary text-white app-modal-header">
             <h5 class="modal-title fw-bold text-white d-flex align-items-center gap-2 app-modal-title">
               <iconify-icon icon="solar:calendar-add-bold" class="fs-4"></iconify-icon>
-              <span>Generador Automático de Fixture (Round-Robin)</span>
+              <span>Generar Fixture</span>
             </h5>
             <button type="button" class="btn-close btn-close-white" @click="showFixtureModal = false"></button>
           </div>
           <form @submit.prevent="generateFixture">
             <div class="modal-body p-4 app-modal-body">
-              <div class="row g-3">
-                <div class="col-md-6">
-                  <label class="form-label fw-semibold small text-dark">Etapa / Fase del Torneo <span class="text-danger">*</span></label>
-                  <select v-model="formFixture.stageId" class="form-select" required>
-                    <option value="" disabled>Seleccione la etapa...</option>
-                    <option v-for="s in stagesList" :key="s.id" :value="s.id">{{ s.name }}</option>
-                  </select>
-                </div>
-
-                <div class="col-md-6">
-                  <label class="form-label fw-semibold small text-dark">Cancha / Escenario Principal</label>
-                  <select v-model="formFixture.scenaryId" class="form-select">
-                    <option value="">Por definir / Asignar después</option>
-                    <option v-for="sc in scenariesList" :key="sc.id" :value="sc.id">{{ sc.name }}</option>
-                  </select>
-                </div>
-
-                <div class="col-md-6">
-                  <label class="form-label fw-semibold small text-dark">Fecha y Hora de la 1° Fecha <span class="text-danger">*</span></label>
-                  <input type="datetime-local" v-model="formFixture.startDate" class="form-control" required />
-                </div>
-
-                <div class="col-md-3">
-                  <label class="form-label fw-semibold small text-dark">Días entre Fechas</label>
-                  <input type="number" v-model.number="formFixture.intervalDays" class="form-control" min="1" max="30" />
-                  <small class="text-muted fs-1">Ej. 7 para cada semana</small>
-                </div>
-
-                <div class="col-md-3">
-                  <label class="form-label fw-semibold small text-dark">Minutos x Partido</label>
-                  <input type="number" v-model.number="formFixture.matchDurationMinutes" class="form-control" min="30" max="120" />
-                </div>
-
-                <div class="col-md-6">
-                  <label class="form-label fw-semibold small text-dark">Sistema de Vueltas (Algoritmo de Berger)</label>
-                  <select v-model.number="formFixture.numberOfLaps" class="form-select">
-                    <option :value="1">Solo Ida (1 Vuelta)</option>
-                    <option :value="2">Ida y Vuelta (2 Vueltas - Revancha)</option>
-                  </select>
-                </div>
-
-                <div class="col-12 mt-3">
-                  <div class="d-flex align-items-center justify-content-between mb-2">
-                    <label class="form-label fw-semibold small text-dark mb-0">
-                      Equipos Participantes (Seleccionados: {{ formFixture.teamIds.length }}) <span class="text-danger">*</span>
-                    </label>
-                    <button type="button" class="btn btn-sm btn-outline-primary" @click="selectAllTeams">
-                      {{ formFixture.teamIds.length === teamsList.length ? 'Deseleccionar Todos' : 'Seleccionar Todos' }}
-                    </button>
-                  </div>
-                  <div class="border rounded p-3" style="max-height: 200px; overflow-y: auto; background: #f8fafc;">
-                    <div class="row g-2">
-                      <div v-for="t in teamsList" :key="t.id" class="col-md-6">
-                        <div class="form-check">
-                          <input
-                            class="form-check-input"
-                            type="checkbox"
-                            :value="t.id"
-                            :id="'team_' + t.id"
-                            v-model="formFixture.teamIds"
-                          />
-                          <label class="form-check-label fw-medium small text-dark" :for="'team_' + t.id">
-                            {{ t.name }} <span v-if="t.shortName" class="text-muted">({{ t.shortName }})</span>
-                          </label>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                  <small class="text-muted fs-1 d-block mt-1">
-                    Si el número de equipos es impar, el sistema programará automáticamente una fecha libre para cada equipo.
-                  </small>
-                </div>
+              <div v-if="loadingFixtureOptions" class="text-center py-4">
+                <span class="spinner-border spinner-border-sm text-primary me-2" role="status"></span>
+                <span class="text-secondary small">Cargando los campeonatos iniciados...</span>
               </div>
+
+              <div v-else-if="fixtureEditions.length === 0" class="alert alert-warning mb-0 d-flex align-items-start gap-2">
+                <iconify-icon icon="solar:danger-triangle-bold" class="fs-4 text-warning"></iconify-icon>
+                <span>
+                  No hay campeonatos iniciados. Inicia el campeonato de cada categoría desde <strong>Ediciones de Torneo → Acciones → Iniciar Campeonato</strong> y vuelve a generar el fixture.
+                </span>
+              </div>
+
+              <template v-else>
+                <label class="form-label fw-semibold small">
+                  Edición del Torneo <span class="text-danger">*</span>
+                  <span class="text-secondary fw-normal">(puedes seleccionar varias)</span>
+                </label>
+                <div class="border rounded-3 p-2 mb-3">
+                  <div v-for="ed in fixtureEditions" :key="ed.id" class="form-check py-1">
+                    <input class="form-check-input" type="checkbox" :id="'fixture_ed_' + ed.id" :value="ed.id" v-model="selectedFixtureEditionIds" />
+                    <label class="form-check-label fw-medium" :for="'fixture_ed_' + ed.id">
+                      {{ ed.name }}
+                      <span class="badge bg-info-subtle text-info border border-info-subtle ms-1">{{ ed.stages.length }} etapa(s) en proceso</span>
+                    </label>
+                  </div>
+                </div>
+
+                <!-- Informativo: etapas en proceso y categorías de cada edición seleccionada -->
+                <div v-for="ed in selectedFixtureEditions" :key="'info_' + ed.id" class="card p-3 mb-3 rounded-4 border border-secondary-subtle">
+                  <h6 class="fw-bold mb-2 d-flex align-items-center gap-2">
+                    <iconify-icon icon="solar:cup-star-bold-duotone" class="fs-5 text-primary"></iconify-icon>
+                    <span>{{ ed.name }}</span>
+                  </h6>
+                  <div v-if="ed.stages.length === 0" class="text-secondary small">Esta edición no tiene etapas en proceso.</div>
+                  <div v-else class="table-responsive">
+                    <table class="table table-sm align-middle mb-0 app-table app-table-framed">
+                      <thead class="table-primary fs-2">
+                        <tr>
+                          <th class="fw-semibold">Etapa en proceso</th>
+                          <th class="fw-semibold">Categoría</th>
+                          <th class="text-center fw-semibold">Equipos aprobados</th>
+                          <th class="text-center fw-semibold">Partidos</th>
+                          <th class="fw-semibold">Fixture</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        <tr v-for="st in ed.stages" :key="st.id">
+                          <td>
+                            <span class="fw-semibold">{{ st.name }}</span>
+                            <span class="badge bg-warning-subtle text-warning border border-warning-subtle ms-1">En proceso</span>
+                          </td>
+                          <td>{{ st.categoryName || '-' }}</td>
+                          <td class="text-center font-monospace">
+                            {{ st.teamsCount }}
+                            <small v-if="st.pendingTeamsCount > 0" class="text-warning d-block">{{ st.pendingTeamsCount }} pendiente(s)</small>
+                          </td>
+                          <td class="text-center font-monospace">{{ st.matchesCount }}</td>
+                          <td>
+                            <span v-if="st.canGenerate" class="badge bg-success-subtle text-success border border-success-subtle">Listo para generar</span>
+                            <small v-else class="text-secondary">{{ st.reason }}</small>
+                          </td>
+                        </tr>
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              </template>
+
+              <small class="text-secondary d-block mt-2">
+                El fixture solo genera los partidos de cada categoría; los días, horarios y canchas se programan después.
+              </small>
             </div>
 
-            
             <div class="modal-footer bg-light app-modal-footer">
               <button type="button" class="btn btn-outline-secondary rounded-pill px-4" @click="showFixtureModal = false">
                 Cancelar
@@ -4197,14 +4415,94 @@
               <button
                 type="submit"
                 class="btn btn-primary rounded-pill px-4 fw-semibold d-flex align-items-center gap-2"
-                :disabled="generatingFixture || formFixture.teamIds.length < 2 || !formFixture.stageId"
+                :disabled="generatingFixture || fixtureReadyStages === 0"
               >
                 <span v-if="generatingFixture" class="spinner-grow spinner-grow-sm text-white"></span>
                 <iconify-icon v-else icon="solar:check-circle-line-duotone" class="fs-4"></iconify-icon>
-                <span>{{ generatingFixture ? 'Generando Fixture...' : 'Generar Calendario Oficial' }}</span>
+                <span>{{ generatingFixture ? 'Generando Fixture...' : 'Generar Fixture' }}</span>
               </button>
             </div>
           </form>
+        </div>
+      </div>
+    </div>
+
+    <!-- ========================================== -->
+    <!-- MODAL: DETALLE DE LA ORDEN DE PAGO         -->
+    <!-- ========================================== -->
+    <div v-if="showPaymentOrderModal && selectedPaymentOrder" class="modal fade show d-block" tabindex="-1" style="background: rgba(0, 0, 0, 0.7); z-index: 1055;">
+      <div class="modal-dialog modal-lg modal-dialog-centered modal-dialog-scrollable">
+        <div class="modal-content border-0 shadow app-modal">
+          <div class="modal-header bg-primary text-white app-modal-header">
+            <h5 class="modal-title fw-bold text-white d-flex align-items-center gap-2 app-modal-title">
+              <iconify-icon icon="solar:wallet-money-bold-duotone" class="fs-4"></iconify-icon>
+              <span>Orden de Pago ORD-{{ String(selectedPaymentOrder.id).padStart(6, '0') }}</span>
+            </h5>
+            <button type="button" class="btn-close btn-close-white" @click="showPaymentOrderModal = false"></button>
+          </div>
+
+          <div class="modal-body p-4 app-modal-body">
+            <div class="row g-3 mb-4">
+              <div class="col-md-6">
+                <small class="text-secondary d-block">Equipo</small>
+                <span class="fw-semibold">{{ selectedPaymentOrder.teamName }}</span>
+              </div>
+              <div class="col-md-6">
+                <small class="text-secondary d-block">Edición del Torneo</small>
+                <span class="fw-semibold">{{ selectedPaymentOrder.editionName }}</span>
+              </div>
+              <div class="col-md-4">
+                <small class="text-secondary d-block">Estado</small>
+                <span v-if="selectedPaymentOrder.status === 'PAID'" class="badge bg-success-subtle text-success border border-success-subtle">🟢 Pagada</span>
+                <span v-else-if="selectedPaymentOrder.status === 'CANCELLED'" class="badge bg-secondary-subtle text-secondary border border-secondary-subtle">⛔ Anulada</span>
+                <span v-else class="badge bg-warning-subtle text-warning border border-warning-subtle">⏳ Pendiente de Pago</span>
+              </div>
+              <div class="col-md-4">
+                <small class="text-secondary d-block">Fecha de la orden</small>
+                <span class="fw-semibold">{{ selectedPaymentOrder.createdAt ? new Date(selectedPaymentOrder.createdAt).toLocaleDateString() : '-' }}</span>
+              </div>
+              <div class="col-md-4">
+                <small class="text-secondary d-block">Valor total</small>
+                <span class="fw-bold font-monospace fs-5">${{ Number(selectedPaymentOrder.totalAmount || 0).toFixed(2) }}</span>
+              </div>
+            </div>
+
+            <div class="table-responsive">
+              <table class="table table-sm align-middle mb-0 app-table app-table-framed">
+                <thead class="table-primary fs-2">
+                  <tr>
+                    <th class="fw-semibold">Categoría / Concepto</th>
+                    <th class="text-end fw-semibold" style="width: 140px;">Valor ($)</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <template v-for="d in (selectedPaymentOrder.details || [])" :key="d.id">
+                    <tr class="table-active">
+                      <td class="fw-semibold">⚽ {{ d.categoryName }}</td>
+                      <td class="text-end fw-semibold font-monospace">${{ Number(d.subtotal || 0).toFixed(2) }}</td>
+                    </tr>
+                    <tr v-for="(c, cIdx) in (d.concepts || [])" :key="d.id + '_' + cIdx">
+                      <td class="ps-4 text-secondary">{{ c.description }}</td>
+                      <td class="text-end font-monospace">${{ Number(c.amount || 0).toFixed(2) }}</td>
+                    </tr>
+                  </template>
+                  <tr v-if="!selectedPaymentOrder.details || selectedPaymentOrder.details.length === 0">
+                    <td colspan="2" class="text-center py-3 text-muted">La orden no tiene categorías.</td>
+                  </tr>
+                </tbody>
+                <tfoot>
+                  <tr>
+                    <td class="text-end fw-bold">Valor total</td>
+                    <td class="text-end fw-bold font-monospace">${{ Number(selectedPaymentOrder.totalAmount || 0).toFixed(2) }}</td>
+                  </tr>
+                </tfoot>
+              </table>
+            </div>
+          </div>
+
+          <div class="modal-footer bg-light app-modal-footer">
+            <button type="button" class="btn btn-outline-secondary rounded-pill px-4" @click="showPaymentOrderModal = false">Cerrar</button>
+          </div>
         </div>
       </div>
     </div>
@@ -6152,14 +6450,33 @@ const tabs: TabConfig[] = [
     id: 'payments',
     label: 'Pagos / Finanzas',
     icon: 'solar:wallet-money-bold-duotone',
-    api: CampeonatoApi.payments,
-    columns: [
-      { key: 'concept', label: 'Concepto' },
-      { key: 'amount', label: 'Monto ($)' },
-      { key: 'paymentMethod', label: 'Método' },
-      { key: 'receiptNumber', label: '# Recibo' },
-      { key: 'status', label: 'Estado' },
-    ],
+    // Por defecto lista las órdenes de pago generadas al inscribir equipos; la otra vista lista los cobros registrados
+    api: {
+      ...CampeonatoApi.payments,
+      list: (params: any) =>
+        paymentsView.value === 'orders'
+          ? CampeonatoApi.teamPaymentOrders.list({ ...params, status: filterPaymentOrderStatus.value !== 'todos' ? filterPaymentOrderStatus.value : undefined })
+          : CampeonatoApi.payments.list(params),
+    },
+    get columns() {
+      return paymentsView.value === 'orders'
+        ? [
+            { key: 'orderNumber', label: 'Orden' },
+            { key: 'teamName', label: 'Equipo' },
+            { key: 'editionName', label: 'Edición del Torneo' },
+            { key: 'categoriesSummary', label: 'Categorías' },
+            { key: 'totalAmount', label: 'Valor Total ($)' },
+            { key: 'status', label: 'Estado' },
+            { key: 'createdAt', label: 'Fecha', type: 'date' },
+          ]
+        : [
+            { key: 'concept', label: 'Concepto' },
+            { key: 'amount', label: 'Monto ($)' },
+            { key: 'paymentMethod', label: 'Método' },
+            { key: 'receiptNumber', label: '# Recibo' },
+            { key: 'status', label: 'Estado' },
+          ];
+    },
     fields: [
       {
         key: 'concept',
@@ -6229,23 +6546,29 @@ const tabs: TabConfig[] = [
     id: 'playerTransfers',
     label: 'Transferencias de Jugadores',
     icon: 'solar:transfer-horizontal-bold-duotone',
-    api: CampeonatoApi.playerTransfers,
+    api: {
+      ...CampeonatoApi.playerTransfers,
+      list: (params: any) =>
+        CampeonatoApi.playerTransfers.list({
+          ...params,
+          editionId: filterTransferEditionId.value !== 'todos' ? Number(filterTransferEditionId.value) : undefined,
+          categoryId: filterTransferCategoryId.value !== 'todos' ? Number(filterTransferCategoryId.value) : undefined,
+          status: filterTransferStatus.value !== 'todos' ? filterTransferStatus.value : undefined,
+        }),
+    },
     columns: [
+      { key: 'orderNumber', label: 'Orden' },
       { key: 'player.name', label: 'Futbolista' },
+      { key: 'edition.name', label: 'Edición' },
+      { key: 'category.name', label: 'Categoría' },
       { key: 'originTeam.name', label: 'Club Origen' },
       { key: 'destinationTeam.name', label: 'Club Destino' },
-      { key: 'edition.name', label: 'Edición' },
       { key: 'status', label: 'Estado' },
       { key: 'approvalsSummary', label: 'Firmas / Resoluciones' },
-      { key: 'request_date', label: 'Fecha Solicitud', type: 'date' },
+      { key: 'requestDate', label: 'Fecha Solicitud', type: 'date' },
     ],
-    fields: [
-      { key: 'edition_id', label: 'Edición del Campeonato *', type: 'select', options: [], colClass: 'col-md-6' },
-      { key: 'player_id', label: 'Futbolista a Transferir *', type: 'select', options: [], colClass: 'col-md-6' },
-      { key: 'destination_team_id', label: 'Club de Destino (Receptor) *', type: 'select', options: [], colClass: 'col-md-6' },
-      { key: 'stage_id', label: 'Etapa / Fase (Opcional)', type: 'select', options: [], colClass: 'col-md-6' },
-      { key: 'reason', label: 'Motivo / Justificación de la Transferencia', type: 'textarea', colClass: 'col-md-12', placeholder: 'Ingrese el motivo del traspaso de derechos o cambio de club...' },
-    ],
+    // El formulario es propio (orden de transferencia): no usa campos genéricos
+    fields: [],
   },
 ];
 
@@ -6263,7 +6586,6 @@ const isConfigSection = computed(() => {
     'categoryEditions',
     'stages',
     'scenaries',
-    'schedules',
     'referees',
     'vocals',
   ];
@@ -6279,7 +6601,6 @@ const configSubTabsList = [
   { id: 'categoryEditions', label: 'Ediciones de Torneo', icon: 'solar:calendar-date-bold-duotone' },
   { id: 'stages', label: 'Plantillas de Etapas y Fases', icon: 'solar:diagram-up-bold-duotone' },
   { id: 'scenaries', label: 'Canchas (Escenarios)', icon: 'solar:map-point-wave-bold-duotone' },
-  { id: 'schedules', label: 'Días y Horarios', icon: 'solar:clock-circle-bold-duotone' },
   { id: 'referees', label: 'Árbitros', icon: 'solar:whistle-bold-duotone' },
   { id: 'vocals', label: 'Vocales', icon: 'solar:notes-bold-duotone' },
 ];
@@ -6735,13 +7056,6 @@ const deleteSchedule = (item: ScheduleTableItem) => {
   toast.success('Reglamento de horarios eliminado correctamente');
 };
 
-const applyScheduleFromItem = (item: ScheduleTableItem) => {
-  scheduleConfig.value.editionId = item.editionId;
-  syncEditionTimes();
-  loadScheduleConfig();
-  applyScheduleToFixture();
-};
-
 const loadScheduleConfig = () => {
   try {
     const companyId = getActiveCompanyId();
@@ -6776,16 +7090,6 @@ const loadScheduleConfig = () => {
   } catch (err) {
     console.error('Error cargando configuración de horarios:', err);
   }
-};
-
-const applyScheduleToFixture = async () => {
-  formFixture.value.matchDurationMinutes = scheduleConfig.value.matchDurationMinutes;
-  const firstScenaryId = scheduleConfig.value.selectedScenaryIds[0];
-  if (firstScenaryId) {
-    formFixture.value.scenaryId = firstScenaryId;
-  }
-  toast.success('Parámetros de horarios aplicados al Generador de Fixture');
-  await openFixtureModal();
 };
 
 const tabToSubCode: Record<string, string> = {
@@ -6865,10 +7169,29 @@ const items = ref<any[]>([]);
 const filterTeamStatus = ref<'todos' | 'activo' | 'inactivo'>('todos');
 const filterPlayerStatus = ref<'todos' | 'activo' | 'inactivo'>('todos');
 const filterCategoryGender = ref<'todos' | 'MALE' | 'FEMALE' | 'MIXED'>('todos');
-const filterEditionStatus = ref<'todos' | 'IN_PROGRESS' | 'FINISHED'>('todos');
+const filterEditionStatus = ref<'todos' | 'PENDING' | 'IN_PROGRESS' | 'COMPLETED'>('todos');
 const filterTeamRegStatus = ref<'todos' | 'APPROVED' | 'PENDING' | 'REJECTED' | 'DISQUALIFIED'>('todos');
 const filterTeamRegPayment = ref<'todos' | 'PAID' | 'PARTIAL' | 'UNPAID' | 'REFUNDED'>('todos');
 const filterPlayerRegEditionId = ref<string>('todos');
+
+// Filtros del listado de Transferencias de Jugadores
+const filterTransferEditionId = ref<string>('todos');
+const filterTransferCategoryId = ref<string>('todos');
+const filterTransferStatus = ref<string>('todos');
+
+const transferFilterCategories = computed(() => {
+  if (filterTransferEditionId.value === 'todos') return [];
+  const edition = categoryEditionsList.value.find((e: any) => String(e.id) === filterTransferEditionId.value);
+  return (edition?.categoriesDetail ?? []).map((d: any) => ({
+    id: d.categoryId,
+    name: d.categoryDescription || d.category?.name || getCategoryNameById(d.categoryId) || 'Categoría',
+  }));
+});
+
+const onTransferEditionFilterChange = () => {
+  filterTransferCategoryId.value = 'todos';
+  searchList();
+};
 const filterPlayerRegStatus = ref<'todos' | 'ELIGIBLE' | 'PENDING_APPROVAL' | 'INELIGIBLE' | 'SUSPENDED' | 'TRANSFERRED'>('todos');
 
 const displayedItems = computed(() => {
@@ -6894,7 +7217,8 @@ const displayedItems = computed(() => {
   }
   if (activeTab.value === 'categoryEditions') {
     return items.value.filter((item) => {
-      const currentStatus = item.status || 'IN_PROGRESS';
+      // Una edición sin inicio registrado está pendiente, aunque su estado guardado sea otro
+      const currentStatus = item.status === 'COMPLETED' || item.status === 'CANCELLED' ? item.status : item.startedAt ? 'IN_PROGRESS' : 'PENDING';
       if (filterEditionStatus.value !== 'todos' && currentStatus !== filterEditionStatus.value) return false;
       return true;
     });
@@ -7360,6 +7684,7 @@ const editionCategoriesDetail = ref<Array<{
   startDate?: string;
   endDate?: string;
   registrationFee?: number;
+  guaranteeFee?: number;
   maxPlayers?: number;
   matchDurationMinutes?: number;
   breakDurationMinutes?: number;
@@ -7536,6 +7861,7 @@ const addCategoryToEditionDetail = () => {
     startDate: formData.value.startDate || '',
     endDate: formData.value.endDate || '',
     registrationFee: 0,
+    guaranteeFee: 0,
     maxPlayers: 25,
     matchDurationMinutes: 60,
     breakDurationMinutes: 10,
@@ -8273,18 +8599,33 @@ const updatePlayerRegistrationClassifications = async (teamRegId: string) => {
   }
 };
 
-// Estado para Generador de Fixture Automático
+// Estado para Generar Fixture (solo los partidos de la etapa en proceso)
 const showFixtureModal = ref(false);
+const loadingFixtureOptions = ref(false);
 const generatingFixture = ref(false);
-const formFixture = ref({
-  stageId: '',
-  scenaryId: '',
-  teamIds: [] as string[],
-  startDate: new Date().toISOString().slice(0, 16),
-  intervalDays: 7,
-  matchDurationMinutes: 90,
-  numberOfLaps: 1,
-});
+const fixtureEditions = ref<any[]>([]);
+const selectedFixtureEditionIds = ref<number[]>([]);
+const selectedFixtureEditions = computed(() => fixtureEditions.value.filter((ed: any) => selectedFixtureEditionIds.value.includes(ed.id)));
+// Etapas seleccionadas que ya pueden generar su fixture
+const fixtureReadyStages = computed(() => selectedFixtureEditions.value.reduce((total: number, ed: any) => total + ed.stages.filter((st: any) => st.canGenerate).length, 0));
+
+// Pagos y Finanzas: órdenes de pago de la inscripción de equipos (por defecto) o cobros registrados
+const paymentsView = ref<'orders' | 'payments'>('orders');
+const filterPaymentOrderStatus = ref<string>('todos');
+const isPaymentOrdersView = computed(() => activeTab.value === 'payments' && paymentsView.value === 'orders');
+const showPaymentOrderModal = ref(false);
+const selectedPaymentOrder = ref<any>(null);
+
+const setPaymentsView = (view: 'orders' | 'payments') => {
+  paymentsView.value = view;
+  page.value = 1;
+  loadData();
+};
+
+const openPaymentOrderDetail = (order: any) => {
+  selectedPaymentOrder.value = order;
+  showPaymentOrderModal.value = true;
+};
 
 // Estado para Visor de Carnet Deportivo QR
 const showCarnetModal = ref(false);
@@ -8376,39 +8717,6 @@ const populateFieldOptions = () => {
         value: p.id,
       };
     });
-  }
-
-  // Opciones para Transferencias de Jugadores
-  const ptTab = tabs.find((t) => t.id === 'playerTransfers');
-  if (ptTab) {
-    const ptEdField = ptTab.fields.find((f) => f.key === 'edition_id');
-    if (ptEdField) {
-      ptEdField.options = categoryEditionsList.value.map((e) => ({
-        label: `${e.name} - ${e.category?.name || 'Categoría'}`,
-        value: e.id,
-      }));
-    }
-    const ptPlField = ptTab.fields.find((f) => f.key === 'player_id');
-    if (ptPlField) {
-      ptPlField.options = playersList.value.map((p) => ({
-        label: `${p.name} ${p.lastName} (${p.identification || p.code || 'ID'})`,
-        value: p.id,
-      }));
-    }
-    const ptDestField = ptTab.fields.find((f) => f.key === 'destination_team_id');
-    if (ptDestField) {
-      ptDestField.options = teamsList.value.map((t) => ({
-        label: `${t.name} (${t.acronyms || t.shortName || 'Club'})`,
-        value: t.id,
-      }));
-    }
-    const ptStField = ptTab.fields.find((f) => f.key === 'stage_id');
-    if (ptStField) {
-      ptStField.options = stagesList.value.map((s) => ({
-        label: s.name,
-        value: s.id,
-      }));
-    }
   }
 
   // Opciones para Árbitros (Gremios Arbitrales)
@@ -8719,6 +9027,7 @@ interface PlayerRegRowEntry {
   photo: string;
   carnetCode: string;
   playerClassificationId: number | string;
+  demarcationId: number | string;
   jerseyNumber: number | null;
   isCaptain: boolean;
   status: string;
@@ -8881,6 +9190,8 @@ const onPlayerRowSelectChange = (
         pl.playerClassificationId = foundPlayer.playerClassificationId;
       }
     }
+    // Al elegir un futbolista, la demarcación propone la de su ficha (se puede cambiar en la fila)
+    pl.demarcationId = foundPlayer.demarcationId || '';
     if (!pl.jerseyNumber) {
       const usedJerseys = new Set((cat.players || []).map((r) => Number(r.jerseyNumber)).filter(Boolean));
       let nextJersey = 1;
@@ -8923,6 +9234,7 @@ const addEmptyPlayerRowToCategory = (cat: PlayerRegCategoryEntry) => {
     photo: '',
     carnetCode: '',
     playerClassificationId: defaultClassId,
+    demarcationId: '',
     jerseyNumber: nextJersey,
     isCaptain: cat.players.length === 0,
     status: 'ELIGIBLE',
@@ -8988,8 +9300,7 @@ const addEmptyTeamRowToCategoryReg = (cat: TeamRegCategoryEntry) => {
     teamAcronyms: '',
     teamLogo: '',
     groupName: '',
-    status: 'APPROVED',
-    paymentStatus: 'UNPAID',
+    status: 'PENDING',$1paymentStatus: 'UNPAID',
     pointsPenalty: 0,
   });
 };
@@ -9115,7 +9426,7 @@ const loadEditionCategoriesForTeamReg = async (editionId: string | number) => {
           teamAcronyms: r.team?.acronyms || foundTeam?.acronyms || '',
           teamLogo: r.team?.logo || foundTeam?.logo || '',
           groupName: r.groupName || '',
-          status: r.status || 'APPROVED',
+          status: r.status || 'PENDING',
           paymentStatus: r.paymentStatus || 'UNPAID',
           pointsPenalty: Number(r.pointsPenalty) || 0,
         };
@@ -9134,8 +9445,7 @@ const loadEditionCategoriesForTeamReg = async (editionId: string | number) => {
             teamAcronyms: foundAuto?.acronyms || '',
             teamLogo: foundAuto?.logo || '',
             groupName: '',
-            status: 'APPROVED',
-            paymentStatus: 'UNPAID',
+            status: 'PENDING',$1paymentStatus: 'UNPAID',
             pointsPenalty: 0,
           });
         }
@@ -9187,8 +9497,7 @@ const addTeamToCategoryReg = (cat: TeamRegCategoryEntry) => {
     teamAcronyms: foundTeam.acronyms || '',
     teamLogo: foundTeam.logo || '',
     groupName: '',
-    status: 'APPROVED',
-    paymentStatus: 'UNPAID',
+    status: 'PENDING',$1paymentStatus: 'UNPAID',
     pointsPenalty: 0,
   });
 
@@ -9249,35 +9558,34 @@ const loadStandings = async () => {
 };
 
 const openFixtureModal = async () => {
-  await loadAuxiliaryTournamentData();
-  formFixture.value.teamIds = teamsList.value.map((t) => t.id);
-  if (stagesList.value.length > 0 && !formFixture.value.stageId) {
-    formFixture.value.stageId = stagesList.value[0].id;
-  }
   showFixtureModal.value = true;
-};
-
-const selectAllTeams = () => {
-  if (formFixture.value.teamIds.length === teamsList.value.length) {
-    formFixture.value.teamIds = [];
-  } else {
-    formFixture.value.teamIds = teamsList.value.map((t) => t.id);
+  selectedFixtureEditionIds.value = [];
+  loadingFixtureOptions.value = true;
+  try {
+    const res = await CampeonatoApi.matches.getFixtureOptions();
+    fixtureEditions.value = res.data || [];
+  } catch (err: any) {
+    console.error(err);
+    fixtureEditions.value = [];
+    toast.error(err?.response?.data?.message || 'No se pudieron cargar los campeonatos iniciados');
+  } finally {
+    loadingFixtureOptions.value = false;
   }
 };
 
 const generateFixture = async () => {
+  if (selectedFixtureEditionIds.value.length === 0) {
+    toast.warning('Seleccione al menos una edición del torneo');
+    return;
+  }
   try {
     generatingFixture.value = true;
-    const res = await CampeonatoApi.matches.generateFixture({
-      stageId: Number(formFixture.value.stageId),
-      teamIds: formFixture.value.teamIds.map((teamId) => Number(teamId)),
-      scenaryId: formFixture.value.scenaryId ? Number(formFixture.value.scenaryId) : undefined,
-      startDate: formFixture.value.startDate,
-      intervalDays: formFixture.value.intervalDays,
-      matchDurationMinutes: formFixture.value.matchDurationMinutes,
-      numberOfLaps: formFixture.value.numberOfLaps,
-    });
+    const res = await CampeonatoApi.matches.generateFixture({ editionIds: selectedFixtureEditionIds.value.map((id) => Number(id)) });
     toast.success(res.data.message || 'Fixture generado con éxito');
+    const notGenerated = (res.data.results || []).filter((r: any) => !r.generated);
+    if (notGenerated.length > 0) {
+      toast.info(notGenerated.length + ' etapa(s) no generaron fixture: ' + notGenerated.map((r: any) => r.categoryName + ' (' + r.reason + ')').join(' | '));
+    }
     showFixtureModal.value = false;
     loadData();
   } catch (err: any) {
@@ -9285,6 +9593,23 @@ const generateFixture = async () => {
     toast.error(err?.response?.data?.message || 'Error al generar el fixture');
   } finally {
     generatingFixture.value = false;
+  }
+};
+
+// Categorías de la edición que todavía no inician su campeonato (ninguna si la edición está finalizada o cancelada)
+const pendingStartCategories = (item: any): any[] => (item.status === 'COMPLETED' || item.status === 'CANCELLED' ? [] : (item.categoriesDetail ?? []).filter((det: any) => !det.startedAt));
+
+// Inicia el campeonato de una categoría de la edición (una sola vez por categoría): su primera etapa pasa a «En proceso»
+const startEditionChampionship = async (item: any, det: any) => {
+  const categoryName = det.categoryDescription || det.category?.name || 'la categoría';
+  if (!confirm('¿Iniciar el campeonato de "' + categoryName + '" en "' + item.name + '"? Su primera etapa pasará a «En proceso». Esta acción solo se puede realizar una vez por categoría.')) return;
+  try {
+    await CampeonatoApi.categoryEditions.start(item.id, det.categoryId);
+    toast.success('Campeonato iniciado: la primera etapa de ' + categoryName + ' está en proceso');
+    loadData();
+  } catch (err: any) {
+    console.error(err);
+    toast.error(err?.response?.data?.message || 'No se pudo iniciar el campeonato');
   }
 };
 
@@ -9447,29 +9772,102 @@ const onTransferUpdated = () => {
   }
 };
 
+// ==========================================
+// ORDEN DE TRANSFERENCIA DE JUGADOR (formulario)
+// ==========================================
+const transferPlayers = ref<any[]>([]);
+const transferDestinationRegistrations = ref<any[]>([]);
+
+// Ediciones activas de la empresa (no finalizadas ni canceladas)
+const transferEditionOptions = computed(() =>
+  categoryEditionsList.value
+    .filter((e: any) => e.status !== 'COMPLETED' && e.status !== 'CANCELLED')
+    .map((e: any) => ({ value: e.id, label: e.name })),
+);
+
+// Categorías de la edición elegida
+const transferCategoryOptions = computed(() => {
+  const edition = categoryEditionsList.value.find((e: any) => String(e.id) === String(formData.value.edition_id));
+  return (edition?.categoriesDetail ?? []).map((d: any) => ({
+    value: d.categoryId,
+    label: d.categoryDescription || d.category?.name || getCategoryNameById(d.categoryId) || 'Categoría',
+  }));
+});
+
+const transferPlayerOptions = computed(() =>
+  transferPlayers.value.map((p: any) => ({
+    value: p.id,
+    label: `${p.name} ${p.lastName}`.trim(),
+    sublabel: p.identification || p.code || undefined,
+  })),
+);
+
+// Club donde el jugador está inscrito hoy en esa categoría: el campo solo se muestra si existe
+const transferOriginTeamName = computed(() => detectedOriginRegistration.value?.teamRegistration?.team?.name || '');
+
+// Clubes inscritos en la edición y categoría, sin el club de origen del jugador
+const transferDestinationOptions = computed(() => {
+  const originTeamId = detectedOriginRegistration.value?.teamRegistration?.teamId;
+  return transferDestinationRegistrations.value
+    .filter((tr: any) => tr.team && String(tr.teamId) !== String(originTeamId))
+    .map((tr: any) => ({ value: tr.teamId, label: tr.team.name, sublabel: tr.team.acronyms || tr.team.shortName || undefined }));
+});
+
+// Todos los jugadores de la empresa (el listado se pagina en el backend)
+const loadTransferPlayers = async () => {
+  try {
+    const all: any[] = [];
+    for (let pageNumber = 1; pageNumber <= 100; pageNumber++) {
+      const res = await CampeonatoApi.players.list({ page: pageNumber, limit: 100 });
+      all.push(...(res.data?.data || []));
+      if (pageNumber >= (res.data?.totalPages || 1)) break;
+    }
+    transferPlayers.value = all;
+  } catch (e) {
+    console.error('Error cargando los jugadores para la transferencia:', e);
+    transferPlayers.value = playersList.value;
+  }
+};
+
+// Equipos inscritos en la edición y categoría elegidas
+const loadTransferDestinationTeams = async () => {
+  const editionId = formData.value.edition_id;
+  const categoryId = formData.value.category_id;
+  if (!editionId || !categoryId) {
+    transferDestinationRegistrations.value = [];
+    return;
+  }
+  try {
+    const res = await CampeonatoApi.teamRegistrations.list({ categoryEditionId: Number(editionId), categoryId: Number(categoryId), limit: 200 });
+    transferDestinationRegistrations.value = res.data?.data || [];
+  } catch (e) {
+    console.error('Error cargando los equipos de la categoría:', e);
+    transferDestinationRegistrations.value = [];
+  }
+};
+
+// Inscripción vigente del jugador en la edición y categoría (su club de origen)
 const checkPlayerCurrentRegistration = async () => {
   if (activeTab.value !== 'playerTransfers') return;
-  const pId = formData.value.player_id;
-  const eId = formData.value.edition_id;
-  if (!pId || !eId) {
+  const { player_id: playerId, edition_id: editionId, category_id: categoryId } = formData.value;
+  if (!playerId || !editionId || !categoryId) {
     detectedOriginRegistration.value = null;
     return;
   }
   checkingOriginRegistration.value = true;
   try {
-    const listRes = await CampeonatoApi.playerRegistrations.list({
-      limit: 100,
-      playerId: pId,
+    const res = await CampeonatoApi.playerRegistrations.list({
+      playerId: Number(playerId),
+      categoryEditionId: Number(editionId),
+      categoryId: Number(categoryId),
+      limit: 20,
     });
-    const regs = listRes.data?.data || [];
-    const activeReg = regs.find((r: any) => {
-      const rEditionId = r.teamRegistration?.categoryEditionId || r.categoryEditionId;
-      return (
-        String(rEditionId) === String(eId) &&
-        (r.status === 'ELIGIBLE' || r.status === 'IN_REVIEW' || r.status === 'PENDING_APPROVAL')
-      );
-    });
-    detectedOriginRegistration.value = activeReg || null;
+    const regs = res.data?.data || [];
+    detectedOriginRegistration.value = regs.find((r: any) => r.status !== 'FINALIZED_BY_TRANSFER') || null;
+    // El club de destino no puede ser el club de origen
+    if (String(detectedOriginRegistration.value?.teamRegistration?.teamId) === String(formData.value.destination_team_id)) {
+      formData.value.destination_team_id = '';
+    }
   } catch (e) {
     console.error('Error detectando inscripción previa:', e);
     detectedOriginRegistration.value = null;
@@ -9478,11 +9876,37 @@ const checkPlayerCurrentRegistration = async () => {
   }
 };
 
-watch(() => [formData.value.player_id, formData.value.edition_id], () => {
-  if (activeTab.value === 'playerTransfers' && isFormOpen.value) {
+// Al cambiar la edición, la categoría se limita a las de esa edición (si solo tiene una, se elige sola)
+watch(
+  () => formData.value.edition_id,
+  () => {
+    if (activeTab.value !== 'playerTransfers' || !isFormOpen.value) return;
+    const options = transferCategoryOptions.value;
+    if (!options.some((o: any) => String(o.value) === String(formData.value.category_id))) {
+      formData.value.category_id = options.length === 1 ? options[0].value : '';
+    }
+  },
+);
+
+// Al cambiar la edición o la categoría se recargan los clubes inscritos y el club de origen del jugador
+watch(
+  () => [formData.value.edition_id, formData.value.category_id],
+  () => {
+    if (activeTab.value !== 'playerTransfers' || !isFormOpen.value) return;
+    formData.value.destination_team_id = '';
+    loadTransferDestinationTeams();
     checkPlayerCurrentRegistration();
-  }
-});
+  },
+);
+
+watch(
+  () => formData.value.player_id,
+  () => {
+    if (activeTab.value === 'playerTransfers' && isFormOpen.value) {
+      checkPlayerCurrentRegistration();
+    }
+  },
+);
 
 // ==========================================
 // HISTORIAL DE CATEGORÍAS DE EQUIPOS
@@ -9879,18 +10303,6 @@ const searchLocationOnMap = async () => {
   }
 };
 
-const toggleScenarySelection = (id: number) => {
-  if (!formData.value.availableScenaryIds) {
-    formData.value.availableScenaryIds = [];
-  }
-  const idx = formData.value.availableScenaryIds.indexOf(id);
-  if (idx >= 0) {
-    formData.value.availableScenaryIds.splice(idx, 1);
-  } else {
-    formData.value.availableScenaryIds.push(id);
-  }
-};
-
 const openCreateForm = () => {
   if (activeTab.value === 'schedules') {
     openCreateSchedule();
@@ -9901,12 +10313,11 @@ const openCreateForm = () => {
   formData.value = {};
   if (activeTab.value === 'categoryEditions') {
     formData.value = {
-      status: 'IN_PROGRESS',
+      status: 'PENDING',
       identifyByPlayerCode: false,
       matchDurationMinutes: 60,
       breakDurationMinutes: 10,
       waitBetweenMatchesMinutes: 10,
-      availableScenaryIds: scenariesList.value.map((s) => s.id),
       categoriesDetail: [],
     };
     editionCategoriesDetail.value = [
@@ -9918,6 +10329,7 @@ const openCreateForm = () => {
         startDate: '',
         endDate: '',
         registrationFee: 0,
+        guaranteeFee: 0,
         maxPlayers: 25,
         matchDurationMinutes: 60,
         breakDurationMinutes: 10,
@@ -10010,13 +10422,21 @@ const openCreateForm = () => {
       isCaptain: false,
     };
   } else if (activeTab.value === 'playerTransfers') {
+    detectedOriginRegistration.value = null;
+    transferDestinationRegistrations.value = [];
     formData.value = {
-      edition_id: categoryEditionsList.value.length > 0 ? categoryEditionsList.value[0].id : '',
+      edition_id: transferEditionOptions.value[0]?.value ?? '',
+      category_id: '',
       player_id: '',
       destination_team_id: '',
-      stage_id: '',
       reason: '',
     };
+    // Si la edición tiene una sola categoría, queda elegida
+    if (transferCategoryOptions.value.length === 1) {
+      formData.value.category_id = transferCategoryOptions.value[0].value;
+    }
+    loadTransferPlayers();
+    loadTransferDestinationTeams();
   } else if (activeTab.value === 'stages') {
     formData.value = {
       name: '',
@@ -10087,6 +10507,7 @@ const openEditForm = (item: any) => {
         photo: pl.photo || '',
         carnetCode: pl.carnetCode || '',
         playerClassificationId: pl.playerClassificationId || '',
+        demarcationId: pl.demarcationId || '',
         jerseyNumber: Number(pl.jerseyNumber) || null,
         isCaptain: Boolean(pl.isCaptain),
         status: pl.status || 'ELIGIBLE',
@@ -10095,12 +10516,11 @@ const openEditForm = (item: any) => {
     expandedPlayerRegCategories.value = new Set(playerRegCategoriesArray.value.map((_, i) => i));
   }
   if (activeTab.value === 'categoryEditions') {
-    formData.value.status = formData.value.status || 'IN_PROGRESS';
+    formData.value.status = formData.value.status || 'PENDING';
     formData.value.identifyByPlayerCode = item.identifyByPlayerCode === true;
     formData.value.matchDurationMinutes = Number(item.matchDurationMinutes) || 60;
     formData.value.breakDurationMinutes = Number(item.breakDurationMinutes) || 10;
     formData.value.waitBetweenMatchesMinutes = Number(item.waitBetweenMatchesMinutes) || 10;
-    formData.value.availableScenaryIds = Array.isArray(item.availableScenaryIds) ? item.availableScenaryIds : [];
     editionCategoriesDetail.value = item.categoriesDetail
       ? JSON.parse(JSON.stringify(item.categoriesDetail)).map((det: any) => ({
           ...det,
@@ -10246,18 +10666,17 @@ const saveForm = async () => {
           return;
         }
       }
-      formData.value.status = 'IN_PROGRESS';
       formData.value.identifyByPlayerCode = Boolean(formData.value.identifyByPlayerCode);
       formData.value.matchDurationMinutes = Number(formData.value.matchDurationMinutes) || 60;
       formData.value.breakDurationMinutes = Number(formData.value.breakDurationMinutes) || 10;
       formData.value.waitBetweenMatchesMinutes = Number(formData.value.waitBetweenMatchesMinutes) || 10;
-      formData.value.availableScenaryIds = Array.isArray(formData.value.availableScenaryIds) ? formData.value.availableScenaryIds : [];
       formData.value.categoriesDetail = editionCategoriesDetail.value.map((d) => ({
         categoryId: d.categoryId,
         categoryDescription: d.categoryDescription || getCategoryNameById(d.categoryId),
         startDate: d.startDate || undefined,
         endDate: d.endDate || undefined,
         registrationFee: Number(d.registrationFee) || 0,
+        guaranteeFee: Number(d.guaranteeFee) || 0,
         maxPlayers: Number(d.maxPlayers) > 0 ? Number(d.maxPlayers) : 25,
         matchDurationMinutes: Number(d.matchDurationMinutes) || 60,
         breakDurationMinutes: d.breakDurationMinutes !== undefined && d.breakDurationMinutes !== null ? Number(d.breakDurationMinutes) : 10,
@@ -10478,7 +10897,7 @@ const saveForm = async () => {
           }
         }
       }
-      await CampeonatoApi.teamRegistrations.syncByEdition({
+      const syncRes = await CampeonatoApi.teamRegistrations.syncByEdition({
         categoryEditionId: Number(selectedEditionForTeamReg.value),
         categories: teamRegCategoriesArray.value.map((cat) => ({
           categoryId: Number(cat.categoryId),
@@ -10488,13 +10907,17 @@ const saveForm = async () => {
               id: tm.id ? Number(tm.id) : undefined,
               teamId: Number(tm.teamId),
               groupName: tm.groupName ? String(tm.groupName).trim() : undefined,
-              status: tm.status || 'APPROVED',
-              paymentStatus: tm.paymentStatus || 'UNPAID',
               pointsPenalty: Number(tm.pointsPenalty) || 0,
             })),
         })),
       });
-      toast.success('Inscripción de equipos por categoría guardada exitosamente');
+      const paymentOrders = syncRes.data?.paymentOrders || [];
+      if (paymentOrders.length > 0) {
+        const total = paymentOrders.reduce((sum: number, order: any) => sum + (Number(order.totalAmount) || 0), 0);
+        toast.success('Inscripción guardada. Se generaron ' + paymentOrders.length + ' orden(es) de pago pendiente(s) por un total de $' + total.toFixed(2));
+      } else {
+        toast.success('Inscripción de equipos por categoría guardada exitosamente');
+      }
       closeForm();
       await loadData();
       await loadAuxiliaryTournamentData();
@@ -10538,6 +10961,7 @@ const saveForm = async () => {
               jerseyNumber: Number(pl.jerseyNumber),
               carnetCode: pl.carnetCode || undefined,
               playerClassificationId: pl.playerClassificationId ? Number(pl.playerClassificationId) : undefined,
+              demarcationId: pl.demarcationId ? Number(pl.demarcationId) : undefined,
               isCaptain: Boolean(pl.isCaptain),
             })),
         })),
@@ -10550,6 +10974,11 @@ const saveForm = async () => {
     } else if (activeTab.value === 'playerTransfers') {
       if (!formData.value.edition_id) {
         toast.error('Debe seleccionar la edición del campeonato');
+        saving.value = false;
+        return;
+      }
+      if (!formData.value.category_id) {
+        toast.error('Debe seleccionar la categoría de la edición');
         saving.value = false;
         return;
       }
@@ -10596,6 +11025,9 @@ const saveForm = async () => {
       'updatedAt',
       'deletedAt',
       'documentType',
+      'startedAt',
+      'startedName',
+      'availableScenaryIds',
     ];
     for (const k of forbiddenKeys) {
       delete (payload as any)[k];
@@ -10612,17 +11044,15 @@ const saveForm = async () => {
       body = {
         teamId: Number(formData.value.teamId),
         categoryEditionId: Number(formData.value.categoryEditionId),
-        status: formData.value.status || 'APPROVED',
-        paymentStatus: formData.value.paymentStatus || 'UNPAID',
         groupName: formData.value.groupName ? String(formData.value.groupName).trim() : undefined,
       };
     } else if (activeTab.value === 'playerTransfers') {
       // CreatePlayerTransferDto es camelCase; el formulario usa claves propias
       body = {
         editionId: Number(payload.edition_id),
+        categoryId: Number(payload.category_id),
         playerId: Number(payload.player_id),
         destinationTeamId: Number(payload.destination_team_id),
-        stageId: payload.stage_id ? Number(payload.stage_id) : undefined,
         observations: payload.reason?.trim() || undefined,
       };
     } else if (activeTab.value === 'referees') {
@@ -10665,7 +11095,7 @@ const saveForm = async () => {
       toast.success('Registro actualizado exitosamente');
     } else {
       await currentTabConfig.value.api.create(body);
-      toast.success('Registro creado exitosamente');
+      toast.success(activeTab.value === 'playerTransfers' ? 'Orden de transferencia generada en estado pendiente' : 'Registro creado exitosamente');
     }
     closeForm();
     loadData();
@@ -10704,8 +11134,6 @@ const slugToTab: Record<string, string> = {
   escenarios: 'scenaries',
   scenaries: 'scenaries',
   canchas: 'scenaries',
-  horarios: 'schedules',
-  schedules: 'schedules',
   configuracion: 'teams',
   configuraciones: 'teams',
   'inscripciones-equipos': 'teamRegistrations',

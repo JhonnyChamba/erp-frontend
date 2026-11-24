@@ -289,7 +289,6 @@ const isSubActive = (subUrl: string) => {
           'categoryeditions',
           'stages',
           'scenaries',
-          'schedules',
           'referees',
           'vocals',
           'demarcations',
