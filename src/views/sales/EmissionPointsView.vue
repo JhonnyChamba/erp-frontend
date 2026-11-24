@@ -431,7 +431,7 @@ onMounted(() => {
       <!-- TABLA DE PUNTOS DE EMISIÓN -->
       <div class="crud-table-card">
         <div class="table-responsive">
-          <table class="crud-table">
+          <table class="crud-table app-table">
             <thead>
               <tr>
                 <th scope="col" style="min-width: 180px;">Sucursal / Establecimiento</th>
@@ -749,7 +749,7 @@ onMounted(() => {
           <!-- TABLA DE SECUENCIAS -->
           <div class="crud-table-card">
             <div class="table-responsive">
-              <table class="crud-table">
+              <table class="crud-table app-table">
                 <thead>
                   <tr>
                     <th scope="col" style="width: 60px;">N°</th>

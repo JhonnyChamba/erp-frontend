@@ -104,9 +104,9 @@
 
     <!-- TABLA 0: PADRÓN GLOBAL DE FUTBOLISTAS -->
     <div v-if="tab === 'global_players'" class="table-responsive">
-      <table class="table table-hover align-middle mb-0">
-        <thead>
-          <tr class="border-bottom border-dark-subtle text-secondary fs-2 text-uppercase">
+      <table class="table table-hover align-middle mb-0 crud-table app-table">
+        <thead class="table-primary">
+          <tr>
             <th>Foto</th>
             <th>Código</th>
             <th>Cédula / DNI</th>
@@ -218,9 +218,9 @@
 
     <!-- TABLA 1: GREMIOS ARBITRALES -->
     <div v-else-if="tab === 'referee_guilds'" class="table-responsive">
-      <table class="table table-hover align-middle mb-0">
-        <thead>
-          <tr class="border-bottom border-dark-subtle text-secondary fs-2 text-uppercase">
+      <table class="table table-hover align-middle mb-0 crud-table app-table">
+        <thead class="table-primary">
+          <tr>
             <th>#</th>
             <th>Descripción / Nombre</th>
             <th>Siglas</th>
@@ -288,9 +288,9 @@
 
     <!-- TABLA 2: PADRÓN GLOBAL DE ÁRBITROS -->
     <div v-else-if="tab === 'global_referees'" class="table-responsive">
-      <table class="table table-hover align-middle mb-0">
-        <thead>
-          <tr class="border-bottom border-dark-subtle text-secondary fs-2 text-uppercase">
+      <table class="table table-hover align-middle mb-0 crud-table app-table">
+        <thead class="table-primary">
+          <tr>
             <th>Documento / Cédula</th>
             <th>Nombre Completo</th>
             <th>Gremio / Núcleo</th>
@@ -371,9 +371,9 @@
 
     <!-- TABLA 3: CLASIFICACIÓN DE FUTBOLISTAS -->
     <div v-else-if="tab === 'player_classifications'" class="table-responsive">
-      <table class="table table-hover align-middle mb-0">
-        <thead>
-          <tr class="border-bottom border-dark-subtle text-secondary fs-2 text-uppercase">
+      <table class="table table-hover align-middle mb-0 crud-table app-table">
+        <thead class="table-primary">
+          <tr>
             <th>Descripción / Nombre</th>
             <th>Código</th>
             <th>Observación</th>
@@ -441,9 +441,9 @@
 
     <!-- TABLA 4: DEMARCACIONES -->
     <div v-else-if="tab === 'demarcations'" class="table-responsive">
-      <table class="table table-hover align-middle mb-0">
-        <thead>
-          <tr class="border-bottom border-dark-subtle text-secondary fs-2 text-uppercase">
+      <table class="table table-hover align-middle mb-0 crud-table app-table">
+        <thead class="table-primary">
+          <tr>
             <th>Posición en Campo</th>
             <th>Código</th>
             <th>Zona de Juego</th>
@@ -518,9 +518,9 @@
 
     <!-- TABLA 5: FORMATOS DE DISPUTA -->
     <div v-if="tab === 'stage_formats'" class="table-responsive">
-      <table class="table table-hover align-middle mb-0">
-        <thead>
-          <tr class="border-bottom border-dark-subtle text-secondary fs-2 text-uppercase">
+      <table class="table table-hover align-middle mb-0 crud-table app-table">
+        <thead class="table-primary">
+          <tr>
             <th>Código</th>
             <th>Nombre del Formato</th>
             <th>Tipo Principal</th>
@@ -629,9 +629,9 @@
 
     <!-- TABLAS: TIPOS DE COMPETENCIA, VUELTAS Y CRITERIOS DE DESEMPATE -->
     <div v-else-if="['competition_types', 'competition_laps', 'tie_breaker_criteria'].includes(tab)" class="table-responsive">
-      <table class="table table-hover align-middle mb-0">
-        <thead>
-          <tr class="border-bottom border-dark-subtle text-secondary fs-2 text-uppercase">
+      <table class="table table-hover align-middle mb-0 crud-table app-table">
+        <thead class="table-primary">
+          <tr>
             <th style="width: 50px;">#</th>
             <th>Descripción / Nombre</th>
             <th>Código / Siglas</th>

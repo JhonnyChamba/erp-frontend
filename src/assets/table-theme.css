@@ -1,0 +1,141 @@
+/* ==========================================================================
+   ESTILO ÚNICO DE TABLAS DEL SISTEMA
+   --------------------------------------------------------------------------
+   Para cambiar el aspecto de TODAS las tablas basta con editar las variables
+   --app-table-* de este archivo (modo oscuro en :root, modo claro más abajo).
+
+   Clase oficial para tablas nuevas:  <table class="table app-table">
+   Alias heredados que reciben el mismo estilo (no hace falta migrarlos):
+   .table, .crud-table, .erp-table y cualquier <table> dentro de .settings-page.
+
+   Las cabeceras de color semántico (thead.table-success, table-warning,
+   table-danger, table-dark...) conservan su color propio (theme.css).
+   ========================================================================== */
+
+/* ---------- 1. Variables (modo oscuro / por defecto) ---------- */
+:root {
+  /* Cuerpo */
+  --app-table-font-size: 0.835rem;
+  --app-table-cell-padding-y: 0.5rem;
+  --app-table-cell-padding-x: 0.75rem;
+  --app-table-body-color: var(--bs-body-color, #eaeff4);
+  --app-table-row-border-color: var(--bs-border-color, rgba(189, 200, 240, 0.1));
+  --app-table-row-hover-bg: var(--bs-hover-bg, rgba(255, 255, 255, 0.04));
+  --app-table-row-transition: background-color 0.15s ease-in-out;
+
+  /* Cabecera (fondo sólido: al hacer scroll las filas no se transparentan por detrás) */
+  --app-table-head-bg: #0d3353;
+  --app-table-head-color: #93c5fd;
+  --app-table-head-border-color: rgba(var(--bs-primary-rgb), 0.35);
+  --app-table-head-font-size: 0.72rem;
+  --app-table-head-font-weight: 700;
+  --app-table-head-letter-spacing: 0.04em;
+  --app-table-head-text-transform: uppercase;
+  --app-table-head-padding-y: 0.55rem;
+  --app-table-head-padding-x: 0.75rem;
+  --app-table-head-z-index: 15;
+
+  /* Scroll del contenedor: la cabecera permanece fija mientras se desplazan las filas */
+  --app-table-scroll-max-height: 60vh;
+  --app-table-scroll-padding-bottom: 3.5rem; /* espacio para que el último menú ⋮ no se corte */
+
+  /* Marco redondeado (clase .app-table-framed) */
+  --app-table-frame-border-color: var(--bs-border-color);
+  --app-table-frame-radius: 0.5rem;
+  --app-table-frame-bg: var(--bs-body-bg);
+}
+
+/* ---------- 2. Variables (modo claro) ---------- */
+[data-bs-theme='light'] {
+  --app-table-head-bg: #e6f3fc;
+  --app-table-head-color: var(--bs-primary);
+  --app-table-head-border-color: rgba(var(--bs-primary-rgb), 0.22);
+}
+
+/* ---------- 3. Estructura ---------- */
+.app-table,
+.crud-table,
+.erp-table,
+.settings-page table {
+  width: 100%;
+  margin-bottom: 0;
+  vertical-align: middle;
+  border-collapse: separate;
+  border-spacing: 0;
+}
+
+/* ---------- 4. Cabecera (sticky; sin clase de color, .table-primary o .table-light) ---------- */
+[data-bs-theme] :is(.app-table, .table, .crud-table, .erp-table, .settings-page table) thead:is(:not([class]), .table-primary, .table-light) {
+  position: sticky;
+  top: 0;
+  z-index: var(--app-table-head-z-index);
+}
+
+[data-bs-theme] :is(.app-table, .table, .crud-table, .erp-table, .settings-page table) thead:is(:not([class]), .table-primary, .table-light) th {
+  position: sticky;
+  top: 0;
+  z-index: var(--app-table-head-z-index);
+  padding: var(--app-table-head-padding-y) var(--app-table-head-padding-x);
+  font-size: var(--app-table-head-font-size);
+  font-weight: var(--app-table-head-font-weight);
+  text-transform: var(--app-table-head-text-transform);
+  letter-spacing: var(--app-table-head-letter-spacing);
+  white-space: nowrap;
+  background-color: var(--app-table-head-bg) !important;
+  color: var(--app-table-head-color) !important;
+  border-bottom: 1px solid var(--app-table-head-border-color) !important;
+  box-shadow: none !important;
+}
+
+/* ---------- 4.1 Scroll general: la cabecera se mantiene estática ----------
+   Una cabecera sticky solo se queda fija si su contenedor con scroll tiene altura máxima; sin ella el
+   .table-responsive (overflow-x: auto) crece con la tabla y la cabecera no tiene a qué fijarse.
+   Se excluyen:
+   - formularios en página (.form-page-card): las tablas crecen de forma natural y los menús Select2 deben poder salir por fuera;
+   - los listados .crud-table-card / .table-card, que ya traen su propio scroll (crud-theme.css). */
+:is(.table-responsive, .table-scroll):has(> .app-table):not(.form-page-card *, .crud-table-card > *, .table-card > *) {
+  max-height: var(--app-table-scroll-max-height);
+  overflow: auto;
+}
+
+:is(.table-responsive, .table-scroll):has(> .app-table .dropdown):not(.form-page-card *, .crud-table-card > *, .table-card > *) {
+  padding-bottom: var(--app-table-scroll-padding-bottom);
+}
+
+/* ---------- 5. Cuerpo ---------- */
+[data-bs-theme] :is(.app-table, .table, .crud-table, .erp-table, .settings-page table) td {
+  padding: var(--app-table-cell-padding-y) var(--app-table-cell-padding-x);
+  font-size: var(--app-table-font-size);
+  color: var(--app-table-body-color);
+  border-bottom: 1px solid var(--app-table-row-border-color);
+  vertical-align: middle;
+}
+
+:is(.app-table, .table, .crud-table, .erp-table, .settings-page table) tbody tr {
+  transition: var(--app-table-row-transition);
+}
+
+:is(.app-table, .crud-table, .erp-table, .settings-page table) tbody tr:hover {
+  background-color: var(--app-table-row-hover-bg);
+}
+
+/* ---------- 6. Marco redondeado opcional: <table class="table app-table app-table-framed"> ----------
+   El borde va en la propia tabla (y no en el contenedor) porque dentro de los formularios el
+   .table-responsive no recorta (overflow: visible) para que los menús Select2 salgan por fuera. */
+.app-table-framed {
+  border: 1px solid var(--app-table-frame-border-color);
+  border-radius: var(--app-table-frame-radius);
+  background-color: var(--app-table-frame-bg);
+}
+
+.app-table-framed > tbody > tr:last-child > td {
+  border-bottom: 0;
+}
+
+.app-table-framed > tbody > tr:last-child > td:first-child {
+  border-bottom-left-radius: var(--app-table-frame-radius);
+}
+
+.app-table-framed > tbody > tr:last-child > td:last-child {
+  border-bottom-right-radius: var(--app-table-frame-radius);
+}

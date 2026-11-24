@@ -121,7 +121,7 @@
       <!-- TABLA DE NOTAS DE CRÉDITO -->
       <div class="crud-table-card">
         <div class="table-responsive">
-          <table class="crud-table">
+          <table class="crud-table app-table">
             <thead>
               <tr>
                 <th scope="col" style="min-width: 170px;">N° Nota de Crédito</th>
@@ -535,7 +535,7 @@
 
             <div class="crud-table-card">
               <div class="table-responsive">
-                <table class="crud-table">
+                <table class="crud-table app-table">
                   <thead>
                     <tr>
                       <th scope="col" style="min-width: 250px;">Ítem / Concepto</th>
@@ -785,7 +785,7 @@
           <!-- Tabla de ítems en el detalle -->
           <div class="crud-table-card">
             <div class="table-responsive">
-              <table class="crud-table">
+              <table class="crud-table app-table">
                 <thead>
                   <tr>
                     <th>Código</th>

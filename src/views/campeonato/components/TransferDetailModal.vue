@@ -1,9 +1,9 @@
 <template>
-  <div v-if="isOpen" class="modal-backdrop-custom">
-    <div class="modal-dialog-custom modal-lg">
-      <div class="modal-content-custom" v-if="transfer">
+  <div v-if="isOpen" class="modal-backdrop-custom app-modal-backdrop">
+    <div class="modal-dialog-custom modal-lg app-modal">
+      <div class="modal-content-custom app-modal" v-if="transfer">
         <!-- HEADER -->
-        <div class="modal-header-custom d-flex justify-content-between align-items-center">
+        <div class="modal-header-custom d-flex justify-content-between align-items-center app-modal-header">
           <div>
             <div class="d-flex align-items-center gap-2 mb-1">
               <span class="badge bg-warning-subtle text-warning fw-bold font-monospace">SOLICITUD-PASE</span>
@@ -19,7 +19,7 @@
         </div>
 
         <!-- BODY -->
-        <div class="modal-body-custom">
+        <div class="modal-body-custom app-modal-body">
           <!-- TARJETA DEL JUGADOR Y CLUBES -->
           <div class="card bg-surface-dark border-secondary-subtle p-3 mb-4 shadow-sm">
             <div class="row align-items-center g-3">
@@ -182,7 +182,7 @@
         </div>
 
         <!-- FOOTER -->
-        <div class="modal-footer-custom d-flex justify-content-between align-items-center">
+        <div class="modal-footer-custom d-flex justify-content-between align-items-center app-modal-footer">
           <button type="button" class="btn btn-secondary" @click="close" :disabled="actionLoading">
             Cerrar
           </button>

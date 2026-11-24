@@ -1,0 +1,184 @@
+/* ==========================================================================
+   ESTILO ÚNICO DE MODALES DEL SISTEMA
+   --------------------------------------------------------------------------
+   Para cambiar el aspecto de TODOS los modales basta con editar las variables
+   --app-modal-* de este archivo (modo oscuro en :root, modo claro más abajo).
+
+   Clases oficiales para modales nuevos (estructura):
+     .app-modal-backdrop   capa oscura que cubre la pantalla (modales propios)
+     .app-modal            contenedor / tarjeta del modal
+     .app-modal-header     cabecera        .app-modal-title   título
+     .app-modal-body       cuerpo
+     .app-modal-footer     pie de botones
+     .app-modal-md / .app-modal-lg   ancho máximo (modales propios)
+
+   Alias heredados que reciben el mismo estilo (no hace falta migrarlos):
+     Bootstrap: .modal-content, .modal-header, .modal-title, .modal-body, .modal-footer
+     Propios:   .modal-backdrop-custom, .crud-modal-backdrop, .modal-card-custom,
+                .crud-modal-card, .modal-dialog-custom, .modal-content-custom,
+                .modal-header-custom, .crud-modal-header, .modal-body-custom,
+                .crud-modal-body, .modal-footer-custom, .crud-modal-footer
+   La cabecera y el pie se unifican aunque el template use utilidades de color
+   (bg-primary, bg-dark, bg-light, text-white, border-dark-subtle, px-4, py-3...).
+   ========================================================================== */
+
+/* ---------- 1. Variables (modo oscuro / por defecto) ---------- */
+:root {
+  /* Capa de fondo */
+  --app-modal-backdrop-bg: rgba(9, 9, 11, 0.75);
+  --app-modal-backdrop-blur: 8px;
+  --app-modal-backdrop-z-index: 10050;
+  --app-modal-backdrop-padding: 1rem;
+
+  /* Contenedor */
+  --app-modal-bg: var(--bs-card-bg, #111c2d);
+  --app-modal-color: var(--bs-body-color, #eaeff4);
+  --app-modal-border-color: var(--bs-border-color, rgba(189, 200, 240, 0.15));
+  --app-modal-radius: 1rem;
+  --app-modal-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+  --app-modal-max-height: 90vh;
+  --app-modal-width-md: 560px;
+  --app-modal-width-lg: 860px;
+
+  /* Cabecera */
+  --app-modal-header-bg: rgba(255, 255, 255, 0.02);
+  --app-modal-header-padding: 1.25rem 1.5rem;
+  --app-modal-title-color: var(--bs-heading-color, #ffffff);
+  --app-modal-title-muted-color: var(--bs-text-muted, #7c8fac);
+  --app-modal-title-font-weight: 700;
+  --app-modal-close-filter: invert(1) grayscale(100%) brightness(200%);
+
+  /* Cuerpo y pie */
+  --app-modal-body-padding: 1.5rem;
+  --app-modal-footer-bg: transparent;
+  --app-modal-footer-padding: 1rem 1.5rem;
+}
+
+/* ---------- 2. Variables (modo claro) ---------- */
+[data-bs-theme='light'] {
+  --app-modal-bg: #ffffff;
+  --app-modal-color: #2a3547;
+  --app-modal-border-color: #e6ecf1;
+  --app-modal-shadow: 0 20px 40px rgba(0, 0, 0, 0.15);
+  --app-modal-header-bg: #f8fafc;
+  --app-modal-title-color: #111c2d;
+  --app-modal-title-muted-color: #5a6a85;
+  --app-modal-close-filter: none;
+  --app-modal-footer-bg: #f8fafc;
+}
+
+/* ---------- 3. Variables en móvil ---------- */
+@media (max-width: 767.98px) {
+  :root {
+    --app-modal-backdrop-padding: 0.5rem;
+    --app-modal-radius: 14px;
+    --app-modal-max-height: 94vh;
+    --app-modal-header-padding: 0.85rem 1rem;
+    --app-modal-body-padding: 0.85rem 1rem;
+    --app-modal-footer-padding: 0.75rem 1rem;
+  }
+}
+
+/* ---------- 4. Capa de fondo de los modales propios ---------- */
+.app-modal-backdrop,
+.modal-backdrop-custom,
+.crud-modal-backdrop {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--app-modal-backdrop-padding);
+  z-index: var(--app-modal-backdrop-z-index) !important;
+  background-color: var(--app-modal-backdrop-bg) !important;
+  backdrop-filter: blur(var(--app-modal-backdrop-blur)) !important;
+  -webkit-backdrop-filter: blur(var(--app-modal-backdrop-blur)) !important;
+}
+
+/* La capa de Bootstrap (.modal-backdrop) usa el mismo color y desenfoque */
+.modal-backdrop,
+.modal-backdrop.show {
+  background-color: var(--app-modal-backdrop-bg) !important;
+  backdrop-filter: blur(var(--app-modal-backdrop-blur)) !important;
+  -webkit-backdrop-filter: blur(var(--app-modal-backdrop-blur)) !important;
+  transition: opacity 0.22s cubic-bezier(0.16, 1, 0.3, 1) !important;
+}
+
+/* ---------- 5. Contenedor ---------- */
+:root:root[data-bs-theme] :is(.app-modal, .modal-content, .modal-content-custom, .modal-card-custom, .crud-modal-card, .modal-dialog-custom) {
+  background-color: var(--app-modal-bg) !important;
+  color: var(--app-modal-color) !important;
+  border: 1px solid var(--app-modal-border-color) !important;
+  border-radius: var(--app-modal-radius) !important;
+  box-shadow: var(--app-modal-shadow) !important;
+}
+
+/* Modales propios: tarjeta con scroll interno y ancho máximo */
+:is(.app-modal, .modal-card-custom, .crud-modal-card) {
+  width: 100%;
+  max-height: var(--app-modal-max-height);
+  overflow-y: auto;
+}
+
+:is(.app-modal-md, .modal-md-custom, .crud-modal-card.modal-md) {
+  max-width: var(--app-modal-width-md);
+}
+
+:is(.app-modal-lg, .modal-lg-custom, .crud-modal-card.modal-lg) {
+  max-width: var(--app-modal-width-lg);
+}
+
+/* Estado visible de los modales propios (la animación de entrada vive en crud-theme.css) */
+:is(.app-modal-backdrop, .modal-backdrop-custom, .crud-modal-backdrop) :is(.app-modal, .modal-card-custom, .crud-modal-card) {
+  transform: translateY(0) scale(1) !important;
+  opacity: 1 !important;
+}
+
+/* ---------- 6. Cabecera ---------- */
+:root:root[data-bs-theme] :is(.app-modal-header, .modal-header, .modal-header-custom, .crud-modal-header) {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: var(--app-modal-header-padding) !important;
+  background-color: var(--app-modal-header-bg) !important;
+  border-bottom: 1px solid var(--app-modal-border-color) !important;
+  border-top-left-radius: var(--app-modal-radius);
+  border-top-right-radius: var(--app-modal-radius);
+}
+
+/* Títulos e iconos de la cabecera (también los que traen text-white) */
+:root:root[data-bs-theme] :is(.app-modal-header, .modal-header, .modal-header-custom, .crud-modal-header) :is(h1, h2, h3, h4, h5, h6, .app-modal-title, .modal-title, .text-white, .text-light, .text-dark) {
+  color: var(--app-modal-title-color) !important;
+}
+
+:root:root[data-bs-theme] :is(.app-modal-header, .modal-header, .modal-header-custom, .crud-modal-header) :is(h1, h2, h3, h4, h5, h6, .app-modal-title, .modal-title) {
+  font-weight: var(--app-modal-title-font-weight);
+}
+
+:root:root[data-bs-theme] :is(.app-modal-header, .modal-header, .modal-header-custom, .crud-modal-header) :is(.text-white-50, small) {
+  color: var(--app-modal-title-muted-color) !important;
+}
+
+/* Botón de cerrar (X) */
+:is(.app-modal-header, .modal-header, .modal-header-custom, .crud-modal-header) .btn-close {
+  filter: var(--app-modal-close-filter);
+  opacity: 0.8;
+}
+
+/* ---------- 7. Cuerpo ---------- */
+:root:root[data-bs-theme] :is(.app-modal-body, .modal-body, .modal-body-custom, .crud-modal-body) {
+  padding: var(--app-modal-body-padding);
+}
+
+/* ---------- 8. Pie ---------- */
+/* Los pies con px-0 son barras de acciones dentro de formularios en página: no llevan el relleno del modal */
+:root:root[data-bs-theme] :is(.app-modal-footer, .modal-footer, .modal-footer-custom, .crud-modal-footer):not(.px-0) {
+  padding: var(--app-modal-footer-padding) !important;
+  background-color: var(--app-modal-footer-bg) !important;
+  border-top: 1px solid var(--app-modal-border-color) !important;
+  border-bottom-left-radius: var(--app-modal-radius);
+  border-bottom-right-radius: var(--app-modal-radius);
+}

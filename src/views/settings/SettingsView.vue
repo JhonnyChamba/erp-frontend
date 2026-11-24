@@ -3,6 +3,7 @@ import { ref, onMounted, onUnmounted, computed, watch, nextTick } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { toast } from '@/utils/toastr'
 import { compressImageToWebP } from '@/utils/image-processor'
+import { CampeonatoApi } from '@/services/campeonato.service'
 import {
   getCompanies,
   createCompany,
@@ -106,8 +107,8 @@ const onBranchLogoChange = async (e: Event) => {
     toast.error('Formato no permitido. Solo se aceptan imágenes (PNG, JPG, WEBP).')
     return
   }
-  if (file.size > 10 * 1024 * 1024) {
-    toast.error('El tamaño de la imagen no puede superar 10MB.')
+  if (file.size > 5 * 1024 * 1024) {
+    toast.error('El tamaño de la imagen no puede superar 5MB.')
     return
   }
   try {
@@ -183,8 +184,157 @@ const closeUserModal = () => {
   document.documentElement.setAttribute('data-color-theme', currentTheme)
 }
 
-// Pestaña activa ('companies' | 'users' | 'roles')
-const activeTab = ref<'companies' | 'users' | 'roles'>('companies')
+// Pestaña activa ('companies' | 'users' | 'roles' | 'branches')
+const activeTab = ref<'companies' | 'users' | 'roles' | 'branches'>('companies')
+
+// Filtros y búsquedas de cada pestaña
+const filterUserStatus = ref<'todos' | 'activo' | 'inactivo'>('todos')
+const filterUserDocType = ref<'todos' | '05' | '06' | '08'>('todos')
+const filterUserSearch = ref('')
+const filterUserDoc = ref('')
+
+const getUserDocTypeBadge = (user: UserItem) => {
+  const t = (user as any).tipo_documento
+  if (t === '06') return 'Pasaporte'
+  if (t === '08') return 'ID Exterior'
+  if (t === '05') return 'Cédula'
+  const doc = (user.num_document || '').trim()
+  if (doc.length === 10 && /^\d+$/.test(doc)) return 'Cédula'
+  if (doc.length > 10) return 'Pasaporte'
+  return 'Cédula'
+}
+
+const filteredUsers = computed(() => {
+  return users.value.filter((u) => {
+    if (filterUserStatus.value === 'activo' && u.enabled === false) return false
+    if (filterUserStatus.value === 'inactivo' && u.enabled !== false) return false
+
+    if (filterUserDocType.value !== 'todos') {
+      const docType = (u as any).tipo_documento || (u.num_document && u.num_document.length === 10 && /^\d+$/.test(u.num_document) ? '05' : '06')
+      if (docType !== filterUserDocType.value) return false
+    }
+
+    if (filterUserDoc.value.trim()) {
+      const docQuery = filterUserDoc.value.trim().toLowerCase()
+      if (!(u.num_document || '').toLowerCase().includes(docQuery)) return false
+    }
+
+    if (filterUserSearch.value.trim()) {
+      const q = filterUserSearch.value.trim().toLowerCase()
+      const fullName = `${u.name_user || ''} ${u.last_name_user || ''}`.toLowerCase()
+      const doc = (u.num_document || '').toLowerCase()
+      const email = (u.email || '').toLowerCase()
+      if (!fullName.includes(q) && !doc.includes(q) && !email.includes(q)) return false
+    }
+    return true
+  })
+})
+
+const filterRoleStatus = ref<'todos' | 'activo' | 'inactivo'>('todos')
+const filterRoleSearch = ref('')
+const filteredRoles = computed(() => {
+  return roles.value.filter((r) => {
+    if (filterRoleStatus.value === 'activo' && r.enabled === false) return false
+    if (filterRoleStatus.value === 'inactivo' && r.enabled !== false) return false
+    if (filterRoleSearch.value.trim()) {
+      const q = filterRoleSearch.value.trim().toLowerCase()
+      if (!((r.code || '').toLowerCase().includes(q) || (r.description || '').toLowerCase().includes(q))) return false
+    }
+    return true
+  })
+})
+
+const filterBranchStatus = ref<'todos' | 'activo' | 'inactivo'>('todos')
+const filterBranchSearch = ref('')
+const filteredBranches = computed(() => {
+  return branches.value.filter((b) => {
+    if (filterBranchStatus.value === 'activo' && b.enabled === false) return false
+    if (filterBranchStatus.value === 'inactivo' && b.enabled !== false) return false
+    if (filterBranchSearch.value.trim()) {
+      const q = filterBranchSearch.value.trim().toLowerCase()
+      if (!((b.code || '').toLowerCase().includes(q) || (b.name || '').toLowerCase().includes(q) || (b.address || '').toLowerCase().includes(q))) return false
+    }
+    return true
+  })
+})
+
+// Consultas externas (SRI / Registro Civil)
+const consultandoRucCompany = ref(false)
+const consultarRucCompany = async () => {
+  const ruc = (formCompany.value.ruc || '').trim()
+  if (!ruc || ruc.length !== 13) {
+    toast.warning('Ingresa un RUC válido de 13 dígitos para consultar.')
+    return
+  }
+  try {
+    consultandoRucCompany.value = true
+    const res: any = await (CampeonatoApi.players as any).consultaRegistroCivil(ruc)
+    if (res && res.data && (res.data.player || res.data.data)) {
+      const d = res.data.player || res.data.data || res.data
+      if (d.razon_social || d.name) formCompany.value.business_name = d.razon_social || `${d.name || ''} ${d.lastName || ''}`.trim()
+      if (d.nombre_comercial || d.trade_name) formCompany.value.trade_name = d.nombre_comercial || d.trade_name || formCompany.value.business_name
+      if (d.direccion_completa || d.direccion || d.address) formCompany.value.address_matriz = d.direccion_completa || d.direccion || d.address
+      toast.success(`Datos obtenidos del SRI: ${formCompany.value.business_name}`)
+    } else {
+      toast.info('No se encontraron datos en el SRI para este RUC.')
+    }
+  } catch {
+    toast.error('Error al consultar el SRI.')
+  } finally {
+    consultandoRucCompany.value = false
+  }
+}
+
+const userDocTypeOptions = [
+  { value: '05', label: 'Cédula (05)' },
+  { value: '06', label: 'Pasaporte (06)' },
+  { value: '08', label: 'Identificación del Exterior (08)' },
+]
+
+const onUserDocInput = (e: Event) => {
+  const target = e.target as HTMLInputElement
+  let val = target.value
+  if (formUser.value.tipo_documento === '05') {
+    val = val.replace(/\D/g, '').slice(0, 10)
+  } else {
+    val = val.replace(/[^a-zA-Z0-9]/g, '').slice(0, 20).toUpperCase()
+  }
+  if (val !== target.value) target.value = val
+  formUser.value.num_document = val
+}
+
+const consultandoDocUser = ref(false)
+const consultarDocumentoUser = async () => {
+  const doc = (formUser.value.num_document || '').trim()
+  if (!doc) {
+    toast.warning('Ingresa un número de documento para consultar.')
+    return
+  }
+  if (formUser.value.tipo_documento !== '05') {
+    toast.info('La consulta automática solo está disponible para Cédula de Identidad.')
+    return
+  }
+  if (doc.length !== 10) {
+    toast.warning('La cédula debe tener exactamente 10 dígitos.')
+    return
+  }
+  try {
+    consultandoDocUser.value = true
+    const res: any = await (CampeonatoApi.players as any).consultaRegistroCivil(doc)
+    if (res && res.data && (res.data.player || res.data.data)) {
+      const d = res.data.player || res.data.data || res.data
+      if (d.nombres || d.name) formUser.value.name_user = d.nombres || d.name
+      if (d.apellidos || d.lastName) formUser.value.last_name_user = d.apellidos || d.lastName
+      toast.success(`Datos obtenidos del Registro Civil: ${formUser.value.name_user} ${formUser.value.last_name_user}`)
+    } else {
+      toast.info('No se encontraron datos en Registro Civil.')
+    }
+  } catch {
+    toast.error('Error al consultar el Registro Civil.')
+  } finally {
+    consultandoDocUser.value = false
+  }
+}
 
 // Estado de carga y mensajes
 const loading = ref(false)
@@ -698,6 +848,7 @@ const handleInspectCert = async () => {
 
 const formUser = ref({
   companyId: 1,
+  tipo_documento: '05',
   num_document: '',
   birth_date: '',
   name_user: '',
@@ -713,6 +864,18 @@ const formUser = ref({
   theme_mode: 'dark',
   photo_url: '',
 })
+
+watch(
+  () => formUser.value.tipo_documento,
+  (newType) => {
+    if (!formUser.value.num_document) return
+    if (newType === '05') {
+      formUser.value.num_document = formUser.value.num_document.replace(/\D/g, '').slice(0, 10)
+    } else {
+      formUser.value.num_document = formUser.value.num_document.replace(/[^a-zA-Z0-9]/g, '').slice(0, 20).toUpperCase()
+    }
+  }
+)
 
 const ensureRolesForCompany = async (compId: number) => {
   if (!compId) return
@@ -791,6 +954,7 @@ const openCreateUser = async () => {
   const defaultRole = rolesByCompany.value[currentCompanyId.value]?.[0]?.id ?? null
   formUser.value = {
     companyId: currentCompanyId.value,
+    tipo_documento: '05',
     num_document: '',
     birth_date: '',
     name_user: '',
@@ -844,8 +1008,19 @@ const openEditUser = async (user: UserItem) => {
     }
   }
 
+  const cleanDoc = (user.num_document || '').trim()
+  let docTypeVal = (user as any).tipo_documento || '05'
+  if (!(user as any).tipo_documento) {
+    if (cleanDoc.length === 10 && /^\d+$/.test(cleanDoc)) {
+      docTypeVal = '05'
+    } else if (cleanDoc) {
+      docTypeVal = '06'
+    }
+  }
+
   formUser.value = {
     companyId: currentCompanyId.value,
+    tipo_documento: docTypeVal,
     num_document: user.num_document || '',
     birth_date: user.birth_date ? String(user.birth_date).slice(0, 10) : '',
     name_user: user.name_user || '',
@@ -957,6 +1132,9 @@ const loadCurrentTabData = async () => {
       if (roleCatalogFailed.value) {
         errorMsg.value = ROLE_CATALOG_ERROR
       }
+    } else if (activeTab.value === 'branches') {
+      const res = await getBranches(currentCompanyId.value)
+      branches.value = Array.isArray(res?.data) ? res.data : Array.isArray(res) ? res : []
     }
   } catch (err: any) {
     console.error('Error cargando datos de configuración:', err)
@@ -966,18 +1144,19 @@ const loadCurrentTabData = async () => {
   }
 }
 
-const canAccessTab = (tab: 'companies' | 'users' | 'roles') => {
+const canAccessTab = (tab: 'companies' | 'users' | 'roles' | 'branches') => {
   return authStore.canAccessUrl(`/configuracion?tab=${tab}`)
 }
 
-const getDefaultAvailableTab = (): 'companies' | 'users' | 'roles' => {
+const getDefaultAvailableTab = (): 'companies' | 'users' | 'roles' | 'branches' => {
   if (canAccessTab('companies')) return 'companies'
   if (canAccessTab('users')) return 'users'
   if (canAccessTab('roles')) return 'roles'
+  if (canAccessTab('branches')) return 'branches'
   return 'companies'
 }
 
-const switchTab = (tab: 'companies' | 'users' | 'roles') => {
+const switchTab = (tab: 'companies' | 'users' | 'roles' | 'branches') => {
   if (!canAccessTab(tab)) {
     toast.warning('No tienes permisos para acceder a esta pestaña.')
     return
@@ -991,7 +1170,7 @@ const switchTab = (tab: 'companies' | 'users' | 'roles') => {
 watch(
   () => route.query.tab,
   (newTab) => {
-    if (newTab && ['companies', 'users', 'roles'].includes(newTab as string)) {
+    if (newTab && ['companies', 'users', 'roles', 'branches'].includes(newTab as string)) {
       if (canAccessTab(newTab as any)) {
         activeTab.value = newTab as any
       } else {
@@ -1000,6 +1179,7 @@ watch(
       showCompanyModal.value = false
       showUserModal.value = false
       showRoleModal.value = false
+      showBranchModal.value = false
       showModuleModal.value = false
       showSubModuleModal.value = false
       showPlanModal.value = false
@@ -1196,12 +1376,58 @@ const submitBranch = async () => {
   try {
     const f = formBranch.value
     const targetCompanyId = Number(f.companyId || currentCompanyId.value)
+    if (!targetCompanyId) {
+      toast.warning('Debe seleccionar la empresa a la que pertenece la sucursal.', 'Validación')
+      loading.value = false
+      return
+    }
+
+    const cleanCode = String(f.code || '').trim()
+    if (!/^\d{3}$/.test(cleanCode)) {
+      toast.warning('El código de establecimiento debe tener exactamente 3 dígitos numéricos (ej: 001).', 'Validación')
+      loading.value = false
+      return
+    }
+
+    const cleanName = String(f.name || '').trim()
+    if (!cleanName || cleanName.length < 3) {
+      toast.warning('El nombre de la sucursal es obligatorio y debe tener al menos 3 caracteres.', 'Validación')
+      loading.value = false
+      return
+    }
+
+    const cleanAddress = String(f.address || '').trim()
+    if (!cleanAddress || cleanAddress.length < 5) {
+      toast.warning('La dirección del establecimiento es obligatoria y debe tener al menos 5 caracteres.', 'Validación')
+      loading.value = false
+      return
+    }
+
+    const cleanPhone = String(f.phone || '').trim().replace(/\D/g, '')
+    if (f.phone && f.phone.trim()) {
+      if (cleanPhone.length < 7 || cleanPhone.length > 10) {
+        toast.warning('El teléfono debe contener entre 7 y 10 dígitos numéricos.', 'Validación')
+        loading.value = false
+        return
+      }
+    }
+
+    const cleanEmail = String(f.email || '').trim()
+    if (cleanEmail) {
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+      if (!emailRegex.test(cleanEmail)) {
+        toast.warning('Ingrese un correo electrónico válido (ej: sucursal@empresa.com).', 'Validación')
+        loading.value = false
+        return
+      }
+    }
+
     const payload = {
-      code: f.code,
-      name: f.name.trim(),
-      address: f.address.trim(),
-      phone: f.phone ? f.phone.trim() : undefined,
-      email: f.email ? f.email.trim() : undefined,
+      code: cleanCode,
+      name: cleanName,
+      address: cleanAddress,
+      phone: cleanPhone || undefined,
+      email: cleanEmail || undefined,
     }
     let savedBranchId = editingBranchId.value
     if (isEditingBranch.value && editingBranchId.value) {
@@ -1288,6 +1514,12 @@ const submitUser = async () => {
   loading.value = true
   errorMsg.value = ''
   try {
+    if (formUser.value.tipo_documento === '05' && formUser.value.num_document.trim().length !== 10) {
+      toast.warning('La cédula de identidad debe contener exactamente 10 dígitos numéricos.', 'Validación')
+      loading.value = false
+      return
+    }
+
     formUser.value.companyId = currentCompanyId.value
     const isSuper = isCurrentUserSuperAdmin.value ? Boolean(formUser.value.super_admin) : false
     const isMulti = isSuper ? false : Boolean(formUser.value.multi_company)
@@ -2026,23 +2258,12 @@ const submitSubscription = async () => {
               <iconify-icon icon="solar:settings-line-duotone" class="fs-6"></iconify-icon>
             </span>
             <h4 class="fw-bold text-white mb-0">
-              {{ activeTab === 'companies' ? 'Configuración de la Empresa' : activeTab === 'users' ? 'Gestión de Usuarios' : 'Roles y Permisos' }}
+              {{ activeTab === 'companies' ? 'Configuración de la Empresa' : activeTab === 'users' ? 'Gestión de Usuarios' : activeTab === 'roles' ? 'Roles y Permisos' : 'Sucursales de la Empresa' }}
             </h4>
           </div>
           <p class="text-secondary fs-3 mb-0">
-            Administración de {{ activeTab === 'companies' ? 'datos fiscales y certificado' : activeTab === 'users' ? 'usuarios con acceso' : 'perfiles de seguridad' }} de la empresa activa.
+            Administración de {{ activeTab === 'companies' ? 'datos fiscales y certificado' : activeTab === 'users' ? 'usuarios con acceso' : activeTab === 'roles' ? 'perfiles de seguridad' : 'establecimientos y puntos de emisión' }} de la empresa activa.
           </p>
-        </div>
-
-        <!-- Indicador de contexto -->
-        <div class="d-flex align-items-center gap-2 bg-dark-subtle px-3 py-2 rounded-3 border border-secondary-subtle">
-          <iconify-icon icon="solar:buildings-3-line-duotone" class="text-primary fs-5"></iconify-icon>
-          <div>
-            <small class="text-secondary d-block fs-1">Empresa Activa:</small>
-            <span class="text-white fw-bold fs-2">
-              {{ selectedCompany?.razon_social || selectedCompany?.nombre_comercial || 'Deskounta' }}
-            </span>
-          </div>
         </div>
       </div>
     </div>
@@ -2070,7 +2291,7 @@ const submitSubscription = async () => {
       </div>
 
       <div v-else class="table-responsive">
-        <table class="table table-hover align-middle mb-0">
+        <table class="table table-hover align-middle mb-0 crud-table app-table">
           <thead class="table-primary">
             <tr>
               <th width="5%">#</th>
@@ -2153,9 +2374,60 @@ const submitSubscription = async () => {
           <h5 class="fw-bold text-white mb-1">Usuarios del Sistema</h5>
           <small class="text-secondary">Gestión de usuarios y credenciales de acceso</small>
         </div>
-        <button class="btn btn-primary rounded-pill px-4 d-flex align-items-center gap-2" @click="openCreateUser">
+        <button class="btn btn-primary rounded-pill px-4 d-flex align-items-center gap-2" style="height: 40px;" @click="openCreateUser">
           <iconify-icon icon="solar:user-plus-line-duotone" class="fs-5"></iconify-icon>
-          <span>Nuevo Usuario</span>
+          <span>Nuevo</span>
+        </button>
+      </div>
+
+      <!-- Barra de Filtros y Búsqueda de Usuarios -->
+      <div class="d-flex flex-wrap align-items-center gap-2 mb-4 p-2 rounded-3 bg-dark-subtle border border-secondary-subtle">
+        <select
+          v-model="filterUserStatus"
+          class="form-select bg-dark border-secondary-subtle text-white"
+          style="height: 40px; width: 160px;"
+          @keyup.enter="loadCurrentTabData"
+        >
+          <option value="todos">Estado: Todos</option>
+          <option value="activo">Activo</option>
+          <option value="inactivo">Inactivo</option>
+        </select>
+        <select
+          v-model="filterUserDocType"
+          class="form-select bg-dark border-secondary-subtle text-white"
+          style="height: 40px; width: 190px;"
+          @keyup.enter="loadCurrentTabData"
+        >
+          <option value="todos">Tipo: Todos</option>
+          <option value="05">Cédula (05)</option>
+          <option value="06">Pasaporte (06)</option>
+          <option value="08">Identificación Exterior (08)</option>
+        </select>
+        <input
+          v-model="filterUserSearch"
+          type="text"
+          class="form-control bg-dark border-secondary-subtle text-white"
+          style="height: 40px; width: 240px;"
+          placeholder="Nombre o Correo"
+          @keyup.enter="loadCurrentTabData"
+        />
+        <input
+          v-model="filterUserDoc"
+          type="text"
+          class="form-control bg-dark border-secondary-subtle text-white font-monospace"
+          style="height: 40px; width: 180px;"
+          placeholder="N° Documento"
+          @keyup.enter="loadCurrentTabData"
+        />
+        <button
+          type="button"
+          class="btn btn-outline-primary bg-dark d-flex align-items-center gap-1 px-3 ms-auto"
+          style="height: 40px;"
+          :disabled="loading"
+          @click="loadCurrentTabData"
+        >
+          <iconify-icon icon="solar:magnifer-line-duotone" class="fs-5"></iconify-icon>
+          <span>Buscar</span>
         </button>
       </div>
 
@@ -2169,23 +2441,28 @@ const submitSubscription = async () => {
       </div>
 
       <div v-else class="table-responsive">
-        <table class="table table-hover align-middle mb-0">
+        <table class="table table-hover align-middle mb-0 crud-table app-table">
           <thead class="table-primary">
             <tr>
               <th width="5%">#</th>
-              <th width="12%">Documento</th>
-              <th width="22%">Nombre Completo</th>
-              <th width="20%">Correo Electrónico</th>
-              <th width="13%">Rol / Permiso</th>
-              <th width="14%">Tema de Color</th>
+              <th width="16%">Documento</th>
+              <th width="20%">Nombre Completo</th>
+              <th width="18%">Correo Electrónico</th>
+              <th width="14%">Rol / Permiso</th>
+              <th width="13%">Tema de Color</th>
               <th width="7%">Estado</th>
               <th width="7%" class="text-end">Acciones</th>
             </tr>
           </thead>
           <tbody>
-            <tr v-for="user in users" :key="user.id">
+            <tr v-for="user in filteredUsers" :key="user.id">
               <td><span class="badge bg-dark-subtle text-white">{{ user.id }}</span></td>
-              <td class="fw-semibold text-white">{{ user.num_document || 'S/D' }}</td>
+              <td>
+                <div class="d-flex align-items-center gap-2">
+                  <span class="badge border border-info-subtle bg-info-subtle text-info fw-semibold">{{ getUserDocTypeBadge(user) }}</span>
+                  <span class="badge bg-dark-subtle text-white font-monospace">{{ user.num_document || 'S/D' }}</span>
+                </div>
+              </td>
               <td class="text-white">
                 <div class="d-flex align-items-center gap-2">
                   <img
@@ -2264,7 +2541,7 @@ const submitSubscription = async () => {
                 </div>
               </td>
             </tr>
-            <tr v-if="users.length === 0">
+            <tr v-if="filteredUsers.length === 0">
               <td colspan="8" class="text-center text-muted py-5">No hay usuarios registrados para esta empresa.</td>
             </tr>
           </tbody>
@@ -2281,9 +2558,43 @@ const submitSubscription = async () => {
           <h5 class="fw-bold text-white mb-1">Roles de Usuario ({{ selectedCompany?.razon_social || selectedCompany?.nombre_comercial || 'Empresa Activa' }})</h5>
           <small class="text-secondary">Definición de roles (cabecera) y matriz booleana de acceso a módulos madre e hijas (detalle)</small>
         </div>
-        <button class="btn btn-primary rounded-pill px-4 d-flex align-items-center gap-2" @click="openCreateRole">
+        <button class="btn btn-primary rounded-pill px-4 d-flex align-items-center gap-2" style="height: 40px;" @click="openCreateRole">
           <iconify-icon icon="solar:shield-plus-line-duotone" class="fs-5"></iconify-icon>
-          <span>Nuevo Rol</span>
+          <span>Nuevo</span>
+        </button>
+      </div>
+
+      <!-- Barra de Filtros y Búsqueda de Roles -->
+      <div class="d-flex flex-wrap align-items-center gap-2 mb-4 p-2 rounded-3 bg-dark-subtle border border-secondary-subtle">
+        <select
+          v-model="filterRoleStatus"
+          class="form-select bg-dark border-secondary-subtle text-white"
+          style="height: 40px; width: 160px;"
+          @keyup.enter="loadCurrentTabData"
+        >
+          <option value="todos">Estado: Todos</option>
+          <option value="activo">Activo</option>
+          <option value="inactivo">Inactivo</option>
+        </select>
+
+        <input
+          v-model="filterRoleSearch"
+          type="text"
+          class="form-control bg-dark border-secondary-subtle text-white"
+          style="height: 40px; width: 280px;"
+          placeholder="Código o Descripción del Rol"
+          @keyup.enter="loadCurrentTabData"
+        />
+
+        <button
+          type="button"
+          class="btn btn-outline-primary bg-dark d-flex align-items-center gap-1 px-3 ms-auto"
+          style="height: 40px;"
+          :disabled="loading"
+          @click="loadCurrentTabData"
+        >
+          <iconify-icon icon="solar:magnifer-line-duotone" class="fs-5"></iconify-icon>
+          <span>Buscar</span>
         </button>
       </div>
 
@@ -2297,7 +2608,7 @@ const submitSubscription = async () => {
       </div>
 
       <div v-else class="table-responsive">
-        <table class="table table-hover align-middle mb-0">
+        <table class="table table-hover align-middle mb-0 crud-table app-table">
           <thead class="table-primary">
             <tr>
               <th width="6%">#</th>
@@ -2309,7 +2620,7 @@ const submitSubscription = async () => {
             </tr>
           </thead>
           <tbody>
-            <tr v-for="role in roles" :key="role.id">
+            <tr v-for="role in filteredRoles" :key="role.id">
               <td><span class="badge bg-dark-subtle text-white">{{ role.id }}</span></td>
               <td><span class="badge bg-primary text-white fw-bold font-monospace">{{ role.code }}</span></td>
               <td class="text-white fw-semibold">
@@ -2378,8 +2689,152 @@ const submitSubscription = async () => {
                 </div>
               </td>
             </tr>
-            <tr v-if="roles.length === 0">
+            <tr v-if="filteredRoles.length === 0">
               <td colspan="6" class="text-center text-muted py-5">No hay roles creados para esta empresa.</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- ======================================================== -->
+    <!-- TAB 4: SUCURSALES (ESTABLECIMIENTOS)                     -->
+    <!-- ======================================================== -->
+    <div v-if="activeTab === 'branches'" class="card rounded-4 border-0 shadow-sm p-4 bg-navy-card">
+      <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+          <h5 class="fw-bold text-white mb-1">Sucursales de {{ selectedCompany?.razon_social || selectedCompany?.nombre_comercial || 'la Empresa Activa' }}</h5>
+          <small class="text-secondary">Establecimientos y puntos de emisión con los que se factura</small>
+        </div>
+        <button class="btn btn-primary rounded-pill px-4 d-flex align-items-center gap-2" style="height: 40px;" @click="openCreateBranch">
+          <iconify-icon icon="solar:add-circle-line-duotone" class="fs-5"></iconify-icon>
+          <span>Nuevo</span>
+        </button>
+      </div>
+
+      <!-- Barra de Filtros y Búsqueda de Sucursales -->
+      <div class="d-flex flex-wrap align-items-center gap-2 mb-4 p-2 rounded-3 bg-dark-subtle border border-secondary-subtle">
+        <select
+          v-model="filterBranchStatus"
+          class="form-select bg-dark border-secondary-subtle text-white"
+          style="height: 40px; width: 160px;"
+          @keyup.enter="loadCurrentTabData"
+        >
+          <option value="todos">Estado: Todos</option>
+          <option value="activo">Activo</option>
+          <option value="inactivo">Inactivo</option>
+        </select>
+
+        <input
+          v-model="filterBranchSearch"
+          type="text"
+          class="form-control bg-dark border-secondary-subtle text-white"
+          style="height: 40px; width: 300px;"
+          placeholder="Buscar por código, nombre o dirección..."
+          @keyup.enter="loadCurrentTabData"
+        />
+
+        <button
+          type="button"
+          class="btn btn-outline-primary bg-dark d-flex align-items-center gap-1 px-3 ms-auto"
+          style="height: 40px;"
+          :disabled="loading"
+          @click="loadCurrentTabData"
+        >
+          <iconify-icon icon="solar:magnifer-line-duotone" class="fs-5"></iconify-icon>
+          <span>Buscar</span>
+        </button>
+      </div>
+
+      <div v-if="loading" class="text-center py-5">
+        <div class="d-flex align-items-center justify-content-center gap-2 mb-2">
+          <div class="spinner-grow text-primary" role="status"><span class="visually-hidden">Cargando...</span></div>
+          <div class="spinner-grow text-info" role="status"><span class="visually-hidden">Cargando...</span></div>
+          <div class="spinner-grow text-secondary" role="status"><span class="visually-hidden">Cargando...</span></div>
+        </div>
+        <p class="text-muted mt-2">Cargando sucursales...</p>
+      </div>
+
+      <div v-else class="table-responsive">
+        <table class="table table-hover align-middle mb-0 crud-table app-table">
+          <thead class="table-primary">
+            <tr>
+              <th width="10%">Estab.</th>
+              <th width="25%">Nombre</th>
+              <th width="30%">Dirección del establecimiento</th>
+              <th width="15%">Contacto</th>
+              <th width="10%">Tipo</th>
+              <th width="10%">Estado</th>
+              <th width="10%" class="text-end">Acciones</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr v-for="b in filteredBranches" :key="b.id">
+              <td><span class="badge bg-primary text-white fw-bold font-monospace">{{ b.code }}</span></td>
+              <td class="text-white fw-semibold">
+                <div class="d-flex align-items-center gap-2">
+                  <img
+                    v-if="b.logo_url"
+                    :src="b.logo_url || ''"
+                    alt="Logo"
+                    class="rounded border border-secondary-subtle"
+                    style="width: 28px; height: 28px; object-fit: contain; background: #000;"
+                  />
+                  <span>{{ b.name }}</span>
+                </div>
+              </td>
+              <td class="text-secondary">{{ b.address }}</td>
+              <td>
+                <div class="small">
+                  <div v-if="b.phone" class="text-white"><iconify-icon icon="solar:phone-bold" class="me-1 text-primary"></iconify-icon>{{ b.phone }}</div>
+                  <div v-if="b.email" class="text-info"><iconify-icon icon="solar:letter-bold" class="me-1"></iconify-icon>{{ b.email }}</div>
+                </div>
+              </td>
+              <td>
+                <span v-if="b.isMatrix" class="badge bg-warning-subtle text-warning border border-warning-subtle">
+                  <iconify-icon icon="solar:star-bold" class="me-1"></iconify-icon>Matriz
+                </span>
+                <span v-else class="badge bg-dark-subtle text-secondary border border-secondary-subtle">
+                  Sucursal
+                </span>
+              </td>
+              <td>
+                <span class="badge" :class="b.enabled ? 'bg-success-subtle text-success' : 'bg-danger-subtle text-danger'">
+                  {{ b.enabled ? 'Activo' : 'Inactivo' }}
+                </span>
+              </td>
+              <td class="text-end">
+                <div class="dropdown">
+                  <button class="btn btn-action-kebab" type="button" data-bs-toggle="dropdown" aria-expanded="false" title="Acciones">
+                    <iconify-icon icon="solar:menu-dots-vertical-bold" class="fs-4"></iconify-icon>
+                  </button>
+                  <ul class="dropdown-menu dropdown-menu-end shadow-lg py-1">
+                    <li>
+                      <a class="dropdown-item py-2" href="javascript:void(0)" @click="openEditBranch(b)">
+                        <iconify-icon icon="solar:pen-2-line-duotone" class="fs-5 text-warning"></iconify-icon>
+                        <span>Editar</span>
+                      </a>
+                    </li>
+                    <li v-if="!b.isMatrix">
+                      <a class="dropdown-item py-2" href="javascript:void(0)" @click="markAsMatrix(b)">
+                        <iconify-icon icon="solar:star-line-duotone" class="fs-5 text-warning"></iconify-icon>
+                        <span>Marcar como matriz</span>
+                      </a>
+                    </li>
+                    <li v-if="!b.isMatrix">
+                      <a class="dropdown-item py-2 text-danger" href="javascript:void(0)" @click="removeBranch(b)">
+                        <iconify-icon icon="solar:trash-bin-trash-line-duotone" class="fs-5"></iconify-icon>
+                        <span>Eliminar</span>
+                      </a>
+                    </li>
+                  </ul>
+                </div>
+              </td>
+            </tr>
+            <tr v-if="filteredBranches.length === 0">
+              <td colspan="7" class="text-center text-muted py-5">
+                Esta empresa aún no tiene sucursales registradas.
+              </td>
             </tr>
           </tbody>
         </table>
@@ -2394,7 +2849,7 @@ const submitSubscription = async () => {
       <div v-if="showBranchModal" id="form-page" class="form-page">
         <div class="form-page-card">
           <div class="card bg-navy-card border border-secondary-subtle rounded-4 shadow-sm">
-            <div class="modal-header d-flex justify-content-between align-items-center px-4 py-3 border-bottom border-dark-subtle">
+            <div class="modal-header d-flex justify-content-between align-items-center px-4 py-3 border-bottom border-dark-subtle app-modal-header">
               <div class="d-flex align-items-center gap-2">
                 <span class="p-2 bg-primary-subtle text-primary rounded-3 d-inline-flex"><iconify-icon icon="solar:shop-2-line-duotone" class="fs-5"></iconify-icon></span>
                 <h5 class="fw-bold text-white mb-0">{{ isEditingBranch ? 'Editar Sucursal' : 'Registrar Nueva Sucursal' }}</h5>
@@ -2405,7 +2860,7 @@ const submitSubscription = async () => {
               </button>
             </div>
             <form @submit.prevent="submitBranch">
-              <div class="modal-body p-4">
+              <div class="modal-body p-4 app-modal-body">
                 <!-- LOGOTIPO DE LA SUCURSAL (SUPABASE STORAGE) -->
                 <div class="mb-4">
                   <div class="p-3 rounded-3 border border-secondary-subtle bg-dark-subtle d-flex flex-wrap align-items-center justify-content-between gap-3">
@@ -2457,19 +2912,19 @@ const submitSubscription = async () => {
                   </div>
                   <div class="col-md-4 mb-3">
                     <label class="form-label text-secondary fs-2 fw-semibold">Nombre de la sucursal *</label>
-                    <input v-model="formBranch.name" type="text" maxlength="150" class="form-control bg-dark-subtle border-secondary-subtle text-white" placeholder="Ej. Sucursal Norte" required />
+                    <input v-model="formBranch.name" type="text" maxlength="150" minlength="3" class="form-control bg-dark-subtle border-secondary-subtle text-white" placeholder="Ej. Sucursal Norte" required />
                   </div>
                 </div>
 
                 <div class="mb-3">
                   <label class="form-label text-secondary fs-2 fw-semibold">Dirección del establecimiento *</label>
-                  <input v-model="formBranch.address" type="text" maxlength="300" class="form-control bg-dark-subtle border-secondary-subtle text-white" placeholder="Calle principal, número y secundaria, ciudad" required />
+                  <input v-model="formBranch.address" type="text" maxlength="300" minlength="5" class="form-control bg-dark-subtle border-secondary-subtle text-white" placeholder="Calle principal, número y secundaria, ciudad" required />
                 </div>
 
                 <div class="row">
                   <div class="col-md-6 mb-3">
                     <label class="form-label text-secondary fs-2 fw-semibold">Teléfono</label>
-                    <input v-model="formBranch.phone" type="text" maxlength="30" class="form-control bg-dark-subtle border-secondary-subtle text-white" placeholder="Ej. 022998800" />
+                    <input v-model="formBranch.phone" @input="formBranch.phone = String(formBranch.phone || '').replace(/\D/g, '').slice(0, 10)" type="text" inputmode="numeric" maxlength="10" class="form-control bg-dark-subtle border-secondary-subtle text-white font-monospace" placeholder="Ej. 022998800 o 0991234567" />
                   </div>
                   <div class="col-md-6 mb-3">
                     <label class="form-label text-secondary fs-2 fw-semibold">Correo electrónico</label>
@@ -2498,11 +2953,13 @@ const submitSubscription = async () => {
                   </div>
                 </div>
               </div>
-              <div class="modal-footer d-flex justify-content-end gap-2 px-4 py-3 border-top border-dark-subtle">
-                <button type="button" class="btn btn-outline-secondary px-4 rounded-3" @click="showBranchModal = false">Cancelar</button>
-                <button type="submit" class="btn btn-primary px-4 rounded-3 fw-bold" :disabled="loading">
-                  <span v-if="loading" class="spinner-grow spinner-grow-sm me-2" role="status" aria-hidden="true"></span>
-                  <span>{{ loading ? 'Guardando...' : (isEditingBranch ? 'Guardar Cambios' : 'Guardar Sucursal') }}</span>
+              <div class="border-top pt-3 mt-4 pb-2 px-4 d-flex align-items-center justify-content-end gap-3">
+                <button type="button" class="btn bg-danger-subtle text-danger" @click="showBranchModal = false">
+                  Cancelar
+                </button>
+                <button type="submit" class="btn btn-primary d-flex align-items-center gap-2" :disabled="loading">
+                  <span v-if="loading" class="spinner-grow spinner-grow-sm text-white" role="status"></span>
+                  <span>{{ isEditingBranch ? 'Guardar Cambios' : 'Registrar' }}</span>
                 </button>
               </div>
             </form>
@@ -2514,7 +2971,7 @@ const submitSubscription = async () => {
       <div v-if="showCompanyModal" id="form-page" class="form-page">
         <div class="form-page-card form-page-card-lg">
           <div class="card bg-navy-card border border-secondary-subtle rounded-4 shadow-sm">
-            <div class="modal-header d-flex justify-content-between align-items-center px-4 py-3 border-bottom border-dark-subtle">
+            <div class="modal-header d-flex justify-content-between align-items-center px-4 py-3 border-bottom border-dark-subtle app-modal-header">
               <div class="d-flex align-items-center gap-2">
                 <span class="p-2 bg-primary-subtle text-primary rounded-3 d-inline-flex"><iconify-icon icon="solar:buildings-3-line-duotone" class="fs-5"></iconify-icon></span>
                 <h5 class="fw-bold text-white mb-0">{{ isEditingCompany ? 'Editar Empresa' : 'Registrar Nueva Empresa' }}</h5>
@@ -2530,7 +2987,7 @@ const submitSubscription = async () => {
                   <button type="button" class="nav-link rounded-pill px-4 py-2 fs-3 text-decoration-none" :class="companyFormTab === t.k ? 'active bg-primary text-white' : 'text-white-50'" @click="companyFormTab = t.k as any">{{ t.l }}</button>
                 </li>
               </ul>
-              <div class="modal-body p-4">
+              <div class="modal-body p-4 app-modal-body">
                 <!-- GENERAL -->
                 <div v-show="companyFormTab === 'general'" class="row g-3">
                   <!-- LOGOTIPO DE LA EMPRESA (SUPABASE STORAGE) -->
@@ -2558,7 +3015,29 @@ const submitSubscription = async () => {
                   </div>
                   <div class="col-md-6">
                     <label class="form-label text-secondary fs-2 fw-semibold">RUC *</label>
-                    <input v-model="formCompany.ruc" type="text" maxlength="13" class="form-control bg-dark-subtle border-secondary-subtle text-white" placeholder="1725620247001" required />
+                    <div class="input-group">
+                      <input
+                        v-model="formCompany.ruc"
+                        type="text"
+                        maxlength="13"
+                        class="form-control bg-dark-subtle border-secondary-subtle text-white font-monospace"
+                        placeholder="1725620247001"
+                        @input="formCompany.ruc = formCompany.ruc.replace(/\D/g, '').slice(0, 13)"
+                        @keyup.enter.prevent="consultarRucCompany"
+                        required
+                      />
+                      <button
+                        type="button"
+                        class="btn btn-outline-primary bg-dark border-secondary-subtle d-flex align-items-center gap-1"
+                        :disabled="consultandoRucCompany"
+                        title="Consultar en SRI"
+                        @click="consultarRucCompany"
+                      >
+                        <span v-if="consultandoRucCompany" class="spinner-border spinner-border-sm text-primary"></span>
+                        <iconify-icon v-else icon="solar:magnifer-line-duotone" class="fs-5"></iconify-icon>
+                        <span class="d-none d-sm-inline">SRI</span>
+                      </button>
+                    </div>
                   </div>
                   <div class="col-md-6">
                     <label class="form-label text-secondary fs-2 fw-semibold">Nombre Comercial *</label>
@@ -2574,7 +3053,14 @@ const submitSubscription = async () => {
                   </div>
                   <div class="col-md-6">
                     <label class="form-label text-secondary fs-2 fw-semibold">Teléfono</label>
-                    <input v-model="formCompany.phone" type="text" class="form-control bg-dark-subtle border-secondary-subtle text-white" />
+                    <input
+                      v-model="formCompany.phone"
+                      type="text"
+                      maxlength="10"
+                      class="form-control bg-dark-subtle border-secondary-subtle text-white font-monospace"
+                      placeholder="0992345678"
+                      @input="formCompany.phone = formCompany.phone ? formCompany.phone.replace(/\D/g, '').slice(0, 10) : ''"
+                    />
                   </div>
                   <div class="col-md-6">
                     <label class="form-label text-secondary fs-2 fw-semibold">Correo de la empresa</label>
@@ -2828,11 +3314,13 @@ const submitSubscription = async () => {
                   </div>
                 </div>
               </div>
-              <div class="modal-footer d-flex justify-content-end gap-2 px-4 py-3 border-top border-dark-subtle">
-                <button type="button" class="btn btn-outline-secondary px-4 rounded-3" @click="showCompanyModal = false">Cancelar</button>
-                <button type="submit" class="btn btn-primary px-4 rounded-3 fw-bold" :disabled="loading">
-                  <span v-if="loading" class="spinner-grow spinner-grow-sm me-2" role="status" aria-hidden="true"></span>
-                  <span>{{ loading ? 'Guardando...' : (isEditingCompany ? 'Guardar Cambios' : 'Guardar Empresa') }}</span>
+              <div class="border-top pt-3 mt-4 pb-2 px-4 d-flex align-items-center justify-content-end gap-3">
+                <button type="button" class="btn bg-danger-subtle text-danger" @click="showCompanyModal = false">
+                  Cancelar
+                </button>
+                <button type="submit" class="btn btn-primary d-flex align-items-center gap-2" :disabled="loading">
+                  <span v-if="loading" class="spinner-grow spinner-grow-sm text-white" role="status"></span>
+                  <span>{{ isEditingCompany ? 'Guardar Cambios' : 'Registrar' }}</span>
                 </button>
               </div>
             </form>
@@ -2844,7 +3332,7 @@ const submitSubscription = async () => {
       <div v-if="showUserModal" id="form-page" class="form-page">
         <div class="form-page-card form-page-card-lg">
           <div class="card bg-navy-card border border-secondary-subtle rounded-4 shadow-sm">
-            <div class="modal-header d-flex justify-content-between align-items-center px-4 py-3 border-bottom border-dark-subtle">
+            <div class="modal-header d-flex justify-content-between align-items-center px-4 py-3 border-bottom border-dark-subtle app-modal-header">
               <div class="d-flex align-items-center gap-2">
                 <span class="p-2 bg-primary-subtle text-primary rounded-3 d-inline-flex"><iconify-icon :icon="isEditingUser ? 'solar:user-bold' : 'solar:user-plus-line-duotone'" class="fs-5"></iconify-icon></span>
                 <h5 class="fw-bold text-white mb-0">{{ isEditingUser ? 'Editar Usuario del Sistema' : 'Crear Usuario del Sistema' }}</h5>
@@ -2855,7 +3343,7 @@ const submitSubscription = async () => {
               </button>
             </div>
             <form @submit.prevent="submitUser">
-              <div class="modal-body p-4">
+              <div class="modal-body p-4 app-modal-body">
                 <!-- FOTOGRAFÍA / AVATAR DEL USUARIO (SUPABASE STORAGE) -->
                 <div class="mb-4">
                   <div class="p-3 rounded-3 border border-secondary-subtle bg-dark-subtle d-flex flex-wrap align-items-center justify-content-between gap-3">
@@ -2880,27 +3368,61 @@ const submitSubscription = async () => {
                 </div>
                 <div class="row">
                   <div class="col-md-6 mb-3">
-                    <label class="form-label text-secondary fs-2 fw-semibold">Número de Cédula / Documento</label>
-                    <input v-model="formUser.num_document" type="text" class="form-control bg-dark-subtle border-secondary-subtle text-white" placeholder="Ej. 1725620247" required />
+                    <label class="form-label text-secondary fs-2 fw-semibold">Tipo de Documento *</label>
+                    <AppSelect2
+                      v-model="formUser.tipo_documento"
+                      :options="userDocTypeOptions"
+                      placeholder="Seleccionar tipo de documento..."
+                      search-placeholder="Buscar tipo..."
+                    />
+                  </div>
+                  <div class="col-md-6 mb-3">
+                    <label class="form-label text-secondary fs-2 fw-semibold">Número de Documento *</label>
+                    <div class="input-group">
+                      <input
+                        v-model="formUser.num_document"
+                        type="text"
+                        :maxlength="formUser.tipo_documento === '05' ? 10 : 20"
+                        class="form-control bg-dark-subtle border-secondary-subtle text-white font-monospace"
+                        :placeholder="formUser.tipo_documento === '05' ? 'Ej. 1725620247' : formUser.tipo_documento === '06' ? 'Ej. A12345678' : 'Ej. ID-EXT-12345'"
+                        @input="onUserDocInput"
+                        @keyup.enter.prevent="consultarDocumentoUser"
+                        required
+                      />
+                      <button
+                        v-if="formUser.tipo_documento === '05'"
+                        type="button"
+                        class="btn btn-outline-primary bg-dark border-secondary-subtle d-flex align-items-center gap-1"
+                        :disabled="consultandoDocUser"
+                        title="Consultar en Registro Civil"
+                        @click="consultarDocumentoUser"
+                      >
+                        <span v-if="consultandoDocUser" class="spinner-border spinner-border-sm text-primary"></span>
+                        <iconify-icon v-else icon="solar:magnifer-line-duotone" class="fs-5"></iconify-icon>
+                        <span class="d-none d-sm-inline">RC</span>
+                      </button>
+                    </div>
+                  </div>
+                </div>
+                <div class="row">
+                  <div class="col-md-6 mb-3">
+                    <label class="form-label text-secondary fs-2 fw-semibold">Nombres *</label>
+                    <input v-model="formUser.name_user" type="text" class="form-control bg-dark-subtle border-secondary-subtle text-white" placeholder="Nombre" required />
+                  </div>
+                  <div class="col-md-6 mb-3">
+                    <label class="form-label text-secondary fs-2 fw-semibold">Apellidos *</label>
+                    <input v-model="formUser.last_name_user" type="text" class="form-control bg-dark-subtle border-secondary-subtle text-white" placeholder="Apellido" required />
+                  </div>
+                </div>
+                <div class="row">
+                  <div class="col-md-6 mb-3">
+                    <label class="form-label text-secondary fs-2 fw-semibold">Correo Electrónico (Login) *</label>
+                    <input v-model="formUser.email" type="email" class="form-control bg-dark-subtle border-secondary-subtle text-white" placeholder="usuario@correo.com" required />
                   </div>
                   <div class="col-md-6 mb-3">
                     <label class="form-label text-secondary fs-2 fw-semibold">Fecha de Nacimiento</label>
                     <input v-model="formUser.birth_date" type="date" :max="new Date().toISOString().slice(0, 10)" class="form-control bg-dark-subtle border-secondary-subtle text-white" />
                   </div>
-                </div>
-                <div class="row">
-                  <div class="col-md-6 mb-3">
-                    <label class="form-label text-secondary fs-2 fw-semibold">Nombres</label>
-                    <input v-model="formUser.name_user" type="text" class="form-control bg-dark-subtle border-secondary-subtle text-white" placeholder="Nombre" required />
-                  </div>
-                  <div class="col-md-6 mb-3">
-                    <label class="form-label text-secondary fs-2 fw-semibold">Apellidos</label>
-                    <input v-model="formUser.last_name_user" type="text" class="form-control bg-dark-subtle border-secondary-subtle text-white" placeholder="Apellido" required />
-                  </div>
-                </div>
-                <div class="mb-3">
-                  <label class="form-label text-secondary fs-2 fw-semibold">Correo Electrónico (Login)</label>
-                  <input v-model="formUser.email" type="email" class="form-control bg-dark-subtle border-secondary-subtle text-white" placeholder="usuario@correo.com" required />
                 </div>
                 <div class="mb-3">
                   <label class="form-label text-secondary fs-2 fw-semibold d-flex justify-content-between align-items-center">
@@ -3016,11 +3538,13 @@ const submitSubscription = async () => {
                   </small>
                 </div>
               </div>
-              <div class="modal-footer d-flex justify-content-end gap-2 px-4 py-3 border-top border-dark-subtle">
-                <button type="button" class="btn btn-outline-secondary px-4 rounded-3" @click="closeUserModal">Cancelar</button>
-                <button type="submit" class="btn btn-primary px-4 rounded-3 fw-bold" :disabled="loading">
-                  <span v-if="loading" class="spinner-grow spinner-grow-sm me-2" role="status" aria-hidden="true"></span>
-                  <span>{{ loading ? 'Guardando...' : (isEditingUser ? 'Actualizar Usuario' : 'Guardar Usuario') }}</span>
+              <div class="border-top pt-3 mt-4 pb-2 px-4 d-flex align-items-center justify-content-end gap-3">
+                <button type="button" class="btn bg-danger-subtle text-danger" @click="closeUserModal">
+                  Cancelar
+                </button>
+                <button type="submit" class="btn btn-primary d-flex align-items-center gap-2" :disabled="loading">
+                  <span v-if="loading" class="spinner-grow spinner-grow-sm text-white" role="status"></span>
+                  <span>{{ isEditingUser ? 'Guardar Cambios' : 'Registrar' }}</span>
                 </button>
               </div>
             </form>
@@ -3032,7 +3556,7 @@ const submitSubscription = async () => {
       <div v-if="showRoleModal" id="form-page" class="form-page">
         <div class="form-page-card form-page-card-lg">
           <div class="card bg-navy-card border border-secondary-subtle rounded-4 shadow-sm">
-            <div class="modal-header d-flex justify-content-between align-items-center px-4 py-3 border-bottom border-dark-subtle">
+            <div class="modal-header d-flex justify-content-between align-items-center px-4 py-3 border-bottom border-dark-subtle app-modal-header">
               <div class="d-flex align-items-center gap-2">
                 <span class="p-2 bg-primary-subtle text-primary rounded-3 d-inline-flex"><iconify-icon icon="solar:shield-check-line-duotone" class="fs-5"></iconify-icon></span>
                 <h5 class="fw-bold text-white mb-0">{{ isEditingRole ? 'Editar Rol (Cabecera y Detalle de Accesos)' : 'Registrar Nuevo Rol (Cabecera y Detalle)' }}</h5>
@@ -3043,7 +3567,7 @@ const submitSubscription = async () => {
               </button>
             </div>
             <form @submit.prevent="submitRole">
-              <div class="modal-body p-4">
+              <div class="modal-body p-4 app-modal-body">
                 <!-- CABECERA DEL ROL -->
                 <div class="p-3 rounded-3 bg-dark-subtle border border-secondary-subtle mb-3">
                   <div class="d-flex justify-content-between align-items-center mb-2">
@@ -3227,11 +3751,13 @@ const submitSubscription = async () => {
                   </div>
                 </div>
               </div>
-              <div class="modal-footer d-flex justify-content-end gap-2 px-4 py-3 border-top border-dark-subtle">
-                <button type="button" class="btn btn-outline-secondary px-4 rounded-3" @click="showRoleModal = false">Cancelar</button>
-                <button type="submit" class="btn btn-primary px-4 rounded-3 fw-bold" :disabled="loading || companyAccessibleModules.length === 0">
-                  <span v-if="loading" class="spinner-grow spinner-grow-sm me-2" role="status" aria-hidden="true"></span>
-                  <span>{{ loading ? 'Guardando...' : (isEditingRole ? 'Actualizar Rol y Detalle' : 'Guardar Rol y Detalle') }}</span>
+              <div class="border-top pt-3 mt-4 pb-2 px-4 d-flex align-items-center justify-content-end gap-3">
+                <button type="button" class="btn bg-danger-subtle text-danger" @click="showRoleModal = false">
+                  Cancelar
+                </button>
+                <button type="submit" class="btn btn-primary d-flex align-items-center gap-2" :disabled="loading || companyAccessibleModules.length === 0">
+                  <span v-if="loading" class="spinner-grow spinner-grow-sm text-white" role="status"></span>
+                  <span>{{ isEditingRole ? 'Guardar Cambios' : 'Registrar' }}</span>
                 </button>
               </div>
             </form>
@@ -3243,7 +3769,7 @@ const submitSubscription = async () => {
       <div v-if="showModuleModal" id="form-page" class="form-page">
         <div class="form-page-card">
           <div class="card bg-navy-card border border-secondary-subtle rounded-4 shadow-sm">
-            <div class="modal-header d-flex justify-content-between align-items-center px-4 py-3 border-bottom border-dark-subtle">
+            <div class="modal-header d-flex justify-content-between align-items-center px-4 py-3 border-bottom border-dark-subtle app-modal-header">
               <div class="d-flex align-items-center gap-2">
                 <span class="p-2 bg-primary-subtle text-primary rounded-3 d-inline-flex"><iconify-icon icon="solar:widget-4-line-duotone" class="fs-5"></iconify-icon></span>
                 <h5 class="fw-bold text-white mb-0">{{ isEditingModule ? 'Editar Módulo Principal' : 'Crear Nuevo Módulo' }}</h5>
@@ -3254,7 +3780,7 @@ const submitSubscription = async () => {
               </button>
             </div>
             <form @submit.prevent="submitModule">
-              <div class="modal-body p-4">
+              <div class="modal-body p-4 app-modal-body">
                 <div class="mb-3">
                   <label class="form-label text-secondary fs-2 fw-semibold d-flex justify-content-between align-items-center">
                     <span>Código Único del Módulo</span>
@@ -3328,7 +3854,7 @@ const submitSubscription = async () => {
                   />
                 </div>
               </div>
-              <div class="modal-footer d-flex justify-content-end gap-2 px-4 py-3 border-top border-dark-subtle">
+              <div class="modal-footer d-flex justify-content-end gap-2 px-4 py-3 border-top border-dark-subtle app-modal-footer">
                 <button type="button" class="btn btn-outline-secondary px-4 rounded-3" @click="showModuleModal = false">Cancelar</button>
                 <button type="submit" class="btn btn-primary px-4 rounded-3 fw-bold" :disabled="loading">
                   <span v-if="loading" class="spinner-grow spinner-grow-sm me-2" role="status" aria-hidden="true"></span>
@@ -3344,7 +3870,7 @@ const submitSubscription = async () => {
       <div v-if="showSubModuleModal" id="form-page" class="form-page">
         <div class="form-page-card">
           <div class="card bg-navy-card border border-secondary-subtle rounded-4 shadow-sm">
-            <div class="modal-header d-flex justify-content-between align-items-center px-4 py-3 border-bottom border-dark-subtle">
+            <div class="modal-header d-flex justify-content-between align-items-center px-4 py-3 border-bottom border-dark-subtle app-modal-header">
               <div class="d-flex align-items-center gap-2">
                 <span class="p-2 bg-primary-subtle text-primary rounded-3 d-inline-flex"><iconify-icon icon="solar:layers-minimalistic-line-duotone" class="fs-5"></iconify-icon></span>
                 <h5 class="fw-bold text-white mb-0">{{ isEditingSubModule ? 'Editar Submódulo' : 'Crear Nuevo Submódulo' }}</h5>
@@ -3355,7 +3881,7 @@ const submitSubscription = async () => {
               </button>
             </div>
             <form @submit.prevent="submitSubModule">
-              <div class="modal-body p-4">
+              <div class="modal-body p-4 app-modal-body">
                 <div class="mb-3">
                   <label class="form-label text-secondary fs-2 fw-semibold">Módulo Principal (Padre)</label>
                   <select
@@ -3451,7 +3977,7 @@ const submitSubscription = async () => {
                   />
                 </div>
               </div>
-              <div class="modal-footer d-flex justify-content-end gap-2 px-4 py-3 border-top border-dark-subtle">
+              <div class="modal-footer d-flex justify-content-end gap-2 px-4 py-3 border-top border-dark-subtle app-modal-footer">
                 <button type="button" class="btn btn-outline-secondary px-4 rounded-3" @click="showSubModuleModal = false">Cancelar</button>
                 <button type="submit" class="btn btn-info text-dark fw-semibold px-4" :disabled="loading">
                   <span v-if="loading" class="spinner-grow spinner-grow-sm me-2" role="status" aria-hidden="true"></span>
@@ -3467,7 +3993,7 @@ const submitSubscription = async () => {
     <div v-if="showTaxModal" id="form-page" class="form-page">
       <div class="form-page-card">
         <div class="card bg-navy-card border border-secondary-subtle rounded-4 shadow-sm">
-          <div class="modal-header d-flex justify-content-between align-items-center px-4 py-3 border-bottom border-dark-subtle">
+          <div class="modal-header d-flex justify-content-between align-items-center px-4 py-3 border-bottom border-dark-subtle app-modal-header">
             <div class="d-flex align-items-center gap-2">
               <span class="p-2 bg-primary-subtle text-primary rounded-3 d-inline-flex">
                 <iconify-icon icon="solar:calculator-minimalistic-line-duotone" class="fs-5"></iconify-icon>
@@ -3480,7 +4006,7 @@ const submitSubscription = async () => {
             </button>
           </div>
           <form @submit.prevent="submitTax">
-            <div class="modal-body p-4">
+            <div class="modal-body p-4 app-modal-body">
               <div class="row g-3">
                 <div class="col-md-4">
                   <label class="form-label text-secondary fs-2 fw-semibold">Código del Impuesto *</label>
@@ -3552,7 +4078,7 @@ const submitSubscription = async () => {
               </div>
             </div>
 
-            <div class="modal-footer px-4 py-3 border-top border-dark-subtle d-flex justify-content-between">
+            <div class="modal-footer px-4 py-3 border-top border-dark-subtle d-flex justify-content-between app-modal-footer">
               <button type="button" class="btn btn-outline-secondary rounded-pill px-4" @click="showTaxModal = false">
                 Cancelar
               </button>
@@ -3571,7 +4097,7 @@ const submitSubscription = async () => {
     <div v-if="showDocTypeModal" id="form-page" class="form-page">
       <div class="form-page-card" style="overflow: visible;">
         <div class="card bg-navy-card border border-secondary-subtle rounded-4 shadow-sm" style="overflow: visible;">
-          <div class="modal-header d-flex justify-content-between align-items-center px-4 py-3 border-bottom border-dark-subtle">
+          <div class="modal-header d-flex justify-content-between align-items-center px-4 py-3 border-bottom border-dark-subtle app-modal-header">
             <div class="d-flex align-items-center gap-2">
               <span class="p-2 bg-primary-subtle text-primary rounded-3 d-inline-flex">
                 <iconify-icon icon="solar:document-text-line-duotone" class="fs-5"></iconify-icon>
@@ -3584,7 +4110,7 @@ const submitSubscription = async () => {
             </button>
           </div>
           <form @submit.prevent="submitDocType" style="overflow: visible;">
-            <div class="modal-body p-4" style="overflow: visible; min-height: 280px; padding-bottom: 8rem;">
+            <div class="modal-body p-4 app-modal-body" style="overflow: visible; min-height: 280px; padding-bottom: 8rem;">
               <div class="row g-3">
                 <div class="col-md-6">
                   <label class="form-label text-secondary fs-2 fw-semibold">Nombre del Documento *</label>
@@ -3631,7 +4157,7 @@ const submitSubscription = async () => {
               </div>
             </div>
 
-            <div class="modal-footer px-4 py-3 border-top border-dark-subtle d-flex justify-content-between">
+            <div class="modal-footer px-4 py-3 border-top border-dark-subtle d-flex justify-content-between app-modal-footer">
               <button type="button" class="btn btn-outline-secondary rounded-pill px-4" @click="showDocTypeModal = false">
                 Cancelar
               </button>

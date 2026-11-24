@@ -500,7 +500,7 @@ onUnmounted(() => {
       <!-- Tabla de Colaboradores -->
       <div class="crud-table-card">
         <div class="table-responsive">
-          <table class="crud-table">
+          <table class="crud-table app-table">
             <thead>
               <tr class="border-bottom border-dark-subtle text-secondary fs-2 text-uppercase">
                 <th>Colaborador</th>
@@ -649,7 +649,7 @@ onUnmounted(() => {
     <div v-if="isEmployeeFormOpen" class="form-page">
       <div class="form-page-card">
         <div class="card bg-navy-card border border-secondary-subtle rounded-4 shadow-sm">
-          <div class="modal-header d-flex justify-content-between align-items-center px-4 py-3 border-bottom border-dark-subtle">
+          <div class="modal-header d-flex justify-content-between align-items-center px-4 py-3 border-bottom border-dark-subtle app-modal-header">
             <div class="d-flex align-items-center gap-2">
               <span class="p-2 bg-primary-subtle text-primary rounded-3 d-inline-flex">
                 <iconify-icon icon="solar:user-id-bold-duotone" class="fs-4"></iconify-icon>
@@ -1069,7 +1069,7 @@ onUnmounted(() => {
             </div>
 
             <!-- Botones de Acción -->
-            <div class="modal-footer px-0 pt-3 border-top border-dark-subtle d-flex justify-content-between">
+            <div class="modal-footer px-0 pt-3 border-top border-dark-subtle d-flex justify-content-between app-modal-footer">
               <button type="button" class="btn btn-outline-secondary rounded-pill px-4" @click="isEmployeeFormOpen = false">
                 Cancelar
               </button>

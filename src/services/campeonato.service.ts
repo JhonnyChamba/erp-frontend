@@ -193,6 +193,8 @@ export interface TeamRegistrationItem {
   tournamentId?: number;
   categoryEditionId: number;
   categoryEdition?: CategoryEditionItem;
+  categoryId?: number;
+  category?: CategoryItem;
   teamId: number;
   team?: TeamItem;
   groupName?: string;
@@ -490,7 +492,27 @@ export const StagesService = {
 };
 export const ScenariesService = createCrudService<ScenaryItem>('scenaries');
 export const PlayerClassificationsService = createCrudService<PlayerClassificationItem>('player-classifications');
-export const TeamRegistrationsService = createCrudService<TeamRegistrationItem>('team-registrations');
+export const TeamRegistrationsService = {
+  ...createCrudService<TeamRegistrationItem>('team-registrations'),
+  listGrouped: (params?: Record<string, any>, companyId?: number) => api.get<any>('/campeonato/team-registrations/grouped', { params, ...withCompany(companyId) }),
+  syncByEdition: (
+    data: {
+      categoryEditionId: number;
+      categories: Array<{
+        categoryId: number;
+        teams: Array<{
+          id?: number;
+          teamId: number;
+          groupName?: string;
+          status?: string;
+          paymentStatus?: string;
+          pointsPenalty?: number;
+        }>;
+      }>;
+    },
+    companyId?: number
+  ) => api.post<any>('/campeonato/team-registrations/sync-edition', data, withCompany(companyId)),
+};
 export const PlayerRegistrationsService = {
   ...createCrudService<PlayerRegistrationItem>('player-registrations'),
   massCreate: (data: { teamRegistrationId: number; stageId?: number; registrations: any[] }, companyId?: number) =>

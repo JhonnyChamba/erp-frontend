@@ -160,7 +160,7 @@
         <!-- 2. Inscripciones -->
         <div v-if="activeSubTab === 'registrations'" class="card p-3 border rounded-3 bg-body shadow-sm">
           <div class="table-responsive">
-            <table class="table table-hover align-middle mb-0">
+            <table class="table table-hover align-middle mb-0 app-table">
               <thead class="table-light">
                 <tr>
                   <th>Torneo</th>
@@ -196,7 +196,7 @@
         <!-- 3. Transferencias -->
         <div v-if="activeSubTab === 'transfers'" class="card p-3 border rounded-3 bg-body shadow-sm">
           <div class="table-responsive">
-            <table class="table table-hover align-middle mb-0">
+            <table class="table table-hover align-middle mb-0 app-table">
               <thead class="table-light">
                 <tr>
                   <th>Campeonato</th>

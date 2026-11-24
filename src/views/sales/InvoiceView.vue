@@ -1446,8 +1446,9 @@ watch(() => [route.path, route.query], () => {
 
       <!-- Tabla de Facturas Emitidas -->
       <div v-show="!isFormOpen" class="crud-table-card">
-        <div class="table-responsive">
-          <table class="crud-table">
+        <!-- Vista Desktop: Tabla tradicional -->
+        <div class="table-responsive d-none d-md-block">
+          <table class="crud-table app-table">
             <thead>
               <tr>
                 <th>No. Factura (SRI)</th>
@@ -1642,13 +1643,139 @@ watch(() => [route.path, route.query], () => {
             </tbody>
           </table>
         </div>
+
+        <!-- Vista Móvil / Tablet: Tarjetas CRUD -->
+        <div class="d-block d-md-none p-2">
+          <div v-if="loading" class="text-center py-4">
+            <div class="spinner-border spinner-border-sm text-primary me-2"></div>
+            <span class="text-secondary small">Cargando facturas...</span>
+          </div>
+          <div v-else-if="filteredInvoices.length === 0" class="text-center py-4 text-secondary">
+            <iconify-icon icon="solar:bill-cross-bold" class="display-6 mb-2 d-block"></iconify-icon>
+            No se encontraron facturas registradas.
+          </div>
+          <div v-else class="crud-mobile-cards-view">
+            <div v-for="inv in filteredInvoices" :key="'m-' + inv.id" class="crud-mobile-card">
+              <!-- Encabezado de la tarjeta -->
+              <div class="crud-mobile-card-header">
+                <div class="d-flex align-items-center gap-2 min-w-0">
+                  <div class="crud-mobile-card-avatar">
+                    <iconify-icon icon="solar:bill-list-bold-duotone" class="fs-4 text-info"></iconify-icon>
+                  </div>
+                  <div class="min-w-0">
+                    <span class="font-monospace fw-bold text-info d-block text-truncate">{{ inv.invoice_number }}</span>
+                    <small class="text-secondary d-block text-truncate">{{ branchName(inv.branch_id) }}</small>
+                  </div>
+                </div>
+                <div class="d-flex align-items-center gap-2">
+                  <span
+                    class="badge"
+                    :class="inv.status === 'CANCELED' ? 'bg-danger-subtle text-danger border border-danger-subtle' : 'bg-success-subtle text-success border border-success-subtle'"
+                  >
+                    {{ inv.status === 'CANCELED' ? 'Anulada' : inv.status === 'AUTHORIZED' ? 'Autorizada' : 'Emitida' }}
+                  </span>
+                  <div class="dropdown">
+                    <button
+                      class="btn btn-action-kebab"
+                      type="button"
+                      data-bs-toggle="dropdown"
+                      data-bs-display="static"
+                      aria-expanded="false"
+                      title="Acciones"
+                    >
+                      <iconify-icon icon="solar:menu-dots-vertical-bold" class="fs-4"></iconify-icon>
+                    </button>
+                    <ul class="dropdown-menu dropdown-menu-end shadow-lg py-1">
+                      <li>
+                        <a class="dropdown-item py-2" href="javascript:void(0)" @click="openDetailModal(inv)">
+                          <iconify-icon icon="solar:eye-line-duotone" class="fs-5 text-info"></iconify-icon>
+                          <span>Ver Detalle Factura</span>
+                        </a>
+                      </li>
+                      <li v-if="inv.status === 'ISSUED' && inv.sign_status !== 'SIGNED'">
+                        <a class="dropdown-item py-2 text-warning" href="javascript:void(0)" @click="onSignInvoice(inv)">
+                          <iconify-icon icon="solar:pen-new-square-line-duotone" class="fs-5 text-warning"></iconify-icon>
+                          <span>Firmar XML</span>
+                        </a>
+                      </li>
+                      <li v-if="inv.sign_status === 'SIGNED' && inv.status !== 'CANCELED' && (!inv.sri_status || inv.sri_status === 'NOT_SENT' || inv.sri_status === 'RETURNED' || inv.sri_status === 'NOT_AUTHORIZED')">
+                        <a class="dropdown-item py-2 text-primary" href="javascript:void(0)" @click="onSendToSri(inv)">
+                          <iconify-icon icon="solar:plain-2-bold-duotone" class="fs-5 text-primary"></iconify-icon>
+                          <span>Enviar al SRI</span>
+                        </a>
+                      </li>
+                      <li v-if="canCheckSri(inv)">
+                        <a class="dropdown-item py-2 text-warning" href="javascript:void(0)" @click="onCheckSri(inv)">
+                          <iconify-icon icon="solar:refresh-circle-bold-duotone" class="fs-5 text-warning"></iconify-icon>
+                          <span>Consultar SRI</span>
+                        </a>
+                      </li>
+                      <li v-if="inv.sign_status === 'SIGNED'">
+                        <a class="dropdown-item py-2 text-success" href="javascript:void(0)" @click="downloadXml(inv)">
+                          <iconify-icon icon="solar:download-minimalistic-bold" class="fs-5 text-success"></iconify-icon>
+                          <span>Descargar XML</span>
+                        </a>
+                      </li>
+                      <li><hr class="dropdown-divider"></li>
+                      <li>
+                        <a class="dropdown-item py-2" href="javascript:void(0)" @click="onPrintA4(inv)">
+                          <iconify-icon icon="solar:printer-bold-duotone" class="fs-5 text-info"></iconify-icon>
+                          <span>Imprimir RIDE (A4)</span>
+                        </a>
+                      </li>
+                      <li>
+                        <a class="dropdown-item py-2" href="javascript:void(0)" @click="onPrintTicket(inv)">
+                          <iconify-icon icon="solar:ticket-bold-duotone" class="fs-5 text-secondary"></iconify-icon>
+                          <span>Ticket Térmico (80mm)</span>
+                        </a>
+                      </li>
+                      <li v-if="canIssueCreditNote(inv)">
+                        <a class="dropdown-item py-2 text-warning" href="javascript:void(0)" @click="goToCreditNote(inv)">
+                          <iconify-icon icon="solar:bill-cross-line-duotone" class="fs-5 text-warning"></iconify-icon>
+                          <span>Emitir Nota de Crédito</span>
+                        </a>
+                      </li>
+                      <li v-if="canCancelInvoice(inv)">
+                        <hr class="dropdown-divider">
+                        <a class="dropdown-item py-2 text-danger" href="javascript:void(0)" @click="onCancelInvoice(inv)">
+                          <iconify-icon icon="solar:trash-bin-trash-line-duotone" class="fs-5 text-danger"></iconify-icon>
+                          <span>Anular Factura</span>
+                        </a>
+                      </li>
+                    </ul>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Rejilla de información de la tarjeta -->
+              <div class="crud-mobile-card-grid">
+                <div class="crud-mobile-field">
+                  <span class="crud-mobile-field-label">Cliente / Razón Social</span>
+                  <span class="crud-mobile-field-value fw-semibold text-white">{{ inv.customer_name }}</span>
+                </div>
+                <div class="crud-mobile-field">
+                  <span class="crud-mobile-field-label">Identificación</span>
+                  <span class="crud-mobile-field-value font-monospace">{{ inv.customer_id_number }}</span>
+                </div>
+                <div class="crud-mobile-field">
+                  <span class="crud-mobile-field-label">Fecha Emisión</span>
+                  <span class="crud-mobile-field-value">{{ inv.issue_date }}</span>
+                </div>
+                <div class="crud-mobile-field">
+                  <span class="crud-mobile-field-label">Total</span>
+                  <span class="crud-mobile-field-value font-monospace fw-bold text-success fs-5">${{ formatNumber(inv.total) }}</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
       </div>
     </template>
 
     <!-- MODAL 1: EMITIR NUEVA FACTURA (REGLAS SRI ECUADOR) -->
     <div v-if="showCreateModal" id="form-page" class="form-page">
-      <div class="modal-card-custom modal-lg-custom form-page-card form-page-card-lg">
-        <div class="modal-header-custom d-flex justify-content-between align-items-center">
+      <div class="modal-card-custom modal-lg-custom form-page-card form-page-card-lg app-modal app-modal-lg">
+        <div class="modal-header-custom d-flex justify-content-between align-items-center app-modal-header">
           <div>
             <span class="badge bg-primary-subtle text-primary border border-primary-subtle">SRI ECUADOR</span>
             <h4 class="text-white fw-bold mb-0 mt-1">Emitir Factura Electrónica Normal</h4>
@@ -1910,7 +2037,7 @@ watch(() => [route.path, route.query], () => {
             </div>
 
             <div class="table-responsive border rounded-3 invoice-details-table-wrapper">
-              <table class="table table-hover table-sm align-middle mb-0 invoice-items-table">
+              <table class="table table-hover table-sm align-middle mb-0 invoice-items-table app-table">
                 <thead class="table-primary fs-1 text-uppercase">
                   <tr>
                     <th class="col-item-catalog">
@@ -2159,9 +2286,9 @@ watch(() => [route.path, route.query], () => {
 
     <!-- MODAL 2: VER DETALLE / RIDE DE FACTURA -->
     <Teleport to="body">
-      <div v-if="showDetailModal && viewingInvoice" class="modal-backdrop-custom keep-in-form" @click.self="showDetailModal = false">
-      <div class="modal-card-custom modal-lg-custom">
-        <div class="modal-header-custom d-flex justify-content-between align-items-center">
+      <div v-if="showDetailModal && viewingInvoice" class="modal-backdrop-custom keep-in-form app-modal-backdrop" @click.self="showDetailModal = false">
+      <div class="modal-card-custom modal-lg-custom app-modal app-modal-lg">
+        <div class="modal-header-custom d-flex justify-content-between align-items-center app-modal-header">
           <div>
             <span class="badge bg-success-subtle text-success border border-success-subtle">FACTURA ELECTRÓNICA</span>
             <h4 class="fw-bold mb-0 mt-1 modal-title-custom">{{ viewingInvoice.invoice_number }}</h4>
@@ -2171,7 +2298,7 @@ watch(() => [route.path, route.query], () => {
           </button>
         </div>
 
-        <div class="p-4 modal-body-custom">
+        <div class="p-4 modal-body-custom app-modal-body">
           <div class="row g-3 pb-3 border-bottom">
             <div class="col-md-6">
               <span class="text-secondary small d-block">Cliente:</span>
@@ -2189,7 +2316,7 @@ watch(() => [route.path, route.query], () => {
 
           <!-- Detalle de Ítems -->
           <div class="table-responsive mt-3">
-            <table class="table table-hover table-sm align-middle">
+            <table class="table table-hover table-sm align-middle app-table">
               <thead class="table-primary text-uppercase fs-1">
                 <tr>
                   <th>Código</th>
@@ -2261,7 +2388,7 @@ watch(() => [route.path, route.query], () => {
           </ul>
         </div>
 
-        <div class="modal-footer d-flex justify-content-end gap-2 p-3 border-top">
+        <div class="modal-footer d-flex justify-content-end gap-2 p-3 border-top app-modal-footer">
           <button
             v-if="viewingInvoice.sign_status === 'SIGNED' && viewingInvoice.status !== 'CANCELED' && (!viewingInvoice.sri_status || viewingInvoice.sri_status === 'NOT_SENT' || viewingInvoice.sri_status === 'RETURNED' || viewingInvoice.sri_status === 'NOT_AUTHORIZED')"
             class="btn btn-outline-primary d-flex align-items-center gap-2"
@@ -2327,9 +2454,9 @@ watch(() => [route.path, route.query], () => {
 
   <!-- MODAL: + NUEVO CLIENTE RÁPIDO (VENTA MOSTRADOR POS) -->
   <Teleport to="body">
-    <div v-if="showQuickCustomerModal" class="modal-backdrop-custom keep-in-form" @click.self="showQuickCustomerModal = false">
-      <div class="modal-card-custom" style="max-width: 520px;">
-        <div class="modal-header-custom d-flex justify-content-between align-items-center">
+    <div v-if="showQuickCustomerModal" class="modal-backdrop-custom keep-in-form app-modal-backdrop" @click.self="showQuickCustomerModal = false">
+      <div class="modal-card-custom app-modal" style="max-width: 520px;">
+        <div class="modal-header-custom d-flex justify-content-between align-items-center app-modal-header">
           <div class="d-flex align-items-center gap-2">
             <div class="crud-kpi-icon primary" style="width: 34px; height: 34px;">
               <iconify-icon icon="solar:user-plus-bold" class="fs-5"></iconify-icon>
@@ -2344,7 +2471,7 @@ watch(() => [route.path, route.query], () => {
           </button>
         </div>
 
-        <form @submit.prevent="saveQuickCustomer" class="p-4 modal-body-custom">
+        <form @submit.prevent="saveQuickCustomer" class="p-4 modal-body-custom app-modal-body">
           <div class="row g-3">
             <div class="col-md-5">
               <label class="form-label text-secondary fs-2 fw-semibold">Tipo Identificación *</label>
@@ -2418,9 +2545,9 @@ watch(() => [route.path, route.query], () => {
 
   <!-- MODAL: CUADRE DE CAJA DIARIO (POS) -->
   <Teleport to="body">
-    <div v-if="showDailyCashModal" class="modal-backdrop-custom keep-in-form" @click.self="showDailyCashModal = false">
-      <div class="modal-card-custom" style="max-width: 580px;">
-        <div class="modal-header-custom d-flex justify-content-between align-items-center">
+    <div v-if="showDailyCashModal" class="modal-backdrop-custom keep-in-form app-modal-backdrop" @click.self="showDailyCashModal = false">
+      <div class="modal-card-custom app-modal" style="max-width: 580px;">
+        <div class="modal-header-custom d-flex justify-content-between align-items-center app-modal-header">
           <div class="d-flex align-items-center gap-2">
             <div class="crud-kpi-icon success" style="width: 34px; height: 34px;">
               <iconify-icon icon="solar:calculator-minimalistic-bold-duotone" class="fs-5"></iconify-icon>
@@ -2435,7 +2562,7 @@ watch(() => [route.path, route.query], () => {
           </button>
         </div>
 
-        <div class="p-4 modal-body-custom">
+        <div class="p-4 modal-body-custom app-modal-body">
           <!-- Totales por Forma de Pago -->
           <div class="row g-2 mb-3">
             <div class="col-6">

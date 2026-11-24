@@ -185,15 +185,15 @@
     <!-- MODAL NUEVA CITA / RESERVA -->
     <div class="modal fade" id="modalNewAppointment" tabindex="-1" aria-hidden="true" ref="modalNewAppointmentRef">
       <div class="modal-dialog modal-lg modal-dialog-centered">
-        <div class="modal-content border-0 shadow">
-          <div class="modal-header bg-primary text-white">
-            <h5 class="modal-title fw-bold text-white d-flex align-items-center gap-2">
+        <div class="modal-content border-0 shadow app-modal">
+          <div class="modal-header bg-primary text-white app-modal-header">
+            <h5 class="modal-title fw-bold text-white d-flex align-items-center gap-2 app-modal-title">
               <iconify-icon icon="solar:calendar-add-bold" class="fs-4"></iconify-icon>
               <span>Nueva Cita / Reserva</span>
             </h5>
             <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
           </div>
-          <div class="modal-body p-4">
+          <div class="modal-body p-4 app-modal-body">
             <form @submit.prevent="saveNewAppointment">
               
               <div class="row g-3">
@@ -269,7 +269,7 @@
                     No ha agregado servicios a esta cita todavía. Seleccione uno arriba.
                   </div>
                   <div v-else class="table-responsive">
-                    <table class="table table-sm table-bordered bg-white mb-0">
+                    <table class="table table-sm table-bordered bg-white mb-0 app-table">
                       <thead class="table-light">
                         <tr>
                           <th>Servicio</th>
@@ -321,7 +321,7 @@
                 ></textarea>
               </div>
 
-              <div class="modal-footer px-0 pb-0 mt-4 border-0">
+              <div class="modal-footer px-0 pb-0 mt-4 border-0 app-modal-footer">
                 <button type="button" class="btn btn-light" data-bs-dismiss="modal">Cancelar</button>
                 <button type="submit" class="btn btn-primary d-flex align-items-center gap-1" :disabled="savingApt || formAppointment.items.length === 0">
                   <iconify-icon icon="solar:check-circle-bold"></iconify-icon>
@@ -338,15 +338,15 @@
     <!-- MODAL DETALLE DE CITA / ACCIONES OPERATIVAS -->
     <div class="modal fade" id="modalAppointmentDetails" tabindex="-1" aria-hidden="true" ref="modalAppointmentDetailsRef">
       <div class="modal-dialog modal-dialog-centered">
-        <div class="modal-content border-0 shadow">
-          <div class="modal-header bg-dark text-white">
+        <div class="modal-content border-0 shadow app-modal">
+          <div class="modal-header bg-dark text-white app-modal-header">
             <div class="d-flex align-items-center gap-2">
               <span class="badge bg-primary fs-2 font-monospace">{{ selectedAppointment?.order_number }}</span>
-              <h5 class="modal-title fw-bold text-white mb-0">Detalle de la Orden de Cita</h5>
+              <h5 class="modal-title fw-bold text-white mb-0 app-modal-title">Detalle de la Orden de Cita</h5>
             </div>
             <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
           </div>
-          <div class="modal-body p-4" v-if="selectedAppointment">
+          <div class="modal-body p-4 app-modal-body" v-if="selectedAppointment">
             
             <!-- ESTADO ACTUAL -->
             <div class="d-flex align-items-center justify-content-between p-3 rounded-2 mb-3 bg-light">

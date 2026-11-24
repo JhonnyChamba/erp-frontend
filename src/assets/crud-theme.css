@@ -188,84 +188,49 @@
   border-radius: 0.75rem;
   box-shadow: var(--bs-card-shadow, 0 4px 15px rgba(0, 0, 0, 0.08));
   position: relative;
-  overflow: visible; /* Permite que dropdowns floten libremente sin recortarse */
+  overflow: visible;
+  /* Permite que dropdowns floten libremente sin recortarse */
 }
 
-/* Contenedor de scroll con altura determinada y espacio para menús */
-.crud-table-card .table-responsive,
-.table-card .table-scroll,
-.table-card .table-responsive,
-.card .table-responsive {
+/* Contenedor de scroll con altura determinada y espacio para menús (Tablas principales de listado) */
+.crud-table-card>.table-responsive,
+.table-card>.table-scroll,
+.table-card>.table-responsive {
   min-height: 350px;
   max-height: calc(100vh - 230px);
   overflow-y: auto !important;
   overflow-x: auto !important;
   position: relative;
-  scrollbar-width: thin;
-  scrollbar-color: rgba(189, 200, 240, 0.25) transparent;
-  padding-bottom: 3.5rem; /* Espacio para que el último menú desplegable no se corte */
+  padding-bottom: 3.5rem;
+  /* Espacio para que el último menú desplegable no se corte */
 }
 
-.crud-table,
-.settings-page table,
-.erp-table {
-  width: 100%;
-  margin-bottom: 0;
-  vertical-align: middle;
-  border-collapse: separate;
-  border-spacing: 0;
+/* Tablas maestro-detalle dentro de formularios (.form-page-card):
+   crecen de forma natural sin barra de scroll vertical interna y permiten que
+   los menús desplegables (Select2) floten por fuera sin recortarse */
+.form-page-card .table-responsive {
+  min-height: unset !important;
+  max-height: none !important;
+  overflow: visible !important;
+  padding-bottom: 0 !important;
 }
 
-/* CABECERA ESTÁTICA (STICKY HEADER) */
-.crud-table thead,
-.settings-page table thead,
-.erp-table thead,
-.table thead {
-  position: sticky;
-  top: 0;
-  z-index: 15;
+.form-page-card .table thead,
+.form-page-card .table thead th {
+  position: relative !important;
+  top: auto !important;
+  z-index: 1 !important;
 }
 
-.crud-table thead th,
-.settings-page table thead th,
-.erp-table thead th,
-.table thead th {
-  position: sticky;
-  top: 0;
-  z-index: 15;
-  padding: 0.55rem 0.75rem;
-  font-size: 0.72rem;
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
-  background-color: #111c2d !important; /* Fondo sólido opaco idéntico al card */
-  color: var(--bs-text-muted, #7c8fac);
-  border-bottom: 1px solid var(--bs-border-color, rgba(189, 200, 240, 0.18));
-  box-shadow: inset 0 -1px 0 var(--bs-border-color, rgba(189, 200, 240, 0.18));
-  white-space: nowrap;
+.form-page-card .table thead tr:first-child th:first-child {
+  border-top-left-radius: 0.5rem !important;
 }
 
-.crud-table td,
-.settings-page table td,
-.erp-table td {
-  padding: 0.5rem 0.75rem;
-  font-size: 0.835rem;
-  color: var(--bs-body-color, #EAEFF4);
-  border-bottom: 1px solid var(--bs-border-color, rgba(189, 200, 240, 0.1));
-  vertical-align: middle;
+.form-page-card .table thead tr:first-child th:last-child {
+  border-top-right-radius: 0.5rem !important;
 }
 
-.crud-table tbody tr,
-.settings-page table tbody tr,
-.erp-table tbody tr {
-  transition: background-color 0.15s ease-in-out;
-}
-
-.crud-table tbody tr:hover,
-.settings-page table tbody tr:hover,
-.erp-table tbody tr:hover {
-  background-color: var(--bs-hover-bg, rgba(255, 255, 255, 0.04));
-}
+/* Estilo de tablas (.table, .crud-table, .erp-table, .app-table): ver table-theme.css */
 
 .crud-chip {
   display: inline-flex;
@@ -287,7 +252,7 @@
    debe ser una vista de formulario normal en página (con botón "Volver al Listado"),
    NO un modal emergente flotante con backdrop oscuro.
    -------------------------------------------------------------------------- */
-.form-open > :not(.form-page):not(.keep-in-form):not(.crud-modal-backdrop):not(.modal-backdrop-custom) {
+.form-open> :not(.form-page):not(.keep-in-form):not(.crud-modal-backdrop):not(.modal-backdrop-custom) {
   display: none !important;
 }
 
@@ -296,19 +261,34 @@
   animation: crudFadeIn 0.2s ease-in-out;
 }
 
-.form-page-card {
+.form-page-card,
+.form-page-card.bg-navy-card {
   width: 100%;
   background: var(--bs-card-bg, #111c2d);
   border: 1px solid var(--bs-border-color, rgba(189, 200, 240, 0.15));
-  border-radius: 1rem;
+  border-radius: 1.25rem !important;
   overflow: visible;
   box-shadow: var(--bs-card-shadow, 0 4px 20px rgba(0, 0, 0, 0.15));
   margin: 0 auto;
 }
 
+[data-bs-theme="light"] .form-page-card,
+[data-bs-theme="light"] .form-page-card.bg-navy-card {
+  background: #ffffff !important;
+  color: #2a3547 !important;
+  border: 1px solid #e6ecf1 !important;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.05) !important;
+}
+
+[data-bs-theme="light"] .form-page-card .bg-dark-subtle,
+[data-bs-theme="light"] .form-page-card .card.bg-dark-subtle {
+  background-color: #f8fafc !important;
+  border: 1px solid #e6ecf1 !important;
+  color: #2a3547 !important;
+}
+
 /* Eliminar el doble borde, doble fondo y margen inferior (24px) que dejaba una franja vacía al anidar .card dentro de .form-page-card */
-.form-page-card > .card,
-.form-page-card .card {
+.form-page-card>.card:not(.bg-dark-subtle):not(.form-section-card):not(.card-section) {
   background: transparent !important;
   border: none !important;
   box-shadow: none !important;
@@ -343,22 +323,6 @@
   gap: 0.75rem;
 }
 
-.crud-modal-backdrop,
-.modal-backdrop-custom {
-  position: fixed;
-  top: 0;
-  left: 0;
-  width: 100vw;
-  height: 100vh;
-  background-color: rgba(0, 0, 0, 0.75);
-  backdrop-filter: blur(4px);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  z-index: 10050 !important;
-  padding: 1rem;
-  animation: crudFadeIn 0.2s ease-out;
-}
 
 @keyframes crudFadeIn {
   from {
@@ -370,17 +334,6 @@
   }
 }
 
-.crud-modal-card,
-.modal-card-custom {
-  background-color: var(--bs-card-bg, #111c2d);
-  border: 1px solid var(--bs-border-color, rgba(189, 200, 240, 0.15));
-  border-radius: 1rem;
-  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
-  width: 100%;
-  max-height: 90vh;
-  overflow-y: auto;
-  animation: crudSlideUp 0.25s ease-out;
-}
 
 @keyframes crudSlideUp {
   from {
@@ -394,46 +347,7 @@
   }
 }
 
-.crud-modal-card.modal-md,
-.modal-md-custom {
-  max-width: 560px;
-}
-
-.crud-modal-card.modal-lg,
-.modal-lg-custom {
-  max-width: 860px;
-}
-
-.crud-modal-header,
-.modal-header-custom {
-  padding: 1.25rem 1.5rem;
-  border-bottom: 1px solid var(--bs-border-color, rgba(189, 200, 240, 0.15));
-  background-color: rgba(255, 255, 255, 0.02);
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-}
-
-.crud-modal-header h4,
-.crud-modal-header h5,
-.modal-header-custom h4,
-.modal-header-custom h5 {
-  color: var(--bs-heading-color, #ffffff);
-  font-weight: 700;
-  margin: 0;
-}
-
-.crud-modal-body {
-  padding: 1.5rem;
-}
-
-.crud-modal-footer {
-  padding: 1rem 1.5rem;
-  border-top: 1px solid var(--bs-border-color, rgba(189, 200, 240, 0.15));
-  display: flex;
-  justify-content: flex-end;
-  gap: 0.5rem;
-}
+/* Estilo de modales (contenedor, cabecera, cuerpo, pie, tamaños): ver modal-theme.css */
 
 /* --------------------------------------------------------------------------
    6. Reglas Específicas para MODO CLARO (data-bs-theme="light")
@@ -529,13 +443,13 @@
   color: #2a3547 !important;
 }
 
-[data-bs-theme="light"] :is(.crud-page, .campeonato-page, .emission-points-page, .purchases-page, .credit-notes-page, .invoices-page, .contacts-page, .inventory-page, .settings-page) table thead,
 [data-bs-theme="light"] :is(.crud-page, .campeonato-page, .emission-points-page, .purchases-page, .credit-notes-page, .invoices-page, .contacts-page, .inventory-page, .settings-page) table thead th,
 [data-bs-theme="light"] :is(.crud-page, .campeonato-page, .emission-points-page, .purchases-page, .credit-notes-page, .invoices-page, .contacts-page, .inventory-page, .settings-page) .crud-table th,
 [data-bs-theme="light"] :is(.crud-page, .campeonato-page, .emission-points-page, .purchases-page, .credit-notes-page, .invoices-page, .contacts-page, .inventory-page, .settings-page) .erp-table th {
-  background-color: #d9eaf9 !important;
-  color: #0a4f8f !important;
-  border-color: #bcd7ef !important;
+  background-color: #e6f3fc !important;
+  color: var(--bs-primary) !important;
+  border-bottom: 1px solid rgba(var(--bs-primary-rgb), 0.22) !important;
+  box-shadow: none !important;
 }
 
 [data-bs-theme="light"] :is(.crud-page, .campeonato-page, .emission-points-page, .purchases-page, .credit-notes-page, .invoices-page, .contacts-page, .inventory-page, .settings-page) table tbody td,
@@ -552,24 +466,15 @@
   background-color: #f5f9fd !important;
 }
 
-/* Modales en modo claro */
-[data-bs-theme="light"] :is(.crud-modal-card, .modal-card-custom, .form-page-card) {
+/* Modales en modo claro: ver modal-theme.css */
+[data-bs-theme="light"] .form-page-card {
   background-color: #ffffff !important;
   color: #2a3547 !important;
   border: 1px solid #e6ecf1 !important;
   box-shadow: 0 20px 40px rgba(0, 0, 0, 0.15) !important;
 }
 
-[data-bs-theme="light"] :is(.crud-modal-header, .modal-header-custom) {
-  background-color: #f8fafc !important;
-  border-bottom: 1px solid #e6ecf1 !important;
-}
-
-[data-bs-theme="light"] :is(.crud-modal-header, .modal-header-custom) :is(h1, h2, h3, h4, h5, h6, strong) {
-  color: #111c2d !important;
-}
-
-[data-bs-theme="light"] :is(.crud-modal-card, .modal-card-custom, .form-page-card) .border-secondary {
+[data-bs-theme="light"] .form-page-card .border-secondary {
   border-color: #e6ecf1 !important;
 }
 
@@ -692,10 +597,10 @@
 
 /* Botón kebab compacto (3 puntos verticales) estilo SoccerAdminEC */
 .btn-action-kebab,
-.table td .cell-actions .dropdown > .btn,
-.crud-table td .cell-actions .dropdown > .btn,
-.table td > .dropdown > .btn.dropdown-toggle,
-.crud-table td > .dropdown > .btn.dropdown-toggle {
+.table td .cell-actions .dropdown>.btn,
+.crud-table td .cell-actions .dropdown>.btn,
+.table td>.dropdown>.btn.dropdown-toggle,
+.crud-table td>.dropdown>.btn.dropdown-toggle {
   width: 32px !important;
   height: 32px !important;
   min-width: 32px !important;
@@ -718,19 +623,19 @@
 .table td .dropdown-toggle::after,
 .crud-table td .dropdown-toggle::after,
 .cell-actions .dropdown-toggle::after,
-.table td .cell-actions .dropdown > .btn::after,
-.crud-table td .cell-actions .dropdown > .btn::after,
-.table td > .dropdown > .btn.dropdown-toggle::after,
-.crud-table td > .dropdown > .btn.dropdown-toggle::after {
+.table td .cell-actions .dropdown>.btn::after,
+.crud-table td .cell-actions .dropdown>.btn::after,
+.table td>.dropdown>.btn.dropdown-toggle::after,
+.crud-table td>.dropdown>.btn.dropdown-toggle::after {
   display: none !important;
 }
 
 /* Ocultar texto "Acciones" si existe dentro de un span del botón */
-.btn-action-kebab > span,
-.table td .cell-actions .dropdown > .btn > span,
-.crud-table td .cell-actions .dropdown > .btn > span,
-.table td > .dropdown > .btn.dropdown-toggle > span,
-.crud-table td > .dropdown > .btn.dropdown-toggle > span {
+.btn-action-kebab>span,
+.table td .cell-actions .dropdown>.btn>span,
+.crud-table td .cell-actions .dropdown>.btn>span,
+.table td>.dropdown>.btn.dropdown-toggle>span,
+.crud-table td>.dropdown>.btn.dropdown-toggle>span {
   display: none !important;
 }
 
@@ -738,18 +643,18 @@
 .btn-action-kebab:hover,
 .btn-action-kebab:focus,
 .btn-action-kebab[aria-expanded="true"],
-.table td .cell-actions .dropdown > .btn:hover,
-.table td .cell-actions .dropdown > .btn:focus,
-.table td .cell-actions .dropdown > .btn[aria-expanded="true"],
-.crud-table td .cell-actions .dropdown > .btn:hover,
-.crud-table td .cell-actions .dropdown > .btn:focus,
-.crud-table td .cell-actions .dropdown > .btn[aria-expanded="true"],
-.table td > .dropdown > .btn.dropdown-toggle:hover,
-.table td > .dropdown > .btn.dropdown-toggle:focus,
-.table td > .dropdown > .btn.dropdown-toggle[aria-expanded="true"],
-.crud-table td > .dropdown > .btn.dropdown-toggle:hover,
-.crud-table td > .dropdown > .btn.dropdown-toggle:focus,
-.crud-table td > .dropdown > .btn.dropdown-toggle[aria-expanded="true"] {
+.table td .cell-actions .dropdown>.btn:hover,
+.table td .cell-actions .dropdown>.btn:focus,
+.table td .cell-actions .dropdown>.btn[aria-expanded="true"],
+.crud-table td .cell-actions .dropdown>.btn:hover,
+.crud-table td .cell-actions .dropdown>.btn:focus,
+.crud-table td .cell-actions .dropdown>.btn[aria-expanded="true"],
+.table td>.dropdown>.btn.dropdown-toggle:hover,
+.table td>.dropdown>.btn.dropdown-toggle:focus,
+.table td>.dropdown>.btn.dropdown-toggle[aria-expanded="true"],
+.crud-table td>.dropdown>.btn.dropdown-toggle:hover,
+.crud-table td>.dropdown>.btn.dropdown-toggle:focus,
+.crud-table td>.dropdown>.btn.dropdown-toggle[aria-expanded="true"] {
   background-color: rgba(255, 255, 255, 0.08) !important;
   color: #ffffff !important;
   border-color: rgba(255, 255, 255, 0.12) !important;
@@ -758,18 +663,18 @@
 [data-bs-theme='light'] .btn-action-kebab:hover,
 [data-bs-theme='light'] .btn-action-kebab:focus,
 [data-bs-theme='light'] .btn-action-kebab[aria-expanded="true"],
-[data-bs-theme='light'] .table td .cell-actions .dropdown > .btn:hover,
-[data-bs-theme='light'] .table td .cell-actions .dropdown > .btn:focus,
-[data-bs-theme='light'] .table td .cell-actions .dropdown > .btn[aria-expanded="true"],
-[data-bs-theme='light'] .crud-table td .cell-actions .dropdown > .btn:hover,
-[data-bs-theme='light'] .crud-table td .cell-actions .dropdown > .btn:focus,
-[data-bs-theme='light'] .crud-table td .cell-actions .dropdown > .btn[aria-expanded="true"],
-[data-bs-theme='light'] .table td > .dropdown > .btn.dropdown-toggle:hover,
-[data-bs-theme='light'] .table td > .dropdown > .btn.dropdown-toggle:focus,
-[data-bs-theme='light'] .table td > .dropdown > .btn.dropdown-toggle[aria-expanded="true"],
-[data-bs-theme='light'] .crud-table td > .dropdown > .btn.dropdown-toggle:hover,
-[data-bs-theme='light'] .crud-table td > .dropdown > .btn.dropdown-toggle:focus,
-[data-bs-theme='light'] .crud-table td > .dropdown > .btn.dropdown-toggle[aria-expanded="true"] {
+[data-bs-theme='light'] .table td .cell-actions .dropdown>.btn:hover,
+[data-bs-theme='light'] .table td .cell-actions .dropdown>.btn:focus,
+[data-bs-theme='light'] .table td .cell-actions .dropdown>.btn[aria-expanded="true"],
+[data-bs-theme='light'] .crud-table td .cell-actions .dropdown>.btn:hover,
+[data-bs-theme='light'] .crud-table td .cell-actions .dropdown>.btn:focus,
+[data-bs-theme='light'] .crud-table td .cell-actions .dropdown>.btn[aria-expanded="true"],
+[data-bs-theme='light'] .table td>.dropdown>.btn.dropdown-toggle:hover,
+[data-bs-theme='light'] .table td>.dropdown>.btn.dropdown-toggle:focus,
+[data-bs-theme='light'] .table td>.dropdown>.btn.dropdown-toggle[aria-expanded="true"],
+[data-bs-theme='light'] .crud-table td>.dropdown>.btn.dropdown-toggle:hover,
+[data-bs-theme='light'] .crud-table td>.dropdown>.btn.dropdown-toggle:focus,
+[data-bs-theme='light'] .crud-table td>.dropdown>.btn.dropdown-toggle[aria-expanded="true"] {
   background-color: rgba(0, 0, 0, 0.06) !important;
   color: #111c2d !important;
   border-color: rgba(0, 0, 0, 0.1) !important;
@@ -862,6 +767,7 @@
   color: #0085db;
   border: 1px solid rgba(0, 133, 219, 0.25);
 }
+
 [data-bs-theme='dark'] .code-chip,
 [data-bs-theme='dark'] .font-mono-chip {
   color: #38bdf8;
@@ -920,15 +826,6 @@
   opacity: 1 !important;
 }
 
-.modal-backdrop,
-.modal-backdrop.show,
-.crud-modal-backdrop,
-.modal-backdrop-custom {
-  background-color: rgba(9, 9, 11, 0.75) !important;
-  backdrop-filter: blur(8px) !important;
-  -webkit-backdrop-filter: blur(8px) !important;
-  transition: opacity 0.22s cubic-bezier(0.16, 1, 0.3, 1) !important;
-}
 
 /* Transición fluida en Dropdown de Acciones (Framer Motion feel) */
 .table td .dropdown-menu,
@@ -945,6 +842,7 @@
   from {
     opacity: 0;
   }
+
   to {
     opacity: 1;
   }
@@ -1199,18 +1097,18 @@
 .form-page-footer .btn-primary,
 .form-actions .btn-primary,
 .btn-save-action {
-  background-color: #059669 !important;
-  border-color: #059669 !important;
+  background-color: var(--bs-primary, #0085db) !important;
+  border-color: var(--bs-primary, #0085db) !important;
   color: #ffffff !important;
-  box-shadow: 0 2px 4px rgba(5, 150, 105, 0.25) !important;
+  box-shadow: 0 2px 4px rgba(0, 133, 219, 0.25) !important;
 }
 
 .form-page-footer .btn-primary:hover,
 .form-actions .btn-primary:hover,
 .btn-save-action:hover {
-  background-color: #047857 !important;
-  border-color: #047857 !important;
-  box-shadow: 0 4px 8px rgba(5, 150, 105, 0.35) !important;
+  background-color: #0070ba !important;
+  border-color: #0070ba !important;
+  box-shadow: 0 4px 8px rgba(0, 133, 219, 0.35) !important;
   transform: translateY(-1px);
 }
 
@@ -1229,6 +1127,7 @@
    A. VISTA MÓVIL Y TELÉFONOS INTELIGENTES (< 768px)
    -------------------------------------------------------------------------- */
 @media (max-width: 767.98px) {
+
   /* Contenedores y márgenes de página */
   .body-wrapper,
   .crud-page,
@@ -1400,6 +1299,29 @@
     width: 100% !important;
   }
 
+  [data-bs-theme="light"] .crud-table tbody tr:not(.table-empty-row) {
+    background: #ffffff !important;
+    border: 1px solid #e6ecf1 !important;
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.05) !important;
+  }
+
+  [data-bs-theme="light"] .crud-table tbody tr>td:nth-child(2) {
+    border-bottom: 1px solid #e6ecf1 !important;
+  }
+
+  [data-bs-theme="light"] .crud-table tbody tr>td:not(:first-child):not(:nth-child(2)):not(:last-child)::before {
+    color: #5a6a85 !important;
+  }
+
+  [data-bs-theme="light"] .crud-table tbody tr>td:first-child {
+    background: #f1f5f9 !important;
+    color: #475569 !important;
+  }
+
+  [data-bs-theme="light"] .crud-table tbody tr>td .text-white {
+    color: #111c2d !important;
+  }
+
   /* Filas vacías o de carga */
   .crud-table tbody tr.table-empty-row,
   .crud-table tbody tr:has(.spinner-grow),
@@ -1414,8 +1336,8 @@
   }
 
   /* 1. Celda Índice (#1) */
-  .crud-table tbody tr > td.cell-index,
-  .crud-table tbody tr > td:first-child {
+  .crud-table tbody tr>td.cell-index,
+  .crud-table tbody tr>td:first-child {
     grid-column: 1 / -1 !important;
     display: inline-flex !important;
     align-items: center !important;
@@ -1430,15 +1352,15 @@
     width: fit-content !important;
   }
 
-  .crud-table tbody tr > td.cell-index::before,
-  .crud-table tbody tr > td:first-child::before {
+  .crud-table tbody tr>td.cell-index::before,
+  .crud-table tbody tr>td:first-child::before {
     content: "#";
     font-weight: 800;
     margin-right: 2px;
   }
 
   /* 2. Celda Principal (Nombre / Logo / Identificador) */
-  .crud-table tbody tr > td:nth-child(2) {
+  .crud-table tbody tr>td:nth-child(2) {
     grid-column: 1 / -1 !important;
     border: none !important;
     border-bottom: 1px solid var(--bs-border-color, rgba(189, 200, 240, 0.12)) !important;
@@ -1447,12 +1369,13 @@
     font-size: 0.95rem !important;
     font-weight: 700 !important;
     background: transparent !important;
-    padding-right: 75px !important; /* Deja espacio al botón de acciones flotante */
+    padding-right: 75px !important;
+    /* Deja espacio al botón de acciones flotante */
   }
 
   /* 3. Botón de Acciones (Esquina superior derecha de la tarjeta) */
-  .crud-table tbody tr > td.cell-actions,
-  .crud-table tbody tr > td:last-child {
+  .crud-table tbody tr>td.cell-actions,
+  .crud-table tbody tr>td:last-child {
     position: absolute !important;
     top: 0.85rem !important;
     right: 0.85rem !important;
@@ -1462,10 +1385,10 @@
     z-index: 5 !important;
   }
 
-  .crud-table tbody tr > td.cell-actions .btn,
-  .crud-table tbody tr > td:last-child .btn,
-  .crud-table tbody tr > td.cell-actions .btn-action-kebab,
-  .crud-table tbody tr > td:last-child .btn-action-kebab {
+  .crud-table tbody tr>td.cell-actions .btn,
+  .crud-table tbody tr>td:last-child .btn,
+  .crud-table tbody tr>td.cell-actions .btn-action-kebab,
+  .crud-table tbody tr>td:last-child .btn-action-kebab {
     width: 32px !important;
     height: 32px !important;
     min-width: 32px !important;
@@ -1478,7 +1401,7 @@
   }
 
   /* 4. Celdas secundarias de datos (Siglas, Ciudad, Estado, etc.) */
-  .crud-table tbody tr > td:not(:first-child):not(:nth-child(2)):not(:last-child) {
+  .crud-table tbody tr>td:not(:first-child):not(:nth-child(2)):not(:last-child) {
     display: flex !important;
     flex-direction: column !important;
     align-items: flex-start !important;
@@ -1490,31 +1413,28 @@
   }
 
   /* Etiqueta / Encabezado de cada campo secundario (Mayúsculas tenues estilo soccerAdmin) */
-  .crud-table tbody tr > td:not(:first-child):not(:nth-child(2)):not(:last-child)::before {
+  .crud-table tbody tr>td:not(:first-child):not(:nth-child(2)):not(:last-child)::before {
     content: attr(data-label);
     display: block !important;
     font-size: 0.62rem !important;
     font-weight: 700 !important;
     text-transform: uppercase !important;
     letter-spacing: 0.05em !important;
-    color: #71717a !important; /* Zinc 500 estilo soccerAdmin */
+    color: #71717a !important;
+    /* Zinc 500 estilo soccerAdmin */
     margin-bottom: 0.2rem !important;
   }
 
-  [data-bs-theme="dark"] .crud-table tbody tr > td:not(:first-child):not(:nth-child(2)):not(:last-child)::before {
-    color: #a1a1aa !important; /* Zinc 400 */
+  [data-bs-theme="dark"] .crud-table tbody tr>td:not(:first-child):not(:nth-child(2)):not(:last-child)::before {
+    color: #a1a1aa !important;
+    /* Zinc 400 */
   }
 
-  .crud-table tbody tr > td:not(:first-child):not(:nth-child(2)):not(:last-child) > * {
+  .crud-table tbody tr>td:not(:first-child):not(:nth-child(2)):not(:last-child)>* {
     max-width: 100% !important;
   }
 
   /* Modales y Formularios en Página / Card */
-  .crud-modal-backdrop,
-  .modal-backdrop-custom {
-    padding: 0.5rem !important;
-  }
-
   .crud-modal-card,
   .modal-card-custom,
   .form-page-card {
@@ -1525,13 +1445,10 @@
     border-radius: 14px !important;
   }
 
-  .crud-modal-header,
-  .modal-header-custom,
   .form-page-header {
     padding: 0.85rem 1rem !important;
   }
 
-  .crud-modal-body,
   .form-page-body {
     padding: 0.85rem 1rem !important;
   }
@@ -1578,6 +1495,7 @@
    B. VISTA TABLET (768px a 1024px)
    -------------------------------------------------------------------------- */
 @media (min-width: 768px) and (max-width: 1024px) {
+
   .body-wrapper,
   .crud-page,
   .settings-page,
@@ -1609,7 +1527,8 @@
 /* --------------------------------------------------------------------------
    C. PREVENCIÓN GLOBAL DE DESBORDAMIENTO Y SCROLL TÁCTIL SUAVE
    -------------------------------------------------------------------------- */
-html, body {
+html,
+body {
   overflow-x: hidden;
   max-width: 100%;
 }
@@ -1621,37 +1540,7 @@ html, body {
 /* --------------------------------------------------------------------------
    D. ESTILOS MODERNOS INSPIRADOS EN SOCCERADMINEC (SCROLLBAR & FORM CONTROLS)
    -------------------------------------------------------------------------- */
-::-webkit-scrollbar {
-  width: 6px;
-  height: 6px;
-}
-
-::-webkit-scrollbar-track {
-  background: rgba(0, 0, 0, 0.05);
-  border-radius: 9999px;
-}
-
-[data-bs-theme="dark"] ::-webkit-scrollbar-track {
-  background: rgba(24, 24, 27, 0.6);
-}
-
-::-webkit-scrollbar-thumb {
-  background: rgba(148, 163, 184, 0.45);
-  border-radius: 9999px;
-  transition: background 0.2s ease;
-}
-
-::-webkit-scrollbar-thumb:hover {
-  background: rgba(16, 185, 129, 0.7);
-}
-
-[data-bs-theme="dark"] ::-webkit-scrollbar-thumb {
-  background: rgba(63, 63, 70, 0.7);
-}
-
-[data-bs-theme="dark"] ::-webkit-scrollbar-thumb:hover {
-  background: rgba(16, 185, 129, 0.6);
-}
+/* Barras de scroll: ver scrollbar-theme.css */
 
 /* Ocultar flechas / spin buttons en inputs numéricos */
 input[type="number"]::-webkit-inner-spin-button,
@@ -1659,6 +1548,7 @@ input[type="number"]::-webkit-outer-spin-button {
   -webkit-appearance: none;
   margin: 0;
 }
+
 input[type="number"] {
   -moz-appearance: textfield;
   appearance: textfield;
@@ -1724,4 +1614,3 @@ input[type="number"] {
   transform: translateY(-2px);
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
 }
-

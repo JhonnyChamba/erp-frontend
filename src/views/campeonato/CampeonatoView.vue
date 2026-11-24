@@ -43,9 +43,14 @@
         </button>
 
         <!-- Se oculta mientras el formulario está abierto; vuelve a mostrarse al guardar o al volver al listado. -->
-        <button v-if="activeTab !== 'standings' && !isFormOpen" class="btn btn-primary d-flex align-items-center gap-2" @click="activeTab === 'schedules' ? openCreateSchedule() : openCreateForm()">
-          <iconify-icon icon="solar:add-circle-bold" class="fs-5"></iconify-icon>
-          <span>+ Nuevo {{ activeTabLabel }}</span>
+        <button
+          v-if="activeTab !== 'standings' && !isFormOpen"
+          class="btn btn-primary rounded-pill px-4 d-flex align-items-center gap-2"
+          style="height: 40px;"
+          @click="activeTab === 'schedules' ? openCreateSchedule() : openCreateForm()"
+        >
+          <iconify-icon icon="solar:add-circle-line-duotone" class="fs-5"></iconify-icon>
+          <span>{{ (isConfigSection || activeTab === 'teams' || activeTab === 'players' || activeTab === 'categories' || activeTab === 'teamRegistrations') ? 'Nuevo' : ('+ Nuevo ' + activeTabLabel) }}</span>
         </button>
       </div>
     </div>
@@ -68,41 +73,224 @@
     </div>
 
     <!-- ========================================== -->
-    <!-- 2. FILTROS Y BÚSQUEDA (ESTILO FACTURAS)    -->
+    <!-- 2. FILTROS Y BÚSQUEDA                      -->
     <!-- ========================================== -->
-    <div v-show="!isFormOpen && activeTab !== 'standings'" class="crud-filters-card">
-      <div class="d-flex flex-wrap align-items-center justify-content-between gap-3">
-        <div class="d-flex align-items-center gap-2 flex-grow-1" style="max-width: 420px;">
-          <div class="input-group">
-            <span class="input-group-text">
-              <iconify-icon icon="solar:magnifer-line-duotone"></iconify-icon>
-            </span>
-            <input
-              v-model="searchQuery"
-              type="text"
-              class="form-control"
-              :placeholder="'Buscar en ' + activeTabLabel + '...'"
-              @keyup.enter="searchList"
-            />
-          </div>
-        </div>
+    <!-- Barra de Filtros y Búsqueda Estandarizada para Equipos -->
+    <div v-if="!isFormOpen && activeTab === 'teams'" class="d-flex flex-wrap align-items-center gap-2 mb-4 p-2 rounded-3 bg-dark-subtle border border-secondary-subtle">
+      <select
+        v-model="filterTeamStatus"
+        class="form-select bg-dark border-secondary-subtle text-white"
+        style="height: 40px; width: 160px;"
+        @change="searchList"
+      >
+        <option value="todos">Estado: Todos</option>
+        <option value="activo">Activo</option>
+        <option value="inactivo">Inactivo</option>
+      </select>
 
-        <div class="d-flex align-items-center gap-2">
-          <button type="button" class="btn btn-primary d-flex align-items-center gap-1 rounded-pill px-3" :disabled="loading" @click="searchList">
-            <iconify-icon icon="solar:magnifer-line-duotone" class="fs-4"></iconify-icon>
-            <span>Buscar</span>
-          </button>
-        </div>
-      </div>
+      <input
+        v-model="searchQuery"
+        type="text"
+        class="form-control bg-dark border-secondary-subtle text-white"
+        style="height: 40px; width: 320px;"
+        placeholder="Buscar por nombre, siglas o ciudad..."
+        @keyup.enter="searchList"
+      />
+
+      <button
+        type="button"
+        class="btn btn-outline-primary bg-dark d-flex align-items-center gap-1 px-3 ms-auto"
+        style="height: 40px;"
+        :disabled="loading"
+        @click="searchList"
+      >
+        <iconify-icon icon="solar:magnifer-line-duotone" class="fs-5"></iconify-icon>
+        <span>Buscar</span>
+      </button>
+    </div>
+
+    <!-- Barra de Filtros y Búsqueda Estandarizada para Jugadores -->
+    <div v-else-if="!isFormOpen && activeTab === 'players'" class="d-flex flex-wrap align-items-center gap-2 mb-4 p-2 rounded-3 bg-dark-subtle border border-secondary-subtle">
+      <select
+        v-model="filterPlayerStatus"
+        class="form-select bg-dark border-secondary-subtle text-white"
+        style="height: 40px; width: 160px;"
+        @change="searchList"
+      >
+        <option value="todos">Estado: Todos</option>
+        <option value="activo">Activo</option>
+        <option value="inactivo">Inactivo</option>
+      </select>
+
+      <input
+        v-model="searchQuery"
+        type="text"
+        class="form-control bg-dark border-secondary-subtle text-white"
+        style="height: 40px; width: 320px;"
+        placeholder="Buscar por cédula, nombre o código..."
+        @keyup.enter="searchList"
+      />
+
+      <button
+        type="button"
+        class="btn btn-outline-primary bg-dark d-flex align-items-center gap-1 px-3 ms-auto"
+        style="height: 40px;"
+        :disabled="loading"
+        @click="searchList"
+      >
+        <iconify-icon icon="solar:magnifer-line-duotone" class="fs-5"></iconify-icon>
+        <span>Buscar</span>
+      </button>
+    </div>
+
+    <!-- Barra de Filtros y Búsqueda Estandarizada para Categorías -->
+    <div v-else-if="!isFormOpen && activeTab === 'categories'" class="d-flex flex-wrap align-items-center gap-2 mb-4 p-2 rounded-3 bg-dark-subtle border border-secondary-subtle">
+      <select
+        v-model="filterCategoryGender"
+        class="form-select bg-dark border-secondary-subtle text-white"
+        style="height: 40px; width: 170px;"
+        @change="searchList"
+      >
+        <option value="todos">Género: Todos</option>
+        <option value="MALE">Masculino</option>
+        <option value="FEMALE">Femenino</option>
+        <option value="MIXED">Mixto</option>
+      </select>
+
+      <input
+        v-model="searchQuery"
+        type="text"
+        class="form-control bg-dark border-secondary-subtle text-white"
+        style="height: 40px; width: 320px;"
+        placeholder="Buscar por nombre, siglas o código..."
+        @keyup.enter="searchList"
+      />
+
+      <button
+        type="button"
+        class="btn btn-outline-primary bg-dark d-flex align-items-center gap-1 px-3 ms-auto"
+        style="height: 40px;"
+        :disabled="loading"
+        @click="searchList"
+      >
+        <iconify-icon icon="solar:magnifer-line-duotone" class="fs-5"></iconify-icon>
+        <span>Buscar</span>
+      </button>
+    </div>
+
+    <!-- Barra de Filtros y Búsqueda Estandarizada para Ediciones de Torneo -->
+    <div v-else-if="!isFormOpen && activeTab === 'categoryEditions'" class="d-flex flex-wrap align-items-center gap-2 mb-4 p-2 rounded-3 bg-dark-subtle border border-secondary-subtle">
+      <select
+        v-model="filterEditionStatus"
+        class="form-select bg-dark border-secondary-subtle text-white"
+        style="height: 40px; width: 175px;"
+        @change="searchList"
+      >
+        <option value="todos">Estado: Todos</option>
+        <option value="IN_PROGRESS">Activo / En Curso</option>
+        <option value="FINISHED">Finalizado</option>
+      </select>
+
+      <input
+        v-model="searchQuery"
+        type="text"
+        class="form-control bg-dark border-secondary-subtle text-white"
+        style="height: 40px; width: 320px;"
+        placeholder="Buscar por nombre de edición o categoría..."
+        @keyup.enter="searchList"
+      />
+
+      <button
+        type="button"
+        class="btn btn-outline-primary bg-dark d-flex align-items-center gap-1 px-3 ms-auto"
+        style="height: 40px;"
+        :disabled="loading"
+        @click="searchList"
+      >
+        <iconify-icon icon="solar:magnifer-line-duotone" class="fs-5"></iconify-icon>
+        <span>Buscar</span>
+      </button>
+    </div>
+
+    <!-- Barra de Filtros y Búsqueda Estandarizada para Inscripción de Equipos -->
+    <div v-else-if="!isFormOpen && activeTab === 'teamRegistrations'" class="d-flex flex-wrap align-items-center gap-2 mb-4 p-2 rounded-3 bg-dark-subtle border border-secondary-subtle">
+      <select
+        v-model="filterTeamRegStatus"
+        class="form-select bg-dark border-secondary-subtle text-white"
+        style="height: 40px; width: 185px;"
+        @change="searchList"
+      >
+        <option value="todos">Inscripción: Todas</option>
+        <option value="APPROVED">Aprobado / Habilitado</option>
+        <option value="PENDING">Pendiente</option>
+        <option value="REJECTED">Rechazado</option>
+        <option value="DISQUALIFIED">Descalificado</option>
+      </select>
+
+      <select
+        v-model="filterTeamRegPayment"
+        class="form-select bg-dark border-secondary-subtle text-white"
+        style="height: 40px; width: 175px;"
+        @change="searchList"
+      >
+        <option value="todos">Pago: Todos</option>
+        <option value="PAID">Pagado Completo</option>
+        <option value="PARTIAL">Pago Parcial</option>
+        <option value="UNPAID">Pendiente de Pago</option>
+        <option value="REFUNDED">Reembolsado</option>
+      </select>
+
+      <input
+        v-model="searchQuery"
+        type="text"
+        class="form-control bg-dark border-secondary-subtle text-white"
+        style="height: 40px; width: 290px;"
+        placeholder="Buscar por equipo, edición o grupo..."
+        @keyup.enter="searchList"
+      />
+
+      <button
+        type="button"
+        class="btn btn-outline-primary bg-dark d-flex align-items-center gap-1 px-3 ms-auto"
+        style="height: 40px;"
+        :disabled="loading"
+        @click="searchList"
+      >
+        <iconify-icon icon="solar:magnifer-line-duotone" class="fs-5"></iconify-icon>
+        <span>Buscar</span>
+      </button>
+    </div>
+
+    <div v-else-if="!isFormOpen && activeTab !== 'standings'" class="d-flex flex-wrap align-items-center gap-2 mb-4 p-2 rounded-3 bg-dark-subtle border border-secondary-subtle">
+      <input
+        v-model="searchQuery"
+        type="text"
+        class="form-control bg-dark border-secondary-subtle text-white"
+        style="height: 40px; width: 320px;"
+        :placeholder="'Buscar en ' + activeTabLabel + '...'"
+        @keyup.enter="searchList"
+      />
+
+      <button
+        type="button"
+        class="btn btn-outline-primary bg-dark d-flex align-items-center gap-1 px-3 ms-auto"
+        style="height: 40px;"
+        :disabled="loading"
+        @click="searchList"
+      >
+        <iconify-icon icon="solar:magnifer-line-duotone" class="fs-5"></iconify-icon>
+        <span>Buscar</span>
+      </button>
     </div>
 
     <!-- ============================================================== -->
     <!-- 2.5 LISTADO DE REGLAMENTOS DE DÍAS Y HORARIOS (ESTILO VENTAS)   -->
     <!-- ============================================================== -->
-    <div v-if="!isFormOpen && activeTab === 'schedules'" class="crud-table-card">
-      <div class="table-responsive">
-        <table class="crud-table">
-          <thead>
+    <div v-if="!isFormOpen && activeTab === 'schedules'" class="card rounded-4 border-0 shadow-sm p-4 bg-navy-card crud-table-card">
+      <!-- Vista Desktop: Tabla tradicional -->
+      <div class="table-responsive d-none d-md-block">
+        <table class="table table-hover align-middle mb-0 crud-table app-table">
+          <thead class="table-primary">
             <tr>
               <th scope="col" style="width: 70px;">#</th>
               <th scope="col">Edición del Campeonato</th>
@@ -226,6 +414,104 @@
           </tbody>
         </table>
       </div>
+
+      <!-- Vista Móvil / Tablet: Tarjetas CRUD -->
+      <div class="d-block d-md-none p-2">
+        <div v-if="schedulesListFiltered.length === 0" class="text-center py-4 text-secondary">
+          <iconify-icon icon="solar:clock-circle-bold-duotone" class="fs-1 text-secondary mb-2 d-block"></iconify-icon>
+          <p class="mb-1 fw-semibold text-body-emphasis">No se encontraron reglamentos de días y horarios</p>
+          <p class="mb-0 fs-2 text-muted">Haz clic en <strong>+ Nuevo {{ activeTabLabel }}</strong> para registrar la programación de una edición.</p>
+        </div>
+        <div v-else class="crud-mobile-cards-view">
+          <div v-for="(item, idx) in schedulesListFiltered" :key="'m-sch-' + (item.editionId || idx)" class="crud-mobile-card">
+            <div class="crud-mobile-card-header">
+              <div class="d-flex align-items-center gap-2 min-w-0 flex-grow-1">
+                <div class="rounded-3 bg-primary-subtle text-primary d-flex align-items-center justify-content-center flex-shrink-0" style="width: 44px; height: 44px;">
+                  <iconify-icon icon="solar:clock-circle-bold-duotone" class="fs-2 text-primary"></iconify-icon>
+                </div>
+                <div class="min-w-0 flex-grow-1">
+                  <div class="d-flex align-items-center gap-1.5 mb-0.5">
+                    <span class="badge bg-secondary-subtle text-body-secondary font-monospace fw-bold" style="font-size: 0.65rem;">
+                      #{{ idx + 1 }}
+                    </span>
+                    <span class="text-uppercase fw-bold text-secondary font-monospace" style="font-size: 0.62rem; letter-spacing: 0.05em;">
+                      Horarios
+                    </span>
+                  </div>
+                  <div class="fw-bold text-body-emphasis fs-3 text-truncate">{{ item.editionName }}</div>
+                  <div class="text-muted fs-1 text-truncate">{{ item.categoryName }}</div>
+                </div>
+              </div>
+              <div class="d-flex align-items-center gap-1.5">
+                <span class="badge bg-primary text-white font-monospace">
+                  ⚽ {{ item.totalMatchesWeek }} p/s
+                </span>
+                <div class="dropdown">
+                  <button
+                    class="btn btn-action-kebab"
+                    type="button"
+                    data-bs-toggle="dropdown"
+                    data-bs-display="static"
+                    aria-expanded="false"
+                    title="Acciones"
+                  >
+                    <iconify-icon icon="solar:menu-dots-vertical-bold" class="fs-4 text-body-emphasis"></iconify-icon>
+                  </button>
+                  <ul class="dropdown-menu dropdown-menu-end shadow-sm">
+                    <li>
+                      <button class="dropdown-item d-flex align-items-center gap-2" type="button" @click="openEditSchedule(item)">
+                        <iconify-icon icon="solar:pen-bold" class="text-primary fs-5"></iconify-icon>
+                        <span>Editar Horarios</span>
+                      </button>
+                    </li>
+                    <li>
+                      <button class="dropdown-item d-flex align-items-center gap-2" type="button" @click="applyScheduleFromItem(item)">
+                        <iconify-icon icon="solar:calendar-add-bold" class="text-info fs-5"></iconify-icon>
+                        <span>Aplicar al Fixture</span>
+                      </button>
+                    </li>
+                    <li><hr class="dropdown-divider" /></li>
+                    <li>
+                      <button class="dropdown-item d-flex align-items-center gap-2 text-danger" type="button" @click="deleteSchedule(item)">
+                        <iconify-icon icon="solar:trash-bin-trash-bold" class="fs-5"></iconify-icon>
+                        <span>Eliminar Horarios</span>
+                      </button>
+                    </li>
+                  </ul>
+                </div>
+              </div>
+            </div>
+            <div class="crud-mobile-card-grid">
+              <div class="crud-mobile-field">
+                <span class="crud-mobile-field-label">Canchas</span>
+                <div class="d-flex flex-wrap gap-1">
+                  <span v-for="cName in item.courtNames" :key="cName" class="badge bg-secondary-subtle text-secondary small">
+                    📍 {{ cName }}
+                  </span>
+                  <span v-if="item.courtNames.length === 0" class="text-muted small">Sin canchas</span>
+                </div>
+              </div>
+              <div class="crud-mobile-field">
+                <span class="crud-mobile-field-label">Días Habilitados</span>
+                <div class="d-flex flex-wrap gap-1">
+                  <span v-for="d in item.activeDayLabels" :key="d" class="badge bg-success-subtle text-success small font-monospace">
+                    {{ d }}
+                  </span>
+                  <span v-if="item.activeDayLabels.length === 0" class="text-muted small">Sin días</span>
+                </div>
+              </div>
+              <div class="crud-mobile-field">
+                <span class="crud-mobile-field-label">Tiempos</span>
+                <span class="crud-mobile-field-value font-monospace text-info small">{{ item.slotMinutes }}m ({{ item.matchDuration }}m + {{ item.intervalMinutes }}m)</span>
+              </div>
+              <div class="crud-mobile-field">
+                <span class="crud-mobile-field-label">Estado</span>
+                <span class="crud-mobile-field-value"><span class="badge bg-success-subtle text-success">Activo</span></span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
     </div>
 
     <!-- ========================================== -->
@@ -343,7 +629,7 @@
           </div>
 
           <div class="table-responsive">
-            <table class="crud-table">
+            <table class="crud-table app-table">
               <thead>
                 <tr>
                   <th style="width: 50px;">POS</th>
@@ -448,7 +734,7 @@
           </div>
 
           <div class="table-responsive">
-            <table class="crud-table">
+            <table class="crud-table app-table">
               <thead>
                 <tr>
                   <th style="width: 40px;">#</th>
@@ -484,11 +770,11 @@
     <!-- ========================================== -->
     <!-- 4. TABLA PRINCIPAL DE DATOS (ESTILO VENTAS)-->
     <!-- ========================================== -->
-    <div v-else-if="!isFormOpen" class="crud-table-card">
+    <div v-else-if="!isFormOpen" class="card rounded-4 border-0 shadow-sm p-4 bg-navy-card crud-table-card">
       <!-- 4.A VISTA ESCRITORIO Y TABLET: TABLA DE DATOS (PANTALLAS >= 768px) -->
       <div class="table-responsive d-none d-md-block">
-        <table class="crud-table">
-          <thead>
+        <table class="table table-hover align-middle mb-0 crud-table app-table">
+          <thead class="table-primary">
             <tr>
               <th scope="col" style="width: 70px;">#</th>
               <th v-for="col in columns" :key="col.key" scope="col">{{ col.label }}</th>
@@ -507,7 +793,7 @@
               </td>
             </tr>
 
-            <tr v-else-if="items.length === 0">
+            <tr v-else-if="displayedItems.length === 0">
               <td :colspan="columns.length + 2" class="text-center py-5 text-secondary">
                 <iconify-icon icon="solar:box-minimalistic-line-duotone" class="fs-8 text-secondary mb-2 d-block"></iconify-icon>
                 <p class="mb-1 fw-semibold text-body-emphasis">No se encontraron registros en {{ activeTabLabel }}</p>
@@ -515,7 +801,7 @@
               </td>
             </tr>
 
-            <tr v-for="(item, idx) in items" :key="item.id || idx">
+            <tr v-for="(item, idx) in displayedItems" :key="item.id || idx">
               <td class="text-muted font-monospace cell-index" data-label="#">{{ (page - 1) * limit + idx + 1 }}</td>
               <td v-for="col in columns" :key="col.key" :data-label="col.label" :class="'col-' + col.key">
                 <!-- Nombre de Equipo con Escudo / Logo -->
@@ -629,6 +915,16 @@
                   <span v-else class="text-muted small">-</span>
                 </span>
 
+                <!-- Género en Categorías -->
+                <span v-else-if="activeTab === 'categories' && col.key === 'gender'">
+                  <span
+                    class="badge font-monospace px-2 py-1"
+                    :class="item.gender === 'FEMALE' ? 'bg-danger-subtle text-danger border border-danger-subtle' : item.gender === 'MIXED' ? 'bg-warning-subtle text-warning border border-warning-subtle' : 'bg-info-subtle text-info border border-info-subtle'"
+                  >
+                    {{ item.gender === 'FEMALE' ? 'Femenino' : item.gender === 'MIXED' ? 'Mixto' : 'Masculino' }}
+                  </span>
+                </span>
+
                 <!-- Edad de Jugador (Años y Meses) -->
                 <span v-else-if="activeTab === 'players' && col.key === 'ageDisplay'">
                   <span
@@ -665,17 +961,79 @@
                   <span class="text-body-emphasis fw-medium">{{ item.name }}</span>
                 </div>
 
-                <!-- Inscripción de Equipos: Equipo con Logo -->
-                <div v-else-if="activeTab === 'teamRegistrations' && col.key === 'team.name'" class="d-flex align-items-center gap-2">
-                  <img
-                    v-if="item.team?.logo"
-                    :src="item.team.logo"
-                    class="rounded-circle shadow-sm border"
-                    style="width: 26px; height: 26px; object-fit: cover;"
-                  />
-                  <iconify-icon v-else icon="solar:shield-bold-duotone" class="fs-5 text-secondary"></iconify-icon>
-                  <span class="text-body-emphasis fw-bold">{{ item.team?.name || item.team?.shortName || '-' }}</span>
-                </div>
+                <!-- Inscripción de Equipos: botón que abre el modal de categorías / equipos de la edición -->
+                <button
+                  v-else-if="activeTab === 'teamRegistrations' && (col.key === 'categoriesCount' || col.key === 'teamsCount')"
+                  type="button"
+                  class="btn btn-sm rounded-pill px-3 py-1 d-inline-flex align-items-center gap-1 border"
+                  :class="col.key === 'categoriesCount' ? 'bg-info-subtle text-info border-info-subtle' : 'bg-primary-subtle text-primary border-primary-subtle'"
+                  @click="openTeamRegModal(col.key === 'categoriesCount' ? 'categories' : 'teams', item)"
+                >
+                  <iconify-icon :icon="col.key === 'categoriesCount' ? 'solar:medal-star-bold-duotone' : 'solar:shield-bold-duotone'" class="fs-6"></iconify-icon>
+                  <span class="small fw-semibold">{{ item[col.key] }} {{ col.key === 'categoriesCount' ? 'Categoría(s)' : 'Equipo(s)' }}</span>
+                  <iconify-icon icon="solar:eye-bold-duotone" class="fs-6"></iconify-icon>
+                </button>
+
+                <!-- Inscripción de Equipos: Edición del Torneo -->
+                <span v-else-if="activeTab === 'teamRegistrations' && col.key === 'categoryEdition.name'">
+                  <span class="badge bg-primary-subtle text-primary border border-primary-subtle font-monospace px-2 py-1">
+                    🏆 {{ item.categoryEdition?.name || '-' }}
+                  </span>
+                </span>
+
+                <!-- Inscripción de Equipos: Categoría -->
+                <span v-else-if="activeTab === 'teamRegistrations' && col.key === 'category.name'">
+                  <span v-if="item.category?.name || getCategoryNameForTeamRegItem(item)" class="badge bg-info-subtle text-info border border-info-subtle font-monospace px-2 py-1">
+                    ⚽ {{ item.category?.name || getCategoryNameForTeamRegItem(item) }}
+                  </span>
+                  <span v-else class="text-muted small">-</span>
+                </span>
+
+                <!-- Inscripción de Equipos: Grupo / Serie -->
+                <span v-else-if="activeTab === 'teamRegistrations' && col.key === 'groupName'">
+                  <span v-if="item.groupName" class="badge bg-secondary-subtle text-secondary font-monospace px-2 py-1">
+                    {{ item.groupName }}
+                  </span>
+                  <span v-else class="text-muted small">-</span>
+                </span>
+
+                <!-- Inscripción de Equipos: Estado de Inscripción -->
+                <span v-else-if="activeTab === 'teamRegistrations' && col.key === 'status'">
+                  <span v-if="item.status === 'APPROVED'" class="badge bg-success-subtle text-success border border-success-subtle font-monospace px-2 py-1">
+                    🟢 Aprobado / Habilitado
+                  </span>
+                  <span v-else-if="item.status === 'PENDING'" class="badge bg-warning-subtle text-warning border border-warning-subtle font-monospace px-2 py-1">
+                    ⏳ Pendiente
+                  </span>
+                  <span v-else-if="item.status === 'REJECTED'" class="badge bg-danger-subtle text-danger border border-danger-subtle font-monospace px-2 py-1">
+                    🔴 Rechazado
+                  </span>
+                  <span v-else-if="item.status === 'DISQUALIFIED' || item.status === 'WITHDRAWN'" class="badge bg-secondary-subtle text-secondary border border-secondary-subtle font-monospace px-2 py-1">
+                    ⛔ Descalificado
+                  </span>
+                  <span v-else class="badge bg-secondary-subtle text-secondary font-monospace px-2 py-1">
+                    {{ item.status || '-' }}
+                  </span>
+                </span>
+
+                <!-- Inscripción de Equipos: Estado de Pago -->
+                <span v-else-if="activeTab === 'teamRegistrations' && col.key === 'paymentStatus'">
+                  <span v-if="item.paymentStatus === 'PAID'" class="badge bg-success-subtle text-success border border-success-subtle font-monospace px-2 py-1">
+                    💳 Pagado Completo
+                  </span>
+                  <span v-else-if="item.paymentStatus === 'PARTIAL'" class="badge bg-warning-subtle text-warning border border-warning-subtle font-monospace px-2 py-1">
+                    💵 Pago Parcial
+                  </span>
+                  <span v-else-if="item.paymentStatus === 'UNPAID' || item.paymentStatus === 'PENDING'" class="badge bg-danger-subtle text-danger border border-danger-subtle font-monospace px-2 py-1">
+                    ⏳ Pendiente de Pago
+                  </span>
+                  <span v-else-if="item.paymentStatus === 'REFUNDED' || item.paymentStatus === 'EXEMPT'" class="badge bg-info-subtle text-info border border-info-subtle font-monospace px-2 py-1">
+                    ↩️ Reembolsado
+                  </span>
+                  <span v-else class="badge bg-secondary-subtle text-secondary font-monospace px-2 py-1">
+                    {{ item.paymentStatus || '-' }}
+                  </span>
+                </span>
 
                 <!-- Inscripción y Carnets: Jugador con Foto -->
                 <div v-else-if="activeTab === 'playerRegistrations' && col.key === 'player.name'" class="d-flex align-items-center gap-2">
@@ -1027,6 +1385,21 @@
                     </li>
                     <li v-if="activeTab === 'playerRegistrations'"><hr class="dropdown-divider"></li>
 
+                    <!-- Inscripción de equipos: ver categorías / equipos de la edición -->
+                    <li v-if="activeTab === 'teamRegistrations'">
+                      <a class="dropdown-item py-2 text-info d-flex align-items-center gap-2" href="javascript:void(0)" @click="openTeamRegModal('categories', item)">
+                        <iconify-icon icon="solar:medal-star-bold-duotone" class="fs-5 text-info"></iconify-icon>
+                        <span>Ver Categorías</span>
+                      </a>
+                    </li>
+                    <li v-if="activeTab === 'teamRegistrations'">
+                      <a class="dropdown-item py-2 text-primary d-flex align-items-center gap-2" href="javascript:void(0)" @click="openTeamRegModal('teams', item)">
+                        <iconify-icon icon="solar:shield-bold-duotone" class="fs-5 text-primary"></iconify-icon>
+                        <span>Ver Equipos</span>
+                      </a>
+                    </li>
+                    <li v-if="activeTab === 'teamRegistrations'"><hr class="dropdown-divider"></li>
+
                     <!-- Reglas de Pases en Ediciones de Torneo -->
                     <li v-if="activeTab === 'categoryEditions'">
                       <a class="dropdown-item py-2 text-warning d-flex align-items-center gap-2" href="javascript:void(0)" @click="openTransferConfig(item)">
@@ -1086,11 +1459,11 @@
                       </a>
                     </li>
 
-                    <!-- Separador -->
-                    <li><hr class="dropdown-divider"></li>
+                    <!-- Separador (la fila de inscripción de equipos es una edición completa: no se elimina desde aquí) -->
+                    <li v-if="activeTab !== 'teamRegistrations'"><hr class="dropdown-divider"></li>
 
                     <!-- Eliminar -->
-                    <li>
+                    <li v-if="activeTab !== 'teamRegistrations'">
                       <a class="dropdown-item py-2 text-danger d-flex align-items-center gap-2" href="javascript:void(0)" @click="confirmDelete(item.id)">
                         <iconify-icon icon="solar:trash-bin-trash-line-duotone" class="fs-5 text-danger"></iconify-icon>
                         <span>Eliminar</span>
@@ -1115,7 +1488,7 @@
           <span class="text-secondary small">Cargando registros de {{ activeTabLabel }}...</span>
         </div>
 
-        <div v-else-if="items.length === 0" class="text-center py-5 text-secondary card border rounded-4 p-4 bg-body-tertiary">
+        <div v-else-if="displayedItems.length === 0" class="text-center py-5 text-secondary card border rounded-4 p-4 bg-body-tertiary">
           <iconify-icon icon="solar:box-minimalistic-line-duotone" class="fs-8 text-secondary mb-2 d-block"></iconify-icon>
           <p class="mb-1 fw-semibold text-body-emphasis">No se encontraron registros en {{ activeTabLabel }}</p>
           <p class="mb-0 fs-2 text-muted">Haz clic en <strong>+ Nuevo {{ activeTabLabel }}</strong> para registrar el primero.</p>
@@ -1123,7 +1496,7 @@
 
         <div v-else class="crud-mobile-cards-view">
           <div
-            v-for="(item, idx) in items"
+            v-for="(item, idx) in displayedItems"
             :key="item.id || idx"
             class="crud-mobile-card"
           >
@@ -1146,18 +1519,25 @@
                   style="width: 44px; height: 44px; object-fit: cover;"
                 />
                 <div
-                  v-else-if="activeTab === 'teams'"
+                  v-else
                   class="rounded-3 bg-secondary-subtle text-secondary d-flex align-items-center justify-content-center flex-shrink-0"
                   style="width: 44px; height: 44px;"
                 >
-                  <iconify-icon icon="solar:shield-bold-duotone" class="fs-2 text-secondary"></iconify-icon>
-                </div>
-                <div
-                  v-else-if="activeTab === 'players'"
-                  class="rounded-circle bg-secondary-subtle text-secondary d-flex align-items-center justify-content-center flex-shrink-0"
-                  style="width: 44px; height: 44px;"
-                >
-                  <iconify-icon icon="solar:user-bold-duotone" class="fs-2 text-secondary"></iconify-icon>
+                  <iconify-icon
+                    :icon="
+                      activeTab === 'teams' ? 'solar:shield-bold-duotone' :
+                      activeTab === 'players' ? 'solar:user-bold-duotone' :
+                      activeTab === 'categories' ? 'solar:medal-star-bold-duotone' :
+                      activeTab === 'categoryEditions' ? 'solar:calendar-date-bold-duotone' :
+                      activeTab === 'stages' ? 'solar:diagram-up-bold-duotone' :
+                      activeTab === 'scenaries' ? 'solar:map-point-wave-bold-duotone' :
+                      activeTab === 'referees' ? 'solar:whistle-bold-duotone' :
+                      activeTab === 'vocals' ? 'solar:notes-bold-duotone' :
+                      activeTab === 'matches' ? 'solar:football-bold' :
+                      (currentTabConfig.icon || 'solar:widget-4-bold-duotone')
+                    "
+                    class="fs-2 text-primary"
+                  ></iconify-icon>
                 </div>
 
                 <div class="min-w-0 flex-grow-1">
@@ -1179,8 +1559,20 @@
                   <div v-if="activeTab === 'teams' && item.shortName" class="text-muted fs-1 text-truncate">
                     {{ item.shortName }}
                   </div>
-                  <div v-else-if="activeTab === 'players' && (item.documentNumber || item.idCard)" class="text-muted fs-1 font-monospace">
-                    CI: {{ item.documentNumber || item.idCard }}
+                  <div v-else-if="activeTab === 'players' && (item.identification || item.documentNumber || item.idCard)" class="text-muted fs-1 font-monospace">
+                    CI: {{ item.identification || item.documentNumber || item.idCard }}
+                  </div>
+                  <div v-else-if="activeTab === 'categories' && item.acronyms" class="text-muted fs-1 font-monospace">
+                    Siglas: {{ item.acronyms }}
+                  </div>
+                  <div v-else-if="activeTab === 'categoryEditions' && item.category?.name" class="text-muted fs-1 text-truncate">
+                    {{ item.category.name }}
+                  </div>
+                  <div v-else-if="activeTab === 'scenaries' && item.address" class="text-muted fs-1 text-truncate">
+                    📍 {{ item.address }}
+                  </div>
+                  <div v-else-if="(activeTab === 'referees' || activeTab === 'vocals') && item.identification" class="text-muted fs-1 font-monospace">
+                    Doc: {{ item.identification }}
                   </div>
                 </div>
               </div>
@@ -1285,6 +1677,20 @@
                   </li>
                   <li v-if="activeTab === 'players'"><hr class="dropdown-divider"></li>
 
+                  <li v-if="activeTab === 'teamRegistrations'">
+                    <a class="dropdown-item py-2 text-info d-flex align-items-center gap-2" href="javascript:void(0)" @click="openTeamRegModal('categories', item)">
+                      <iconify-icon icon="solar:medal-star-bold-duotone" class="fs-5 text-info"></iconify-icon>
+                      <span>Ver Categorías</span>
+                    </a>
+                  </li>
+                  <li v-if="activeTab === 'teamRegistrations'">
+                    <a class="dropdown-item py-2 text-primary d-flex align-items-center gap-2" href="javascript:void(0)" @click="openTeamRegModal('teams', item)">
+                      <iconify-icon icon="solar:shield-bold-duotone" class="fs-5 text-primary"></iconify-icon>
+                      <span>Ver Equipos</span>
+                    </a>
+                  </li>
+                  <li v-if="activeTab === 'teamRegistrations'"><hr class="dropdown-divider"></li>
+
                   <!-- Editar -->
                   <li>
                     <a class="dropdown-item py-2 text-warning d-flex align-items-center gap-2" href="javascript:void(0)" @click="openEditForm(item)">
@@ -1293,11 +1699,11 @@
                     </a>
                   </li>
 
-                  <!-- Separador -->
-                  <li><hr class="dropdown-divider"></li>
+                  <!-- Separador (la fila de inscripción de equipos es una edición completa: no se elimina desde aquí) -->
+                  <li v-if="activeTab !== 'teamRegistrations'"><hr class="dropdown-divider"></li>
 
                   <!-- Eliminar -->
-                  <li>
+                  <li v-if="activeTab !== 'teamRegistrations'">
                     <a class="dropdown-item py-2 text-danger d-flex align-items-center gap-2" href="javascript:void(0)" @click="confirmDelete(item.id)">
                       <iconify-icon icon="solar:trash-bin-trash-line-duotone" class="fs-5 text-danger"></iconify-icon>
                       <span>Eliminar</span>
@@ -1364,32 +1770,50 @@
     <!-- 4. FORMULARIO NORMAL EN PÁGINA (100% ANCHO, ESTILO FACTURACIÓN)-->
     <!-- ============================================================== -->
     <div v-if="isFormOpen" id="form-page" class="form-page">
-      <div class="form-page-card">
-        <!-- CABECERA DEL FORMULARIO -->
-        <div class="form-page-header">
-          <div>
-            <div class="d-flex align-items-center gap-2 mb-1">
-              <span class="badge bg-primary-subtle text-primary border border-primary-subtle px-2 py-1 fs-2 font-monospace">
-                MOD-010 · CAMPEONATO
-              </span>
-              <span class="badge bg-info-subtle text-info border border-info-subtle px-2 py-1 fs-2 font-monospace">
-                {{ isEditing ? 'MODIFICACIÓN' : 'REGISTRO' }}
-              </span>
+      <div class="form-page-card card bg-navy-card border border-secondary-subtle rounded-4 p-4 shadow-sm">
+        <!-- CABECERA DEL FORMULARIO ESTANDARIZADA -->
+        <div class="d-flex justify-content-between align-items-center pb-3 border-bottom border-dark-subtle mb-4">
+          <div class="d-flex align-items-center gap-3">
+            <span class="p-2 bg-primary-subtle text-primary rounded-3 d-flex align-items-center justify-content-center" style="width: 44px; height: 44px;">
+              <iconify-icon :icon="isEditing ? 'solar:pen-new-square-line-duotone' : 'solar:add-circle-line-duotone'" class="fs-3"></iconify-icon>
+            </span>
+            <div>
+              <div class="d-flex align-items-center gap-2 mb-1">
+                <span class="badge bg-primary-subtle text-primary border border-primary-subtle px-2 py-0.5 fs-1 font-monospace">
+                  MOD-010 · CAMPEONATO
+                </span>
+                <span class="badge bg-info-subtle text-info border border-info-subtle px-2 py-0.5 fs-1 font-monospace">
+                  {{ isEditing ? 'MODIFICACIÓN' : 'REGISTRO' }}
+                </span>
+              </div>
+              <h5 class="fw-bold mb-0 text-white">
+                {{
+                  activeTab === 'players'
+                    ? (isEditing ? 'Modificar Jugador' : 'Nuevo Jugador')
+                    : activeTab === 'teams'
+                    ? (isEditing ? 'Modificar Equipo' : 'Nuevo Equipo')
+                    : activeTab === 'categories'
+                    ? (isEditing ? 'Modificar Categoría' : 'Nueva Categoría')
+                    : activeTab === 'categoryEditions'
+                    ? (isEditing ? 'Modificar Edición de Torneo' : 'Nueva Edición de Torneo')
+                    : activeTab === 'teamRegistrations'
+                    ? (isEditing ? 'Modificar Inscripción de Equipo' : 'Nueva Inscripción de Equipo')
+                    : (isEditing ? `Modificar ${activeTabLabel}` : `Nuevo ${activeTabLabel}`)
+                }}
+              </h5>
+              <small class="text-secondary">
+                Completa los campos requeridos para {{ isEditing ? 'actualizar' : 'crear' }} el registro en el sistema.
+              </small>
             </div>
-            <h3 class="crud-title mb-0">
-              {{ isEditing ? `Modificar ${activeTabLabel}` : `Nuevo ${activeTabLabel}` }}
-            </h3>
-            <p class="crud-subtitle">
-              Completa los campos requeridos para {{ isEditing ? 'actualizar' : 'crear' }} el registro en el sistema.
-            </p>
           </div>
 
           <button
             type="button"
-            class="btn btn-outline-secondary d-flex align-items-center gap-1 rounded-pill px-3"
+            class="btn btn-outline-secondary btn-sm rounded-pill px-3 d-flex align-items-center gap-1"
+            style="height: 38px;"
             @click="closeForm"
           >
-            <iconify-icon icon="solar:alt-arrow-left-line-duotone" class="fs-4"></iconify-icon>
+            <iconify-icon icon="solar:alt-arrow-left-line-duotone" class="fs-5"></iconify-icon>
             <span>Volver al Listado</span>
           </button>
         </div>
@@ -1412,7 +1836,7 @@
             
 
             <!-- TARJETA DE ACCESO RÁPIDO AL DIRECTORIO DEL CLUB -->
-            <div v-if="activeTab === 'teams' && isEditing && formData.id" class="card p-3 mb-4 border rounded-3 bg-body-tertiary">
+            <div v-if="activeTab === 'teams' && isEditing && formData.id" class="card p-3 mb-4 rounded-4 border border-secondary-subtle bg-dark-subtle">
               <div class="d-flex align-items-center justify-content-between flex-wrap gap-2">
                 <div class="d-flex align-items-center gap-3">
                   <div class="rounded-circle bg-warning-subtle text-warning d-flex align-items-center justify-content-center" style="width: 48px; height: 48px;">
@@ -1437,7 +1861,7 @@
             
 
             <!-- SECCIÓN ESPECIAL: CARGA DE FOTO PARA JUGADORES ESTILO SOCCERADMIN -->
-            <div v-if="activeTab === 'players'" class="mb-4">
+            <div v-if="activeTab === 'players' && (isEditing || globalPlayerSearched)" class="mb-4">
               <div v-if="globalPlayerFound" class="alert alert-secondary d-flex align-items-center gap-2 mb-2 py-2">
                 <iconify-icon icon="solar:lock-keyhole-bold" class="fs-5 text-secondary"></iconify-icon>
                 <span>Foto oficial vinculada al padrón global de futbolistas.</span>
@@ -1454,20 +1878,12 @@
 
             
 
-            <!-- SECCIÓN: CONSULTA EN PADRÓN GLOBAL DE FUTBOLISTAS -->
-            <div v-if="activeTab === 'players'" class="mb-4">
-              <div class="d-flex align-items-center justify-content-between flex-wrap gap-2 mb-2">
-                <div class="d-flex align-items-center gap-2">
-                  <iconify-icon icon="solar:user-id-bold-duotone" class="fs-4 text-primary"></iconify-icon>
-                  <h6 class="fw-bold mb-0 text-body-emphasis">Consulta y Vinculación de Futbolistas</h6>
-                </div>
-                <span class="badge bg-primary-subtle text-primary border border-primary-subtle font-monospace px-2 py-1">
-                  PADRÓN GLOBAL
-                </span>
+            <!-- SECCIÓN: IDENTIFICACIÓN Y CONSULTA DE FUTBOLISTAS -->
+            <div v-if="activeTab === 'players'" class="card p-3 mb-4 rounded-4 border border-secondary-subtle bg-dark-subtle">
+              <div class="d-flex align-items-center gap-2 mb-2">
+                <iconify-icon icon="solar:user-id-bold-duotone" class="fs-4 text-primary"></iconify-icon>
+                <h6 class="fw-bold mb-0 text-body-emphasis">Identificación del Futbolista</h6>
               </div>
-              <p class="text-muted small mb-3">
-                Ingresa la cédula o identificación del futbolista. Si ya existe en la base general, sus datos se cargarán automáticamente para asociarlo a tu liga.
-              </p>
               <div class="row g-2 align-items-center">
                 <div class="col-md-3">
                   <AppSelect2
@@ -1477,7 +1893,7 @@
                     search-placeholder="Buscar tipo..."
                   />
                 </div>
-                <div class="col-md-4">
+                <div class="col-md-5">
                   <div class="input-group">
                     <span class="input-group-text bg-body-secondary">
                       <iconify-icon icon="solar:card-2-bold-duotone" class="text-secondary"></iconify-icon>
@@ -1488,6 +1904,9 @@
                       class="form-control font-monospace"
                       :placeholder="identificationPlaceholder"
                       @keyup.enter="searchGlobalPlayer"
+                      @keypress="formData.documentType === '05' ? (!/[0-9]/.test($event.key) && $event.preventDefault()) : null"
+                      @input="handlePlayerDocInput"
+                      :maxlength="formData.documentType === '05' ? 10 : 20"
                     />
                     <button
                       type="button"
@@ -1502,26 +1921,13 @@
                   </div>
                 </div>
 
-                <div class="col-md-5">
-                  <!-- Banner cuando fue encontrado en el padrón global -->
-                  <div v-if="globalPlayerFound" class="alert alert-success py-2 px-3 mb-0 rounded-3 border-0 bg-success-subtle text-success-emphasis d-flex align-items-center gap-2">
+                <div class="col-md-4" v-if="globalPlayerFound">
+                  <!-- Indicador positivo discreto si fue localizado en el padrón -->
+                  <div class="alert alert-success py-2 px-3 mb-0 rounded-3 border-0 bg-success-subtle text-success-emphasis d-flex align-items-center gap-2">
                     <iconify-icon icon="solar:check-circle-bold" class="fs-4 text-success"></iconify-icon>
                     <span class="small">
-                      <strong>✓ Futbolista encontrado:</strong> {{ formData.name }} {{ formData.lastName }} (Código: <code>{{ formData.code || 'JUG-GLOBAL' }}</code>). Al guardar se vinculará a tu liga.
+                      <strong>✓ Localizado:</strong> {{ formData.name }} {{ formData.lastName }}
                     </span>
-                  </div>
-
-                  <!-- Banner cuando no existe (nuevo futbolista) -->
-                  <div v-else-if="globalPlayerSearched && !globalPlayerFound" class="alert alert-info py-2 px-3 mb-0 rounded-3 border-0 bg-info-subtle text-info-emphasis d-flex align-items-center gap-2">
-                    <iconify-icon icon="solar:info-circle-bold" class="fs-4 text-info"></iconify-icon>
-                    <span class="small">
-                      <strong>Nuevo futbolista:</strong> El número ingresado no registra en el padrón global. Completa sus datos; se creará con código secuencial automático.
-                    </span>
-                  </div>
-
-                  <!-- Mensaje inicial -->
-                  <div v-else class="text-muted small">
-                    Digita la cédula y presiona <strong>Consultar</strong> o Enter para verificar coincidencias.
                   </div>
                 </div>
               </div>
@@ -1530,7 +1936,7 @@
             
 
             <!-- SECCIÓN: CONSULTA EN PADRÓN GLOBAL DE ÁRBITROS -->
-            <div v-if="activeTab === 'referees'" class="card p-3 mb-4 border rounded-3 bg-body-tertiary">
+            <div v-if="activeTab === 'referees'" class="card p-3 mb-4 rounded-4 border border-secondary-subtle bg-dark-subtle">
               <div class="d-flex align-items-center justify-content-between flex-wrap gap-2 mb-2">
                 <div class="d-flex align-items-center gap-2">
                   <iconify-icon icon="solar:whistle-bold-duotone" class="fs-4 text-primary"></iconify-icon>
@@ -1602,7 +2008,7 @@
             <div v-if="activeTab === 'schedules'" class="row g-3">
               <!-- Formulario de Configuración de Horarios (Columna 7) -->
               <div class="col-lg-7">
-                <div class="card p-4 border rounded-3 bg-body-tertiary">
+                <div class="card p-4 rounded-4 border border-secondary-subtle bg-dark-subtle">
                   <div class="d-flex align-items-center gap-2 mb-3">
                     <iconify-icon icon="solar:clock-circle-bold-duotone" class="fs-3 text-primary"></iconify-icon>
                     <div>
@@ -1769,7 +2175,7 @@
 
               <!-- Tarjeta Resumen y Capacidad Deportiva (Columna 5) -->
               <div class="col-lg-5">
-                <div class="card p-4 border rounded-3 bg-body-tertiary h-100 d-flex flex-column justify-content-between">
+                <div class="card p-4 rounded-4 border border-secondary-subtle bg-dark-subtle h-100 d-flex flex-column justify-content-between">
                   <div>
                     <div class="d-flex align-items-center gap-2 mb-3">
                       <iconify-icon icon="solar:calculator-minimalistic-bold-duotone" class="fs-3 text-info"></iconify-icon>
@@ -1895,7 +2301,308 @@
 
             
 
-            <div v-if="activeTab !== 'schedules' && (activeTab !== 'players' || isEditing || globalPlayerSearched)" class="row g-4">
+            <!-- ========================================================================= -->
+            <!-- FORMULARIO MAESTRO-DETALLE: INSCRIPCIÓN DE EQUIPOS POR EDICIÓN Y CATEGORÍA -->
+            <!-- ========================================================================= -->
+            <div v-if="activeTab === 'teamRegistrations'">
+              <!-- PASO 1: SELECCIONAR EDICIÓN DEL TORNEO EN SELECT2 -->
+              <div class="card p-3 mb-4 rounded-4 border border-secondary-subtle bg-dark-subtle shadow-sm">
+                <div class="d-flex align-items-center justify-content-between flex-wrap gap-2 mb-3">
+                  <div class="d-flex align-items-center gap-2">
+                    <iconify-icon icon="solar:cup-star-bold-duotone" class="fs-3 text-primary"></iconify-icon>
+                    <div>
+                      <h6 class="fw-bold mb-0 text-body-emphasis">1. Selección de Edición del Torneo</h6>
+                      <small class="text-secondary">
+                        Elige la edición del torneo para cargar automáticamente todas sus categorías y gestionar los equipos inscritos en cada una.
+                      </small>
+                    </div>
+                  </div>
+                  <span
+                    v-if="selectedEditionForTeamReg"
+                    class="badge bg-primary-subtle text-primary border border-primary-subtle px-3 py-2 fw-semibold rounded-pill"
+                  >
+                    {{ teamRegCategoriesArray.length }} Categoría(s) · {{ totalTeamsInTeamRegEdition }} Equipo(s) Inscrito(s)
+                  </span>
+                </div>
+
+                <div class="row g-3 align-items-center">
+                  <div class="col-md-8 col-lg-7">
+                    <label class="form-label text-secondary small fw-semibold mb-1">
+                      Edición del Campeonato <span class="text-danger">*</span>
+                    </label>
+                    <AppSelect2
+                      v-model="selectedEditionForTeamReg"
+                      :options="editionOptionsForTeamReg"
+                      placeholder="Buscar y seleccionar la Edición del Torneo..."
+                      search-placeholder="Escribe el nombre de la edición..."
+                    />
+                  </div>
+                  <div v-if="loadingTeamRegEdition" class="col-md-4 col-lg-5 d-flex align-items-center gap-2 pt-3">
+                    <span class="spinner-border spinner-border-sm text-primary" role="status"></span>
+                    <span class="small text-secondary">Cargando categorías y equipos de la edición...</span>
+                  </div>
+                </div>
+              </div>
+
+              <!-- PASO 2: ARRAY DE CATEGORÍAS DEL TORNEO Y SUB-ARRAY DE EQUIPOS POR CATEGORÍA -->
+              <div v-if="selectedEditionForTeamReg" class="card p-3 rounded-4 border border-secondary-subtle bg-dark-subtle shadow-sm">
+                <div class="d-flex align-items-center justify-content-between mb-3 flex-wrap gap-2">
+                  <div class="d-flex align-items-center gap-2">
+                    <iconify-icon icon="solar:medal-star-bold-duotone" class="fs-3 text-primary"></iconify-icon>
+                    <div>
+                      <h5 class="fw-bold mb-0 text-body-emphasis">
+                        2. Categorías del Torneo <span class="fs-6 fw-normal text-secondary">(Inscripción de Equipos por Categoría)</span>
+                      </h5>
+                      <small class="text-secondary">
+                        Expande cada categoría para agregar o administrar el listado de equipos participantes en ella.
+                      </small>
+                    </div>
+                  </div>
+                  <div class="d-flex align-items-center gap-2">
+                    <span class="badge bg-info-subtle text-info border border-info-subtle px-3 py-2 fw-semibold rounded-pill">
+                      {{ teamRegCategoriesArray.length }} Categoría(s) del Torneo
+                    </span>
+                  </div>
+                </div>
+
+                <div v-if="teamRegCategoriesArray.length === 0 && !loadingTeamRegEdition" class="alert alert-warning mb-0 d-flex align-items-center gap-2">
+                  <iconify-icon icon="solar:danger-triangle-bold" class="fs-4 text-warning"></iconify-icon>
+                  <span>
+                    Esta edición de torneo aún no tiene categorías configuradas. Ve a <strong>Configuraciones del Torneo → Ediciones de Torneo</strong> para asignarle sus categorías.
+                  </span>
+                </div>
+
+                <div v-else class="table-responsive">
+                  <table class="table table-hover table-sm align-middle mb-0 app-table app-table-framed">
+                    <thead class="table-primary fs-2">
+                      <tr>
+                        <th style="width: 70px;" class="text-center fw-semibold">#</th>
+                        <th style="min-width: 240px;" class="fw-semibold">Categoría del Torneo</th>
+                        <th style="min-width: 150px;" class="fw-semibold">Vigencia (Inicio - Fin)</th>
+                        <th style="min-width: 120px;" class="text-end fw-semibold">Costo Inscripción</th>
+                        <th style="min-width: 120px;" class="text-center fw-semibold">Cupo Máx. Jug.</th>
+                        <th style="min-width: 160px;" class="text-center fw-semibold">Equipos Inscritos</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      <template v-for="(cat, catIdx) in teamRegCategoriesArray" :key="cat._uid || cat.categoryId || catIdx">
+                        <!-- Fila Maestra: Categoría de la Edición -->
+                        <tr>
+                          <td class="text-center">
+                            <div class="d-flex align-items-center justify-content-center gap-2">
+                              <span class="fw-bold font-monospace text-secondary fs-3">{{ catIdx + 1 }}</span>
+                              <button
+                                type="button"
+                                class="btn btn-sm btn-link p-0 text-decoration-none d-inline-flex align-items-center justify-content-center text-body-emphasis"
+                                @click="toggleTeamRegCategoryRow(catIdx)"
+                                :title="isTeamRegCategoryExpanded(catIdx) ? 'Colapsar equipos de la categoría' : 'Expandir equipos de la categoría'"
+                              >
+                                <iconify-icon
+                                  :icon="isTeamRegCategoryExpanded(catIdx) ? 'solar:alt-arrow-up-linear' : 'solar:alt-arrow-down-linear'"
+                                  class="fs-5 fw-bold"
+                                ></iconify-icon>
+                              </button>
+                            </div>
+                          </td>
+
+                          <td>
+                            <div class="d-flex align-items-center gap-2">
+                              <div class="p-2 rounded-2 bg-primary-subtle text-primary d-flex align-items-center justify-content-center flex-shrink-0" style="width: 36px; height: 36px;">
+                                <iconify-icon icon="solar:cup-bold" class="fs-4"></iconify-icon>
+                              </div>
+                              <div>
+                                <span class="fw-bold text-body-emphasis d-block">{{ cat.categoryName }}</span>
+                                <div class="d-flex align-items-center gap-1 mt-0.5">
+                                  <span v-if="cat.categoryAcronyms" class="badge bg-primary-subtle text-primary border border-primary-subtle font-monospace px-1.5 py-0 fs-1">
+                                    {{ cat.categoryAcronyms }}
+                                  </span>
+                                  <span class="badge bg-secondary-subtle text-secondary border border-secondary-subtle px-1.5 py-0 fs-1">
+                                    {{ cat.gender }}
+                                  </span>
+                                </div>
+                              </div>
+                            </div>
+                          </td>
+
+                          <td>
+                            <span v-if="cat.startDate || cat.endDate" class="font-monospace small text-secondary">
+                              📅 {{ cat.startDate || 'N/A' }} → {{ cat.endDate || 'N/A' }}
+                            </span>
+                            <span v-else class="text-muted small">Según edición general</span>
+                          </td>
+
+                          <td class="text-end">
+                            <span class="badge bg-success-subtle text-success border border-success-subtle font-monospace px-2 py-1">
+                              ${{ Number(cat.registrationFee || 0).toFixed(2) }}
+                            </span>
+                          </td>
+
+                          <td class="text-center">
+                            <span class="badge bg-secondary-subtle text-secondary font-monospace px-2 py-1">
+                              👥 Máx. {{ cat.maxPlayers || 25 }} jug.
+                            </span>
+                          </td>
+
+                          <td class="text-center">
+                            <button
+                              type="button"
+                              class="btn btn-sm rounded-pill px-3 py-1 d-inline-flex align-items-center gap-1 border"
+                              :class="cat.teams.length > 0 ? 'bg-primary-subtle text-primary border-primary-subtle' : 'bg-secondary-subtle text-secondary border-secondary-subtle'"
+                              @click="toggleTeamRegCategoryRow(catIdx)"
+                            >
+                              <iconify-icon icon="solar:shield-bold-duotone" class="fs-6"></iconify-icon>
+                              <span class="small fw-semibold">{{ cat.teams.length }} Equipo(s)</span>
+                              <iconify-icon :icon="isTeamRegCategoryExpanded(catIdx) ? 'solar:alt-arrow-up-linear' : 'solar:alt-arrow-down-linear'" class="fs-6 ms-1"></iconify-icon>
+                            </button>
+                          </td>
+                        </tr>
+
+                        <!-- Sub-Tarjeta Expandible: Array de Equipos Inscritos en esta Categoría -->
+                        <tr v-if="isTeamRegCategoryExpanded(catIdx)" class="bg-transparent">
+                          <td colspan="6" class="p-3 bg-transparent">
+                            <div class="card rounded-4 border border-primary-subtle bg-body p-3 shadow-xs">
+                              <div class="d-flex align-items-center justify-content-between mb-3 flex-wrap gap-2">
+                                <div class="d-flex align-items-center gap-2">
+                                  <iconify-icon icon="solar:shield-user-bold-duotone" class="fs-4 text-primary"></iconify-icon>
+                                  <span class="fw-bold text-body-emphasis fs-6">
+                                    Equipos Inscritos en {{ cat.categoryName }}
+                                  </span>
+                                  <span class="badge bg-primary-subtle text-primary border border-primary-subtle rounded-pill px-2.5 py-1 fs-1 fw-semibold">
+                                    {{ cat.teams.length }} equipo(s)
+                                  </span>
+                                </div>
+
+                                <button
+                                  type="button"
+                                  class="btn btn-sm btn-link text-secondary p-0 text-decoration-none d-flex align-items-center"
+                                  @click="toggleTeamRegCategoryRow(catIdx)"
+                                  title="Colapsar Equipos"
+                                >
+                                  <iconify-icon icon="solar:alt-arrow-up-linear" class="fs-4 fw-bold"></iconify-icon>
+                                </button>
+                              </div>
+
+                              <!-- Sub-Tabla del Array de Equipos de la Categoría (Selección en línea + Agregar fila) -->
+                              <div class="table-responsive">
+                                <table class="table table-sm table-hover align-middle mb-0 app-table app-table-framed">
+                                  <thead class="table-primary fs-2">
+                                    <tr>
+                                      <th style="width: 60px;" class="text-center fw-semibold">N°</th>
+                                      <th style="min-width: 300px; width: 44%;" class="fw-semibold">Equipo / Club *</th>
+                                      <th style="min-width: 200px; width: 24%;" class="fw-semibold">Estado Inscripción</th>
+                                      <th style="min-width: 200px; width: 24%;" class="fw-semibold">Estado de Pago</th>
+                                      <th style="width: 80px;" class="text-center fw-semibold">Acciones</th>
+                                    </tr>
+                                  </thead>
+                                  <tbody>
+                                    <tr v-if="cat.teams.length === 0">
+                                      <td colspan="5" class="text-center py-5 text-muted">
+                                        <iconify-icon icon="solar:box-minimalistic-bold-duotone" class="d-block mx-auto mb-2 text-secondary opacity-50" style="font-size: 3.2rem;"></iconify-icon>
+                                        <div class="fw-bold text-body-emphasis fs-5">Sin equipos</div>
+                                        <div class="small text-secondary mt-1">Aún no se han agregado equipos en <strong>{{ cat.categoryName }}</strong></div>
+                                      </td>
+                                    </tr>
+                                    <tr v-for="(tm, tIdx) in cat.teams" :key="tm._uid || tIdx">
+                                      <td class="text-center fw-bold font-monospace text-secondary fs-2">
+                                        {{ (catIdx + 1) + '.' + (tIdx + 1) }}
+                                      </td>
+
+                                      <td>
+                                        <div class="d-flex align-items-center gap-2">
+                                          <img
+                                            v-if="tm.teamLogo"
+                                            :src="tm.teamLogo"
+                                            class="rounded-circle shadow-xs border border-secondary-subtle flex-shrink-0"
+                                            style="width: 30px; height: 30px; object-fit: cover;"
+                                          />
+                                          <div
+                                            v-else
+                                            class="rounded-circle bg-secondary-subtle text-secondary d-flex align-items-center justify-content-center flex-shrink-0"
+                                            style="width: 30px; height: 30px;"
+                                          >
+                                            <iconify-icon icon="solar:shield-bold-duotone" class="fs-5 text-primary"></iconify-icon>
+                                          </div>
+                                          <div class="flex-grow-1">
+                                            <AppSelect2
+                                              v-model="tm.teamId"
+                                              :options="getAvailableTeamsOptionsForRow(tm.teamId)"
+                                              direction="down"
+                                              placeholder="Seleccionar equipo / club..."
+                                              search-placeholder="Buscar club por nombre o siglas..."
+                                              @update:modelValue="onTeamRowSelectChange(tm, $event)"
+                                            />
+                                          </div>
+                                        </div>
+                                      </td>
+
+                                      <td>
+                                        <select v-model="tm.status" class="form-select form-select-sm">
+                                          <option value="APPROVED">🟢 Aprobado / Habilitado</option>
+                                          <option value="PENDING">⏳ Pendiente</option>
+                                          <option value="REJECTED">🔴 Rechazado</option>
+                                          <option value="DISQUALIFIED">⛔ Descalificado</option>
+                                        </select>
+                                      </td>
+
+                                      <td>
+                                        <select v-model="tm.paymentStatus" class="form-select form-select-sm">
+                                          <option value="PAID">💳 Pagado Completo</option>
+                                          <option value="PARTIAL">💵 Pago Parcial</option>
+                                          <option value="UNPAID">⏳ Pendiente de Pago</option>
+                                          <option value="REFUNDED">↩️ Reembolsado</option>
+                                        </select>
+                                      </td>
+
+                                      <td class="text-center">
+                                        <div class="d-inline-flex align-items-center gap-1">
+                                          <button
+                                            v-if="tm.id"
+                                            type="button"
+                                            class="btn btn-sm btn-outline-info d-inline-flex align-items-center justify-content-center rounded-2 p-1"
+                                            style="width: 28px; height: 28px;"
+                                            @click="openRosterForTeamReg(tm.id)"
+                                            title="Ver Plantilla del Club"
+                                          >
+                                            <iconify-icon icon="solar:clipboard-list-bold-duotone" class="fs-6"></iconify-icon>
+                                          </button>
+                                          <button
+                                            type="button"
+                                            class="btn btn-sm btn-outline-danger d-inline-flex align-items-center justify-content-center rounded-2 p-1"
+                                            style="width: 28px; height: 28px;"
+                                            @click="removeTeamFromCategoryReg(cat, tIdx)"
+                                            title="Quitar fila"
+                                          >
+                                            <iconify-icon icon="solar:trash-bin-trash-bold" class="fs-6"></iconify-icon>
+                                          </button>
+                                        </div>
+                                      </td>
+                                    </tr>
+                                  </tbody>
+                                </table>
+                              </div>
+
+                              <!-- Pie de la tabla con botón "+ Agregar fila" al estilo de facturación/servicios -->
+                              <div class="d-flex align-items-center gap-2 mt-3">
+                                <button
+                                  type="button"
+                                  class="btn btn-sm btn-outline-primary rounded-pill px-3 py-1.5 d-inline-flex align-items-center gap-1 fw-semibold shadow-xs"
+                                  @click="addEmptyTeamRowToCategoryReg(cat)"
+                                >
+                                  <iconify-icon icon="solar:add-circle-line-duotone" class="fs-5"></iconify-icon>
+                                  <span>+ Agregar fila</span>
+                                </button>
+                              </div>
+                            </div>
+                          </td>
+                        </tr>
+                      </template>
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </div>
+
+            <div v-if="activeTab !== 'schedules' && activeTab !== 'teamRegistrations' && (activeTab !== 'players' || isEditing || globalPlayerSearched)" class="row g-4">
               <div v-for="field in formFields" :key="field.key" :class="field.colClass || 'col-md-6'">
                 <label class="form-label text-secondary small fw-semibold">
                   {{ field.label }}
@@ -1904,13 +2611,22 @@
                 </label>
                 <input
                   v-if="field.type === 'text' || field.type === 'number' || field.type === 'date'"
-                  :type="field.type"
+                  :type="getFieldType(field)"
                   v-model="formData[field.key]"
                   class="form-control"
                   :class="{ 'bg-body-secondary text-secondary cursor-not-allowed': isFieldDisabled(field) || isFieldReadonly(field) }"
                   :placeholder="field.placeholder || ''"
                   :readonly="isFieldReadonly(field)"
                   :disabled="isFieldDisabled(field)"
+                  :inputmode="getFieldInputMode(field.key)"
+                  @keypress="handleFieldKeypress($event, field.key)"
+                  @input="handleFieldInput($event, field.key)"
+                  @change="handleFieldChange($event, field.key)"
+                  @paste="handleFieldPaste($event, field.key)"
+                  :maxlength="getFieldMaxLength(field.key)"
+                  :minlength="getFieldMinLength(field.key)"
+                  :required="isFieldRequired(field.key)"
+                  :max="getFieldMax(field.key)"
                 />
                 <!-- Alerta reactiva de cálculo de edad para Jugadores -->
                 <div v-if="activeTab === 'players' && field.key === 'birthDate' && computedPlayerAge" class="mt-2">
@@ -1991,6 +2707,26 @@
             </div>
 
             
+
+            <!-- Estado para Equipos: editable al modificar -->
+            <div v-if="activeTab === 'teams' && isEditing" class="mt-3">
+              <div class="form-check form-switch">
+                <input class="form-check-input" type="checkbox" v-model="formData.isActive" id="team_is_active_edit" />
+                <label class="form-check-label text-body-emphasis fw-semibold small ms-2" for="team_is_active_edit">
+                  {{ formData.isActive !== false ? 'Equipo Activo (Habilitado para disputar partidos)' : 'Equipo Inactivo (Deshabilitado)' }}
+                </label>
+              </div>
+            </div>
+
+            <!-- Estado para Jugadores: editable al modificar -->
+            <div v-if="activeTab === 'players' && isEditing" class="mt-3">
+              <div class="form-check form-switch">
+                <input class="form-check-input" type="checkbox" v-model="formData.isActive" id="player_is_active_edit" />
+                <label class="form-check-label text-body-emphasis fw-semibold small ms-2" for="player_is_active_edit">
+                  {{ formData.isActive !== false ? 'Jugador Activo (Habilitado para disputar partidos)' : 'Jugador Inactivo (Deshabilitado)' }}
+                </label>
+              </div>
+            </div>
 
             <!-- Estado para Clasificación de Futbolistas: editable solo al modificar -->
             <div v-if="activeTab === 'playerClassifications' && isEditing" class="mt-3">
@@ -2116,12 +2852,12 @@
             <!-- ======================================================== -->
             <!-- SECCIÓN: MODALIDAD DE IDENTIFICACIÓN DE JUGADORES       -->
             <!-- ======================================================== -->
-            <div v-if="activeTab === 'categoryEditions'" class="card p-3 mt-4 border rounded-3 bg-body-tertiary">
+            <div v-if="activeTab === 'categoryEditions'" class="card p-3 mt-4 rounded-4 border border-secondary-subtle bg-dark-subtle">
               <div class="d-flex align-items-center gap-2 mb-3">
                 <iconify-icon icon="solar:user-id-bold-duotone" class="fs-4 text-primary"></iconify-icon>
                 <div>
                   <h6 class="fw-bold mb-0 text-body-emphasis">Modalidad de Identificación de Jugadores en el Torneo</h6>
-                  <small class="text-muted">Define si en este campeonato los jugadores se configurarán y registrarán por su número de camiseta (dorsal) o mediante su código único secuencial de jugador.</small>
+                  <small class="text-secondary">Define si en este campeonato los jugadores se configurarán y registrarán por su número de camiseta (dorsal) o mediante su código único secuencial de jugador.</small>
                 </div>
               </div>
               <div class="row g-3">
@@ -2185,13 +2921,13 @@
             <!-- ======================================================== -->
             <!-- SECCIÓN: CANCHAS DISPONIBLES PARA EL CAMPEONATO           -->
             <!-- ======================================================== -->
-            <div v-if="activeTab === 'categoryEditions'" class="card p-3 mt-4 border rounded-3 bg-body-tertiary">
+            <div v-if="activeTab === 'categoryEditions'" class="card p-3 mt-4 rounded-4 border border-secondary-subtle bg-dark-subtle">
               <div class="d-flex align-items-center justify-content-between mb-3 flex-wrap gap-2">
                 <div class="d-flex align-items-center gap-2">
                   <iconify-icon icon="solar:map-point-wave-bold-duotone" class="fs-4 text-success"></iconify-icon>
                   <div>
                     <h6 class="fw-bold mb-0 text-body-emphasis">Canchas Habilitadas para este Campeonato</h6>
-                    <small class="text-muted">Selecciona las canchas o escenarios deportivos donde se disputará esta edición del campeonato.</small>
+                    <small class="text-secondary">Selecciona las canchas o escenarios deportivos donde se disputará esta edición del campeonato.</small>
                   </div>
                 </div>
                 <span class="badge bg-success-subtle text-success border border-success-subtle px-3 py-2 fw-semibold">
@@ -2243,13 +2979,13 @@
             <!-- ======================================================== -->
             <!-- SECCIÓN MAESTRO-DETALLE: CATEGORÍAS DE LA EDICIÓN        -->
             <!-- ======================================================== -->
-            <div v-if="activeTab === 'categoryEditions'" class="card p-3 mt-4 border border-light-subtle rounded-3 bg-white shadow-sm">
+            <div v-if="activeTab === 'categoryEditions'" class="card p-3 mt-4 rounded-4 border border-secondary-subtle bg-dark-subtle shadow-sm">
               <div class="d-flex align-items-center justify-content-between mb-3 flex-wrap gap-2">
                 <div class="d-flex align-items-center gap-2">
-                  <iconify-icon icon="solar:cart-bold" class="fs-3 text-primary"></iconify-icon>
+                  <iconify-icon icon="solar:medal-star-bold-duotone" class="fs-3 text-primary"></iconify-icon>
                   <div>
-                    <h5 class="fw-bold mb-0 text-dark">Detalle <span class="fs-6 fw-normal text-muted">(Detalle de Categorías del Torneo)</span></h5>
-                    <small class="text-muted">Agrega las categorías que competirán en esta edición, con sus fechas oficiales, costo y clasificaciones.</small>
+                    <h5 class="fw-bold mb-0 text-body-emphasis">Detalle <span class="fs-6 fw-normal text-secondary">(Detalle de Categorías del Torneo)</span></h5>
+                    <small class="text-secondary">Agrega las categorías que competirán en esta edición, con sus fechas oficiales, costo y clasificaciones.</small>
                   </div>
                 </div>
                 <div class="d-flex align-items-center gap-2">
@@ -2258,29 +2994,29 @@
                   </span>
                   <button
                     type="button"
-                    class="btn btn-sm btn-outline-primary d-inline-flex align-items-center gap-1 rounded-3 px-3 py-1 fw-semibold shadow-xs"
+                    class="btn btn-sm btn-primary d-inline-flex align-items-center gap-1 rounded-pill px-3 py-1 fw-semibold shadow-sm"
                     @click="addCategoryToEditionDetail"
                   >
-                    <iconify-icon icon="solar:add-circle-bold" class="fs-5"></iconify-icon>
+                    <iconify-icon icon="solar:add-circle-line-duotone" class="fs-5"></iconify-icon>
                     <span>+ Agregar</span>
                   </button>
                 </div>
               </div>
 
-              <!-- Tabla Maestro-Detalle idéntica al formato de referencia -->
-              <div class="table-responsive border rounded-3 bg-body shadow-sm">
-                <table class="table table-hover table-sm align-middle mb-0">
-                  <thead class="table-light fs-2">
+              <!-- Tabla Maestro-Detalle con cabecera oficial table-primary -->
+              <div class="table-responsive border border-secondary-subtle rounded-3 bg-body shadow-sm">
+                <table class="table table-hover table-sm align-middle mb-0 app-table">
+                  <thead class="table-primary fs-2">
                     <tr>
-                      <th style="width: 70px;" class="text-center text-secondary fw-semibold">#</th>
-                      <th style="min-width: 220px; width: 22%;" class="text-secondary fw-semibold">Categoría *</th>
-                      <th style="min-width: 140px; width: 14%;" class="text-secondary fw-semibold">Fechas (Inicio - Fin)</th>
-                      <th style="min-width: 100px; width: 9%;" class="text-end text-secondary fw-semibold">Costo ($)</th>
-                      <th style="min-width: 70px; width: 6%;" class="text-center text-secondary fw-semibold">Máx. Jug. *</th>
-                      <th style="min-width: 150px; width: 15%;" class="text-center text-secondary fw-semibold">Tiempos (Dur./Desc./Esp.)</th>
-                      <th style="min-width: 110px; width: 11%;" class="text-center text-secondary fw-semibold">Clasificaciones</th>
-                      <th style="min-width: 110px; width: 11%;" class="text-center text-secondary fw-semibold">Etapas / Fases</th>
-                      <th style="width: 85px;" class="text-center text-secondary fw-semibold">Acciones</th>
+                      <th style="width: 70px;" class="text-center fw-semibold">#</th>
+                      <th style="min-width: 220px; width: 22%;" class="fw-semibold">Categoría *</th>
+                      <th style="min-width: 140px; width: 14%;" class="fw-semibold">Fechas (Inicio - Fin)</th>
+                      <th style="min-width: 100px; width: 9%;" class="text-end fw-semibold">Costo ($)</th>
+                      <th style="min-width: 70px; width: 6%;" class="text-center fw-semibold">Máx. Jug. *</th>
+                      <th style="min-width: 150px; width: 15%;" class="text-center fw-semibold">Tiempos (Dur./Desc./Esp.)</th>
+                      <th style="min-width: 110px; width: 11%;" class="text-center fw-semibold">Clasificaciones</th>
+                      <th style="min-width: 110px; width: 11%;" class="text-center fw-semibold">Etapas / Fases</th>
+                      <th style="width: 85px;" class="text-center fw-semibold">Acciones</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -2353,7 +3089,7 @@
                         <td>
                           <div class="d-flex flex-column gap-1" style="min-width: 125px;">
                             <div class="d-flex align-items-center gap-1">
-                              <span class="badge bg-light text-muted border px-1 py-0 font-monospace" style="font-size: 0.72rem; min-width: 28px;">Ini</span>
+                              <span class="badge bg-secondary-subtle text-secondary border border-secondary-subtle px-1 py-0 font-monospace" style="font-size: 0.72rem; min-width: 28px;">Ini</span>
                               <input
                                 type="date"
                                 v-model="item.startDate"
@@ -2361,7 +3097,7 @@
                               />
                             </div>
                             <div class="d-flex align-items-center gap-1">
-                              <span class="badge bg-light text-muted border px-1 py-0 font-monospace" style="font-size: 0.72rem; min-width: 28px;">Fin</span>
+                              <span class="badge bg-secondary-subtle text-secondary border border-secondary-subtle px-1 py-0 font-monospace" style="font-size: 0.72rem; min-width: 28px;">Fin</span>
                               <input
                                 type="date"
                                 v-model="item.endDate"
@@ -2478,7 +3214,7 @@
                             <button
                               type="button"
                               class="btn btn-sm rounded-pill px-2 py-1 d-inline-flex align-items-center gap-1 border"
-                              :class="item.stages && item.stages.length ? 'btn-info-subtle text-info border-info-subtle' : 'btn-light text-muted border-secondary-subtle'"
+                              :class="item.stages && item.stages.length ? 'bg-info-subtle text-info border-info-subtle' : 'bg-secondary-subtle text-secondary border-secondary-subtle'"
                               @click="toggleCategoryRow(idx)"
                               title="Ver/Ocultar Etapas y Fases"
                             >
@@ -2517,12 +3253,12 @@
                       <!-- Sub-Tarjeta Anidada: Detalle de Etapas / Fases de la Categoría -->
                       <tr v-if="isCategoryRowExpanded(idx)" class="bg-transparent">
                         <td colspan="9" class="p-3 bg-transparent">
-                          <div class="card rounded-3 shadow-xs p-3" style="background-color: #f0f7ff; border: 1px solid #bfdbfe !important;">
-                            <!-- Encabezado de la sub-tarjeta (idéntico al formato de referencia) -->
+                          <div class="card rounded-4 border border-primary-subtle bg-body p-3 shadow-xs">
+                            <!-- Encabezado de la sub-tarjeta -->
                             <div class="d-flex align-items-center justify-content-between mb-3 flex-wrap gap-2">
                               <div class="d-flex align-items-center gap-2">
-                                <iconify-icon icon="solar:box-bold" class="fs-4 text-primary"></iconify-icon>
-                                <span class="fw-bold text-dark fs-6">Componentes de la Categoría (Etapas y Fases)</span>
+                                <iconify-icon icon="solar:diagram-up-bold-duotone" class="fs-4 text-primary"></iconify-icon>
+                                <span class="fw-bold text-body-emphasis fs-6">Componentes de la Categoría (Etapas y Fases)</span>
                                 <span class="badge bg-primary-subtle text-primary border border-primary-subtle rounded-pill px-2.5 py-1 fs-1 fw-semibold">
                                   {{ item.stages?.length || 0 }} registros
                                 </span>
@@ -2539,17 +3275,17 @@
                               </div>
                             </div>
 
-                            <!-- Sub-tabla anidada editable 100% en línea sobre fondo blanco -->
-                            <div class="table-responsive rounded-3 border bg-white shadow-xs">
-                              <table class="table table-sm table-hover align-middle mb-0">
-                                <thead class="table-light fs-2">
+                            <!-- Sub-tabla anidada editable 100% en línea -->
+                            <div class="table-responsive rounded-3 border border-secondary-subtle bg-body shadow-xs">
+                              <table class="table table-sm table-hover align-middle mb-0 app-table">
+                                <thead class="table-primary fs-2">
                                   <tr>
-                                    <th style="width: 50px;" class="text-center text-secondary fw-semibold">#</th>
-                                    <th style="min-width: 180px; width: 22%;" class="text-secondary fw-semibold">Nombre de la Etapa / Fase *</th>
-                                    <th style="min-width: 160px; width: 20%;" class="text-secondary fw-semibold">Tipo de Competencia *</th>
-                                    <th style="min-width: 150px; width: 18%;" class="text-secondary fw-semibold">Vueltas / Modalidad *</th>
-                                    <th style="min-width: 300px; width: 34%;" class="text-secondary fw-semibold">Criterios de Desempate (Jerarquía en Línea)</th>
-                                    <th style="width: 60px;" class="text-center text-secondary fw-semibold">Acción</th>
+                                    <th style="width: 50px;" class="text-center fw-semibold">#</th>
+                                    <th style="min-width: 180px; width: 22%;" class="fw-semibold">Nombre de la Etapa / Fase *</th>
+                                    <th style="min-width: 160px; width: 20%;" class="fw-semibold">Tipo de Competencia *</th>
+                                    <th style="min-width: 150px; width: 18%;" class="fw-semibold">Vueltas / Modalidad *</th>
+                                    <th style="min-width: 300px; width: 34%;" class="fw-semibold">Criterios de Desempate (Jerarquía en Línea)</th>
+                                    <th style="width: 60px;" class="text-center fw-semibold">Acción</th>
                                   </tr>
                                 </thead>
                                 <tbody>
@@ -2620,63 +3356,77 @@
                                     <!-- Criterios de Desempate (Jerarquía en Línea) -->
                                     <td>
                                       <div>
-                                        <!-- Selector rápido de criterios -->
-                                        <select
-                                          class="form-select form-select-sm"
-                                          @change="addCriterionToStageDirect(stg, $event)"
-                                        >
-                                          <option value="" selected>+ Agregar criterio reglamentario...</option>
-                                          <option
-                                            v-for="crit in tieBreakerCriteriaList"
-                                            :key="crit.id"
-                                            :value="crit.id"
-                                            :disabled="isCriterionAlreadyInStage(stg, crit.id)"
+                                        <!-- Selector rápido para añadir múltiples criterios en orden -->
+                                        <div class="d-flex align-items-center gap-1">
+                                          <select
+                                            class="form-select form-select-sm"
+                                            @change="addCriterionToStageDirect(stg, $event)"
                                           >
-                                            {{ crit.description }} {{ crit.code ? '(' + crit.code + ')' : '' }}
-                                          </option>
-                                        </select>
+                                            <option value="" selected>
+                                              {{ (stg.tieBreakerCriteria && stg.tieBreakerCriteria.length > 0) ? `+ Agregar ${stg.tieBreakerCriteria.length + 1}° criterio de desempate...` : '+ Agregar 1° criterio de desempate...' }}
+                                            </option>
+                                            <option
+                                              v-for="crit in tieBreakerCriteriaList"
+                                              :key="crit.id"
+                                              :value="crit.id"
+                                              :disabled="isCriterionAlreadyInStage(stg, crit.id)"
+                                            >
+                                              {{ isCriterionAlreadyInStage(stg, crit.id) ? '✓ ' : '' }}{{ crit.description }} {{ crit.code ? '(' + crit.code + ')' : '' }}
+                                            </option>
+                                          </select>
+                                          <span
+                                            v-if="stg.tieBreakerCriteria && stg.tieBreakerCriteria.length > 0"
+                                            class="badge bg-primary-subtle text-primary border border-primary-subtle font-monospace flex-shrink-0"
+                                            :title="stg.tieBreakerCriteria.length + ' criterio(s) en orden de desempate'"
+                                          >
+                                            {{ stg.tieBreakerCriteria.length }}
+                                          </span>
+                                        </div>
 
-                                        <!-- Chips de criterios jerárquicos con botones subir/bajar -->
-                                        <div v-if="stg.tieBreakerCriteria && stg.tieBreakerCriteria.length" class="d-flex flex-column gap-1 mt-1">
+                                        <!-- Lista ordenada de criterios jerárquicos (#1, #2, #3...) con botones subir/bajar -->
+                                        <div v-if="stg.tieBreakerCriteria && stg.tieBreakerCriteria.length" class="d-flex flex-column gap-1 mt-2">
                                           <div
                                             v-for="(c, cIdx) in stg.tieBreakerCriteria"
                                             :key="c.criterionId || c.id || cIdx"
-                                            class="d-flex align-items-center justify-content-between gap-1 p-1 rounded bg-body-tertiary border border-primary-subtle"
+                                            class="d-flex align-items-center justify-content-between gap-2 px-2 py-1 rounded-2 bg-dark-subtle border border-primary-subtle"
                                           >
-                                            <div class="d-flex align-items-center gap-1 overflow-hidden">
-                                              <!-- Botones ▲ y ▼ -->
+                                            <div class="d-flex align-items-center gap-1.5 overflow-hidden">
+                                              <!-- Botones ▲ y ▼ para ordenar prioridad -->
                                               <div class="btn-group btn-group-sm flex-shrink-0" role="group">
                                                 <button
                                                   type="button"
                                                   class="btn btn-sm btn-outline-secondary py-0 px-1"
-                                                  style="font-size: 0.7rem; line-height: 1.2;"
+                                                  style="font-size: 0.68rem; line-height: 1.2;"
                                                   :disabled="Number(cIdx) === 0"
                                                   @click="moveStageCriterionUp(stg, Number(cIdx))"
-                                                  title="Subir orden"
+                                                  title="Subir prioridad"
                                                 >
                                                   ▲
                                                 </button>
                                                 <button
                                                   type="button"
                                                   class="btn btn-sm btn-outline-secondary py-0 px-1"
-                                                  style="font-size: 0.7rem; line-height: 1.2;"
+                                                  style="font-size: 0.68rem; line-height: 1.2;"
                                                   :disabled="Number(cIdx) === stg.tieBreakerCriteria.length - 1"
                                                   @click="moveStageCriterionDown(stg, Number(cIdx))"
-                                                  title="Bajar orden"
+                                                  title="Bajar prioridad"
                                                 >
                                                   ▼
                                                 </button>
                                               </div>
-                                              <span class="badge bg-primary-subtle text-primary border border-primary-subtle font-monospace py-0 px-1 fs-1 flex-shrink-0">
-                                                #{{ c.order || (Number(cIdx) + 1) }}
+                                              <span class="badge bg-primary text-white font-monospace py-0.5 px-1.5 fs-1 flex-shrink-0">
+                                                {{ c.order || (Number(cIdx) + 1) }}°
                                               </span>
-                                              <span class="small fw-semibold text-truncate text-body" :title="c.description">
+                                              <span class="small fw-semibold text-truncate text-body-emphasis" :title="c.description">
                                                 {{ c.description }}
+                                              </span>
+                                              <span v-if="c.code" class="badge bg-secondary-subtle text-secondary font-monospace py-0 px-1 fs-1 flex-shrink-0">
+                                                {{ c.code }}
                                               </span>
                                             </div>
                                             <button
                                               type="button"
-                                              class="btn btn-sm btn-link text-danger p-0 px-1 text-decoration-none"
+                                              class="btn btn-sm btn-link text-danger p-0 px-1 text-decoration-none flex-shrink-0"
                                               @click="removeStageCriterion(stg, Number(cIdx))"
                                               title="Quitar criterio"
                                             >
@@ -2684,8 +3434,8 @@
                                             </button>
                                           </div>
                                         </div>
-                                        <div v-else class="text-muted small fst-italic mt-1">
-                                          Sin criterios seleccionados aún
+                                        <div v-else class="text-secondary small fst-italic mt-1">
+                                          Selecciona los criterios en el orden en que se aplicarán (1°, 2°, 3°...)
                                         </div>
                                       </div>
                                     </td>
@@ -2821,7 +3571,7 @@
 
               <!-- Tabla de Etapas de la Plantilla -->
               <div class="table-responsive border rounded-3 bg-body shadow-sm">
-                <table class="table table-hover table-sm align-middle mb-0">
+                <table class="table table-hover table-sm align-middle mb-0 app-table">
                   <thead class="table-primary fs-1 text-uppercase">
                     <tr>
                       <th class="ps-3 text-center" style="width: 75px;">Orden</th>
@@ -2885,11 +3635,12 @@
             
           </div>
 
-          <!-- PIE DE ACCIONES DEL FORMULARIO -->
-          <div class="form-page-footer">
+          <!-- PIE DE ACCIONES DEL FORMULARIO ESTANDARIZADO -->
+          <div class="border-top border-secondary-subtle pt-3 mt-4 pb-2 px-2 d-flex align-items-center justify-content-end gap-3">
             <button
               type="button"
               class="btn btn-outline-secondary rounded-pill px-4"
+              style="height: 40px;"
               @click="closeForm"
             >
               Cancelar
@@ -2898,6 +3649,7 @@
               v-if="activeTab === 'schedules'"
               type="button"
               class="btn btn-primary rounded-pill px-4 fw-semibold d-flex align-items-center gap-2 shadow-sm"
+              style="height: 40px;"
               :disabled="savingSchedule"
               @click="saveScheduleConfig"
             >
@@ -2908,7 +3660,8 @@
             <button
               v-else
               type="submit"
-              class="btn btn-primary rounded-pill px-4 fw-semibold d-flex align-items-center gap-2"
+              class="btn btn-primary rounded-pill px-4 fw-semibold d-flex align-items-center gap-2 shadow-sm"
+              style="height: 40px;"
               :disabled="saving"
             >
               <span v-if="saving" class="spinner-grow spinner-grow-sm text-white" role="status" aria-hidden="true"></span>
@@ -2925,16 +3678,16 @@
     <!-- ========================================== -->
     <div v-if="showFixtureModal" class="modal fade show d-block" tabindex="-1" style="background: rgba(0, 0, 0, 0.7); z-index: 1055;">
       <div class="modal-dialog modal-lg modal-dialog-centered">
-        <div class="modal-content border-0 shadow">
-          <div class="modal-header bg-primary text-white">
-            <h5 class="modal-title fw-bold text-white d-flex align-items-center gap-2">
+        <div class="modal-content border-0 shadow app-modal">
+          <div class="modal-header bg-primary text-white app-modal-header">
+            <h5 class="modal-title fw-bold text-white d-flex align-items-center gap-2 app-modal-title">
               <iconify-icon icon="solar:calendar-add-bold" class="fs-4"></iconify-icon>
               <span>Generador Automático de Fixture (Round-Robin)</span>
             </h5>
             <button type="button" class="btn-close btn-close-white" @click="showFixtureModal = false"></button>
           </div>
           <form @submit.prevent="generateFixture">
-            <div class="modal-body p-4">
+            <div class="modal-body p-4 app-modal-body">
               <div class="row g-3">
                 <div class="col-md-6">
                   <label class="form-label fw-semibold small text-dark">Etapa / Fase del Torneo <span class="text-danger">*</span></label>
@@ -3011,7 +3764,7 @@
             </div>
 
             
-            <div class="modal-footer bg-light">
+            <div class="modal-footer bg-light app-modal-footer">
               <button type="button" class="btn btn-outline-secondary rounded-pill px-4" @click="showFixtureModal = false">
                 Cancelar
               </button>
@@ -3035,15 +3788,15 @@
     <!-- ========================================== -->
     <div v-if="showCarnetModal && selectedCarnet" class="modal fade show d-block" tabindex="-1" style="background: rgba(0, 0, 0, 0.7); z-index: 1055;">
       <div class="modal-dialog modal-md modal-dialog-centered">
-        <div class="modal-content border-0 shadow">
-          <div class="modal-header bg-dark text-white">
-            <h5 class="modal-title fw-bold text-white d-flex align-items-center gap-2">
+        <div class="modal-content border-0 shadow app-modal">
+          <div class="modal-header bg-dark text-white app-modal-header">
+            <h5 class="modal-title fw-bold text-white d-flex align-items-center gap-2 app-modal-title">
               <iconify-icon icon="solar:card-2-bold-duotone" class="fs-4 text-warning"></iconify-icon>
               <span>Credencial Deportiva Oficial</span>
             </h5>
             <button type="button" class="btn-close btn-close-white" @click="showCarnetModal = false"></button>
           </div>
-          <div class="modal-body p-4 text-center">
+          <div class="modal-body p-4 text-center app-modal-body">
             <!-- Credencial Estilo PVC de Cancha -->
             <div
               id="printableCarnet"
@@ -3134,7 +3887,7 @@
 
             
           </div>
-          <div class="modal-footer bg-light">
+          <div class="modal-footer bg-light app-modal-footer">
             <button type="button" class="btn btn-outline-secondary rounded-pill px-4" @click="showCarnetModal = false">
               Cerrar
             </button>
@@ -3157,12 +3910,12 @@
       style="background: rgba(0, 0, 0, 0.65); z-index: 1060;"
     >
       <div class="modal-dialog modal-lg modal-dialog-centered modal-dialog-scrollable">
-        <div class="modal-content border-0 shadow-lg">
-          <div class="modal-header bg-primary text-white">
+        <div class="modal-content border-0 shadow-lg app-modal">
+          <div class="modal-header bg-primary text-white app-modal-header">
             <div class="d-flex align-items-center gap-2">
               <iconify-icon icon="solar:history-bold-duotone" class="fs-3"></iconify-icon>
               <div>
-                <h5 class="modal-title fw-bold text-white mb-0">
+                <h5 class="modal-title fw-bold text-white mb-0 app-modal-title">
                   Historial de Categorías · {{ selectedTeamForHistory?.name }}
                 </h5>
                 <small class="text-white-50">Registro por campeonatos anuales (ej: 2026 Máxima, 2027 Primera)</small>
@@ -3173,7 +3926,7 @@
             <button type="button" class="btn-close btn-close-white" @click="showTeamCategoryModal = false"></button>
           </div>
 
-          <div class="modal-body p-4">
+          <div class="modal-body p-4 app-modal-body">
             <!-- Nota informativa de sincronización transaccional -->
             <div class="alert alert-primary d-flex align-items-center gap-2 py-2 mb-3">
               <iconify-icon icon="solar:info-circle-bold" class="fs-4 text-primary"></iconify-icon>
@@ -3245,7 +3998,7 @@
             <!-- Tabla de Historial -->
             <h6 class="fw-bold mb-2 text-body-emphasis">Recorrido Histórico por Temporadas</h6>
             <div class="table-responsive border rounded-3">
-              <table class="table table-hover align-middle mb-0">
+              <table class="table table-hover align-middle mb-0 app-table">
                 <thead class="table-light">
                   <tr>
                     <th class="ps-3">Año / Temporada</th>
@@ -3304,7 +4057,7 @@
             </div>
           </div>
 
-          <div class="modal-footer bg-light">
+          <div class="modal-footer bg-light app-modal-footer">
             <button type="button" class="btn btn-secondary rounded-pill px-4" @click="showTeamCategoryModal = false">
               Cerrar
             </button>
@@ -3312,6 +4065,216 @@
         </div>
       </div>
     </div>
+
+    <!-- ========================================================= -->
+    <!-- MODAL: CATEGORÍAS / EQUIPOS DE UNA EDICIÓN (INSCRIPCIÓN)  -->
+    <!-- ========================================================= -->
+    <Teleport to="body">
+      <div
+        v-if="teamRegModal"
+        class="modal fade show d-block"
+        tabindex="-1"
+        style="background: rgba(0, 0, 0, 0.75); z-index: 2050; backdrop-filter: blur(4px);"
+        role="dialog"
+        aria-modal="true"
+        @click.self="teamRegModal = null"
+      >
+        <div class="modal-dialog modal-xl modal-dialog-centered modal-dialog-scrollable">
+          <div class="modal-content bg-navy-card border border-secondary-subtle rounded-4 shadow-lg overflow-hidden app-modal">
+            <!-- Cabecera del Modal Estandarizada -->
+            <div class="modal-header border-bottom border-secondary-subtle px-4 py-3 d-flex justify-content-between align-items-center app-modal-header">
+              <div class="d-flex align-items-center gap-3">
+                <span
+                  class="p-2 rounded-3 d-flex align-items-center justify-content-center"
+                  :class="teamRegModal.mode === 'categories' ? 'bg-info-subtle text-info' : 'bg-primary-subtle text-primary'"
+                  style="width: 44px; height: 44px;"
+                >
+                  <iconify-icon
+                    :icon="teamRegModal.mode === 'categories' ? 'solar:medal-star-bold-duotone' : 'solar:shield-bold-duotone'"
+                    class="fs-3"
+                  ></iconify-icon>
+                </span>
+                <div>
+                  <h5 class="modal-title fw-bold text-body-emphasis mb-0 app-modal-title">
+                    {{ teamRegModal.mode === 'categories' ? 'Categorías del Torneo' : 'Equipos Inscritos' }} · {{ teamRegModal.row.categoryEdition?.name }}
+                  </h5>
+                  <small class="text-secondary">
+                    {{ teamRegModal.mode === 'categories' ? teamRegModal.row.categories.length + ' categoría(s) configurada(s) en esta edición' : teamRegModal.row.teams.length + ' equipo(s) inscrito(s) en esta edición' }}
+                  </small>
+                </div>
+              </div>
+              <button
+                type="button"
+                class="btn btn-sm btn-outline-secondary rounded-pill px-3 py-1 d-inline-flex align-items-center gap-1"
+                @click="teamRegModal = null"
+              >
+                <iconify-icon icon="solar:close-circle-line-duotone" class="fs-5"></iconify-icon>
+                <span>Cerrar</span>
+              </button>
+            </div>
+
+            <div class="modal-body p-4 app-modal-body">
+              <!-- Categorías de la edición -->
+              <div v-if="teamRegModal.mode === 'categories'" class="table-responsive border border-secondary-subtle rounded-3">
+                <table class="table table-hover align-middle mb-0 crud-table app-table">
+                  <thead class="table-primary">
+                    <tr>
+                      <th style="width: 60px;" class="text-center">#</th>
+                      <th>Categoría del Torneo</th>
+                      <th>Vigencia (Inicio - Fin)</th>
+                      <th class="text-end">Costo Inscripción</th>
+                      <th class="text-center">Cupo Máx. Jug.</th>
+                      <th class="text-center">Equipos Inscritos</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr v-if="teamRegModal.row.categories.length === 0">
+                      <td colspan="6" class="text-center text-secondary py-5">
+                        <iconify-icon icon="solar:box-minimalistic-line-duotone" class="fs-1 text-secondary d-block mx-auto mb-2"></iconify-icon>
+                        Esta edición no tiene categorías configuradas.
+                      </td>
+                    </tr>
+                    <tr v-for="(cat, idx) in teamRegModal.row.categories" :key="cat.categoryId || idx">
+                      <td class="text-center fw-bold font-monospace text-secondary">{{ Number(idx) + 1 }}</td>
+                      <td>
+                        <div class="d-flex align-items-center gap-2">
+                          <div class="p-2 rounded-2 bg-primary-subtle text-primary d-flex align-items-center justify-content-center flex-shrink-0" style="width: 34px; height: 34px;">
+                            <iconify-icon icon="solar:cup-bold" class="fs-5"></iconify-icon>
+                          </div>
+                          <div>
+                            <span class="fw-bold text-body-emphasis d-block">{{ cat.name }}</span>
+                            <div class="d-flex align-items-center gap-1 mt-0.5">
+                              <span v-if="cat.acronyms" class="badge bg-primary-subtle text-primary border border-primary-subtle font-monospace px-2 py-0.5">{{ cat.acronyms }}</span>
+                              <span v-if="cat.gender" class="badge bg-secondary-subtle text-secondary border border-secondary-subtle px-2 py-0.5">
+                                {{ cat.gender === 'FEMALE' ? 'Femenino' : cat.gender === 'MIXED' ? 'Mixto' : cat.gender === 'MALE' ? 'Masculino' : cat.gender }}
+                              </span>
+                            </div>
+                          </div>
+                        </div>
+                      </td>
+                      <td class="font-monospace small text-secondary">
+                        <template v-if="cat.startDate || cat.endDate">📅 {{ String(cat.startDate || '').slice(0, 10) || 'N/A' }} → {{ String(cat.endDate || '').slice(0, 10) || 'N/A' }}</template>
+                        <template v-else>Según edición general</template>
+                      </td>
+                      <td class="text-end">
+                        <span class="badge bg-success-subtle text-success border border-success-subtle font-monospace px-2 py-1">
+                          ${{ Number(cat.registrationFee || 0).toFixed(2) }}
+                        </span>
+                      </td>
+                      <td class="text-center">
+                        <span class="badge bg-secondary-subtle text-secondary font-monospace px-2 py-1">
+                          👥 Máx. {{ cat.maxPlayers || 25 }} jug.
+                        </span>
+                      </td>
+                      <td class="text-center">
+                        <span class="badge rounded-pill px-3 py-1" :class="cat.teamsCount > 0 ? 'bg-primary-subtle text-primary border border-primary-subtle' : 'bg-secondary-subtle text-secondary border border-secondary-subtle'">
+                          🛡️ {{ cat.teamsCount }} equipo(s)
+                        </span>
+                      </td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+
+              <!-- Equipos inscritos en la edición -->
+              <div v-else class="table-responsive border border-secondary-subtle rounded-3">
+                <table class="table table-hover align-middle mb-0 crud-table app-table">
+                  <thead class="table-primary">
+                    <tr>
+                      <th style="width: 60px;" class="text-center">#</th>
+                      <th>Equipo / Club</th>
+                      <th>Categoría</th>
+                      <th>Estado Inscripción</th>
+                      <th>Estado Pago</th>
+                      <th class="text-center" style="width: 95px;">Plantilla</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr v-if="teamRegModal.row.teams.length === 0">
+                      <td colspan="6" class="text-center text-secondary py-5">
+                        <iconify-icon icon="solar:box-minimalistic-line-duotone" class="fs-1 text-secondary d-block mx-auto mb-2"></iconify-icon>
+                        No hay equipos inscritos en esta edición.
+                      </td>
+                    </tr>
+                    <tr v-for="(tm, idx) in teamRegModal.row.teams" :key="tm.id">
+                      <td class="text-center fw-bold font-monospace text-secondary">{{ Number(idx) + 1 }}</td>
+                      <td>
+                        <div class="d-flex align-items-center gap-2">
+                          <img
+                            v-if="tm.logo"
+                            :src="tm.logo"
+                            class="rounded-circle shadow-xs border border-secondary-subtle flex-shrink-0"
+                            style="width: 32px; height: 32px; object-fit: cover;"
+                          />
+                          <div
+                            v-else
+                            class="rounded-circle bg-secondary-subtle text-secondary d-flex align-items-center justify-content-center flex-shrink-0"
+                            style="width: 32px; height: 32px;"
+                          >
+                            <iconify-icon icon="solar:shield-bold-duotone" class="fs-5 text-primary"></iconify-icon>
+                          </div>
+                          <div>
+                            <span class="fw-bold text-body-emphasis d-block">{{ tm.name || tm.shortName || '-' }}</span>
+                            <span v-if="tm.acronyms" class="badge bg-secondary-subtle text-secondary font-monospace px-1.5 py-0 fs-1">{{ tm.acronyms }}</span>
+                          </div>
+                        </div>
+                      </td>
+                      <td>
+                        <span v-if="tm.categoryName" class="badge bg-info-subtle text-info border border-info-subtle font-monospace px-2 py-1">
+                          ⚽ {{ tm.categoryName }}
+                        </span>
+                        <span v-else class="text-muted small">-</span>
+                      </td>
+                      <td>
+                        <span class="badge border px-2 py-1" :class="teamRegStatusMeta[tm.status]?.cls || 'bg-secondary-subtle text-secondary'">
+                          {{ teamRegStatusMeta[tm.status]?.label || tm.status || '-' }}
+                        </span>
+                      </td>
+                      <td>
+                        <span class="badge border px-2 py-1" :class="teamRegPaymentMeta[tm.paymentStatus]?.cls || 'bg-secondary-subtle text-secondary'">
+                          {{ teamRegPaymentMeta[tm.paymentStatus]?.label || tm.paymentStatus || '-' }}
+                        </span>
+                      </td>
+                      <td class="text-center">
+                        <button
+                          type="button"
+                          class="btn btn-sm btn-outline-info rounded-2 p-1 d-inline-flex align-items-center justify-content-center"
+                          style="width: 30px; height: 30px;"
+                          title="Ver Plantilla del Club"
+                          @click="openRosterFromTeamRegModal(tm.id)"
+                        >
+                          <iconify-icon icon="solar:clipboard-list-bold-duotone" class="fs-5"></iconify-icon>
+                        </button>
+                      </td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+            <div class="modal-footer border-top border-secondary-subtle px-4 py-3 d-flex justify-content-end gap-2 app-modal-footer">
+              <button
+                type="button"
+                class="btn btn-outline-secondary rounded-pill px-4"
+                style="height: 38px;"
+                @click="teamRegModal = null"
+              >
+                Cerrar
+              </button>
+              <button
+                type="button"
+                class="btn btn-primary rounded-pill px-4 fw-semibold d-inline-flex align-items-center gap-1.5 shadow-sm"
+                style="height: 38px;"
+                @click="() => { const r = teamRegModal?.row; teamRegModal = null; if (r) openEditForm(r); }"
+              >
+                <iconify-icon icon="solar:pen-new-square-line-duotone" class="fs-5"></iconify-icon>
+                <span>Editar Inscripciones</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </Teleport>
 
     <!-- ========================================================= -->
     <!-- MODAL: DIRECTORIO DEL EQUIPO / CLUB                       -->
@@ -3326,8 +4289,8 @@
         aria-modal="true"
       >
       <div class="modal-dialog modal-xl modal-dialog-centered modal-dialog-scrollable">
-        <div class="modal-content border-0 shadow-lg">
-          <div class="modal-header bg-dark text-white">
+        <div class="modal-content border-0 shadow-lg app-modal">
+          <div class="modal-header bg-dark text-white app-modal-header">
             <div class="d-flex align-items-center gap-3">
               <img
                 v-if="selectedTeamForManagement.logo"
@@ -3343,7 +4306,7 @@
                 <iconify-icon icon="solar:shield-bold-duotone" class="fs-4 text-white"></iconify-icon>
               </div>
               <div>
-                <h5 class="modal-title fw-bold text-white mb-0">
+                <h5 class="modal-title fw-bold text-white mb-0 app-modal-title">
                   Directorio del Club · {{ selectedTeamForManagement.name }}
                 </h5>
                 <small class="text-white-50">Cargos oficiales del directorio del club deportivo</small>
@@ -3354,7 +4317,7 @@
             <button type="button" class="btn-close btn-close-white" @click="showTeamManagementModal = false"></button>
           </div>
 
-          <div class="modal-body p-4">
+          <div class="modal-body p-4 app-modal-body">
             <!-- Formulario para agregar directivo -->
             <div class="card p-3 mb-4 border rounded-3 bg-body-tertiary">
               <h6 class="fw-bold mb-3 text-body-emphasis d-flex align-items-center gap-2">
@@ -3413,6 +4376,10 @@
                       v-model="formTeamManagement.cellphone"
                       class="form-control"
                       placeholder="0991234567"
+                      maxlength="10"
+                      inputmode="numeric"
+                      @keypress="!/[0-9]/.test($event.key) && $event.preventDefault()"
+                      @input="(e: any) => { const clean = e.target.value.replace(/\D/g, '').slice(0, 10); e.target.value = clean; formTeamManagement.cellphone = clean; }"
                     />
                   </div>
                   <div class="col-md-4">
@@ -3454,7 +4421,7 @@
                 </button>
               </div>
               <div class="table-responsive">
-                <table class="table table-hover align-middle mb-0">
+                <table class="table table-hover align-middle mb-0 app-table">
                   <thead class="table-light">
                     <tr>
                       <th style="width: 50px;">#</th>
@@ -3524,7 +4491,7 @@
             
           </div>
 
-            <div class="modal-footer bg-body-tertiary">
+            <div class="modal-footer bg-body-tertiary app-modal-footer">
               <button type="button" class="btn btn-secondary rounded-pill px-4" @click="showTeamManagementModal = false">
                 Cerrar
               </button>
@@ -3544,12 +4511,12 @@
       style="background: rgba(0, 0, 0, 0.65); z-index: 1060;"
     >
       <div class="modal-dialog modal-lg modal-dialog-centered">
-        <div class="modal-content border-0 shadow-lg">
-          <div class="modal-header bg-info text-white">
+        <div class="modal-content border-0 shadow-lg app-modal">
+          <div class="modal-header bg-info text-white app-modal-header">
             <div class="d-flex align-items-center gap-2">
               <iconify-icon icon="solar:transfer-horizontal-bold-duotone" class="fs-3 text-white"></iconify-icon>
               <div>
-                <h5 class="modal-title fw-bold text-white mb-0">
+                <h5 class="modal-title fw-bold text-white mb-0 app-modal-title">
                   Transferir Jugador · {{ selectedPlayerForTransfer?.name }} {{ selectedPlayerForTransfer?.lastName }}
                 </h5>
                 <small class="text-white-50">DNI: {{ selectedPlayerForTransfer?.identification || 'Sin cédula' }}</small>
@@ -3561,7 +4528,7 @@
           </div>
 
           <form @submit.prevent="processTransfer">
-            <div class="modal-body p-4">
+            <div class="modal-body p-4 app-modal-body">
               <!-- Información actual del jugador -->
               <div class="alert alert-info d-flex align-items-center gap-3 py-2 mb-4">
                 <iconify-icon icon="solar:info-circle-bold" class="fs-2 text-info"></iconify-icon>
@@ -3655,7 +4622,7 @@
 
             
 
-            <div class="modal-footer bg-light">
+            <div class="modal-footer bg-light app-modal-footer">
               <button type="button" class="btn btn-secondary rounded-pill px-4" @click="showTransferModal = false">
                 Cancelar
               </button>
@@ -3684,12 +4651,12 @@
       style="background: rgba(0, 0, 0, 0.65); z-index: 1060;"
     >
       <div class="modal-dialog modal-xl modal-dialog-centered modal-dialog-scrollable">
-        <div class="modal-content border-0 shadow-lg">
-          <div class="modal-header bg-primary text-white">
+        <div class="modal-content border-0 shadow-lg app-modal">
+          <div class="modal-header bg-primary text-white app-modal-header">
             <div class="d-flex align-items-center gap-2">
               <iconify-icon icon="solar:history-bold-duotone" class="fs-3"></iconify-icon>
               <div>
-                <h5 class="modal-title fw-bold text-white mb-0">
+                <h5 class="modal-title fw-bold text-white mb-0 app-modal-title">
                   Historial de Pases y Transferencias · {{ selectedPlayerForTransfersHistory?.name }} {{ selectedPlayerForTransfersHistory?.lastName }}
                 </h5>
                 <small class="text-white-50">Trayectoria de clubes y traspasos a lo largo de las temporadas</small>
@@ -3700,9 +4667,9 @@
             <button type="button" class="btn-close btn-close-white" @click="showPlayerTransfersModal = false"></button>
           </div>
 
-          <div class="modal-body p-4">
+          <div class="modal-body p-4 app-modal-body">
             <div class="table-responsive border rounded-3">
-              <table class="table table-hover align-middle mb-0">
+              <table class="table table-hover align-middle mb-0 app-table">
                 <thead class="table-light">
                   <tr>
                     <th class="ps-3">Temporada</th>
@@ -3773,7 +4740,7 @@
             </div>
           </div>
 
-          <div class="modal-footer bg-light">
+          <div class="modal-footer bg-light app-modal-footer">
             <button type="button" class="btn btn-secondary rounded-pill px-4" @click="showPlayerTransfersModal = false">
               Cerrar
             </button>
@@ -3795,15 +4762,15 @@
         aria-modal="true"
       >
         <div class="modal-dialog modal-lg modal-dialog-centered modal-dialog-scrollable">
-          <div class="modal-content border-0 shadow-lg">
-            <div class="modal-header bg-primary text-white">
-              <h5 class="modal-title fw-bold text-white d-flex align-items-center gap-2">
+          <div class="modal-content border-0 shadow-lg app-modal">
+            <div class="modal-header bg-primary text-white app-modal-header">
+              <h5 class="modal-title fw-bold text-white d-flex align-items-center gap-2 app-modal-title">
                 <iconify-icon icon="solar:user-check-bold-duotone" class="fs-4"></iconify-icon>
                 <span>Clasificación de Futbolistas · Categoría: {{ selectedCategoryForClassifications.categoryDescription || getCategoryNameById(selectedCategoryForClassifications.categoryId) }}</span>
               </h5>
               <button type="button" class="btn-close btn-close-white" @click="showCategoryClassificationsModal = false"></button>
             </div>
-            <div class="modal-body p-4">
+            <div class="modal-body p-4 app-modal-body">
               <!-- Barra de progreso y resumen de cupos -->
               <div class="card p-3 mb-4 border rounded-3 bg-body-tertiary">
                 <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-2">
@@ -3933,9 +4900,9 @@
               </form>
 
               <!-- Tabla de clasificaciones configuradas para esta categoría -->
-              <div class="table-responsive border rounded-3">
-                <table class="table table-sm table-hover mb-0 align-middle">
-                  <thead class="table-light">
+              <div class="table-responsive border border-secondary-subtle rounded-3">
+                <table class="table table-sm table-hover mb-0 align-middle crud-table app-table">
+                  <thead class="table-primary">
                     <tr>
                       <th class="ps-3">Clasificación</th>
                       <th class="text-center">Código</th>
@@ -3994,7 +4961,7 @@
             </div>
 
             
-            <div class="modal-footer bg-light">
+            <div class="modal-footer border-top border-secondary-subtle app-modal-footer">
               <button type="button" class="btn btn-primary rounded-pill px-4 fw-semibold" @click="showCategoryClassificationsModal = false">
                 Listo / Aceptar
               </button>
@@ -4013,15 +4980,15 @@
         aria-modal="true"
       >
         <div class="modal-dialog modal-xl modal-dialog-centered modal-dialog-scrollable">
-          <div class="modal-content border-0 shadow-lg">
-            <div class="modal-header bg-primary text-white">
-              <h5 class="modal-title fw-bold text-white d-flex align-items-center gap-2">
+          <div class="modal-content border-0 shadow-lg app-modal">
+            <div class="modal-header bg-primary text-white app-modal-header">
+              <h5 class="modal-title fw-bold text-white d-flex align-items-center gap-2 app-modal-title">
                 <iconify-icon icon="solar:diagram-up-bold-duotone" class="fs-4"></iconify-icon>
                 <span>Configuración de Etapas y Fases · Categoría: {{ selectedCategoryForStages.categoryDescription || getCategoryNameById(selectedCategoryForStages.categoryId) }}</span>
               </h5>
               <button type="button" class="btn-close btn-close-white" @click="showCategoryStagesModal = false"></button>
             </div>
-            <div class="modal-body p-4">
+            <div class="modal-body p-4 app-modal-body">
               <!-- Información orientativa -->
               <div class="alert alert-info py-2 px-3 d-flex align-items-center gap-2 mb-3">
                 <iconify-icon icon="solar:info-circle-line-duotone" class="fs-4 text-info"></iconify-icon>
@@ -4158,9 +5125,9 @@
                       </div>
 
                       <!-- Tabla detalle de criterios con acciones Subir / Bajar / Eliminar -->
-                      <div class="table-responsive border rounded-3 bg-body">
-                        <table class="table table-sm table-hover mb-0 align-middle">
-                          <thead class="table-light fs-1 text-uppercase">
+                      <div class="table-responsive border border-secondary-subtle rounded-3 bg-body">
+                        <table class="table table-sm table-hover mb-0 align-middle crud-table app-table">
+                          <thead class="table-primary fs-1 text-uppercase">
                             <tr>
                               <th class="ps-3 text-center" style="width: 80px;">Prioridad</th>
                               <th>Criterio de Desempate</th>
@@ -4250,9 +5217,9 @@
               </form>
 
               <!-- Tabla de Etapas configuradas para esta categoría -->
-              <div class="table-responsive border rounded-3 bg-body">
-                <table class="table table-sm table-hover mb-0 align-middle">
-                  <thead class="table-light fs-1 text-uppercase">
+              <div class="table-responsive border border-secondary-subtle rounded-3 bg-body">
+                <table class="table table-sm table-hover mb-0 align-middle crud-table app-table">
+                  <thead class="table-primary fs-1 text-uppercase">
                     <tr>
                       <th class="ps-3 text-center" style="width: 75px;">Orden</th>
                       <th>Nombre de la Etapa / Fase</th>
@@ -4336,7 +5303,7 @@
             </div>
 
             
-            <div class="modal-footer bg-light">
+            <div class="modal-footer bg-light app-modal-footer">
               <button type="button" class="btn btn-primary rounded-pill px-4 fw-semibold" @click="showCategoryStagesModal = false">
                 Listo / Aceptar
               </button>
@@ -4416,31 +5383,7 @@ const tabs: TabConfig[] = [
       { key: 'isActive', label: 'Estado', type: 'boolean' },
     ],
     fields: [
-      {
-        key: 'documentType',
-        label: 'Tipo de Documento *',
-        type: 'select',
-        colClass: 'col-md-4',
-        options: playerDocumentTypeOptions,
-        placeholder: 'Seleccionar Tipo de Documento...',
-      },
-      {
-        key: 'identification',
-        label: 'Cédula / DNI / Pasaporte *',
-        type: 'text',
-        colClass: 'col-md-4',
-        placeholder: 'Ingrese documento y presione Consultar...',
-      },
-      {
-        key: 'code',
-        label: 'Código Secuencial de Jugador',
-        type: 'text',
-        colClass: 'col-md-4',
-        placeholder: 'Autogenerado ej. JUG-00001',
-        readonly: true,
-        disabled: true,
-      },
-      { key: 'birthDate', label: 'Fecha de Nacimiento', type: 'date', colClass: 'col-md-4' },
+      { key: 'birthDate', label: 'Fecha de Nacimiento *', type: 'date', colClass: 'col-md-4' },
       { key: 'name', label: 'Nombres *', type: 'text', colClass: 'col-md-4' },
       { key: 'lastName', label: 'Apellidos *', type: 'text', colClass: 'col-md-4' },
       { key: 'ageYears', label: 'Edad en Años', type: 'number', colClass: 'col-md-3', placeholder: 'Autocalculado', readonly: true, disabled: true },
@@ -4578,41 +5521,17 @@ const tabs: TabConfig[] = [
     id: 'teamRegistrations',
     label: 'Inscripción de Equipos',
     icon: 'solar:diploma-verified-bold-duotone',
-    api: CampeonatoApi.teamRegistrations,
+    // El listado trae una fila por edición del torneo (con sus categorías y equipos); los filtros se aplican en el backend.
+    api: {
+      ...CampeonatoApi.teamRegistrations,
+      list: (params: any) => CampeonatoApi.teamRegistrations.listGrouped({ ...params, status: filterTeamRegStatus.value, paymentStatus: filterTeamRegPayment.value }),
+    },
     columns: [
-      { key: 'team.name', label: 'Equipo' },
       { key: 'categoryEdition.name', label: 'Edición Torneo' },
-      { key: 'status', label: 'Estado Inscripción' },
-      { key: 'paymentStatus', label: 'Estado Pago' },
+      { key: 'categoriesCount', label: 'Categorías' },
+      { key: 'teamsCount', label: 'Equipos' },
     ],
-    fields: [
-      { key: 'teamId', label: 'Equipo', type: 'select', colClass: 'col-md-6', options: [] },
-      { key: 'categoryEditionId', label: 'Edición de Categoría', type: 'select', colClass: 'col-md-6', options: [] },
-      {
-        key: 'status',
-        label: 'Estado de Inscripción',
-        type: 'select',
-        options: [
-          { label: 'Aprobado / Habilitado', value: 'APPROVED' },
-          { label: 'Pendiente de Aprobación', value: 'PENDING' },
-          { label: 'Rechazado', value: 'REJECTED' },
-          { label: 'Retirado', value: 'WITHDRAWN' },
-        ],
-        colClass: 'col-md-4',
-      },
-      {
-        key: 'paymentStatus',
-        label: 'Estado de Pago',
-        type: 'select',
-        options: [
-          { label: 'Pagado Completo', value: 'PAID' },
-          { label: 'Pago Parcial', value: 'PARTIAL' },
-          { label: 'Pendiente de Pago', value: 'PENDING' },
-          { label: 'Exonerado', value: 'EXEMPT' },
-        ],
-        colClass: 'col-md-4',
-      },
-    ],
+    fields: [],
   },
   {
     id: 'playerRegistrations',
@@ -5498,6 +6417,43 @@ const formFields = computed(() => {
 });
 
 const items = ref<any[]>([]);
+const filterTeamStatus = ref<'todos' | 'activo' | 'inactivo'>('todos');
+const filterPlayerStatus = ref<'todos' | 'activo' | 'inactivo'>('todos');
+const filterCategoryGender = ref<'todos' | 'MALE' | 'FEMALE' | 'MIXED'>('todos');
+const filterEditionStatus = ref<'todos' | 'IN_PROGRESS' | 'FINISHED'>('todos');
+const filterTeamRegStatus = ref<'todos' | 'APPROVED' | 'PENDING' | 'REJECTED' | 'DISQUALIFIED'>('todos');
+const filterTeamRegPayment = ref<'todos' | 'PAID' | 'PARTIAL' | 'UNPAID' | 'REFUNDED'>('todos');
+
+const displayedItems = computed(() => {
+  if (activeTab.value === 'teams') {
+    return items.value.filter((item) => {
+      if (filterTeamStatus.value === 'activo' && item.isActive === false) return false;
+      if (filterTeamStatus.value === 'inactivo' && item.isActive !== false) return false;
+      return true;
+    });
+  }
+  if (activeTab.value === 'players') {
+    return items.value.filter((item) => {
+      if (filterPlayerStatus.value === 'activo' && item.isActive === false) return false;
+      if (filterPlayerStatus.value === 'inactivo' && item.isActive !== false) return false;
+      return true;
+    });
+  }
+  if (activeTab.value === 'categories') {
+    return items.value.filter((item) => {
+      if (filterCategoryGender.value !== 'todos' && item.gender !== filterCategoryGender.value) return false;
+      return true;
+    });
+  }
+  if (activeTab.value === 'categoryEditions') {
+    return items.value.filter((item) => {
+      const currentStatus = item.status || 'IN_PROGRESS';
+      if (filterEditionStatus.value !== 'todos' && currentStatus !== filterEditionStatus.value) return false;
+      return true;
+    });
+  }
+  return items.value;
+});
 const total = ref(0);
 const page = ref(1);
 const limit = ref(10);
@@ -5511,6 +6467,160 @@ const isEditing = ref(false);
 const editingId = ref<number | null>(null);
 const formData = ref<Record<string, any>>({});
 const saving = ref(false);
+
+const maxFoundationDate = computed(() => {
+  const now = new Date();
+  return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+});
+
+const getFieldType = (field: any) => {
+  if ((activeTab.value === 'teams' || activeTab.value === 'players') && field.key === 'email') return 'email';
+  return field.type;
+};
+
+const getFieldInputMode = (fieldKey: string) => {
+  if (activeTab.value === 'teams' && fieldKey === 'representativePhone') return 'numeric';
+  if (activeTab.value === 'players' && (fieldKey === 'phone' || fieldKey === 'emergencyContactPhone')) return 'numeric';
+  return undefined;
+};
+
+const getFieldMaxLength = (fieldKey: string): number | undefined => {
+  if (activeTab.value === 'teams') {
+    if (fieldKey === 'representativePhone' || fieldKey === 'acronyms') return 10;
+    if (fieldKey === 'name') return 100;
+    if (fieldKey === 'email') return 150;
+  }
+  if (activeTab.value === 'players') {
+    if (fieldKey === 'phone' || fieldKey === 'emergencyContactPhone') return 10;
+    if (fieldKey === 'name' || fieldKey === 'lastName') return 100;
+    if (fieldKey === 'email') return 150;
+  }
+  return undefined;
+};
+
+const getFieldMinLength = (fieldKey: string): number | undefined => {
+  if (activeTab.value === 'teams' && fieldKey === 'name') return 3;
+  if (activeTab.value === 'players' && (fieldKey === 'name' || fieldKey === 'lastName')) return 3;
+  return undefined;
+};
+
+const isFieldRequired = (fieldKey: string): boolean => {
+  if (activeTab.value === 'teams' && fieldKey === 'name') return true;
+  if (activeTab.value === 'players' && (fieldKey === 'name' || fieldKey === 'lastName')) return true;
+  return false;
+};
+
+const getFieldMax = (fieldKey: string): string | undefined => {
+  if (activeTab.value === 'teams' && fieldKey === 'dateOfFoundation') return maxFoundationDate.value;
+  if (activeTab.value === 'players' && fieldKey === 'birthDate') return maxFoundationDate.value;
+  return undefined;
+};
+
+const handlePlayerDocInput = (e: Event) => {
+  const target = e.target as HTMLInputElement;
+  if (!target) return;
+  if (formData.value.documentType === '05') {
+    const clean = target.value.replace(/\D/g, '').slice(0, 10);
+    target.value = clean;
+    formData.value.identification = clean;
+  } else {
+    formData.value.identification = target.value;
+  }
+};
+
+const handleFieldKeypress = (e: KeyboardEvent, fieldKey: string) => {
+  if (
+    (activeTab.value === 'teams' && fieldKey === 'representativePhone') ||
+    (activeTab.value === 'players' && (fieldKey === 'phone' || fieldKey === 'emergencyContactPhone'))
+  ) {
+    if (!/[0-9]/.test(e.key)) {
+      e.preventDefault();
+    }
+  }
+};
+
+const handleFieldInput = (e: Event, fieldKey: string) => {
+  const target = e.target as HTMLInputElement;
+  if (!target) return;
+  if (activeTab.value === 'teams' && fieldKey === 'representativePhone') {
+    const clean = target.value.replace(/\D/g, '').slice(0, 10);
+    target.value = clean;
+    formData.value[fieldKey] = clean;
+    formData.value.representativePhone = clean;
+  } else if (activeTab.value === 'players' && (fieldKey === 'phone' || fieldKey === 'emergencyContactPhone')) {
+    const clean = target.value.replace(/\D/g, '').slice(0, 10);
+    target.value = clean;
+    formData.value[fieldKey] = clean;
+  } else if (activeTab.value === 'teams' && fieldKey === 'acronyms') {
+    const clean = target.value.toUpperCase().slice(0, 10);
+    target.value = clean;
+    formData.value[fieldKey] = clean;
+    formData.value.acronyms = clean;
+  } else if (activeTab.value === 'teams' && fieldKey === 'dateOfFoundation') {
+    if (target.value && target.value.length === 10 && target.value > maxFoundationDate.value) {
+      toast.warning('La fecha de fundación no puede ser mayor a la fecha actual.', 'Validación');
+      target.value = maxFoundationDate.value;
+      formData.value[fieldKey] = maxFoundationDate.value;
+      formData.value.dateOfFoundation = maxFoundationDate.value;
+    }
+  } else if (activeTab.value === 'players' && fieldKey === 'birthDate') {
+    if (target.value && target.value.length === 10 && target.value > maxFoundationDate.value) {
+      toast.warning('La fecha de nacimiento no puede ser mayor a la fecha actual.', 'Validación');
+      target.value = maxFoundationDate.value;
+      formData.value[fieldKey] = maxFoundationDate.value;
+      formData.value.birthDate = maxFoundationDate.value;
+    }
+    const calculated = calculatePlayerAgeDirect(formData.value.birthDate);
+    if (calculated) {
+      formData.value.ageYears = calculated.years;
+      formData.value.ageMonths = calculated.months;
+    }
+  }
+};
+
+const handleFieldChange = (e: Event, fieldKey: string) => {
+  const target = e.target as HTMLInputElement;
+  if (!target) return;
+  if (activeTab.value === 'teams' && fieldKey === 'dateOfFoundation') {
+    if (target.value && target.value > maxFoundationDate.value) {
+      toast.warning('La fecha de fundación no puede ser mayor a la fecha actual.', 'Validación');
+      target.value = maxFoundationDate.value;
+      formData.value[fieldKey] = maxFoundationDate.value;
+      formData.value.dateOfFoundation = maxFoundationDate.value;
+    }
+  } else if (activeTab.value === 'players' && fieldKey === 'birthDate') {
+    if (target.value && target.value > maxFoundationDate.value) {
+      toast.warning('La fecha de nacimiento no puede ser mayor a la fecha actual.', 'Validación');
+      target.value = maxFoundationDate.value;
+      formData.value[fieldKey] = maxFoundationDate.value;
+      formData.value.birthDate = maxFoundationDate.value;
+    }
+    const calculated = calculatePlayerAgeDirect(formData.value.birthDate);
+    if (calculated) {
+      formData.value.ageYears = calculated.years;
+      formData.value.ageMonths = calculated.months;
+    }
+  }
+};
+
+const handleFieldPaste = (e: ClipboardEvent, fieldKey: string) => {
+  if (
+    (activeTab.value === 'teams' && fieldKey === 'representativePhone') ||
+    (activeTab.value === 'players' && (fieldKey === 'phone' || fieldKey === 'emergencyContactPhone'))
+  ) {
+    e.preventDefault();
+    const pasted = e.clipboardData?.getData('text') || '';
+    const clean = pasted.replace(/\D/g, '').slice(0, 10);
+    const target = e.target as HTMLInputElement;
+    if (target) {
+      target.value = clean;
+    }
+    formData.value[fieldKey] = clean;
+    if (activeTab.value === 'teams' && fieldKey === 'representativePhone') {
+      formData.value.representativePhone = clean;
+    }
+  }
+};
 
 // ==========================================
 // CÁLCULO DE EDAD DE JUGADORES (AÑOS Y MESES)
@@ -5658,12 +6768,12 @@ const searchGlobalPlayer = async () => {
       }
     } else {
       globalPlayerFound.value = false;
-      toast.info('No existe en el padrón global. Puedes proceder a registrar sus datos como nuevo futbolista.');
     }
   } catch (err: any) {
     console.error('Error al consultar padrón global de jugadores:', err);
-    toast.error('Error al consultar el padrón global de futbolistas');
+    globalPlayerFound.value = false;
   } finally {
+    globalPlayerSearched.value = true;
     searchingGlobalPlayer.value = false;
   }
 };
@@ -5816,8 +6926,8 @@ const editionDetailInput = ref({
   maxPlayers: 25,
 });
 
-const getCategoryNameById = (catId: string) => {
-  const found = categoriesList.value.find((c: any) => c.id === catId);
+const getCategoryNameById = (catId: string | number) => {
+  const found = categoriesList.value.find((c: any) => String(c.id) === String(catId));
   return found ? found.name : 'Categoría';
 };
 
@@ -5865,7 +6975,7 @@ const addStageToCategoryDirect = (item: any) => {
 
 const onCompetitionTypeChangeInStage = (stg: any) => {
   if (!stg.competitionTypeId) return;
-  const found = competitionTypesList.value.find((c: any) => c.id === stg.competitionTypeId);
+  const found = competitionTypesList.value.find((c: any) => String(c.id) === String(stg.competitionTypeId));
   if (found) {
     stg.competitionTypeDescription = found.description;
   }
@@ -5873,15 +6983,15 @@ const onCompetitionTypeChangeInStage = (stg: any) => {
 
 const onCompetitionLapChangeInStage = (stg: any) => {
   if (!stg.competitionLapId) return;
-  const found = competitionLapsList.value.find((c: any) => c.id === stg.competitionLapId);
+  const found = competitionLapsList.value.find((c: any) => String(c.id) === String(stg.competitionLapId));
   if (found) {
     stg.competitionLapDescription = found.description;
   }
 };
 
-const isCriterionAlreadyInStage = (stg: any, critId: string): boolean => {
+const isCriterionAlreadyInStage = (stg: any, critId: string | number): boolean => {
   if (!stg.tieBreakerCriteria || !Array.isArray(stg.tieBreakerCriteria)) return false;
-  return stg.tieBreakerCriteria.some((c: any) => (c.criterionId || c.id) === critId);
+  return stg.tieBreakerCriteria.some((c: any) => String(c.criterionId ?? c.id) === String(critId));
 };
 
 const updateStageTieBreakerSummary = (stg: any) => {
@@ -5899,7 +7009,7 @@ const updateStageTieBreakerSummary = (stg: any) => {
 const addCriterionToStageDirect = (stg: any, event: any) => {
   const critId = event?.target?.value;
   if (!critId) return;
-  if (!stg.tieBreakerCriteria) {
+  if (!stg.tieBreakerCriteria || !Array.isArray(stg.tieBreakerCriteria)) {
     stg.tieBreakerCriteria = [];
   }
   if (isCriterionAlreadyInStage(stg, critId)) {
@@ -5907,7 +7017,7 @@ const addCriterionToStageDirect = (stg: any, event: any) => {
     event.target.value = '';
     return;
   }
-  const found = tieBreakerCriteriaList.value.find((c: any) => c.id === critId);
+  const found = tieBreakerCriteriaList.value.find((c: any) => String(c.id) === String(critId));
   if (found) {
     stg.tieBreakerCriteria.push({
       criterionId: found.id,
@@ -5953,9 +7063,9 @@ const removeStageCriterion = (stg: any, index: number) => {
   updateStageTieBreakerSummary(stg);
 };
 
-const getCategoryGenderById = (categoryId: string): string => {
+const getCategoryGenderById = (categoryId: string | number): string => {
   if (!categoryId) return '';
-  const found = categoriesList.value.find((c: any) => c.id === categoryId);
+  const found = categoriesList.value.find((c: any) => String(c.id) === String(categoryId));
   if (!found) return '';
   return found.gender === 'MALE' ? 'Varones' : found.gender === 'FEMALE' ? 'Mujeres' : 'Mixto';
 };
@@ -5982,16 +7092,16 @@ const addCategoryToEditionDetail = () => {
 
 const onCategoryChangeInRow = (item: any) => {
   if (!item.categoryId) return;
-  const found = categoriesList.value.find((c: any) => c.id === item.categoryId);
+  const found = categoriesList.value.find((c: any) => String(c.id) === String(item.categoryId));
   if (found) {
     item.categoryDescription = found.name;
     item.categoryAcronyms = found.acronyms || '';
   }
 };
 
-const getCategoryAcronymsById = (categoryId: string): string => {
+const getCategoryAcronymsById = (categoryId: string | number): string => {
   if (!categoryId) return '';
-  const found = categoriesList.value.find((c: any) => c.id === categoryId);
+  const found = categoriesList.value.find((c: any) => String(c.id) === String(categoryId));
   return found?.acronyms || '';
 };
 
@@ -6128,7 +7238,7 @@ const formCategoryClassification = ref({
 const isExprofessionalSelected = computed(() => {
   if (!formCategoryClassification.value.playerClassificationId) return false;
   const pc = playerClassificationsList.value.find(
-    (c) => c.id === formCategoryClassification.value.playerClassificationId,
+    (c) => String(c.id) === String(formCategoryClassification.value.playerClassificationId),
   );
   if (!pc) return false;
   const desc = (pc.description || '').toLowerCase();
@@ -6144,7 +7254,7 @@ const isExprofessionalSelected = computed(() => {
 const isJuvenileSelected = computed(() => {
   if (!formCategoryClassification.value.playerClassificationId) return false;
   const pc = playerClassificationsList.value.find(
-    (c) => c.id === formCategoryClassification.value.playerClassificationId,
+    (c) => String(c.id) === String(formCategoryClassification.value.playerClassificationId),
   );
   if (!pc) return false;
   const desc = (pc.description || '').toLowerCase();
@@ -6185,10 +7295,10 @@ const currentCategoryClassificationsTotal = computed(() => {
 
 const availableClassificationsForCurrentCategory = computed(() => {
   const existingIds = (selectedCategoryForClassifications.value?.classifications || []).map(
-    (c: any) => c.playerClassificationId,
+    (c: any) => String(c.playerClassificationId),
   );
   return playerClassificationsList.value.filter(
-    (pc) => !existingIds.includes(pc.id) && pc.isActive,
+    (pc) => !existingIds.includes(String(pc.id)) && pc.isActive,
   );
 });
 
@@ -6231,7 +7341,7 @@ const addCategoryClassificationRecord = () => {
   }
 
   const pcObj = playerClassificationsList.value.find(
-    (pc) => pc.id === formCategoryClassification.value.playerClassificationId,
+    (pc) => String(pc.id) === String(formCategoryClassification.value.playerClassificationId),
   );
 
   selectedCategoryForClassifications.value.classifications.push({
@@ -6264,13 +7374,13 @@ const getSumClassifications = (item: any) => {
   return item.classifications.reduce((sum: number, c: any) => sum + (Number(c.maxPlayers) || 0), 0);
 };
 
-const getPlayerClassificationDescById = (id: string) => {
-  const found = playerClassificationsList.value.find((pc) => pc.id === id);
+const getPlayerClassificationDescById = (id: string | number) => {
+  const found = playerClassificationsList.value.find((pc) => String(pc.id) === String(id));
   return found ? found.description : 'Clasificación';
 };
 
-const getPlayerClassificationCodeById = (id: string) => {
-  const found = playerClassificationsList.value.find((pc) => pc.id === id);
+const getPlayerClassificationCodeById = (id: string | number) => {
+  const found = playerClassificationsList.value.find((pc) => String(pc.id) === String(id));
   return found ? found.code : '';
 };
 
@@ -6321,10 +7431,10 @@ const tieBreakerCriteriaOptions = computed(() => {
 
 const availableTieBreakerOptions = computed(() => {
   const selectedIds = new Set(
-    formCategoryStageCriteria.value.map((c) => c.criterionId || c.id)
+    formCategoryStageCriteria.value.map((c) => String(c.criterionId ?? c.id))
   );
   return tieBreakerCriteriaList.value
-    .filter((tb) => !selectedIds.has(tb.id))
+    .filter((tb) => !selectedIds.has(String(tb.id)))
     .map((tb) => ({
       value: tb.id,
       label: tb.description,
@@ -6334,7 +7444,7 @@ const availableTieBreakerOptions = computed(() => {
 
 const addCriterionToStage = () => {
   if (!selectedCriterionToAdd.value) return;
-  const item = tieBreakerCriteriaList.value.find((c) => c.id === selectedCriterionToAdd.value);
+  const item = tieBreakerCriteriaList.value.find((c) => String(c.id) === String(selectedCriterionToAdd.value));
   if (!item) return;
 
   formCategoryStageCriteria.value.push({
@@ -6424,22 +7534,22 @@ const cancelEditCategoryStage = () => {
   selectedCriterionToAdd.value = '';
 };
 
-const getCompetitionTypeDescById = (id: string): string => {
+const getCompetitionTypeDescById = (id: string | number): string => {
   if (!id) return '';
-  const item = competitionTypesList.value.find((c) => c.id === id);
-  return item ? item.description : id;
+  const item = competitionTypesList.value.find((c) => String(c.id) === String(id));
+  return item ? item.description : String(id);
 };
 
-const getCompetitionLapDescById = (id: string): string => {
+const getCompetitionLapDescById = (id: string | number): string => {
   if (!id) return '';
-  const item = competitionLapsList.value.find((c) => c.id === id);
-  return item ? item.description : id;
+  const item = competitionLapsList.value.find((c) => String(c.id) === String(id));
+  return item ? item.description : String(id);
 };
 
-const getTieBreakerCriterionDescById = (id: string): string => {
+const getTieBreakerCriterionDescById = (id: string | number): string => {
   if (!id) return '';
-  const item = tieBreakerCriteriaList.value.find((c) => c.id === id);
-  return item ? item.description : id;
+  const item = tieBreakerCriteriaList.value.find((c) => String(c.id) === String(id));
+  return item ? item.description : String(id);
 };
 
 const openCategoryStagesModal = (item: any, idx: number, stageIdxToEdit?: number) => {
@@ -6547,7 +7657,7 @@ const removeCategoryStageRecord = (index: number) => {
 const applyStageTemplateToCategory = (event: any) => {
   const tplId = event?.target?.value;
   if (!tplId || !selectedCategoryForStages.value) return;
-  const template = stagesList.value.find((t: any) => t.id === tplId);
+  const template = stagesList.value.find((t: any) => String(t.id) === String(tplId));
   if (!template || !Array.isArray(template.details) || template.details.length === 0) {
     toast.warning('La plantilla seleccionada no tiene etapas configuradas');
     return;
@@ -6770,7 +7880,15 @@ const populateFieldOptions = () => {
   }
   const edField = trTab?.fields.find((f) => f.key === 'categoryEditionId');
   if (edField) {
-    edField.options = categoryEditionsList.value.map((e) => ({ label: `${e.name} - ${e.category?.name || 'Categoría'}`, value: e.id }));
+    edField.options = categoryEditionsList.value.map((e) => {
+      const cats = Array.isArray(e.categoriesDetail) && e.categoriesDetail.length > 0
+        ? e.categoriesDetail.map((d: any) => d.categoryDescription || d.category?.name).filter(Boolean).join(', ')
+        : (e.category?.name || '');
+      return {
+        label: cats ? `${e.name} (${cats})` : e.name,
+        value: e.id,
+      };
+    });
   }
 
   // Opciones para Inscripción y Carnets (Inscripción de equipo, Jugadores y Clasificación base)
@@ -6996,6 +8114,14 @@ const onPlayerPhotoSelected = async (e: Event) => {
 };
 
 const handleUploadTeamLogo = async (file: File): Promise<string> => {
+  if (!/^image\/(png|jpe?g|webp)$/i.test(file.type)) {
+    toast.error('Formato no permitido. Solo se aceptan imágenes (PNG, JPG, WEBP).');
+    throw new Error('Formato no permitido');
+  }
+  if (file.size > 5 * 1024 * 1024) {
+    toast.error('El tamaño del escudo no puede superar 5MB.');
+    throw new Error('Tamaño no permitido');
+  }
   const companyId = getActiveCompanyId();
   try {
     const url = await uploadTeamLogo(file, companyId);
@@ -7009,6 +8135,16 @@ const handleUploadTeamLogo = async (file: File): Promise<string> => {
 };
 
 const handleUploadPlayerPhoto = async (file: File): Promise<string> => {
+  const allowedTypes = ['image/jpeg', 'image/png', 'image/webp'];
+  if (!allowedTypes.includes(file.type)) {
+    toast.error('Formato no permitido. Solo se aceptan imágenes JPG, PNG o WEBP.', 'Validación');
+    throw new Error('Invalid format');
+  }
+  const maxSize = 5 * 1024 * 1024; // 5MB
+  if (file.size > maxSize) {
+    toast.error('La imagen no debe superar los 5MB.', 'Validación');
+    throw new Error('File too large');
+  }
   const companyId = getActiveCompanyId();
   try {
     const url = await uploadPlayerPhoto(file, companyId);
@@ -7024,9 +8160,335 @@ const handleUploadPlayerPhoto = async (file: File): Promise<string> => {
 const inscribeTeamToTorneo = async (team: any) => {
   selectTab('teamRegistrations');
   await loadAuxiliaryTournamentData();
+  pendingTeamToAutoAdd.value = team.id;
   openCreateForm();
-  formData.value.teamId = team.id;
-  toast.info(`Inscribiendo a ${team.name} en una edición del torneo`);
+  toast.info(`Selecciona la edición y categoría para inscribir a ${team.name}`);
+};
+
+// =========================================================================
+// INSCRIPCIÓN DE EQUIPOS POR EDICIÓN (SELECT2) -> CATEGORÍAS -> EQUIPOS
+// =========================================================================
+interface TeamRegTeamEntry {
+  _uid: string;
+  id?: number;
+  teamId: number | string;
+  teamName: string;
+  teamShortName?: string;
+  teamAcronyms?: string;
+  teamLogo?: string;
+  groupName: string;
+  status: 'APPROVED' | 'PENDING' | 'REJECTED' | 'DISQUALIFIED';
+  paymentStatus: 'PAID' | 'PARTIAL' | 'UNPAID' | 'REFUNDED';
+  pointsPenalty: number;
+}
+
+interface TeamRegCategoryEntry {
+  _uid: string;
+  categoryId: number;
+  categoryName: string;
+  categoryAcronyms: string;
+  gender: string;
+  startDate?: string;
+  endDate?: string;
+  registrationFee: number;
+  maxPlayers: number;
+  selectedTeamIdToAdd?: string | number;
+  teams: TeamRegTeamEntry[];
+}
+
+const selectedEditionForTeamReg = ref<string | number>('');
+const teamRegCategoriesArray = ref<TeamRegCategoryEntry[]>([]);
+const expandedTeamRegCategories = ref<Set<number>>(new Set());
+const loadingTeamRegEdition = ref(false);
+const pendingTeamToAutoAdd = ref<number | null>(null);
+
+const editionOptionsForTeamReg = computed(() => {
+  return categoryEditionsList.value.map((e: any) => {
+    const cats = Array.isArray(e.categoriesDetail) && e.categoriesDetail.length > 0
+      ? e.categoriesDetail.map((d: any) => d.categoryDescription || d.category?.name || getCategoryNameById(d.categoryId)).filter(Boolean).join(', ')
+      : (e.category?.name || '');
+    return {
+      value: e.id,
+      label: e.name,
+      sublabel: cats ? `Categorías: ${cats}` : undefined,
+    };
+  });
+});
+
+const totalTeamsInTeamRegEdition = computed(() => {
+  return teamRegCategoriesArray.value.reduce(
+    (acc, cat) => acc + (cat.teams?.filter((t) => Boolean(t.teamId)).length || 0),
+    0,
+  );
+});
+
+const allAssignedTeamIdsInTeamRegEdition = computed(() => {
+  const used = new Set<string>();
+  for (const cat of teamRegCategoriesArray.value) {
+    for (const tm of cat.teams || []) {
+      if (tm.teamId) used.add(String(tm.teamId));
+    }
+  }
+  return used;
+});
+
+const getAvailableTeamsOptionsForRow = (currentTeamId?: number | string) => {
+  const used = allAssignedTeamIdsInTeamRegEdition.value;
+  return teamsList.value
+    .filter((t: any) => {
+      if (currentTeamId && String(t.id) === String(currentTeamId)) return true;
+      return t.isActive !== false && !used.has(String(t.id));
+    })
+    .map((t: any) => ({
+      value: t.id,
+      label: t.name,
+      sublabel: [t.acronyms ? `[${t.acronyms}]` : '', t.shortName || '', t.city || ''].filter(Boolean).join(' · ') || undefined,
+    }));
+};
+
+const onTeamRowSelectChange = (tm: TeamRegTeamEntry, selectedId: string | number) => {
+  const tId = Number(selectedId);
+  if (!tId) {
+    tm.teamId = '';
+    tm.teamName = '';
+    tm.teamShortName = '';
+    tm.teamAcronyms = '';
+    tm.teamLogo = '';
+    return;
+  }
+  const foundTeam = teamsList.value.find((t: any) => Number(t.id) === tId);
+  if (foundTeam) {
+    tm.teamId = foundTeam.id;
+    tm.teamName = foundTeam.name;
+    tm.teamShortName = foundTeam.shortName || '';
+    tm.teamAcronyms = foundTeam.acronyms || '';
+    tm.teamLogo = foundTeam.logo || '';
+  }
+};
+
+const addEmptyTeamRowToCategoryReg = (cat: TeamRegCategoryEntry) => {
+  cat.teams.push({
+    _uid: 'tr_new_' + Date.now() + '_' + Math.random().toString(36).substring(2, 7),
+    teamId: '',
+    teamName: '',
+    teamShortName: '',
+    teamAcronyms: '',
+    teamLogo: '',
+    groupName: '',
+    status: 'APPROVED',
+    paymentStatus: 'UNPAID',
+    pointsPenalty: 0,
+  });
+};
+
+const toggleTeamRegCategoryRow = (idx: number) => {
+  if (expandedTeamRegCategories.value.has(idx)) {
+    expandedTeamRegCategories.value.delete(idx);
+  } else {
+    expandedTeamRegCategories.value.add(idx);
+  }
+};
+
+const isTeamRegCategoryExpanded = (idx: number): boolean => {
+  return expandedTeamRegCategories.value.has(idx);
+};
+
+const getCategoryNameForTeamRegItem = (item: any): string => {
+  if (item.category?.name) return item.category.name;
+  if (item.categoryId) return getCategoryNameById(item.categoryId);
+  const ed = categoryEditionsList.value.find((e: any) => String(e.id) === String(item.categoryEditionId));
+  if (ed?.category?.name) return ed.category.name;
+  if (Array.isArray(ed?.categoriesDetail) && ed.categoriesDetail.length === 1) {
+    const det = ed.categoriesDetail[0];
+    return det.categoryDescription || det.category?.name || getCategoryNameById(det.categoryId);
+  }
+  return '';
+};
+
+const loadEditionCategoriesForTeamReg = async (editionId: string | number) => {
+  if (!editionId) {
+    teamRegCategoriesArray.value = [];
+    expandedTeamRegCategories.value = new Set();
+    return;
+  }
+
+  loadingTeamRegEdition.value = true;
+  try {
+    let edition = categoryEditionsList.value.find((e: any) => String(e.id) === String(editionId));
+    if (!edition || !Array.isArray(edition.categoriesDetail)) {
+      try {
+        const edRes = await CampeonatoApi.categoryEditions.get(Number(editionId));
+        if (edRes?.data) {
+          edition = edRes.data;
+        }
+      } catch {}
+    }
+
+    const regRes = await CampeonatoApi.teamRegistrations
+      .list({ categoryEditionId: Number(editionId), limit: 200 })
+      .catch(() => ({ data: { data: [] } }));
+    const existingRegs: any[] = regRes?.data?.data || [];
+
+    const rawCategories: Array<{
+      categoryId: number;
+      categoryName: string;
+      categoryAcronyms: string;
+      gender: string;
+      startDate?: string;
+      endDate?: string;
+      registrationFee: number;
+      maxPlayers: number;
+    }> = [];
+
+    if (edition && Array.isArray(edition.categoriesDetail) && edition.categoriesDetail.length > 0) {
+      for (const det of edition.categoriesDetail) {
+        const catId = Number(det.categoryId || det.category?.id);
+        if (!catId) continue;
+        rawCategories.push({
+          categoryId: catId,
+          categoryName: det.categoryDescription || det.category?.name || getCategoryNameById(catId),
+          categoryAcronyms: det.category?.acronyms || getCategoryAcronymsById(catId),
+          gender: getCategoryGenderById(catId) || 'Varones',
+          startDate: det.startDate ? String(det.startDate).slice(0, 10) : '',
+          endDate: det.endDate ? String(det.endDate).slice(0, 10) : '',
+          registrationFee: Number(det.registrationFee) || 0,
+          maxPlayers: Number(det.maxPlayers) || 25,
+        });
+      }
+    } else if (edition && (edition.categoryId || edition.category?.id)) {
+      const catId = Number(edition.categoryId || edition.category?.id);
+      rawCategories.push({
+        categoryId: catId,
+        categoryName: edition.category?.name || getCategoryNameById(catId),
+        categoryAcronyms: edition.category?.acronyms || getCategoryAcronymsById(catId),
+        gender: getCategoryGenderById(catId) || 'Varones',
+        startDate: edition.startDate ? String(edition.startDate).slice(0, 10) : '',
+        endDate: edition.endDate ? String(edition.endDate).slice(0, 10) : '',
+        registrationFee: Number(edition.registrationFee) || 0,
+        maxPlayers: Number(edition.maxPlayersPerTeam) || 25,
+      });
+    }
+
+    const assignedRegIds = new Set<number>();
+
+    const builtCategories: TeamRegCategoryEntry[] = rawCategories.map((rc, idx) => {
+      const matchingRegs = existingRegs.filter((r: any) => {
+        if (r.categoryId && Number(r.categoryId) === Number(rc.categoryId)) {
+          assignedRegIds.add(Number(r.id));
+          return true;
+        }
+        return false;
+      });
+
+      // Para registros históricos sin category_id, asignarlos a la primera categoría
+      if (idx === 0) {
+        for (const r of existingRegs) {
+          if (!r.categoryId && !assignedRegIds.has(Number(r.id))) {
+            assignedRegIds.add(Number(r.id));
+            matchingRegs.push(r);
+          }
+        }
+      }
+
+      const mappedTeams: TeamRegTeamEntry[] = matchingRegs.map((r: any) => {
+        const tId = Number(r.teamId || r.team?.id);
+        const foundTeam = teamsList.value.find((t: any) => Number(t.id) === tId);
+        return {
+          _uid: 'tr_' + (r.id || Math.random().toString(36).substring(2, 9)),
+          id: r.id,
+          teamId: tId,
+          teamName: r.team?.name || foundTeam?.name || `Equipo #${tId}`,
+          teamShortName: r.team?.shortName || foundTeam?.shortName || '',
+          teamAcronyms: r.team?.acronyms || foundTeam?.acronyms || '',
+          teamLogo: r.team?.logo || foundTeam?.logo || '',
+          groupName: r.groupName || '',
+          status: r.status || 'APPROVED',
+          paymentStatus: r.paymentStatus || 'UNPAID',
+          pointsPenalty: Number(r.pointsPenalty) || 0,
+        };
+      });
+
+      if (idx === 0 && pendingTeamToAutoAdd.value) {
+        const autoTeamId = Number(pendingTeamToAutoAdd.value);
+        const alreadyIn = mappedTeams.some((t) => Number(t.teamId) === autoTeamId);
+        if (!alreadyIn) {
+          const foundAuto = teamsList.value.find((t: any) => Number(t.id) === autoTeamId);
+          mappedTeams.push({
+            _uid: 'tr_auto_' + Date.now(),
+            teamId: autoTeamId,
+            teamName: foundAuto?.name || `Equipo #${autoTeamId}`,
+            teamShortName: foundAuto?.shortName || '',
+            teamAcronyms: foundAuto?.acronyms || '',
+            teamLogo: foundAuto?.logo || '',
+            groupName: '',
+            status: 'APPROVED',
+            paymentStatus: 'UNPAID',
+            pointsPenalty: 0,
+          });
+        }
+      }
+
+      return {
+        _uid: 'trcat_' + rc.categoryId + '_' + idx,
+        ...rc,
+        teams: mappedTeams,
+      };
+    });
+
+    pendingTeamToAutoAdd.value = null;
+    teamRegCategoriesArray.value = builtCategories;
+    expandedTeamRegCategories.value = new Set(builtCategories.map((_, i) => i));
+  } finally {
+    loadingTeamRegEdition.value = false;
+  }
+};
+
+watch(
+  () => selectedEditionForTeamReg.value,
+  (newEdId) => {
+    if (activeTab.value === 'teamRegistrations' && isFormOpen.value) {
+      loadEditionCategoriesForTeamReg(newEdId);
+    }
+  }
+);
+
+const addTeamToCategoryReg = (cat: TeamRegCategoryEntry) => {
+  const tId = Number(cat.selectedTeamIdToAdd);
+  if (!tId) {
+    toast.warning('Selecciona un equipo para agregar a la categoría');
+    return;
+  }
+  if (allAssignedTeamIdsInTeamRegEdition.value.has(String(tId))) {
+    toast.warning('Este equipo ya está agregado en una categoría de esta edición');
+    cat.selectedTeamIdToAdd = '';
+    return;
+  }
+  const foundTeam = teamsList.value.find((t: any) => Number(t.id) === tId);
+  if (!foundTeam) return;
+
+  cat.teams.push({
+    _uid: 'tr_new_' + Date.now() + '_' + Math.random().toString(36).substring(2, 7),
+    teamId: foundTeam.id,
+    teamName: foundTeam.name,
+    teamShortName: foundTeam.shortName || '',
+    teamAcronyms: foundTeam.acronyms || '',
+    teamLogo: foundTeam.logo || '',
+    groupName: '',
+    status: 'APPROVED',
+    paymentStatus: 'UNPAID',
+    pointsPenalty: 0,
+  });
+
+  cat.selectedTeamIdToAdd = '';
+  toast.success(`${foundTeam.name} agregado a ${cat.categoryName}`);
+};
+
+const removeTeamFromCategoryReg = (cat: TeamRegCategoryEntry, tIdx: number) => {
+  if (!cat || !Array.isArray(cat.teams)) return;
+  const removed = cat.teams.splice(tIdx, 1)[0];
+  if (removed) {
+    toast.info(`${removed.teamName} quitado de ${cat.categoryName}`);
+  }
 };
 
 const viewTeamPlayers = (team: any) => {
@@ -7215,6 +8677,31 @@ const openGeneralRosterModal = () => {
     selectedTeamRegIdForRoster.value = teamRegistrationsList.value[0].id;
   }
   isTeamRosterOpen.value = true;
+};
+
+// Modal del listado de Inscripción de Equipos: categorías o equipos de una edición.
+const teamRegModal = ref<{ mode: 'categories' | 'teams'; row: any } | null>(null);
+const teamRegStatusMeta: Record<string, { label: string; cls: string }> = {
+  APPROVED: { label: '🟢 Aprobado / Habilitado', cls: 'bg-success-subtle text-success border-success-subtle' },
+  PENDING: { label: '⏳ Pendiente', cls: 'bg-warning-subtle text-warning border-warning-subtle' },
+  REJECTED: { label: '🔴 Rechazado', cls: 'bg-danger-subtle text-danger border-danger-subtle' },
+  DISQUALIFIED: { label: '⛔ Descalificado', cls: 'bg-secondary-subtle text-secondary border-secondary-subtle' },
+  WITHDRAWN: { label: '⛔ Descalificado', cls: 'bg-secondary-subtle text-secondary border-secondary-subtle' },
+};
+const teamRegPaymentMeta: Record<string, { label: string; cls: string }> = {
+  PAID: { label: '💳 Pagado Completo', cls: 'bg-success-subtle text-success border-success-subtle' },
+  PARTIAL: { label: '💵 Pago Parcial', cls: 'bg-warning-subtle text-warning border-warning-subtle' },
+  UNPAID: { label: '⏳ Pendiente de Pago', cls: 'bg-danger-subtle text-danger border-danger-subtle' },
+  PENDING: { label: '⏳ Pendiente de Pago', cls: 'bg-danger-subtle text-danger border-danger-subtle' },
+  REFUNDED: { label: '↩️ Reembolsado', cls: 'bg-info-subtle text-info border-info-subtle' },
+  EXEMPT: { label: '↩️ Reembolsado', cls: 'bg-info-subtle text-info border-info-subtle' },
+};
+const openTeamRegModal = (mode: 'categories' | 'teams', row: any) => {
+  teamRegModal.value = { mode, row };
+};
+const openRosterFromTeamRegModal = (teamRegId: number) => {
+  teamRegModal.value = null;
+  openRosterForTeamReg(teamRegId);
 };
 
 const openRosterForTeamReg = (teamRegId: number) => {
@@ -7732,6 +9219,22 @@ const openCreateForm = () => {
   } else if (activeTab.value === 'players') {
     formData.value = {
       documentType: '05',
+      name: '',
+      lastName: '',
+      identification: '',
+      birthDate: '',
+      ageYears: null,
+      ageMonths: null,
+      demarcationId: '',
+      playerClassificationId: '',
+      dominantFoot: 'RIGHT',
+      bloodType: '',
+      phone: '',
+      email: '',
+      address: '',
+      emergencyContactName: '',
+      emergencyContactPhone: '',
+      photo: '',
       isActive: true,
       passOwnerType: 'PLAYER',
     };
@@ -7759,9 +9262,31 @@ const openCreateForm = () => {
   } else if (activeTab.value === 'playerClassifications') {
     formData.value = { isActive: true };
   } else if (activeTab.value === 'teams') {
-    formData.value = { isActive: true };
+    formData.value = {
+      name: '',
+      shortName: '',
+      acronyms: '',
+      color1: '#FFFFFF',
+      color2: '#000000',
+      colorAlternate: '#1E40AF',
+      dateOfFoundation: '',
+      email: '',
+      representativePhone: '',
+      isActive: true,
+      logo: '',
+    };
   } else if (activeTab.value === 'vocals') {
     formData.value = { isActive: true };
+  } else if (activeTab.value === 'teamRegistrations') {
+    const defaultEdId = categoryEditionsList.value.length > 0 ? categoryEditionsList.value[0].id : '';
+    selectedEditionForTeamReg.value = defaultEdId;
+    formData.value = { categoryEditionId: defaultEdId };
+    if (defaultEdId) {
+      loadEditionCategoriesForTeamReg(defaultEdId);
+    } else {
+      teamRegCategoriesArray.value = [];
+      expandedTeamRegCategories.value = new Set();
+    }
   } else if (activeTab.value === 'playerTransfers') {
     formData.value = {
       edition_id: categoryEditionsList.value.length > 0 ? categoryEditionsList.value[0].id : '',
@@ -7798,6 +9323,17 @@ const openEditForm = (item: any) => {
   isEditing.value = true;
   editingId.value = item.id;
   formData.value = { ...item };
+  if (activeTab.value === 'teams' && formData.value.isActive === undefined) {
+    formData.value.isActive = true;
+  }
+  if (activeTab.value === 'teamRegistrations') {
+    const edId = item.categoryEditionId ?? item.categoryEdition?.id ?? '';
+    selectedEditionForTeamReg.value = edId;
+    formData.value.categoryEditionId = edId;
+    if (edId) {
+      loadEditionCategoriesForTeamReg(edId);
+    }
+  }
   if (activeTab.value === 'categoryEditions') {
     formData.value.status = formData.value.status || 'IN_PROGRESS';
     formData.value.identifyByPlayerCode = item.identifyByPlayerCode === true;
@@ -7843,8 +9379,12 @@ const openEditForm = (item: any) => {
   } else if (activeTab.value === 'categories') {
     // Mantener los datos del item para edición
   } else if (activeTab.value === 'players') {
+    globalPlayerSearched.value = true;
     if (!formData.value.documentType) {
       formData.value.documentType = item.isForeigner ? '06' : '05';
+    }
+    if (formData.value.isActive === undefined) {
+      formData.value.isActive = true;
     }
     if (item.birthDate) {
       const calculated = calculatePlayerAgeDirect(item.birthDate);
@@ -8031,10 +9571,174 @@ const saveForm = async () => {
       }
     } else if (activeTab.value === 'playerClassifications' && formData.value.isActive === undefined) {
       formData.value.isActive = true;
-    } else if (activeTab.value === 'teams' || activeTab.value === 'vocals' || activeTab.value === 'referees') {
+    } else if (activeTab.value === 'teams') {
+      const teamName = String(formData.value.name || '').trim();
+      if (!teamName || teamName.length < 3) {
+        toast.warning('El nombre del equipo es obligatorio y debe tener al menos 3 caracteres.', 'Validación');
+        saving.value = false;
+        return;
+      }
+      formData.value.name = teamName;
+
+      if (formData.value.shortName) {
+        formData.value.shortName = String(formData.value.shortName).trim();
+      }
+      if (formData.value.acronyms) {
+        formData.value.acronyms = String(formData.value.acronyms).trim().toUpperCase();
+      }
+
+      if (formData.value.email && String(formData.value.email).trim()) {
+        const emailTrimmed = String(formData.value.email).trim();
+        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+        if (!emailRegex.test(emailTrimmed)) {
+          toast.warning('Ingrese un correo electrónico válido (ej: club@correo.com).', 'Validación');
+          saving.value = false;
+          return;
+        }
+        formData.value.email = emailTrimmed;
+      }
+
+      if (formData.value.representativePhone && String(formData.value.representativePhone).trim()) {
+        const cleanPhone = String(formData.value.representativePhone).replace(/\D/g, '');
+        if (cleanPhone.length < 7 || cleanPhone.length > 10) {
+          toast.warning('El teléfono del representante debe contener entre 7 y 10 dígitos numéricos.', 'Validación');
+          saving.value = false;
+          return;
+        }
+        formData.value.representativePhone = cleanPhone;
+      }
+
+      if (formData.value.dateOfFoundation) {
+        if (formData.value.dateOfFoundation > maxFoundationDate.value) {
+          toast.warning('La fecha de fundación no puede ser mayor a la fecha actual.', 'Validación');
+          saving.value = false;
+          return;
+        }
+      }
+
       if (formData.value.isActive === undefined) {
         formData.value.isActive = true;
       }
+    } else if (activeTab.value === 'players') {
+      const ident = (formData.value.identification || '').trim();
+      if (!ident) {
+        toast.warning('La identificación o cédula del jugador es obligatoria.', 'Validación');
+        saving.value = false;
+        return;
+      }
+      if (formData.value.documentType === '05' && !validarCedulaEcuadorLocal(ident)) {
+        toast.error('La cédula ingresada no es válida según el algoritmo oficial del Registro Civil de Ecuador.', 'Validación');
+        saving.value = false;
+        return;
+      }
+      formData.value.identification = ident;
+
+      if (!formData.value.name || String(formData.value.name).trim().length < 3) {
+        toast.warning('El nombre del jugador es obligatorio y debe tener al menos 3 caracteres.', 'Validación');
+        saving.value = false;
+        return;
+      }
+      formData.value.name = String(formData.value.name).trim();
+
+      if (!formData.value.lastName || String(formData.value.lastName).trim().length < 3) {
+        toast.warning('El apellido del jugador es obligatorio y debe tener al menos 3 caracteres.', 'Validación');
+        saving.value = false;
+        return;
+      }
+      formData.value.lastName = String(formData.value.lastName).trim();
+
+      if (formData.value.birthDate) {
+        if (formData.value.birthDate > maxFoundationDate.value) {
+          toast.warning('La fecha de nacimiento no puede ser mayor a la fecha actual.', 'Validación');
+          saving.value = false;
+          return;
+        }
+        const calc = calculatePlayerAgeDirect(formData.value.birthDate);
+        if (calc) {
+          formData.value.ageYears = calc.years;
+          formData.value.ageMonths = calc.months;
+        }
+      }
+
+      if (formData.value.email && String(formData.value.email).trim()) {
+        const emailTrimmed = String(formData.value.email).trim();
+        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+        if (!emailRegex.test(emailTrimmed)) {
+          toast.warning('Ingrese un correo electrónico válido (ej: jugador@correo.com).', 'Validación');
+          saving.value = false;
+          return;
+        }
+        formData.value.email = emailTrimmed;
+      }
+
+      if (formData.value.phone && String(formData.value.phone).trim()) {
+        const clean = String(formData.value.phone).replace(/\D/g, '');
+        if (clean.length < 7 || clean.length > 10) {
+          toast.warning('El teléfono personal debe contener entre 7 y 10 dígitos numéricos.', 'Validación');
+          saving.value = false;
+          return;
+        }
+        formData.value.phone = clean;
+      }
+
+      if (formData.value.emergencyContactPhone && String(formData.value.emergencyContactPhone).trim()) {
+        const clean = String(formData.value.emergencyContactPhone).replace(/\D/g, '');
+        if (clean.length < 7 || clean.length > 10) {
+          toast.warning('El teléfono de emergencia debe contener entre 7 y 10 dígitos numéricos.', 'Validación');
+          saving.value = false;
+          return;
+        }
+        formData.value.emergencyContactPhone = clean;
+      }
+
+      if (formData.value.isActive === undefined) {
+        formData.value.isActive = true;
+      }
+    } else if (activeTab.value === 'vocals' || activeTab.value === 'referees') {
+      if (formData.value.isActive === undefined) {
+        formData.value.isActive = true;
+      }
+    } else if (activeTab.value === 'teamRegistrations') {
+      if (!selectedEditionForTeamReg.value) {
+        toast.warning('Debe seleccionar la edición del torneo.', 'Validación');
+        saving.value = false;
+        return;
+      }
+      if (teamRegCategoriesArray.value.length === 0) {
+        toast.warning('La edición seleccionada no tiene categorías configuradas.', 'Validación');
+        saving.value = false;
+        return;
+      }
+      for (const cat of teamRegCategoriesArray.value) {
+        for (let i = 0; i < (cat.teams || []).length; i++) {
+          if (!cat.teams[i].teamId) {
+            toast.warning(`Selecciona el equipo en la fila #${i + 1} de la categoría "${cat.categoryName}" o elimina la fila vacía.`, 'Validación');
+            saving.value = false;
+            return;
+          }
+        }
+      }
+      await CampeonatoApi.teamRegistrations.syncByEdition({
+        categoryEditionId: Number(selectedEditionForTeamReg.value),
+        categories: teamRegCategoriesArray.value.map((cat) => ({
+          categoryId: Number(cat.categoryId),
+          teams: (cat.teams || [])
+            .filter((tm) => Boolean(tm.teamId))
+            .map((tm) => ({
+              id: tm.id ? Number(tm.id) : undefined,
+              teamId: Number(tm.teamId),
+              groupName: tm.groupName ? String(tm.groupName).trim() : undefined,
+              status: tm.status || 'APPROVED',
+              paymentStatus: tm.paymentStatus || 'UNPAID',
+              pointsPenalty: Number(tm.pointsPenalty) || 0,
+            })),
+        })),
+      });
+      toast.success('Inscripción de equipos por categoría guardada exitosamente');
+      closeForm();
+      await loadData();
+      await loadAuxiliaryTournamentData();
+      return;
     } else if (activeTab.value === 'playerTransfers') {
       if (!formData.value.edition_id) {
         toast.error('Debe seleccionar la edición del campeonato');
@@ -8096,7 +9800,15 @@ const saveForm = async () => {
 
     // Ajuste por pestaña al DTO del backend (whitelist + forbidNonWhitelisted: un campo de más responde 400)
     let body: Record<string, any> = payload;
-    if (activeTab.value === 'playerTransfers') {
+    if (activeTab.value === 'teamRegistrations') {
+      body = {
+        teamId: Number(formData.value.teamId),
+        categoryEditionId: Number(formData.value.categoryEditionId),
+        status: formData.value.status || 'APPROVED',
+        paymentStatus: formData.value.paymentStatus || 'UNPAID',
+        groupName: formData.value.groupName ? String(formData.value.groupName).trim() : undefined,
+      };
+    } else if (activeTab.value === 'playerTransfers') {
       // CreatePlayerTransferDto es camelCase; el formulario usa claves propias
       body = {
         editionId: Number(payload.edition_id),
@@ -8112,6 +9824,31 @@ const saveForm = async () => {
         const value = (payload as any)[key];
         if (value === undefined) continue;
         body[key] = value === '' ? null : value;
+      }
+    } else if (activeTab.value === 'players') {
+      body = {
+        name: formData.value.name,
+        lastName: formData.value.lastName,
+        identification: formData.value.identification?.trim(),
+        isForeigner: formData.value.documentType === '06' || formData.value.documentType === '08',
+        birthDate: formData.value.birthDate ? String(formData.value.birthDate).slice(0, 10) : undefined,
+        ageYears: formData.value.ageYears !== undefined && formData.value.ageYears !== null && formData.value.ageYears !== '' ? Number(formData.value.ageYears) : undefined,
+        ageMonths: formData.value.ageMonths !== undefined && formData.value.ageMonths !== null && formData.value.ageMonths !== '' ? Number(formData.value.ageMonths) : undefined,
+        demarcationId: formData.value.demarcationId ? Number(formData.value.demarcationId) : undefined,
+        playerClassificationId: formData.value.playerClassificationId ? Number(formData.value.playerClassificationId) : undefined,
+        dominantFoot: formData.value.dominantFoot || undefined,
+        bloodType: formData.value.bloodType || undefined,
+        phone: formData.value.phone?.trim() || undefined,
+        email: formData.value.email?.trim() || undefined,
+        address: formData.value.address?.trim() || undefined,
+        emergencyContactName: formData.value.emergencyContactName?.trim() || undefined,
+        emergencyContactPhone: formData.value.emergencyContactPhone?.trim() || undefined,
+        passOwnerType: formData.value.passOwnerType || 'PLAYER',
+        isActive: formData.value.isActive !== false,
+        photo: formData.value.photo || undefined,
+      };
+      if (formData.value.code) {
+        body.code = formData.value.code;
       }
     }
 

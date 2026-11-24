@@ -95,7 +95,7 @@
           </router-link>
         </div>
 
-        <table v-else class="crud-table">
+        <table v-else class="crud-table app-table">
           <thead>
             <tr>
                 <th class="ps-4" style="width: 140px;">ORDEN #</th>
@@ -235,12 +235,12 @@
     <!-- MODAL TICKET DE CITA / ORDEN DE ATENCIÓN TÉRMICA -->
     <div class="modal fade" id="modalAppointmentTicket" tabindex="-1" aria-hidden="true">
       <div class="modal-dialog modal-sm modal-dialog-centered">
-        <div class="modal-content border-0 shadow">
-          <div class="modal-header bg-dark text-white py-2">
-            <h6 class="modal-title fw-bold text-white mb-0">Ticket de Orden de Servicio</h6>
+        <div class="modal-content border-0 shadow app-modal">
+          <div class="modal-header bg-dark text-white py-2 app-modal-header">
+            <h6 class="modal-title fw-bold text-white mb-0 app-modal-title">Ticket de Orden de Servicio</h6>
             <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
           </div>
-          <div class="modal-body p-4" v-if="ticketOrder" id="printableTicketArea">
+          <div class="modal-body p-4 app-modal-body" v-if="ticketOrder" id="printableTicketArea">
             
             <div class="ticket-receipt text-center font-monospace">
               <h5 class="fw-bold mb-0 text-dark">SPA & CENTRO DE BELLEZA</h5>
@@ -303,7 +303,7 @@
             </div>
 
           </div>
-          <div class="modal-footer p-2 bg-light d-flex justify-content-between">
+          <div class="modal-footer p-2 bg-light d-flex justify-content-between app-modal-footer">
             <button type="button" class="btn btn-sm btn-light" data-bs-dismiss="modal">Cerrar</button>
             <button type="button" class="btn btn-sm btn-primary d-flex align-items-center gap-1" @click="printTicket()">
               <iconify-icon icon="solar:printer-line-duotone"></iconify-icon>

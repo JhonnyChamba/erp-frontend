@@ -19,6 +19,7 @@ const props = withDefaults(
     disabled?: boolean
     required?: boolean
     allowClear?: boolean
+    direction?: 'auto' | 'down'
     id?: string
     name?: string
   }>(),
@@ -31,6 +32,7 @@ const props = withDefaults(
     disabled: false,
     required: false,
     allowClear: false,
+    direction: 'auto',
     id: undefined,
     name: undefined,
   }
@@ -181,7 +183,7 @@ const openDropdown = () => {
       const rect = rootRef.value.getBoundingClientRect()
       const spaceBelow = window.innerHeight - rect.bottom
       const dropdownHeight = 240
-      openUpwards.value = spaceBelow < dropdownHeight && rect.top > 180
+      openUpwards.value = props.direction !== 'down' && spaceBelow < dropdownHeight && rect.top > 180
     }
     searchInputRef.value?.focus()
   })

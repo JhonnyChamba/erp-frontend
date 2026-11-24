@@ -259,7 +259,7 @@
     <!-- ========================================================== -->
     <div v-if="activeTab === 'articulos'" class="table-card">
       <div class="table-scroll">
-        <table class="erp-table">
+        <table class="table table-hover align-middle mb-0 crud-table erp-table app-table">
           <thead>
             <tr>
               <th>Código / SKU</th>
@@ -383,7 +383,7 @@
     <!-- ========================================================== -->
     <div v-if="activeTab === 'servicios'" class="table-card">
       <div class="table-scroll">
-        <table class="erp-table">
+        <table class="table table-hover align-middle mb-0 crud-table erp-table app-table">
           <thead>
             <tr>
               <th>Código</th>
@@ -489,7 +489,7 @@
     <!-- ========================================================== -->
     <div v-if="activeTab === 'subcontratacion'" class="table-card">
       <div class="table-scroll">
-        <table class="erp-table">
+        <table class="table table-hover align-middle mb-0 crud-table erp-table app-table">
           <thead>
             <tr>
               <th>Código</th>
@@ -606,7 +606,7 @@
     <!-- ========================================================== -->
     <div v-if="activeTab === 'categorias'" class="table-card">
       <div class="table-scroll">
-        <table class="erp-table">
+        <table class="table table-hover align-middle mb-0 crud-table erp-table app-table">
           <thead>
             <tr>
               <th style="width: 110px;">Código</th>
@@ -717,7 +717,7 @@
     <!-- ========================================================== -->
     <div v-if="activeTab === 'bodegas'" class="table-card">
       <div class="table-scroll">
-        <table class="erp-table">
+        <table class="table table-hover align-middle mb-0 crud-table erp-table app-table">
           <thead>
             <tr>
               <th style="width: 110px;">Código</th>
@@ -820,7 +820,7 @@
     <!-- ========================================================== -->
     <div v-if="activeTab === 'kardex'" class="table-card">
       <div class="table-scroll">
-        <table class="erp-table">
+        <table class="table table-hover align-middle mb-0 crud-table erp-table app-table">
           <thead>
             <tr>
               <th style="width: 140px;">Fecha / Hora</th>
@@ -896,7 +896,7 @@
     <!-- ========================================================== -->
     <div v-if="showItemModal" class="form-page">
       <div class="modal-card form-page-card">
-        <div class="modal-header">
+        <div class="modal-header app-modal-header">
           <div>
             <span class="mod-code-badge">ARTÍCULOS FÍSICOS</span>
             <h3>{{ editingItemId ? `Editar Artículo (${itemForm.code})` : 'Registrar Nuevo Artículo / Ítem' }}</h3>
@@ -907,7 +907,7 @@
           </button>
         </div>
 
-        <form class="modal-body" @submit.prevent="saveItemForm">
+        <form class="modal-body app-modal-body" @submit.prevent="saveItemForm">
           <div class="form-grid">
             <div class="form-group">
               <label>Código Interno (Autogenerado si se deja vacío)</label>
@@ -989,7 +989,7 @@
             </div>
           </div>
 
-          <div class="modal-footer">
+          <div class="modal-footer app-modal-footer">
             <button type="button" class="btn-secondary" @click="showItemModal = false">Cancelar</button>
             <button type="submit" class="btn-primary" :disabled="saving">
               <span v-if="saving" class="spinner-grow spinner-grow-sm me-1" role="status" aria-hidden="true"></span>
@@ -1006,7 +1006,7 @@
     <!-- ========================================================== -->
     <div v-if="showServiceModal" class="form-page">
       <div class="modal-card form-page-card">
-        <div class="modal-header">
+        <div class="modal-header app-modal-header">
           <div>
             <span class="mod-code-badge srv">CATÁLOGO DE SERVICIOS</span>
             <h3>{{ editingServiceId ? `Editar Servicio (${serviceForm.code})` : 'Registrar Nuevo Servicio' }}</h3>
@@ -1017,7 +1017,7 @@
           </button>
         </div>
 
-        <form class="modal-body" @submit.prevent="saveServiceForm">
+        <form class="modal-body app-modal-body" @submit.prevent="saveServiceForm">
           <div class="form-grid">
             <div class="form-group">
               <label>Código Interno (Autogenerado si se deja vacío)</label>
@@ -1084,7 +1084,7 @@
             </div>
           </div>
 
-          <div class="modal-footer">
+          <div class="modal-footer app-modal-footer">
             <button type="button" class="btn-secondary" @click="showServiceModal = false">Cancelar</button>
             <button type="submit" class="btn-primary" :disabled="saving">
               <span v-if="saving" class="spinner-grow spinner-grow-sm me-1" role="status" aria-hidden="true"></span>
@@ -1101,7 +1101,7 @@
     <!-- ========================================================== -->
     <div v-if="showSubcontractModal" class="form-page">
       <div class="modal-card form-page-card">
-        <div class="modal-header">
+        <div class="modal-header app-modal-header">
           <div>
             <span class="mod-code-badge mo">SUBCONTRATACIÓN Y MANO DE OBRA</span>
             <h3>
@@ -1114,7 +1114,7 @@
           </button>
         </div>
 
-        <form class="modal-body" @submit.prevent="saveSubcontractForm">
+        <form class="modal-body app-modal-body" @submit.prevent="saveSubcontractForm">
           <div class="form-grid">
             <div class="form-group">
               <label>Código Interno (Autogenerado si se deja vacío)</label>
@@ -1199,7 +1199,7 @@
             </div>
           </div>
 
-          <div class="modal-footer">
+          <div class="modal-footer app-modal-footer">
             <button type="button" class="btn-secondary" @click="showSubcontractModal = false">Cancelar</button>
             <button type="submit" class="btn-primary" :disabled="saving">
               <span v-if="saving" class="spinner-grow spinner-grow-sm me-1" role="status" aria-hidden="true"></span>
@@ -1216,7 +1216,7 @@
     <!-- ========================================================== -->
     <div v-if="showCategoryModal" class="form-page">
       <div class="modal-card form-page-card">
-        <div class="modal-header">
+        <div class="modal-header app-modal-header">
           <div>
             <span class="mod-code-badge cat">CONFIGURACIÓN DE CATEGORÍAS</span>
             <h3>{{ editingCategoryId ? `Editar Categoría (${categoryForm.code})` : 'Registrar Nueva Categoría' }}</h3>
@@ -1227,7 +1227,7 @@
           </button>
         </div>
 
-        <form class="modal-body" @submit.prevent="saveCategoryForm">
+        <form class="modal-body app-modal-body" @submit.prevent="saveCategoryForm">
           <div class="form-grid">
             <div class="form-group">
               <label>Código de Categoría (Autogenerado si se deja vacío)</label>
@@ -1263,7 +1263,7 @@
             </div>
           </div>
 
-          <div class="modal-footer">
+          <div class="modal-footer app-modal-footer">
             <button type="button" class="btn-secondary" @click="showCategoryModal = false">Cancelar</button>
             <button type="submit" class="btn-primary" :disabled="saving">
               <span v-if="saving" class="spinner-grow spinner-grow-sm me-1" role="status" aria-hidden="true"></span>
@@ -1280,7 +1280,7 @@
     <!-- ========================================================== -->
     <div v-if="showWarehouseModal" class="form-page">
       <div class="modal-card form-page-card">
-        <div class="modal-header">
+        <div class="modal-header app-modal-header">
           <div>
             <span class="mod-code-badge bod">LOGÍSTICA Y BODEGAS</span>
             <h3>{{ editingWarehouseId ? `Editar Bodega (${warehouseForm.code})` : 'Registrar Nueva Bodega' }}</h3>
@@ -1291,7 +1291,7 @@
           </button>
         </div>
 
-        <form class="modal-body" @submit.prevent="saveWarehouseForm">
+        <form class="modal-body app-modal-body" @submit.prevent="saveWarehouseForm">
           <div class="form-grid">
             <div class="form-group">
               <label>Código de Bodega (Autogenerado si se deja vacío)</label>
@@ -1334,7 +1334,7 @@
             </div>
           </div>
 
-          <div class="modal-footer">
+          <div class="modal-footer app-modal-footer">
             <button type="button" class="btn-secondary" @click="showWarehouseModal = false">Cancelar</button>
             <button type="submit" class="btn-primary" :disabled="saving">
               <span v-if="saving" class="spinner-grow spinner-grow-sm me-1" role="status" aria-hidden="true"></span>
@@ -1351,7 +1351,7 @@
     <!-- ========================================================== -->
     <div v-if="showTransferModal" class="form-page">
       <div class="modal-card form-page-card">
-        <div class="modal-header">
+        <div class="modal-header app-modal-header">
           <div>
             <span class="mod-code-badge bod">MOVIMIENTOS DE STOCK</span>
             <h3>Transferencia entre Bodegas</h3>
@@ -1362,7 +1362,7 @@
           </button>
         </div>
 
-        <form class="modal-body" @submit.prevent="saveTransferForm">
+        <form class="modal-body app-modal-body" @submit.prevent="saveTransferForm">
           <div class="form-grid">
             <div class="form-group span-2">
               <label>Artículo / Producto a Transferir *</label>
@@ -1409,7 +1409,7 @@
             </div>
           </div>
 
-          <div class="modal-footer">
+          <div class="modal-footer app-modal-footer">
             <button type="button" class="btn-secondary" @click="showTransferModal = false">Cancelar</button>
             <button type="submit" class="btn-primary" :disabled="saving">
               <span v-if="saving" class="spinner-grow spinner-grow-sm me-1" role="status" aria-hidden="true"></span>
@@ -1426,7 +1426,7 @@
     <!-- ========================================================== -->
     <div v-if="showAdjustmentModal" class="form-page">
       <div class="modal-card form-page-card">
-        <div class="modal-header">
+        <div class="modal-header app-modal-header">
           <div>
             <span class="mod-code-badge" style="background: rgba(245, 158, 11, 0.18); color: #fcd34d;">AJUSTE DE INVENTARIO</span>
             <h3>Ajuste Físico de Existencias</h3>
@@ -1437,7 +1437,7 @@
           </button>
         </div>
 
-        <form class="modal-body" @submit.prevent="saveAdjustmentForm">
+        <form class="modal-body app-modal-body" @submit.prevent="saveAdjustmentForm">
           <div class="form-grid">
             <div class="form-group span-2">
               <label>Artículo / Producto a Ajustar *</label>
@@ -1486,7 +1486,7 @@
             </div>
           </div>
 
-          <div class="modal-footer">
+          <div class="modal-footer app-modal-footer">
             <button type="button" class="btn-secondary" @click="showAdjustmentModal = false">Cancelar</button>
             <button type="submit" class="btn-primary" :disabled="saving">
               <span v-if="saving" class="spinner-grow spinner-grow-sm me-1" role="status" aria-hidden="true"></span>
@@ -3081,8 +3081,6 @@ onUnmounted(() => {
   overflow-y: auto !important;
   overflow-x: auto !important;
   position: relative;
-  scrollbar-width: thin;
-  scrollbar-color: rgba(189, 200, 240, 0.25) transparent;
   padding-bottom: 6rem;
 }
 

@@ -225,7 +225,7 @@
         <!-- ========================================== -->
         <div v-show="currentTab === 'details'">
           <div class="table-responsive">
-            <table class="table table-hover align-middle mb-0 text-nowrap">
+            <table class="table table-hover align-middle mb-0 text-nowrap app-table">
               <thead class="table-light fs-2">
                 <tr>
                   <th style="min-width: 105px;">Fecha</th>
@@ -377,7 +377,7 @@
           </div>
 
           <div class="table-responsive">
-            <table class="table table-bordered align-middle text-nowrap">
+            <table class="table table-bordered align-middle text-nowrap app-table">
               <thead class="table-light fs-2 text-center">
                 <tr>
                   <th>Mes / Año</th>
@@ -420,7 +420,7 @@
           <div class="row g-4">
             <div class="col-12 col-lg-8">
               <div class="table-responsive">
-                <table class="table table-hover align-middle">
+                <table class="table table-hover align-middle app-table">
                   <thead class="table-light fs-2">
                     <tr>
                       <th>Código SRI</th>
@@ -463,7 +463,7 @@
         <!-- ========================================== -->
         <div v-show="currentTab === 'customers'" class="p-4">
           <div class="table-responsive">
-            <table class="table table-hover align-middle">
+            <table class="table table-hover align-middle app-table">
               <thead class="table-light fs-2">
                 <tr>
                   <th style="width: 50px;">#</th>

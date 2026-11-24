@@ -610,12 +610,12 @@ onMounted(async () => {
       @click.self="showBranchesModal = false"
     >
       <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable modal-lg">
-        <div class="modal-content rounded-4 shadow-lg border-0">
+        <div class="modal-content rounded-4 shadow-lg border-0 app-modal">
 
           <!-- HEADER -->
-          <div class="modal-header bg-primary text-white">
+          <div class="modal-header bg-primary text-white app-modal-header">
             <div>
-              <h5 class="modal-title text-white mb-0">Sucursales Disponibles</h5>
+              <h5 class="modal-title text-white mb-0 app-modal-title">Sucursales Disponibles</h5>
               <small class="text-white-50" v-if="selectedCompany">
                 {{ selectedCompany.razon_social }} (RUC: {{ selectedCompany.ruc }})
               </small>
@@ -624,7 +624,7 @@ onMounted(async () => {
           </div>
 
           <!-- BODY -->
-          <div class="modal-body p-4">
+          <div class="modal-body p-4 app-modal-body">
             <div v-if="branchStore.loading" class="text-center py-5">
               <div class="d-flex align-items-center justify-content-center gap-2 mb-2">
                 <div class="spinner-grow text-primary" role="status"><span class="visually-hidden">Cargando...</span></div>
@@ -635,7 +635,7 @@ onMounted(async () => {
             </div>
 
             <div v-else class="table-responsive">
-              <table class="table table-hover align-middle mb-0">
+              <table class="table table-hover align-middle mb-0 crud-table app-table">
                 <thead class="table-primary">
                   <tr>
                     <th width="15%">Código</th>
@@ -681,7 +681,7 @@ onMounted(async () => {
           </div>
 
           <!-- FOOTER PAGINADO -->
-          <div class="modal-footer d-flex justify-content-between">
+          <div class="modal-footer d-flex justify-content-between app-modal-footer">
             <button class="btn btn-outline-secondary" :disabled="page === 1" @click="prevPage">
               Anterior
             </button>

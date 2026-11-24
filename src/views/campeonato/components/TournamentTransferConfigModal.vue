@@ -1,8 +1,8 @@
 <template>
-  <div v-if="isOpen" class="modal-backdrop-custom">
-    <div class="modal-dialog-custom modal-lg">
-      <div class="modal-content-custom">
-        <div class="modal-header-custom d-flex justify-content-between align-items-center">
+  <div v-if="isOpen" class="modal-backdrop-custom app-modal-backdrop">
+    <div class="modal-dialog-custom modal-lg app-modal">
+      <div class="modal-content-custom app-modal">
+        <div class="modal-header-custom d-flex justify-content-between align-items-center app-modal-header">
           <div>
             <div class="d-flex align-items-center gap-2 mb-1">
               <span class="badge bg-primary-subtle text-primary fw-bold font-monospace">CFG-PASES</span>
@@ -17,14 +17,14 @@
           </button>
         </div>
 
-        <div class="modal-body-custom" v-if="loading">
+        <div class="modal-body-custom app-modal-body" v-if="loading">
           <div class="text-center py-5">
             <div class="spinner-border text-primary" role="status"></div>
             <p class="text-muted mt-2">Cargando configuración de la edición...</p>
           </div>
         </div>
 
-        <div class="modal-body-custom" v-else>
+        <div class="modal-body-custom app-modal-body" v-else>
           <!-- Alerta de estado -->
           <div class="alert alert-info py-2 px-3 mb-4 rounded-3 d-flex align-items-center gap-2 border-0 bg-info-subtle text-info">
             <span class="iconify fs-5" data-icon="solar:info-circle-bold"></span>
@@ -184,7 +184,7 @@
           </div>
         </div>
 
-        <div class="modal-footer-custom d-flex justify-content-between">
+        <div class="modal-footer-custom d-flex justify-content-between app-modal-footer">
           <button type="button" class="btn btn-secondary" @click="close" :disabled="saving">
             Cancelar
           </button>

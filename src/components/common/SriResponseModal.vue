@@ -100,10 +100,10 @@ const getResolution = (msg: SriDetailMessage): SriErrorInfo | null => {
 
 <template>
   <Teleport to="body">
-    <div v-if="modelValue" class="modal-backdrop-custom keep-in-form" @click.self="close">
-      <div class="modal-card-custom modal-lg-custom sri-modal-card">
+    <div v-if="modelValue" class="modal-backdrop-custom keep-in-form app-modal-backdrop" @click.self="close">
+      <div class="modal-card-custom modal-lg-custom sri-modal-card app-modal app-modal-lg">
       <!-- HEADER -->
-      <div class="modal-header-custom d-flex justify-content-between align-items-center">
+      <div class="modal-header-custom d-flex justify-content-between align-items-center app-modal-header">
         <div class="d-flex align-items-center gap-2">
           <div
             class="rounded-circle p-2 d-flex align-items-center justify-content-center"
@@ -270,7 +270,7 @@ const getResolution = (msg: SriDetailMessage): SriErrorInfo | null => {
       </div>
 
       <!-- FOOTER -->
-      <div class="modal-footer-custom d-flex justify-content-end p-3 border-top border-secondary-subtle">
+      <div class="modal-footer-custom d-flex justify-content-end p-3 border-top border-secondary-subtle app-modal-footer">
         <button type="button" class="btn btn-primary px-4 rounded-pill" @click="close">
           Aceptar y Cerrar
         </button>

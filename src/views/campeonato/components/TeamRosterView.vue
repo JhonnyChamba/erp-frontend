@@ -116,8 +116,9 @@
         </h5>
       </div>
 
-      <div class="table-responsive">
-        <table class="table table-hover align-middle mb-0">
+      <!-- Vista Desktop: Tabla tradicional -->
+      <div class="table-responsive d-none d-md-block">
+        <table class="table table-hover align-middle mb-0 app-table">
           <thead class="table-light">
             <tr>
               <th style="width: 50px;">Dorsal</th>
@@ -204,7 +205,7 @@
                   >
                     <iconify-icon icon="solar:menu-dots-vertical-bold" class="fs-4"></iconify-icon>
                   </button>
-                  <ul class="dropdown-menu dropdown-menu-end shadow-sm">
+                  <ul class="dropdown-menu dropdown-menu-end shadow-lg py-1">
                     <li v-if="item.status === 'PENDING_APPROVAL'">
                       <button class="dropdown-item text-success d-flex align-items-center gap-2" @click="updateStatus(item, 'ELIGIBLE')">
                         <iconify-icon icon="solar:check-circle-bold" class="fs-5"></iconify-icon>
@@ -236,6 +237,106 @@
             </tr>
           </tbody>
         </table>
+      </div>
+
+      <!-- Vista Móvil / Tablet: Tarjetas CRUD -->
+      <div class="d-block d-md-none p-2">
+        <div v-if="!roster.players?.length" class="text-center py-5 text-muted">
+          No hay jugadores inscritos en este equipo aún.
+        </div>
+        <div v-else class="crud-mobile-cards-view">
+          <div v-for="item in roster.players" :key="'m-rst-' + item.id" class="crud-mobile-card">
+            <div class="crud-mobile-card-header">
+              <div class="d-flex align-items-center gap-2 min-w-0 flex-grow-1">
+                <span class="badge bg-primary text-white font-monospace fs-4 rounded-circle flex-shrink-0" style="width: 36px; height: 36px; display: inline-flex; align-items: center; justify-content: center;">
+                  {{ item.jerseyNumber || '-' }}
+                </span>
+                <img
+                  v-if="item.player?.photo"
+                  :src="item.player.photo"
+                  class="rounded-circle shadow-sm border border-info-subtle flex-shrink-0"
+                  style="width: 36px; height: 36px; object-fit: cover;"
+                />
+                <div v-else class="rounded-circle bg-secondary-subtle text-secondary d-flex align-items-center justify-content-center flex-shrink-0" style="width: 36px; height: 36px;">
+                  <iconify-icon icon="solar:user-bold" class="fs-4 text-info"></iconify-icon>
+                </div>
+                <div class="min-w-0 flex-grow-1">
+                  <div class="fw-bold text-body-emphasis fs-3 text-truncate">
+                    {{ item.player?.name }} {{ item.player?.lastName }}
+                    <span v-if="item.isCaptain" class="badge bg-warning text-dark ms-1">Capitán</span>
+                  </div>
+                  <div class="text-muted small font-monospace">{{ item.player?.identification || item.player?.code || '-' }}</div>
+                </div>
+              </div>
+              <div class="d-flex align-items-center gap-1.5">
+                <span
+                  class="badge font-monospace px-2 py-1"
+                  :class="{
+                    'bg-success-subtle text-success border border-success-subtle': item.status === 'ELIGIBLE',
+                    'bg-warning-subtle text-warning border border-warning-subtle': item.status === 'PENDING_APPROVAL',
+                    'bg-danger-subtle text-danger border border-danger-subtle': item.status === 'SUSPENDED' || item.status === 'INELIGIBLE',
+                    'bg-secondary-subtle text-secondary border': item.status === 'FINALIZED_BY_TRANSFER',
+                  }"
+                >
+                  {{ item.status === 'ELIGIBLE' ? '🟢 Habilitado' : (item.status === 'PENDING_APPROVAL' ? '⏳ Pendiente' : (item.status === 'SUSPENDED' ? '🔴 Suspendido' : item.status)) }}
+                </span>
+                <div class="dropdown">
+                  <button
+                    class="btn btn-action-kebab"
+                    type="button"
+                    data-bs-toggle="dropdown"
+                    data-bs-display="static"
+                    aria-expanded="false"
+                    title="Acciones"
+                  >
+                    <iconify-icon icon="solar:menu-dots-vertical-bold" class="fs-4"></iconify-icon>
+                  </button>
+                  <ul class="dropdown-menu dropdown-menu-end shadow-lg py-1">
+                    <li v-if="item.status === 'PENDING_APPROVAL'">
+                      <button class="dropdown-item text-success d-flex align-items-center gap-2" @click="updateStatus(item, 'ELIGIBLE')">
+                        <iconify-icon icon="solar:check-circle-bold" class="fs-5"></iconify-icon>
+                        <span>Aprobar y Habilitar</span>
+                      </button>
+                    </li>
+                    <li v-if="item.status === 'ELIGIBLE'">
+                      <button class="dropdown-item text-warning d-flex align-items-center gap-2" @click="updateStatus(item, 'SUSPENDED')">
+                        <iconify-icon icon="solar:forbidden-circle-bold" class="fs-5"></iconify-icon>
+                        <span>Suspender Jugador</span>
+                      </button>
+                    </li>
+                    <li v-if="item.status === 'SUSPENDED'">
+                      <button class="dropdown-item text-info d-flex align-items-center gap-2" @click="updateStatus(item, 'ELIGIBLE')">
+                        <iconify-icon icon="solar:restart-bold" class="fs-5"></iconify-icon>
+                        <span>Reactivar Habilitación</span>
+                      </button>
+                    </li>
+                    <li><hr class="dropdown-divider"></li>
+                    <li>
+                      <button class="dropdown-item d-flex align-items-center gap-2" @click="$emit('view-history', item.playerId)">
+                        <iconify-icon icon="solar:history-bold-duotone" class="fs-5 text-primary"></iconify-icon>
+                        <span>Historial Deportivo</span>
+                      </button>
+                    </li>
+                  </ul>
+                </div>
+              </div>
+            </div>
+            <div class="crud-mobile-card-grid">
+              <div class="crud-mobile-field">
+                <span class="crud-mobile-field-label">Posición</span>
+                <span class="crud-mobile-field-value">{{ item.player?.demarcation?.name || 'No definida' }}</span>
+              </div>
+              <div class="crud-mobile-field">
+                <span class="crud-mobile-field-label">Clasificación</span>
+                <span class="crud-mobile-field-value">{{ item.playerClassification?.description || 'General' }}</span>
+              </div>
+              <div class="crud-mobile-field">
+                <span class="crud-mobile-field-label">Carnet</span>
+                <span class="crud-mobile-field-value font-monospace">{{ item.carnetCode || '-' }}</span>
+              </div>
+            </div>
+          </div>
+        </div>
       </div>
     </div>
   </div>

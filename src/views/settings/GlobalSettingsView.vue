@@ -2739,7 +2739,7 @@ const toggleSidebar = () => {
       </div>
 
       <div v-else class="table-responsive">
-        <table class="table table-hover align-middle mb-0">
+        <table class="table table-hover align-middle mb-0 crud-table app-table">
           <thead class="table-primary">
             <tr>
               <th width="5%">#</th>
@@ -2844,7 +2844,7 @@ const toggleSidebar = () => {
       </div>
 
       <div v-else class="table-responsive">
-        <table class="table table-hover align-middle mb-0">
+        <table class="table table-hover align-middle mb-0 crud-table app-table">
           <thead class="table-primary">
             <tr>
               <th width="9%">Estab.</th>
@@ -2992,7 +2992,7 @@ const toggleSidebar = () => {
       </div>
 
       <div v-else class="table-responsive">
-        <table class="table table-hover align-middle mb-0">
+        <table class="table table-hover align-middle mb-0 crud-table app-table">
           <thead class="table-primary">
             <tr>
               <th width="5%">#</th>
@@ -3139,7 +3139,7 @@ const toggleSidebar = () => {
         </div>
 
         <div v-else class="table-responsive">
-          <table class="table table-hover align-middle mb-0">
+          <table class="table table-hover align-middle mb-0 crud-table app-table">
             <thead class="table-primary">
               <tr>
                 <th width="6%">#</th>
@@ -3251,7 +3251,7 @@ const toggleSidebar = () => {
         </div>
 
         <div class="table-responsive">
-          <table class="table table-hover align-middle mb-0">
+          <table class="table table-hover align-middle mb-0 crud-table app-table">
             <thead class="table-primary">
               <tr>
                 <th width="5%">#</th>
@@ -3437,9 +3437,9 @@ const toggleSidebar = () => {
       </div>
 
       <div class="table-responsive">
-        <table class="table table-hover align-middle mb-0">
-          <thead>
-            <tr class="border-bottom border-dark-subtle text-secondary fs-2 text-uppercase">
+        <table class="table table-hover align-middle mb-0 crud-table app-table">
+          <thead class="table-primary">
+            <tr>
               <th>Código</th>
               <th>Descripción</th>
               <th class="text-center">Porcentaje (%)</th>
@@ -3573,9 +3573,9 @@ const toggleSidebar = () => {
       </div>
 
       <div class="table-responsive">
-        <table class="table table-hover align-middle mb-0">
-          <thead>
-            <tr class="border-bottom border-dark-subtle text-secondary fs-2 text-uppercase">
+        <table class="table table-hover align-middle mb-0 crud-table app-table">
+          <thead class="table-primary">
+            <tr>
               <th>Código</th>
               <th>Nombre del Documento</th>
               <th class="text-center">Aplica a</th>
@@ -3671,7 +3671,7 @@ const toggleSidebar = () => {
       <div v-if="showBranchModal" id="form-page" class="form-page">
         <div class="form-page-card">
           <div class="card bg-navy-card border border-secondary-subtle rounded-4 shadow-sm">
-            <div class="modal-header d-flex justify-content-between align-items-center px-4 py-3 border-bottom border-dark-subtle">
+            <div class="modal-header d-flex justify-content-between align-items-center px-4 py-3 border-bottom border-dark-subtle app-modal-header">
               <div class="d-flex align-items-center gap-2">
                 <span class="p-2 bg-primary-subtle text-primary rounded-3 d-inline-flex"><iconify-icon icon="solar:shop-2-line-duotone" class="fs-5"></iconify-icon></span>
                 <h5 class="fw-bold text-white mb-0">{{ isEditingBranch ? 'Editar Sucursal' : 'Registrar Nueva Sucursal' }}</h5>
@@ -3682,7 +3682,7 @@ const toggleSidebar = () => {
               </button>
             </div>
             <form @submit.prevent="submitBranch">
-              <div class="modal-body p-4">
+              <div class="modal-body p-4 app-modal-body">
                 <!-- LOGOTIPO DE LA SUCURSAL (SOCCERADMIN STYLE - CROP & WEBP) -->
                 <div class="mb-4">
                   <ImageUpload
@@ -3764,7 +3764,7 @@ const toggleSidebar = () => {
                   </div>
                 </div>
               </div>
-              <div class="modal-footer d-flex justify-content-end gap-2 px-4 py-3 border-top border-dark-subtle">
+              <div class="modal-footer d-flex justify-content-end gap-2 px-4 py-3 border-top border-dark-subtle app-modal-footer">
                 <button type="button" class="btn btn-outline-secondary px-4 rounded-3" @click="showBranchModal = false">Cancelar</button>
                 <button type="submit" class="btn btn-primary px-4 rounded-3 fw-bold" :disabled="loading">
                   <span v-if="loading" class="spinner-grow spinner-grow-sm me-2" role="status" aria-hidden="true"></span>
@@ -3780,7 +3780,7 @@ const toggleSidebar = () => {
       <div v-if="showCompanyModal" id="form-page" class="form-page">
         <div class="form-page-card form-page-card-lg">
           <div class="card bg-navy-card border border-secondary-subtle rounded-4 shadow-sm">
-            <div class="modal-header d-flex justify-content-between align-items-center px-4 py-3 border-bottom border-dark-subtle">
+            <div class="modal-header d-flex justify-content-between align-items-center px-4 py-3 border-bottom border-dark-subtle app-modal-header">
               <div class="d-flex align-items-center gap-2">
                 <span class="p-2 bg-primary-subtle text-primary rounded-3 d-inline-flex"><iconify-icon icon="solar:buildings-3-line-duotone" class="fs-5"></iconify-icon></span>
                 <h5 class="fw-bold text-white mb-0">{{ isEditingCompany ? 'Editar Empresa' : 'Registrar Nueva Empresa' }}</h5>
@@ -3796,7 +3796,7 @@ const toggleSidebar = () => {
                   <button type="button" class="nav-link rounded-pill px-4 py-2 fs-3 text-decoration-none" :class="companyFormTab === t.k ? 'active bg-primary text-white' : 'text-white-50'" @click="companyFormTab = t.k as any">{{ t.l }}</button>
                 </li>
               </ul>
-              <div class="modal-body p-4">
+              <div class="modal-body p-4 app-modal-body">
                 <!-- GENERAL -->
                 <div v-show="companyFormTab === 'general'" class="row g-3">
                   <!-- LOGOTIPO DE LA EMPRESA (SOCCERADMIN STYLE - CROP & WEBP) -->
@@ -4178,7 +4178,7 @@ const toggleSidebar = () => {
                   </div>
                 </div>
               </div>
-              <div class="modal-footer d-flex justify-content-end gap-2 px-4 py-3 border-top border-dark-subtle">
+              <div class="modal-footer d-flex justify-content-end gap-2 px-4 py-3 border-top border-dark-subtle app-modal-footer">
                 <button type="button" class="btn btn-outline-secondary px-4 rounded-3" @click="showCompanyModal = false">Cancelar</button>
                 <button type="submit" class="btn btn-primary px-4 rounded-3 fw-bold" :disabled="loading">
                   <span v-if="loading" class="spinner-grow spinner-grow-sm me-2" role="status" aria-hidden="true"></span>
@@ -4194,7 +4194,7 @@ const toggleSidebar = () => {
     <div v-if="showCompanySubscriptionModal" id="form-page" class="form-page">
       <div class="form-page-card form-page-card-lg">
         <div class="card bg-navy-card border border-secondary-subtle rounded-4 shadow-sm">
-          <div class="modal-header d-flex justify-content-between align-items-center px-4 py-3 border-bottom border-dark-subtle">
+          <div class="modal-header d-flex justify-content-between align-items-center px-4 py-3 border-bottom border-dark-subtle app-modal-header">
             <div class="d-flex align-items-center gap-2">
               <span class="p-2 bg-primary-subtle text-primary rounded-3 d-inline-flex">
                 <iconify-icon icon="solar:card-recive-bold-duotone" class="fs-5"></iconify-icon>
@@ -4240,7 +4240,7 @@ const toggleSidebar = () => {
           <!-- CUERPO: CAMBIAR / RENOVAR SUSCRIPCIÓN -->
           <div v-show="companySubscriptionTab === 'change'">
             <form @submit.prevent="submitManageCompanySubscription">
-              <div class="modal-body p-4">
+              <div class="modal-body p-4 app-modal-body">
                 <div class="alert alert-info py-2 d-flex align-items-center gap-2 mb-3">
                   <iconify-icon icon="solar:info-circle-line-duotone" class="fs-4 text-info flex-shrink-0"></iconify-icon>
                   <span class="fs-2">
@@ -4324,7 +4324,7 @@ const toggleSidebar = () => {
                 </div>
               </div>
 
-              <div class="modal-footer d-flex justify-content-end gap-2 px-4 py-3 border-top border-dark-subtle">
+              <div class="modal-footer d-flex justify-content-end gap-2 px-4 py-3 border-top border-dark-subtle app-modal-footer">
                 <button type="button" class="btn btn-outline-secondary px-4 rounded-3" @click="showCompanySubscriptionModal = false">Cancelar</button>
                 <button type="submit" class="btn btn-primary px-4 rounded-3 fw-bold" :disabled="savingCompanySubscription">
                   <span v-if="savingCompanySubscription" class="spinner-grow spinner-grow-sm me-2" role="status" aria-hidden="true"></span>
@@ -4347,7 +4347,7 @@ const toggleSidebar = () => {
             </div>
 
             <div v-else class="table-responsive">
-              <table class="table table-hover align-middle mb-0">
+              <table class="table table-hover align-middle mb-0 crud-table app-table">
                 <thead class="table-primary">
                   <tr>
                     <th width="8%"># ID</th>

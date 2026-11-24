@@ -181,17 +181,6 @@
   margin: 0;
   padding: 0.25rem 0;
   list-style: none;
-  scrollbar-width: thin;
-  scrollbar-color: rgba(124, 143, 172, 0.35) transparent;
-}
-
-.select2-results-list::-webkit-scrollbar {
-  width: 6px;
-}
-
-.select2-results-list::-webkit-scrollbar-thumb {
-  background: rgba(124, 143, 172, 0.35);
-  border-radius: 6px;
 }
 
 .select2-option-item {

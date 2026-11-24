@@ -88,7 +88,7 @@
       </div>
 
       <div class="table-responsive border rounded-3 bg-body">
-        <table class="table table-hover align-middle mb-0">
+        <table class="table table-hover align-middle mb-0 app-table">
           <thead class="table-light">
             <tr>
               <th style="width: 45px;">#</th>

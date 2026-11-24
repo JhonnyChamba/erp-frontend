@@ -463,7 +463,29 @@ const getCampeonatoSubItems = (mod: any) => {
     .map(({ tab, ...rest }) => rest)
 }
 
+const isConfigMod = (mod: any) =>
+  mod.code === 'MOD-006' || mod.description?.toLowerCase().includes('configura')
+
+const getConfigSubItems = (mod: any) => {
+  const children = (mod.children || []).map((s: any) => {
+    const item = { ...s }
+    const low = (item.url || item.description || '').toLowerCase()
+    if (low.includes('empresa')) {
+      item.url = '/configuracion?tab=companies'
+    } else if (low.includes('usuario')) {
+      item.url = '/configuracion?tab=users'
+    } else if (low.includes('rol')) {
+      item.url = '/configuracion?tab=roles'
+    } else if (low.includes('sucursal') || low.includes('establecimiento')) {
+      item.url = '/configuracion?tab=branches'
+    }
+    return item
+  })
+  return children
+}
+
 const getModuleChildren = (mod: any) => {
+  if (isConfigMod(mod)) return getConfigSubItems(mod)
   if (isCampeonatoMod(mod)) return getCampeonatoSubItems(mod)
   if (isInventoryMod(mod)) return getInventorySubItems(mod)
   if (isSalesMod(mod)) return getSalesSubItems(mod)

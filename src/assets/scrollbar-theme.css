@@ -1,0 +1,64 @@
+/* ==========================================================================
+   ESTILO ÚNICO DE BARRAS DE SCROLL DEL SISTEMA
+   --------------------------------------------------------------------------
+   Referencia: la barra delgada del menú lateral. Se aplica a TODO el sistema
+   (página, tablas, modales, listas, menús...). Para cambiarla basta con editar
+   las variables --app-scrollbar-* (modo oscuro en :root, modo claro más abajo).
+
+   No declarar `scrollbar-width` ni `scrollbar-color` en otros archivos: en
+   Chrome/Edge esas propiedades desactivan los estilos ::-webkit-scrollbar y el
+   navegador dibuja su barra nativa con flechas. Aquí se usan solo en Firefox.
+   ========================================================================== */
+
+:root {
+  --app-scrollbar-size: 6px;
+  --app-scrollbar-track: transparent;
+  --app-scrollbar-thumb: rgba(124, 143, 172, 0.35);
+  --app-scrollbar-thumb-hover: rgba(124, 143, 172, 0.6);
+  --app-scrollbar-radius: 6px;
+}
+
+[data-bs-theme='light'] {
+  --app-scrollbar-thumb: rgba(90, 106, 133, 0.35);
+  --app-scrollbar-thumb-hover: rgba(90, 106, 133, 0.6);
+}
+
+/* Chrome, Edge, Safari */
+@supports selector(::-webkit-scrollbar) {
+  *::-webkit-scrollbar {
+    width: var(--app-scrollbar-size);
+    height: var(--app-scrollbar-size);
+  }
+
+  *::-webkit-scrollbar-track {
+    background: var(--app-scrollbar-track);
+  }
+
+  *::-webkit-scrollbar-thumb {
+    background: var(--app-scrollbar-thumb);
+    border-radius: var(--app-scrollbar-radius);
+  }
+
+  *::-webkit-scrollbar-thumb:hover {
+    background: var(--app-scrollbar-thumb-hover);
+  }
+
+  /* Sin flechas arriba/abajo */
+  *::-webkit-scrollbar-button {
+    display: none;
+    width: 0;
+    height: 0;
+  }
+
+  *::-webkit-scrollbar-corner {
+    background: transparent;
+  }
+}
+
+/* Firefox */
+@supports not selector(::-webkit-scrollbar) {
+  * {
+    scrollbar-width: thin;
+    scrollbar-color: var(--app-scrollbar-thumb) var(--app-scrollbar-track);
+  }
+}

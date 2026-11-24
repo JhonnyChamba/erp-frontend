@@ -189,7 +189,7 @@
       </div>
 
       <div v-else class="table-responsive" style="min-height: 420px; padding-bottom: 6rem;">
-        <table class="crud-table table table-hover align-middle mb-0">
+        <table class="crud-table table table-hover align-middle mb-0 app-table">
           <thead>
             <tr>
               <th class="ps-4" style="width: 140px;">N° ORDEN</th>
@@ -348,7 +348,7 @@
       <div class="form-page-card w-100 shadow-sm border border-secondary-subtle">
         
         <!-- Cabecera del Formulario -->
-        <div class="modal-header-custom d-flex justify-content-between align-items-center p-3 px-4 border-bottom border-dark-subtle">
+        <div class="modal-header-custom d-flex justify-content-between align-items-center p-3 px-4 border-bottom border-dark-subtle app-modal-header">
           <div>
             <div class="d-flex align-items-center gap-2 mb-1">
               <span class="badge bg-primary-subtle text-primary border border-primary-subtle font-monospace">
@@ -653,7 +653,7 @@
                 </div>
 
                 <div class="table-responsive">
-                  <table class="table table-bordered table-sm align-middle mb-0">
+                  <table class="table table-bordered table-sm align-middle mb-0 app-table">
                     <thead class="table-light">
                       <tr>
                         <th style="width: 140px;">Tipo</th>
@@ -878,12 +878,12 @@
     <!-- ============================================================== -->
     <div class="modal fade" id="modalWorkOrderTicket" tabindex="-1" aria-hidden="true">
       <div class="modal-dialog modal-sm modal-dialog-centered">
-        <div class="modal-content border-0 shadow">
-          <div class="modal-header bg-dark text-white py-2">
-            <h6 class="modal-title fw-bold text-white mb-0">Comprobante de Servicio Técnico</h6>
+        <div class="modal-content border-0 shadow app-modal">
+          <div class="modal-header bg-dark text-white py-2 app-modal-header">
+            <h6 class="modal-title fw-bold text-white mb-0 app-modal-title">Comprobante de Servicio Técnico</h6>
             <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
           </div>
-          <div class="modal-body p-4" v-if="selectedTicketOrder" id="printableWorkOrderTicket">
+          <div class="modal-body p-4 app-modal-body" v-if="selectedTicketOrder" id="printableWorkOrderTicket">
             <div class="ticket-receipt text-center font-monospace">
               <h5 class="fw-bold mb-0 text-dark">{{ activeCompanyName }}</h5>
               <small class="text-muted d-block mb-2">SERVICIO TÉCNICO & ELECTRÓNICA</small>
@@ -956,7 +956,7 @@
               </div>
             </div>
           </div>
-          <div class="modal-footer py-2">
+          <div class="modal-footer py-2 app-modal-footer">
             <button type="button" class="btn btn-outline-secondary btn-sm" data-bs-dismiss="modal">Cerrar</button>
             <button type="button" class="btn btn-primary btn-sm d-flex align-items-center gap-1" @click="printTicket">
               <iconify-icon icon="solar:printer-bold" class="fs-5"></iconify-icon>
@@ -972,12 +972,12 @@
     <!-- ============================================================== -->
     <div class="modal fade" id="modalChangeStatus" tabindex="-1" aria-hidden="true">
       <div class="modal-dialog modal-dialog-centered">
-        <div class="modal-content border-0 shadow">
-          <div class="modal-header bg-dark text-white py-2">
-            <h6 class="modal-title fw-bold text-white mb-0">Actualizar Estado de la Orden</h6>
+        <div class="modal-content border-0 shadow app-modal">
+          <div class="modal-header bg-dark text-white py-2 app-modal-header">
+            <h6 class="modal-title fw-bold text-white mb-0 app-modal-title">Actualizar Estado de la Orden</h6>
             <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
           </div>
-          <div class="modal-body p-4" v-if="selectedStatusOrder">
+          <div class="modal-body p-4 app-modal-body" v-if="selectedStatusOrder">
             <div class="mb-3">
               <label class="form-label fw-semibold">Orden de Trabajo</label>
               <div class="form-control-plaintext font-monospace fw-bold fs-4 text-primary">
@@ -1010,7 +1010,7 @@
               ></textarea>
             </div>
           </div>
-          <div class="modal-footer py-2">
+          <div class="modal-footer py-2 app-modal-footer">
             <button type="button" class="btn btn-outline-secondary btn-sm" data-bs-dismiss="modal">Cancelar</button>
             <button type="button" class="btn btn-primary btn-sm" :disabled="savingStatus" @click="saveStatusChange">
               <span v-if="savingStatus" class="spinner-border spinner-border-sm me-1" role="status"></span>

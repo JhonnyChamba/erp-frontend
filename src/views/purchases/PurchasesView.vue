@@ -673,7 +673,7 @@ watch(() => [route.path, route.query], () => {
     <!-- Purchases Table Card -->
     <div class="crud-table-card">
       <div class="table-responsive">
-        <table class="crud-table">
+        <table class="crud-table app-table">
           <thead>
             <tr>
               <th>No. Factura Proveedor</th>
@@ -779,7 +779,7 @@ watch(() => [route.path, route.query], () => {
     <!-- ========================================================== -->
     <div v-if="isFormOpen" class="form-page">
       <div class="modal-card form-page-card">
-        <div class="modal-header">
+        <div class="modal-header app-modal-header">
           <div>
             <span class="mod-code-badge pur">REGISTRO DE COMPRAS & ENTRADA DE INVENTARIO</span>
             <h3>Nueva Factura de Proveedor</h3>
@@ -790,7 +790,7 @@ watch(() => [route.path, route.query], () => {
           </button>
         </div>
 
-        <form class="modal-body" @submit.prevent="savePurchase">
+        <form class="modal-body app-modal-body" @submit.prevent="savePurchase">
           <!-- Banner Informativo -->
           <div class="info-alert-box mb-4">
             <iconify-icon icon="solar:shield-check-bold-duotone" width="24" class="text-info"></iconify-icon>
@@ -965,7 +965,7 @@ watch(() => [route.path, route.query], () => {
 
           <div class="table-card mb-4">
             <div class="table-scroll">
-              <table class="erp-table items-table">
+              <table class="erp-table items-table app-table">
                 <thead>
                   <tr>
                     <th style="width: 32%;">Producto / Catálogo</th>
@@ -1061,7 +1061,7 @@ watch(() => [route.path, route.query], () => {
             </div>
           </div>
 
-          <div class="modal-footer">
+          <div class="modal-footer app-modal-footer">
             <button type="button" class="btn-secondary" @click="closeForm">Cancelar</button>
             <button type="submit" class="btn-primary" :disabled="saving">
               <span v-if="saving" class="spinner-grow spinner-grow-sm me-1" role="status" aria-hidden="true"></span>
@@ -1078,7 +1078,7 @@ watch(() => [route.path, route.query], () => {
     <!-- ========================================================== -->
     <div v-if="showDetailModal && viewingPurchase" class="modal-overlay" @click.self="showDetailModal = false">
       <div class="modal-card">
-        <div class="modal-header">
+        <div class="modal-header app-modal-header">
           <div>
             <span class="mod-code-badge pur">DETALLE DE COMPRA #{{ viewingPurchase.id }}</span>
             <h3>Factura {{ viewingPurchase.invoice_number }}</h3>
@@ -1088,7 +1088,7 @@ watch(() => [route.path, route.query], () => {
           </button>
         </div>
 
-        <div class="modal-body">
+        <div class="modal-body app-modal-body">
           <div class="detail-summary-grid mb-3">
             <div>
               <span class="text-muted small d-block">Proveedor</span>
@@ -1113,7 +1113,7 @@ watch(() => [route.path, route.query], () => {
 
           <div class="table-card mb-3">
             <div class="table-scroll">
-              <table class="erp-table">
+              <table class="erp-table app-table">
                 <thead>
                   <tr>
                     <th>Ítem</th>
@@ -1158,7 +1158,7 @@ watch(() => [route.path, route.query], () => {
           </div>
         </div>
 
-        <div class="modal-footer">
+        <div class="modal-footer app-modal-footer">
           <button type="button" class="btn-secondary" @click="showDetailModal = false">Cerrar</button>
         </div>
       </div>
@@ -1396,8 +1396,6 @@ watch(() => [route.path, route.query], () => {
   overflow-y: auto !important;
   overflow-x: auto !important;
   position: relative;
-  scrollbar-width: thin;
-  scrollbar-color: rgba(189, 200, 240, 0.25) transparent;
   padding-bottom: 6rem;
 }
 

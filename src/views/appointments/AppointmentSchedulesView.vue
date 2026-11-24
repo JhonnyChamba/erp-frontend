@@ -60,8 +60,8 @@
         </div>
 
         <div v-else class="table-responsive">
-          <table class="table table-hover align-middle mb-0">
-            <thead class="table-light">
+          <table class="table table-hover align-middle mb-0 crud-table app-table">
+            <thead class="table-primary">
               <tr>
                 <th class="ps-4" style="width: 180px;">DÍA DE LA SEMANA</th>
                 <th class="text-center" style="width: 140px;">¿LABORA?</th>
