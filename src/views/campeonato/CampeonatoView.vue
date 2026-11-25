@@ -3616,7 +3616,7 @@
                   <iconify-icon icon="solar:medal-star-bold-duotone" class="fs-3 text-primary"></iconify-icon>
                   <div>
                     <h5 class="fw-bold mb-0 text-body-emphasis">Detalle <span class="fs-6 fw-normal text-secondary">(Detalle de Categorías del Torneo)</span></h5>
-                    <small class="text-secondary">Agrega las categorías que competirán en esta edición, con sus fechas oficiales, costo y clasificaciones.</small>
+                    <small class="text-secondary">Agrega las categorías que competirán en esta edición, con sus costos, tiempos, cupos y clasificaciones.</small>
                   </div>
                 </div>
                 <div class="d-flex align-items-center gap-2">
@@ -3640,20 +3640,19 @@
                   <thead class="table-primary fs-2">
                     <tr>
                       <th style="width: 70px;" class="text-center fw-semibold">#</th>
-                      <th style="min-width: 220px; width: 22%;" class="fw-semibold">Categoría *</th>
-                      <th style="min-width: 140px; width: 14%;" class="fw-semibold">Fechas (Inicio - Fin)</th>
-                      <th style="min-width: 100px; width: 8%;" class="text-end fw-semibold">Inscripción ($)</th>
-                      <th style="min-width: 100px; width: 8%;" class="text-end fw-semibold">Garantía ($)</th>
-                      <th style="min-width: 70px; width: 6%;" class="text-center fw-semibold">Máx. Jug. *</th>
-                      <th style="min-width: 150px; width: 15%;" class="text-center fw-semibold">Tiempos (Dur./Desc./Esp.)</th>
-                      <th style="min-width: 110px; width: 11%;" class="text-center fw-semibold">Clasificaciones</th>
-                      <th style="min-width: 110px; width: 11%;" class="text-center fw-semibold">Etapas / Fases</th>
+                      <th style="min-width: 220px; width: 24%;" class="fw-semibold">Categoría *</th>
+                      <th style="min-width: 100px; width: 9%;" class="text-end fw-semibold">Inscripción ($)</th>
+                      <th style="min-width: 100px; width: 9%;" class="text-end fw-semibold">Garantía ($)</th>
+                      <th style="min-width: 70px; width: 7%;" class="text-center fw-semibold">Máx. Jug. *</th>
+                      <th style="min-width: 150px; width: 17%;" class="text-center fw-semibold">Tiempos (Dur./Desc./Esp.)</th>
+                      <th style="min-width: 110px; width: 12%;" class="text-center fw-semibold">Clasificaciones</th>
+                      <th style="min-width: 110px; width: 12%;" class="text-center fw-semibold">Etapas / Fases</th>
                       <th style="width: 85px;" class="text-center fw-semibold">Acciones</th>
                     </tr>
                   </thead>
                   <tbody>
                     <tr v-if="editionCategoriesDetail.length === 0">
-                      <td colspan="10" class="text-center py-5 text-muted">
+                      <td colspan="9" class="text-center py-5 text-muted">
                         <iconify-icon icon="solar:info-circle-line-duotone" class="fs-2 d-block mb-2 text-secondary"></iconify-icon>
                         Aún no se han agregado categorías al detalle de esta edición de torneo.<br/>
                         <button
@@ -3713,28 +3712,6 @@
                                   {{ getCategoryGenderById(item.categoryId) }}
                                 </span>
                               </div>
-                            </div>
-                          </div>
-                        </td>
-
-                        <!-- Fechas (Inicio - Fin) -->
-                        <td>
-                          <div class="d-flex flex-column gap-1" style="min-width: 125px;">
-                            <div class="d-flex align-items-center gap-1">
-                              <span class="badge bg-secondary-subtle text-secondary border border-secondary-subtle px-1 py-0 font-monospace" style="font-size: 0.72rem; min-width: 28px;">Ini</span>
-                              <input
-                                type="date"
-                                v-model="item.startDate"
-                                class="form-control form-control-sm py-0 px-1 font-monospace"
-                              />
-                            </div>
-                            <div class="d-flex align-items-center gap-1">
-                              <span class="badge bg-secondary-subtle text-secondary border border-secondary-subtle px-1 py-0 font-monospace" style="font-size: 0.72rem; min-width: 28px;">Fin</span>
-                              <input
-                                type="date"
-                                v-model="item.endDate"
-                                class="form-control form-control-sm py-0 px-1 font-monospace"
-                              />
                             </div>
                           </div>
                         </td>
@@ -3828,30 +3805,48 @@
 
                         <!-- Clasificaciones -->
                         <td class="text-center">
-                          <div class="d-flex align-items-center justify-content-center gap-1" style="min-width: 105px;">
-                            <span
-                              v-if="item.classifications && item.classifications.length"
-                              class="badge bg-primary-subtle text-primary border border-primary-subtle font-monospace px-2 py-1"
-                              title="Total jugadores asignados / cupo máximo"
-                            >
-                              {{ getSumClassifications(item) }}/{{ item.maxPlayers || 25 }}
-                            </span>
-                            <span
-                              v-else
-                              class="badge bg-secondary-subtle text-secondary font-monospace px-2 py-1"
-                              title="Sin clasificaciones asignadas aún"
-                            >
-                              0/{{ item.maxPlayers || 25 }}
-                            </span>
-                            <button
-                              type="button"
-                              class="btn btn-sm btn-outline-primary d-inline-flex align-items-center justify-content-center rounded-2 p-1"
-                              style="width: 28px; height: 28px;"
-                              @click="openCategoryClassificationsModal(item, idx)"
-                              title="Configurar Clasificaciones y Cupos"
-                            >
-                              <iconify-icon icon="solar:user-check-bold" class="fs-6"></iconify-icon>
-                            </button>
+                          <div class="d-flex flex-column align-items-center justify-content-center gap-1" style="min-width: 120px;">
+                            <div class="form-check form-switch d-inline-flex align-items-center gap-1 mb-0">
+                              <input
+                                class="form-check-input cursor-pointer"
+                                type="checkbox"
+                                v-model="item.useClassifications"
+                                :id="'use_class_' + (item._uid || idx)"
+                                title="Activar o desactivar manejo de clasificaciones en esta categoría"
+                              />
+                              <label
+                                class="form-check-label small fw-semibold cursor-pointer"
+                                :class="item.useClassifications ? 'text-primary' : 'text-secondary'"
+                                :for="'use_class_' + (item._uid || idx)"
+                              >
+                                {{ item.useClassifications ? 'Sí' : 'No' }}
+                              </label>
+                            </div>
+                            <div v-if="item.useClassifications" class="d-flex align-items-center justify-content-center gap-1">
+                              <span
+                                v-if="item.classifications && item.classifications.length"
+                                class="badge bg-primary-subtle text-primary border border-primary-subtle font-monospace px-2 py-1"
+                                title="Total jugadores asignados / cupo máximo"
+                              >
+                                {{ getSumClassifications(item) }}/{{ item.maxPlayers || 25 }}
+                              </span>
+                              <span
+                                v-else
+                                class="badge bg-secondary-subtle text-secondary font-monospace px-2 py-1"
+                                title="Sin clasificaciones asignadas aún"
+                              >
+                                0/{{ item.maxPlayers || 25 }}
+                              </span>
+                              <button
+                                type="button"
+                                class="btn btn-sm btn-outline-primary d-inline-flex align-items-center justify-content-center rounded-2 p-1"
+                                style="width: 28px; height: 28px;"
+                                @click="openCategoryClassificationsModal(item, idx)"
+                                title="Configurar Clasificaciones y Cupos"
+                              >
+                                <iconify-icon icon="solar:user-check-bold" class="fs-6"></iconify-icon>
+                              </button>
+                            </div>
                           </div>
                         </td>
 
@@ -3872,10 +3867,11 @@
                           </div>
                         </td>
 
-                        <!-- Acciones Maestras: Botón azul editar + Botón rojo eliminar -->
+                        <!-- Acciones Maestras: Botón azul editar (si maneja clasificaciones) + Botón rojo eliminar -->
                         <td class="text-center">
                           <div class="d-flex align-items-center justify-content-center gap-1">
                             <button
+                              v-if="item.useClassifications"
                               type="button"
                               class="btn btn-sm btn-outline-primary d-inline-flex align-items-center justify-content-center rounded-2 p-1"
                               style="width: 32px; height: 32px;"
@@ -3950,7 +3946,8 @@
                                       </button>
                                     </td>
                                   </tr>
-                                  <tr v-for="(stg, sIdx) in item.stages" :key="stg._uid || sIdx">
+                                  <template v-for="(stg, sIdx) in item.stages" :key="stg._uid || sIdx">
+                                  <tr>
                                     <!-- # Numeración compuesta -->
                                     <td class="text-center fw-bold font-monospace text-secondary fs-2">
                                       {{ (idx + 1) + '.' + (sIdx + 1) }}
@@ -4000,11 +3997,59 @@
                                       </select>
                                     </td>
 
-                                    <!-- Criterios de Desempate (Jerarquía en Línea) -->
+                                    <!-- Criterios de Desempate (Jerarquía en Línea): pestaña desplegable, igual que las etapas -->
                                     <td>
-                                      <div>
-                                        <!-- Selector rápido para añadir múltiples criterios en orden -->
-                                        <div class="d-flex align-items-center gap-1">
+                                      <button
+                                        type="button"
+                                        class="btn btn-sm rounded-pill px-2 py-1 d-inline-flex align-items-center gap-1 border"
+                                        :class="stg.tieBreakerCriteria && stg.tieBreakerCriteria.length ? 'bg-info-subtle text-info border-info-subtle' : 'bg-secondary-subtle text-secondary border-secondary-subtle'"
+                                        @click="toggleStageCriteria(stg, Number(idx), Number(sIdx))"
+                                        title="Ver/Ocultar Criterios de Desempate"
+                                      >
+                                        <span class="fs-6">⚖️</span>
+                                        <span class="small fw-semibold">{{ stg.tieBreakerCriteria && stg.tieBreakerCriteria.length ? (stg.tieBreakerCriteria.length + ' Criterio(s)') : '0 Criterios' }}</span>
+                                        <iconify-icon :icon="isStageCriteriaExpanded(stg, Number(idx), Number(sIdx)) ? 'solar:alt-arrow-up-linear' : 'solar:alt-arrow-down-linear'" class="fs-6 ms-1"></iconify-icon>
+                                      </button>
+                                    </td>
+
+                                    <!-- Acción: Eliminar Fila de Etapa -->
+                                    <td class="text-center">
+                                      <button
+                                        type="button"
+                                        class="btn btn-sm btn-outline-danger d-inline-flex align-items-center justify-content-center rounded-2 p-1"
+                                        style="width: 28px; height: 28px;"
+                                        @click="removeCategoryStageDirect(item, sIdx)"
+                                        title="Eliminar Etapa"
+                                      >
+                                        <iconify-icon icon="solar:trash-bin-trash-bold" class="fs-6"></iconify-icon>
+                                      </button>
+                                    </td>
+                                  </tr>
+                                  <!-- Sub-fila desplegable: Criterios de Desempate (Jerarquía en Línea) de la etapa -->
+                                  <tr v-if="isStageCriteriaExpanded(stg, Number(idx), Number(sIdx))" class="bg-transparent">
+                                    <td colspan="6" class="p-2 bg-transparent">
+                                      <div class="card rounded-4 border border-info-subtle bg-body p-3 shadow-xs">
+                                        <div class="d-flex align-items-center justify-content-between mb-2 flex-wrap gap-2">
+                                          <div class="d-flex align-items-center gap-2 flex-wrap">
+                                            <span class="fs-5">⚖️</span>
+                                            <span class="fw-bold text-body-emphasis">Criterios de Desempate (Jerarquía en Línea)</span>
+                                            <span class="badge bg-info-subtle text-info border border-info-subtle rounded-pill px-2.5 py-1 fs-1 fw-semibold">
+                                              {{ stg.tieBreakerCriteria?.length || 0 }} registros
+                                            </span>
+                                            <span class="small text-secondary font-monospace">Etapa {{ (Number(idx) + 1) + '.' + (Number(sIdx) + 1) }}{{ stg.name ? ' · ' + stg.name : '' }}</span>
+                                          </div>
+                                          <button
+                                            type="button"
+                                            class="btn btn-sm btn-link text-secondary p-0 text-decoration-none d-flex align-items-center"
+                                            @click="toggleStageCriteria(stg, Number(idx), Number(sIdx))"
+                                            title="Colapsar Criterios"
+                                          >
+                                            <iconify-icon icon="solar:alt-arrow-up-linear" class="fs-4 fw-bold"></iconify-icon>
+                                          </button>
+                                        </div>
+
+                                        <!-- Selector para añadir criterios en el orden en que se aplicarán -->
+                                        <div class="d-flex align-items-center gap-2 mb-2" style="max-width: 460px;">
                                           <select
                                             class="form-select form-select-sm"
                                             @change="addCriterionToStageDirect(stg, $event)"
@@ -4021,24 +4066,16 @@
                                               {{ isCriterionAlreadyInStage(stg, crit.id) ? '✓ ' : '' }}{{ crit.description }} {{ crit.code ? '(' + crit.code + ')' : '' }}
                                             </option>
                                           </select>
-                                          <span
-                                            v-if="stg.tieBreakerCriteria && stg.tieBreakerCriteria.length > 0"
-                                            class="badge bg-primary-subtle text-primary border border-primary-subtle font-monospace flex-shrink-0"
-                                            :title="stg.tieBreakerCriteria.length + ' criterio(s) en orden de desempate'"
-                                          >
-                                            {{ stg.tieBreakerCriteria.length }}
-                                          </span>
                                         </div>
 
                                         <!-- Lista ordenada de criterios jerárquicos (#1, #2, #3...) con botones subir/bajar -->
-                                        <div v-if="stg.tieBreakerCriteria && stg.tieBreakerCriteria.length" class="d-flex flex-column gap-1 mt-2">
+                                        <div v-if="stg.tieBreakerCriteria && stg.tieBreakerCriteria.length" class="d-flex flex-column gap-1">
                                           <div
                                             v-for="(c, cIdx) in stg.tieBreakerCriteria"
                                             :key="c.criterionId || c.id || cIdx"
-                                            class="d-flex align-items-center justify-content-between gap-2 px-2 py-1 rounded-2 bg-dark-subtle border border-primary-subtle"
+                                            class="d-flex align-items-center justify-content-between gap-2 px-2 py-1 rounded-2 bg-dark-subtle border border-info-subtle"
                                           >
-                                            <div class="d-flex align-items-center gap-1.5 overflow-hidden">
-                                              <!-- Botones ▲ y ▼ para ordenar prioridad -->
+                                            <div class="d-flex align-items-center gap-2 overflow-hidden">
                                               <div class="btn-group btn-group-sm flex-shrink-0" role="group">
                                                 <button
                                                   type="button"
@@ -4081,25 +4118,13 @@
                                             </button>
                                           </div>
                                         </div>
-                                        <div v-else class="text-secondary small fst-italic mt-1">
+                                        <div v-else class="text-secondary small fst-italic">
                                           Selecciona los criterios en el orden en que se aplicarán (1°, 2°, 3°...)
                                         </div>
                                       </div>
                                     </td>
-
-                                    <!-- Acción: Eliminar Fila de Etapa -->
-                                    <td class="text-center">
-                                      <button
-                                        type="button"
-                                        class="btn btn-sm btn-outline-danger d-inline-flex align-items-center justify-content-center rounded-2 p-1"
-                                        style="width: 28px; height: 28px;"
-                                        @click="removeCategoryStageDirect(item, sIdx)"
-                                        title="Eliminar Etapa"
-                                      >
-                                        <iconify-icon icon="solar:trash-bin-trash-bold" class="fs-6"></iconify-icon>
-                                      </button>
-                                    </td>
                                   </tr>
+                                  </template>
                                 </tbody>
                               </table>
                             </div>
@@ -7727,6 +7752,24 @@ const isCategoryRowExpanded = (idx: number): boolean => {
   return expandedCategoryRows.value.has(idx);
 };
 
+// Criterios de desempate de cada etapa: pestaña desplegable (solo presentación, no cambia lo que se guarda)
+const expandedStageCriteria = ref<Set<string>>(new Set());
+
+const stageCriteriaKey = (stg: any, idx: number, sIdx: number): string => String(stg?._uid ?? `${idx}.${sIdx}`);
+
+const toggleStageCriteria = (stg: any, idx: number, sIdx: number) => {
+  const key = stageCriteriaKey(stg, idx, sIdx);
+  if (expandedStageCriteria.value.has(key)) {
+    expandedStageCriteria.value.delete(key);
+  } else {
+    expandedStageCriteria.value.add(key);
+  }
+};
+
+const isStageCriteriaExpanded = (stg: any, idx: number, sIdx: number): boolean => {
+  return expandedStageCriteria.value.has(stageCriteriaKey(stg, idx, sIdx));
+};
+
 const removeCategoryStageDirect = (item: any, sIdx: number) => {
   if (!item || !Array.isArray(item.stages)) return;
   item.stages.splice(sIdx, 1);
@@ -7863,6 +7906,7 @@ const addCategoryToEditionDetail = () => {
     registrationFee: 0,
     guaranteeFee: 0,
     maxPlayers: 25,
+    useClassifications: false,
     matchDurationMinutes: 60,
     breakDurationMinutes: 10,
     waitBetweenMatchesMinutes: 10,
@@ -8965,6 +9009,8 @@ const selectedEditionForTeamReg = ref<string | number>('');
 const teamRegCategoriesArray = ref<TeamRegCategoryEntry[]>([]);
 const expandedTeamRegCategories = ref<Set<number>>(new Set());
 const loadingTeamRegEdition = ref(false);
+// Si no se pudieron cargar TODAS las inscripciones de la edición, no se permite guardar: al guardar se quitan las que no se envían.
+const teamRegLoadFailed = ref(false);
 const pendingTeamToAutoAdd = ref<number | null>(null);
 
 const editionOptionsForTeamReg = computed(() => {
@@ -9222,7 +9268,7 @@ const addEmptyPlayerRowToCategory = (cat: PlayerRegCategoryEntry) => {
 
   const defaultClassId =
     cat.allowedClassifications && cat.allowedClassifications.length > 0
-      ? cat.allowedClassifications[0].playerClassificationId
+      ? cat.allowedClassifications[0]?.playerClassificationId ?? ''
       : '';
 
   cat.players.push({
@@ -9300,7 +9346,7 @@ const addEmptyTeamRowToCategoryReg = (cat: TeamRegCategoryEntry) => {
     teamAcronyms: '',
     teamLogo: '',
     groupName: '',
-    status: 'PENDING',$1paymentStatus: 'UNPAID',
+    status: 'PENDING', paymentStatus: 'UNPAID',
     pointsPenalty: 0,
   });
 };
@@ -9348,10 +9394,20 @@ const loadEditionCategoriesForTeamReg = async (editionId: string | number) => {
       } catch {}
     }
 
-    const regRes = await CampeonatoApi.teamRegistrations
-      .list({ categoryEditionId: Number(editionId), limit: 200 })
-      .catch(() => ({ data: { data: [] } }));
-    const existingRegs: any[] = regRes?.data?.data || [];
+    // Se cargan TODAS las inscripciones de la edición (de 200 en 200): el guardado quita las que no se envían.
+    teamRegLoadFailed.value = false;
+    const existingRegs: any[] = [];
+    try {
+      for (let page = 1; page <= 100; page++) {
+        const pageRes: any = await CampeonatoApi.teamRegistrations.list({ categoryEditionId: Number(editionId), limit: 200, page });
+        const rows: any[] = pageRes?.data?.data || [];
+        existingRegs.push(...rows);
+        if (rows.length < 200 || existingRegs.length >= Number(pageRes?.data?.total || 0)) break;
+      }
+    } catch {
+      teamRegLoadFailed.value = true;
+      toast.error('No se pudieron cargar las inscripciones existentes de la edición. Cierra y vuelve a abrir el formulario antes de guardar.');
+    }
 
     const rawCategories: Array<{
       categoryId: number;
@@ -9445,7 +9501,7 @@ const loadEditionCategoriesForTeamReg = async (editionId: string | number) => {
             teamAcronyms: foundAuto?.acronyms || '',
             teamLogo: foundAuto?.logo || '',
             groupName: '',
-            status: 'PENDING',$1paymentStatus: 'UNPAID',
+            status: 'PENDING', paymentStatus: 'UNPAID',
             pointsPenalty: 0,
           });
         }
@@ -9497,7 +9553,7 @@ const addTeamToCategoryReg = (cat: TeamRegCategoryEntry) => {
     teamAcronyms: foundTeam.acronyms || '',
     teamLogo: foundTeam.logo || '',
     groupName: '',
-    status: 'PENDING',$1paymentStatus: 'UNPAID',
+    status: 'PENDING', paymentStatus: 'UNPAID',
     pointsPenalty: 0,
   });
 
@@ -10331,6 +10387,7 @@ const openCreateForm = () => {
         registrationFee: 0,
         guaranteeFee: 0,
         maxPlayers: 25,
+        useClassifications: false,
         matchDurationMinutes: 60,
         breakDurationMinutes: 10,
         waitBetweenMatchesMinutes: 10,
@@ -10457,7 +10514,88 @@ const openCreateForm = () => {
   loadAuxiliaryTournamentData();
 };
 
-const openEditForm = (item: any) => {
+const mapEditionDetailToForm = (src: any) => {
+  formData.value.status = src.status || formData.value.status || 'PENDING';
+  formData.value.name = src.name || '';
+  formData.value.description = src.description || '';
+  formData.value.identifyByPlayerCode = Boolean(src.identifyByPlayerCode);
+  formData.value.matchDurationMinutes = Number(src.matchDurationMinutes) || 60;
+  formData.value.breakDurationMinutes = Number(src.breakDurationMinutes) || 10;
+  formData.value.waitBetweenMatchesMinutes = Number(src.waitBetweenMatchesMinutes) || 10;
+  editionCategoriesDetail.value = Array.isArray(src.categoriesDetail)
+    ? JSON.parse(JSON.stringify(src.categoriesDetail)).map((det: any) => ({
+        ...det,
+        _uid: det._uid || ('cat_' + Math.random().toString(36).substring(2, 9)),
+        categoryId: det.categoryId ? Number(det.categoryId) : (det.category?.id ? Number(det.category.id) : ''),
+        categoryDescription: det.categoryDescription || det.category?.name || '',
+        registrationFee: Number(det.registrationFee) || 0,
+        guaranteeFee: Number(det.guaranteeFee) || 0,
+        maxPlayers: Number(det.maxPlayers) || 25,
+        useClassifications:
+          det.useClassifications !== undefined
+            ? Boolean(det.useClassifications)
+            : Array.isArray(det.classifications) && det.classifications.length > 0,
+        matchDurationMinutes:
+          det.matchDurationMinutes !== undefined && det.matchDurationMinutes !== null
+            ? Number(det.matchDurationMinutes)
+            : Number(src.matchDurationMinutes) || 60,
+        breakDurationMinutes:
+          det.breakDurationMinutes !== undefined && det.breakDurationMinutes !== null
+            ? Number(det.breakDurationMinutes)
+            : Number(src.breakDurationMinutes) || 10,
+        waitBetweenMatchesMinutes:
+          det.waitBetweenMatchesMinutes !== undefined && det.waitBetweenMatchesMinutes !== null
+            ? Number(det.waitBetweenMatchesMinutes)
+            : Number(src.waitBetweenMatchesMinutes) || 10,
+        classifications: Array.isArray(det.classifications)
+          ? det.classifications.map((c: any) => ({
+              ...c,
+              playerClassificationId: Number(c.playerClassificationId || c.playerClassification?.id),
+              maxPlayers: Number(c.maxPlayers) || 0,
+              maxInactivityMonths: c.maxInactivityMonths !== undefined && c.maxInactivityMonths !== null ? Number(c.maxInactivityMonths) : null,
+              maxMonths: c.maxMonths !== undefined && c.maxMonths !== null ? Number(c.maxMonths) : null,
+            }))
+          : [],
+        stages: (Array.isArray(det.stages) ? det.stages : []).map((stg: any, sIdx: number) => {
+          const rawCriteria =
+            Array.isArray(stg.tieBreakerCriteria) && stg.tieBreakerCriteria.length > 0
+              ? stg.tieBreakerCriteria
+              : stg.tieBreakerCriterionId
+                ? [
+                    {
+                      criterionId: stg.tieBreakerCriterionId,
+                      id: stg.tieBreakerCriterionId,
+                      description:
+                        stg.tieBreakerCriterionDescription ||
+                        getTieBreakerCriterionDescById(stg.tieBreakerCriterionId),
+                      code: '',
+                      observation: '',
+                      order: 1,
+                    },
+                  ]
+                : [];
+          return {
+            ...stg,
+            _uid: stg._uid || ('stg_' + Math.random().toString(36).substring(2, 9)),
+            stageOrder: Number(stg.stageOrder) || sIdx + 1,
+            competitionTypeId: stg.competitionTypeId ? Number(stg.competitionTypeId) : '',
+            competitionLapId: stg.competitionLapId ? Number(stg.competitionLapId) : '',
+            tieBreakerCriteria: rawCriteria.map((c: any, cIdx: number) => ({
+              criterionId: Number(c.criterionId || c.id),
+              id: Number(c.id || c.criterionId),
+              description: c.description || getTieBreakerCriterionDescById(c.criterionId || c.id),
+              code: c.code || '',
+              observation: c.observation || '',
+              order: Number(c.order) || cIdx + 1,
+            })),
+          };
+        }),
+      }))
+    : [];
+  expandedCategoryRows.value = new Set(editionCategoriesDetail.value.map((_, i) => i));
+};
+
+const openEditForm = async (item: any) => {
   if (activeTab.value === 'schedules') {
     openEditSchedule(item);
     return;
@@ -10516,46 +10654,17 @@ const openEditForm = (item: any) => {
     expandedPlayerRegCategories.value = new Set(playerRegCategoriesArray.value.map((_, i) => i));
   }
   if (activeTab.value === 'categoryEditions') {
-    formData.value.status = formData.value.status || 'PENDING';
-    formData.value.identifyByPlayerCode = item.identifyByPlayerCode === true;
-    formData.value.matchDurationMinutes = Number(item.matchDurationMinutes) || 60;
-    formData.value.breakDurationMinutes = Number(item.breakDurationMinutes) || 10;
-    formData.value.waitBetweenMatchesMinutes = Number(item.waitBetweenMatchesMinutes) || 10;
-    editionCategoriesDetail.value = item.categoriesDetail
-      ? JSON.parse(JSON.stringify(item.categoriesDetail)).map((det: any) => ({
-          ...det,
-          _uid: det._uid || ('cat_' + Math.random().toString(36).substring(2, 9)),
-          matchDurationMinutes: det.matchDurationMinutes !== undefined && det.matchDurationMinutes !== null ? Number(det.matchDurationMinutes) : (Number(item.matchDurationMinutes) || 60),
-          breakDurationMinutes: det.breakDurationMinutes !== undefined && det.breakDurationMinutes !== null ? Number(det.breakDurationMinutes) : (Number(item.breakDurationMinutes) || 10),
-          waitBetweenMatchesMinutes: det.waitBetweenMatchesMinutes !== undefined && det.waitBetweenMatchesMinutes !== null ? Number(det.waitBetweenMatchesMinutes) : (Number(item.waitBetweenMatchesMinutes) || 10),
-          classifications: Array.isArray(det.classifications) ? det.classifications : [],
-          stages: (Array.isArray(det.stages) ? det.stages : []).map((stg: any, sIdx: number) => {
-            const rawCriteria = Array.isArray(stg.tieBreakerCriteria) && stg.tieBreakerCriteria.length > 0
-              ? stg.tieBreakerCriteria
-              : (stg.tieBreakerCriterionId ? [{
-                  criterionId: stg.tieBreakerCriterionId,
-                  id: stg.tieBreakerCriterionId,
-                  description: stg.tieBreakerCriterionDescription || getTieBreakerCriterionDescById(stg.tieBreakerCriterionId),
-                  code: '',
-                  observation: '',
-                  order: 1,
-                }] : []);
-            return {
-              ...stg,
-              stageOrder: Number(stg.stageOrder) || (sIdx + 1),
-              tieBreakerCriteria: rawCriteria.map((c: any, cIdx: number) => ({
-                criterionId: c.criterionId || c.id,
-                id: c.id || c.criterionId,
-                description: c.description || getTieBreakerCriterionDescById(c.criterionId || c.id),
-                code: c.code || '',
-                observation: c.observation || '',
-                order: Number(c.order) || (cIdx + 1),
-              })),
-            };
-          }),
-        }))
-      : [];
-    expandedCategoryRows.value = new Set([0]);
+    await loadAuxiliaryTournamentData();
+    mapEditionDetailToForm(item);
+    CampeonatoApi.categoryEditions
+      .get(item.id)
+      .then((res: any) => {
+        if (res?.data && isFormOpen.value && isEditing.value && Number(editingId.value) === Number(item.id)) {
+          formData.value = { ...formData.value, ...res.data };
+          mapEditionDetailToForm(res.data);
+        }
+      })
+      .catch(() => {});
   } else if (activeTab.value === 'categories') {
     // Mantener los datos del item para edición
   } else if (activeTab.value === 'players') {
@@ -10621,6 +10730,7 @@ const closeForm = () => {
   editingId.value = null;
   editionCategoriesDetail.value = [];
   expandedCategoryRows.value = new Set();
+  expandedStageCriteria.value = new Set();
   templateStagesDetail.value = [];
   if (scenaryMapInstance) {
     scenaryMapInstance.remove();
@@ -10658,6 +10768,7 @@ const saveForm = async () => {
         return;
       }
       for (const d of editionCategoriesDetail.value) {
+        if (!d.useClassifications) continue;
         const maxL = Number(d.maxPlayers) > 0 ? Number(d.maxPlayers) : 25;
         const sumC = (d.classifications || []).reduce((acc: number, c: any) => acc + (Number(c.maxPlayers) || 0), 0);
         if (sumC > maxL) {
@@ -10678,15 +10789,18 @@ const saveForm = async () => {
         registrationFee: Number(d.registrationFee) || 0,
         guaranteeFee: Number(d.guaranteeFee) || 0,
         maxPlayers: Number(d.maxPlayers) > 0 ? Number(d.maxPlayers) : 25,
+        useClassifications: Boolean(d.useClassifications),
         matchDurationMinutes: Number(d.matchDurationMinutes) || 60,
         breakDurationMinutes: d.breakDurationMinutes !== undefined && d.breakDurationMinutes !== null ? Number(d.breakDurationMinutes) : 10,
         waitBetweenMatchesMinutes: d.waitBetweenMatchesMinutes !== undefined && d.waitBetweenMatchesMinutes !== null ? Number(d.waitBetweenMatchesMinutes) : 10,
-        classifications: (d.classifications || []).map((c: any) => ({
-          playerClassificationId: c.playerClassificationId,
-          maxPlayers: Number(c.maxPlayers) || 0,
-          maxInactivityMonths: c.maxInactivityMonths !== undefined && c.maxInactivityMonths !== null ? Number(c.maxInactivityMonths) : null,
-          maxMonths: c.maxMonths !== undefined && c.maxMonths !== null ? Number(c.maxMonths) : null,
-        })),
+        classifications: d.useClassifications
+          ? (d.classifications || []).map((c: any) => ({
+              playerClassificationId: c.playerClassificationId,
+              maxPlayers: Number(c.maxPlayers) || 0,
+              maxInactivityMonths: c.maxInactivityMonths !== undefined && c.maxInactivityMonths !== null ? Number(c.maxInactivityMonths) : null,
+              maxMonths: c.maxMonths !== undefined && c.maxMonths !== null ? Number(c.maxMonths) : null,
+            }))
+          : [],
         stages: (d.stages || []).map((s: any, sIdx: number) => {
           const rawCriteria = Array.isArray(s.tieBreakerCriteria) ? s.tieBreakerCriteria : [];
           const formattedCriteria = rawCriteria.map((c: any, cIdx: number) => ({
@@ -10890,14 +11004,19 @@ const saveForm = async () => {
       }
       for (const cat of teamRegCategoriesArray.value) {
         for (let i = 0; i < (cat.teams || []).length; i++) {
-          if (!cat.teams[i].teamId) {
+          if (!cat.teams[i]?.teamId) {
             toast.warning(`Selecciona el equipo en la fila #${i + 1} de la categoría "${cat.categoryName}" o elimina la fila vacía.`, 'Validación');
             saving.value = false;
             return;
           }
         }
       }
-      const syncRes = await CampeonatoApi.teamRegistrations.syncByEdition({
+      if (teamRegLoadFailed.value) {
+        toast.error('No se cargaron todas las inscripciones existentes de la edición; guardar quitaría las que faltan. Cierra y vuelve a abrir el formulario.');
+        saving.value = false;
+        return;
+      }
+      const buildSyncPayload = (forceRemovePlayers = false) => ({
         categoryEditionId: Number(selectedEditionForTeamReg.value),
         categories: teamRegCategoriesArray.value.map((cat) => ({
           categoryId: Number(cat.categoryId),
@@ -10910,13 +11029,34 @@ const saveForm = async () => {
               pointsPenalty: Number(tm.pointsPenalty) || 0,
             })),
         })),
+        ...(forceRemovePlayers ? { forceRemovePlayers: true } : {}),
       });
+      let syncRes: any;
+      try {
+        syncRes = await CampeonatoApi.teamRegistrations.syncByEdition(buildSyncPayload());
+      } catch (syncErr: any) {
+        // Quitar equipos con jugadores inscritos también elimina a esos jugadores: se pide confirmación y se reintenta
+        if (syncErr?.response?.status === 409 && syncErr?.response?.data?.code === 'PLAYERS_WOULD_BE_DELETED') {
+          if (!confirm(syncErr.response.data.message)) {
+            saving.value = false;
+            return;
+          }
+          syncRes = await CampeonatoApi.teamRegistrations.syncByEdition(buildSyncPayload(true));
+        } else {
+          throw syncErr;
+        }
+      }
       const paymentOrders = syncRes.data?.paymentOrders || [];
+      const skippedOrders = syncRes.data?.paymentOrdersSkipped || [];
       if (paymentOrders.length > 0) {
         const total = paymentOrders.reduce((sum: number, order: any) => sum + (Number(order.totalAmount) || 0), 0);
         toast.success('Inscripción guardada. Se generaron ' + paymentOrders.length + ' orden(es) de pago pendiente(s) por un total de $' + total.toFixed(2));
       } else {
         toast.success('Inscripción de equipos por categoría guardada exitosamente');
+      }
+      // Equipos nuevos para los que no se generó orden de pago (por ejemplo, inscripción y garantía en 0)
+      if (skippedOrders.length > 0) {
+        toast.warning(skippedOrders.map((item: any) => `${item.teamName}: ${item.reason}`).join('\n'), 'Sin orden de pago');
       }
       closeForm();
       await loadData();
@@ -10931,6 +11071,7 @@ const saveForm = async () => {
       for (const cat of playerRegCategoriesArray.value) {
         for (let i = 0; i < (cat.players || []).length; i++) {
           const pl = cat.players[i];
+          if (!pl) continue;
           if (!pl.playerId) {
             toast.warning(`Selecciona el jugador en la fila #${i + 1} de la categoría "${cat.categoryName}" o elimina la fila vacía.`, 'Validación');
             saving.value = false;
@@ -11108,7 +11249,48 @@ const saveForm = async () => {
   }
 };
 
+// Una edición se elimina con todo lo que se creó a partir de ella: se muestra el detalle antes de confirmar
+const confirmDeleteEdition = async (id: number) => {
+  let message = '¿Estás seguro de eliminar esta edición de torneo con todo lo que tiene registrado?';
+  try {
+    const res: any = await CampeonatoApi.categoryEditions.deletionSummary(id);
+    const s = res?.data;
+    if (s) {
+      // Opción de pruebas: elimina todo lo relacionado, incluso órdenes ya pagadas y registros creados por otras empresas
+      const orders = Number(s.paymentOrders?.pending || 0) + Number(s.paymentOrders?.cancelled || 0) + Number(s.paymentOrders?.paid || 0);
+      const other = s.otherCompanies || {};
+      const otherTotal = Number(other.teamRegistrations || 0) + Number(other.paymentOrders || 0) + Number(other.playerTransfers || 0);
+      message =
+        `Se eliminará la edición "${s.name}" y TODO lo relacionado con ella (modo de pruebas). Esta acción no se puede deshacer:\n\n` +
+        `• Categorías configuradas: ${s.categories} (con sus etapas, criterios de desempate y clasificaciones)\n` +
+        `• Etapas del campeonato: ${s.stages}\n` +
+        `• Partidos: ${s.matches} (y ${s.sanctions || 0} sanción(es) de esos partidos)\n` +
+        `• Equipos inscritos: ${s.teamRegistrations}\n` +
+        `• Jugadores inscritos: ${s.playerRegistrations}\n` +
+        `• Pagos registrados: ${s.payments || 0}\n` +
+        `• Órdenes de pago: ${orders}${s.paymentOrders?.paid > 0 ? ` (${s.paymentOrders.paid} ya pagada(s))` : ''}\n` +
+        `• Pases y movimientos de jugadores: ${Number(s.playerTransfers || 0) + Number(s.playerTransactions || 0)}\n` +
+        (otherTotal > 0 ? `\nIncluye ${otherTotal} registro(s) creado(s) por otras empresas en esta edición (${other.teamRegistrations || 0} inscripción(es), ${other.paymentOrders || 0} orden(es) de pago, ${other.playerTransfers || 0} pase(s)).\n` : '') +
+        `\n¿Deseas continuar?`;
+    }
+  } catch (err: any) {
+    console.error(err);
+    toast.error(err?.response?.data?.message || 'No se pudo consultar lo que se eliminaría');
+    return;
+  }
+  if (!confirm(message)) return;
+  try {
+    await CampeonatoApi.categoryEditions.delete(id);
+    toast.success('Edición eliminada junto con todo lo relacionado');
+    loadData();
+  } catch (err: any) {
+    console.error(err);
+    toast.error(err?.response?.data?.message || 'Error al eliminar la edición');
+  }
+};
+
 const confirmDelete = async (id: number) => {
+  if (activeTab.value === 'categoryEditions') return confirmDeleteEdition(id);
   if (!confirm('¿Estás seguro de eliminar este registro?')) return;
   try {
     await currentTabConfig.value.api.delete(id);

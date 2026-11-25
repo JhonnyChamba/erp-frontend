@@ -476,6 +476,9 @@ export const CategoryEditionsService = {
   // Inicia el campeonato de una categoría de la edición (una sola vez por categoría): su primera etapa pasa a EN PROCESO
   start: (id: number, categoryId: number, companyId?: number) =>
     api.post<any>(`/campeonato/category-editions/${id}/categories/${categoryId}/start`, {}, withCompany(companyId)),
+  // Qué se eliminaría junto con la edición (categorías, etapas, partidos, inscripciones, órdenes de pago...)
+  deletionSummary: (id: number, companyId?: number) =>
+    api.get<any>(`/campeonato/category-editions/${id}/deletion-summary`, withCompany(companyId)),
 };
 export const StagesService = {
   ...createCrudService<StageItem>('stages'),
@@ -514,6 +517,8 @@ export const TeamRegistrationsService = {
           pointsPenalty?: number;
         }>;
       }>;
+      // Confirma que al quitar inscripciones también se eliminen los jugadores inscritos de esos equipos
+      forceRemovePlayers?: boolean;
     },
     companyId?: number
   ) => api.post<any>('/campeonato/team-registrations/sync-edition', data, withCompany(companyId)),
