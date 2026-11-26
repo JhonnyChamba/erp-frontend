@@ -7711,6 +7711,7 @@ const editionCategoriesDetail = ref<Array<{
   registrationFee?: number;
   guaranteeFee?: number;
   maxPlayers?: number;
+  useClassifications?: boolean;
   matchDurationMinutes?: number;
   breakDurationMinutes?: number;
   waitBetweenMatchesMinutes?: number;
