@@ -13,17 +13,6 @@
         </div>
         <div class="d-flex align-items-center gap-2">
           <button
-            v-if="tab !== 'global_players'"
-            type="button"
-            class="btn btn-outline-secondary d-flex align-items-center gap-1 rounded-pill px-3"
-            :disabled="loading"
-            @click="loadData"
-          >
-            <span v-if="loading" class="spinner-grow spinner-grow-sm text-secondary" role="status" aria-hidden="true"></span>
-            <iconify-icon v-else icon="solar:refresh-line-duotone" class="fs-4"></iconify-icon>
-            <span>Actualizar</span>
-          </button>
-          <button
             type="button"
             class="btn btn-primary d-flex align-items-center gap-1 rounded-pill px-3 fw-semibold shadow-sm text-nowrap"
             @click="openCreateModal"

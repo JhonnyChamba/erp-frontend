@@ -646,6 +646,7 @@ export const StageTemplatesService = createCrudService<any>('stage-templates');
 export const CompetitionTypesService = createCrudService<any>('competition-types');
 export const CompetitionLapsService = createCrudService<any>('competition-laps');
 export const TieBreakerCriteriaService = createCrudService<any>('tie-breaker-criteria');
+export const DivisionGroupsService = createCrudService<any>('division-groups');
 
 export const CampeonatoApi = {
   positions: PositionsService,
@@ -661,6 +662,7 @@ export const CampeonatoApi = {
   competitionTypes: CompetitionTypesService,
   competitionLaps: CompetitionLapsService,
   tieBreakerCriteria: TieBreakerCriteriaService,
+  divisionGroups: DivisionGroupsService,
   scenaries: ScenariesService,
   teamRegistrations: TeamRegistrationsService,
   playerRegistrations: PlayerRegistrationsService,

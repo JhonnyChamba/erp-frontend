@@ -145,18 +145,6 @@
 
     <!-- Barra de Filtros y Búsqueda Estandarizada para Categorías -->
     <div v-else-if="!isFormOpen && activeTab === 'categories'" class="d-flex flex-wrap align-items-center gap-2 mb-4 p-2 rounded-3 bg-dark-subtle border border-secondary-subtle">
-      <select
-        v-model="filterCategoryGender"
-        class="form-select bg-dark border-secondary-subtle text-white"
-        style="height: 40px; width: 170px;"
-        @change="searchList"
-      >
-        <option value="todos">Género: Todos</option>
-        <option value="MALE">Masculino</option>
-        <option value="FEMALE">Femenino</option>
-        <option value="MIXED">Mixto</option>
-      </select>
-
       <input
         v-model="searchQuery"
         type="text"
@@ -1056,16 +1044,6 @@
                     {{ item.acronyms }}
                   </span>
                   <span v-else class="text-muted small">-</span>
-                </span>
-
-                <!-- Género en Categorías -->
-                <span v-else-if="activeTab === 'categories' && col.key === 'gender'">
-                  <span
-                    class="badge font-monospace px-2 py-1"
-                    :class="item.gender === 'FEMALE' ? 'bg-danger-subtle text-danger border border-danger-subtle' : item.gender === 'MIXED' ? 'bg-warning-subtle text-warning border border-warning-subtle' : 'bg-info-subtle text-info border border-info-subtle'"
-                  >
-                    {{ item.gender === 'FEMALE' ? 'Femenino' : item.gender === 'MIXED' ? 'Mixto' : 'Masculino' }}
-                  </span>
                 </span>
 
                 <!-- Edad de Jugador (Años y Meses) -->
@@ -6104,6 +6082,7 @@ import { ref, computed, onMounted, onUnmounted, watch, nextTick } from 'vue';
 import { useRoute, useRouter, onBeforeRouteUpdate, onBeforeRouteLeave } from 'vue-router';
 import { CampeonatoApi, uploadTeamLogo, uploadPlayerPhoto, TeamManagementsService, type TeamManagementItem } from '@/services/campeonato.service';
 import { useAuthStore } from '@/stores/auth.store';
+import { getSubModules } from '@/services/config.service';
 import { toast } from '@/utils/toastr';
 import AppSelect2 from '@/components/common/AppSelect2.vue';
 import ImageUpload from '@/components/common/ImageUpload.vue';
@@ -6216,27 +6195,23 @@ const tabs: TabConfig[] = [
       { key: 'name', label: 'Nombre' },
       { key: 'acronyms', label: 'Siglas' },
       { key: 'code', label: 'Código' },
-      { key: 'gender', label: 'Género' },
       { key: 'minAge', label: 'Edad Mín.' },
       { key: 'maxAge', label: 'Edad Máx.' },
     ],
     fields: [
-      { key: 'name', label: 'Nombre de la Categoría *', type: 'text', colClass: 'col-md-6', placeholder: 'Ej. Máxima, Primera, Juvenil' },
-      { key: 'acronyms', label: 'Siglas de la Categoría', type: 'text', colClass: 'col-md-6', placeholder: 'Ej. MAX, PRI, JUV' },
-      { key: 'code', label: 'Código Secuencial de Categoría', type: 'text', colClass: 'col-md-4', placeholder: 'Autogenerado ej. CAT-001', readonly: true, disabled: true },
       {
-        key: 'gender',
-        label: 'Género',
+        key: 'divisionGroupId',
+        label: 'Grupo de División *',
         type: 'select',
-        options: [
-          { label: 'Masculino', value: 'MALE' },
-          { label: 'Femenino', value: 'FEMALE' },
-          { label: 'Mixto', value: 'MIXED' },
-        ],
+        options: [],
         colClass: 'col-md-4',
+        placeholder: 'Seleccionar grupo de división...',
       },
+      { key: 'name', label: 'Nombre de la Categoría *', type: 'text', colClass: 'col-md-4', placeholder: 'Ej. Máxima, Primera, Juvenil' },
+      { key: 'acronyms', label: 'Siglas de la Categoría', type: 'text', colClass: 'col-md-4', placeholder: 'Ej. MAX, PRI, JUV' },
       { key: 'minAge', label: 'Edad Mínima', type: 'number', colClass: 'col-md-4' },
       { key: 'maxAge', label: 'Edad Máxima', type: 'number', colClass: 'col-md-4' },
+      { key: 'code', label: 'Código Secuencial de Categoría', type: 'text', colClass: 'col-md-4', placeholder: 'Autogenerado ej. CAT-001', readonly: true, disabled: true },
     ],
   },
   {
@@ -6568,6 +6543,21 @@ const tabs: TabConfig[] = [
     ],
   },
   {
+    id: 'divisionGroups',
+    label: 'Grupos de División',
+    icon: 'solar:layers-minimalistic-bold-duotone',
+    api: CampeonatoApi.divisionGroups,
+    columns: [
+      { key: 'code', label: 'Código' },
+      { key: 'description', label: 'Descripción' },
+      { key: 'enabled', label: 'Estado', type: 'boolean' },
+    ],
+    fields: [
+      { key: 'code', label: 'Código (Generado por el sistema)', type: 'text', colClass: 'col-md-4', disabled: true, readonly: true },
+      { key: 'description', label: 'Descripción', type: 'text', colClass: 'col-md-12', placeholder: 'Ej. Senior Masculino, Senior Femenino, Sub-40' },
+    ],
+  },
+  {
     id: 'playerTransfers',
     label: 'Transferencias de Jugadores',
     icon: 'solar:transfer-horizontal-bold-duotone',
@@ -6623,6 +6613,7 @@ const configSubTabsList = [
   { id: 'teams', label: 'Equipos', icon: 'solar:shield-bold-duotone' },
   { id: 'players', label: 'Jugadores', icon: 'solar:users-group-two-rounded-bold-duotone' },
   { id: 'categories', label: 'Categorías', icon: 'solar:medal-star-bold-duotone' },
+  { id: 'divisionGroups', label: 'Grupos de División', icon: 'solar:layers-minimalistic-bold-duotone' },
   { id: 'categoryEditions', label: 'Ediciones de Torneo', icon: 'solar:calendar-date-bold-duotone' },
   { id: 'stages', label: 'Plantillas de Etapas y Fases', icon: 'solar:diagram-up-bold-duotone' },
   { id: 'scenaries', label: 'Canchas (Escenarios)', icon: 'solar:map-point-wave-bold-duotone' },
@@ -7135,7 +7126,9 @@ const tabToSubCode: Record<string, string> = {
   schedules: 'SUB-CAMP-016',
   standings: 'SUB-CAMP-017',
   playerClassifications: 'SUB-CAMP-019',
-  playerTransfers: 'SUB-CAMP-020',
+  // En la base SUB-CAMP-020 es "Grupos de División"; Transferencias de Jugadores usa el 021 (y se reconoce también por su ruta)
+  divisionGroups: 'SUB-CAMP-020',
+  playerTransfers: 'SUB-CAMP-021',
 };
 
 // Filtrar las pestañas según los permisos / submódulos activos de la empresa
@@ -7165,15 +7158,46 @@ const allowedTabs = computed(() => {
     if (code && subCodes.includes(code)) return true;
 
     const tabUrl = `/campeonato?tab=${t.id}`.toLowerCase();
-    return (
-      allowedUrls.some((u) => u.includes(`tab=${t.id.toLowerCase()}`) || u.includes(t.id.toLowerCase()) || u === tabUrl) ||
-      subUrls.some((u) => u.includes(`tab=${t.id.toLowerCase()}`) || u.includes(t.id.toLowerCase()) || u === tabUrl)
-    );
+    // Transferencias puede estar registrada con una ruta en español (/campeonato/transferencias)
+    const extraHint = t.id === 'playerTransfers' ? 'transferencias' : '';
+    const matchesUrl = (u: string) => u.includes(`tab=${t.id.toLowerCase()}`) || u.includes(t.id.toLowerCase()) || u === tabUrl || (extraHint !== '' && u.includes(extraHint));
+    return allowedUrls.some(matchesUrl) || subUrls.some(matchesUrl);
   });
 });
 
+// Las pestañas de Configuraciones siguen el orden de los submódulos de Campeonato (order_index): el menú de accesos ya llega ordenado,
+// así que la posición del submódulo en `children` es su orden. Se busca por código y, si no hay, por la ruta (ej. divisionGroups).
+// Una pestaña sin submódulo en el menú queda al final, con su orden original.
+// El menú de accesos solo trae los submódulos incluidos en el plan; los demás (ej. Grupos de División) no están en él y quedarían al final.
+// Por eso el orden se toma del catálogo completo del módulo (ya ordenado por order_index) y el menú queda de respaldo.
+const catalogCampSubModules = ref<any[]>([]);
+
+const loadCatalogCampSubModules = async () => {
+  const menu = authStore.accessInfo?.menu || [];
+  const campMenu = menu.find((m) => m.code === 'MOD-010' || m.description?.toLowerCase().includes('campeonato'));
+  if (!campMenu?.id) return;
+  try {
+    const res: any = await getSubModules({ moduleId: Number(campMenu.id), page: 1, limit: 200 });
+    catalogCampSubModules.value = Array.isArray(res?.data) ? res.data : Array.isArray(res) ? res : [];
+  } catch {
+    catalogCampSubModules.value = [];
+  }
+};
+
+const configSubTabOrder = (tabId: string): number => {
+  const menu = authStore.accessInfo?.menu || [];
+  const campMenu = menu.find((m) => m.code === 'MOD-010' || m.description?.toLowerCase().includes('campeonato'));
+  const children: any[] = catalogCampSubModules.value.length > 0 ? catalogCampSubModules.value : campMenu?.children || [];
+  const code = tabToSubCode[tabId];
+  let index = code ? children.findIndex((c) => (c.code || '').toUpperCase() === code) : -1;
+  if (index === -1) index = children.findIndex((c) => (c.url_desc || c.url || '').toLowerCase().includes(tabId.toLowerCase()));
+  return index === -1 ? Number.MAX_SAFE_INTEGER : index;
+};
+
 const visibleConfigSubTabs = computed(() => {
-  return configSubTabsList.filter((st) => allowedTabs.value.some((at) => at.id === st.id));
+  return configSubTabsList
+    .filter((st) => allowedTabs.value.some((at) => at.id === st.id))
+    .sort((a, b) => configSubTabOrder(a.id) - configSubTabOrder(b.id));
 });
 
 const activeTab = ref('teams');
@@ -7184,7 +7208,7 @@ const activeTabLabel = computed(() => currentTabConfig.value.label);
 const columns = computed(() => currentTabConfig.value.columns);
 const formFields = computed(() => {
   const fields = currentTabConfig.value.fields || [];
-  if (activeTab.value === 'categories' && !isEditing.value) {
+  if ((activeTab.value === 'categories' || activeTab.value === 'divisionGroups') && !isEditing.value) {
     return fields.filter((f) => f.key !== 'code');
   }
   return fields;
@@ -7193,7 +7217,6 @@ const formFields = computed(() => {
 const items = ref<any[]>([]);
 const filterTeamStatus = ref<'todos' | 'activo' | 'inactivo'>('todos');
 const filterPlayerStatus = ref<'todos' | 'activo' | 'inactivo'>('todos');
-const filterCategoryGender = ref<'todos' | 'MALE' | 'FEMALE' | 'MIXED'>('todos');
 const filterEditionStatus = ref<'todos' | 'PENDING' | 'IN_PROGRESS' | 'COMPLETED'>('todos');
 const filterTeamRegStatus = ref<'todos' | 'APPROVED' | 'PENDING' | 'REJECTED' | 'DISQUALIFIED'>('todos');
 const filterTeamRegPayment = ref<'todos' | 'PAID' | 'PARTIAL' | 'UNPAID' | 'REFUNDED'>('todos');
@@ -7231,12 +7254,6 @@ const displayedItems = computed(() => {
     return items.value.filter((item) => {
       if (filterPlayerStatus.value === 'activo' && item.isActive === false) return false;
       if (filterPlayerStatus.value === 'inactivo' && item.isActive !== false) return false;
-      return true;
-    });
-  }
-  if (activeTab.value === 'categories') {
-    return items.value.filter((item) => {
-      if (filterCategoryGender.value !== 'todos' && item.gender !== filterCategoryGender.value) return false;
       return true;
     });
   }
@@ -7688,6 +7705,7 @@ const teamsList = ref<any[]>([]);
 const categoriesList = ref<any[]>([]);
 const scenariesList = ref<any[]>([]);
 const demarcationsList = ref<any[]>([]);
+const divisionGroupsList = ref<any[]>([]);
 const playerClassificationsList = ref<any[]>([]);
 const playersList = ref<any[]>([]);
 const categoryEditionsList = ref<any[]>([]);
@@ -8779,7 +8797,7 @@ const populateFieldOptions = () => {
 
 const loadAuxiliaryTournamentData = async () => {
   try {
-    const [stRes, tmRes, scRes, dmRes, plRes, edRes, trRes, pcRes, catRes, rgRes, fmtRes, ctRes, clRes, tbRes] = await Promise.all([
+    const [stRes, tmRes, scRes, dmRes, plRes, edRes, trRes, pcRes, catRes, dgRes, rgRes, fmtRes, ctRes, clRes, tbRes] = await Promise.all([
       CampeonatoApi.stages.list({ limit: 100 }).catch(() => ({ data: { data: [] } })),
       CampeonatoApi.teams.list({ limit: 100 }).catch(() => ({ data: { data: [] } })),
       CampeonatoApi.scenaries.list({ limit: 100 }).catch(() => ({ data: { data: [] } })),
@@ -8789,6 +8807,7 @@ const loadAuxiliaryTournamentData = async () => {
       CampeonatoApi.teamRegistrations.list({ limit: 100 }).catch(() => ({ data: { data: [] } })),
       CampeonatoApi.playerClassifications.list({ limit: 100 }).catch(() => ({ data: { data: [] } })),
       CampeonatoApi.categories.list({ limit: 100 }).catch(() => ({ data: { data: [] } })),
+      CampeonatoApi.divisionGroups.list({ limit: 100 }).catch(() => ({ data: { data: [] } })),
       CampeonatoApi.refereeGuilds.list({ limit: 100 }).catch(() => ({ data: { data: [] } })),
       CampeonatoApi.stageFormats.list({ limit: 100 }).catch(() => ({ data: { data: [] } })),
       CampeonatoApi.competitionTypes.list({ limit: 100 }).catch(() => ({ data: { data: [] } })),
@@ -8804,6 +8823,17 @@ const loadAuxiliaryTournamentData = async () => {
     teamRegistrationsList.value = trRes.data.data || [];
     playerClassificationsList.value = pcRes.data.data || [];
     categoriesList.value = catRes.data.data || [];
+    divisionGroupsList.value = dgRes.data.data || [];
+    const catTab = tabs.find((t) => t.id === 'categories');
+    const dgField = catTab?.fields.find((f) => f.key === 'divisionGroupId');
+    if (dgField) {
+      dgField.options = divisionGroupsList.value
+        .filter((dg) => dg.enabled !== false)
+        .map((dg) => ({
+          label: `${dg.description}${dg.code ? ` (${dg.code})` : ''}`,
+          value: dg.id,
+        }));
+    }
     refereeGuildsList.value = rgRes.data.data || [];
     stageFormatsList.value = fmtRes.data.data || [];
     competitionTypesList.value = ctRes.data.data || [];
@@ -10829,6 +10859,13 @@ const saveForm = async () => {
         }),
       }));
     } else if (activeTab.value === 'categories') {
+      if (!formData.value.divisionGroupId) {
+        toast.warning('El grupo de división es obligatorio.', 'Validación');
+        saving.value = false;
+        return;
+      }
+      formData.value.divisionGroupId = Number(formData.value.divisionGroupId);
+      delete formData.value.divisionGroup;
       if (!formData.value.code) {
         delete formData.value.code;
       }
@@ -11413,6 +11450,7 @@ watch(
 onMounted(async () => {
   activeTab.value = resolveTabFromRoute();
   window.addEventListener('deskounta:reset-view', onGlobalResetView);
+  void loadCatalogCampSubModules();
   await loadAuxiliaryTournamentData();
   if (activeTab.value === 'schedules') {
     loadScheduleConfig();

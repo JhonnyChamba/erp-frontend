@@ -24,6 +24,7 @@ import {
   getSubModules,
   createSubModule,
   updateSubModule,
+  reorderSubModules,
   getBranches,
   createBranch,
   updateBranch,
@@ -202,6 +203,7 @@ const activeTab = ref<
   | 'branches'
   | 'users'
   | 'modules'
+  | 'submodules'
   | 'subscriptions'
   | 'taxes'
   | 'document_types'
@@ -274,6 +276,7 @@ const showUserModal = ref(false)
 const showRoleModal = ref(false)
 const showModuleModal = ref(false)
 const showSubModuleModal = ref(false)
+const showReorderSubModulesModal = ref(false)
 const showPlanModal = ref(false)
 const editingPlanId = ref<number | null>(null)
 const showBranchModal = ref(false)
@@ -289,6 +292,7 @@ const isFormOpen = computed(
     showRoleModal.value ||
     showModuleModal.value ||
     showSubModuleModal.value ||
+    showReorderSubModulesModal.value ||
     showPlanModal.value ||
     showBranchModal.value ||
     showTaxModal.value ||
@@ -1332,6 +1336,10 @@ const loadCurrentTabData = async () => {
       const compIds = Array.from(new Set(users.value.map((u: any) => u.company_id || u.companyId || u.companyIds?.[0]).filter(Boolean)))
       await Promise.all(compIds.map((cid: any) => ensureRolesForCompany(Number(cid))))
     } else if (activeTab.value === 'modules') {
+      const modsRes = await getModules({ page: 1, limit: 100 })
+      modulesList.value = Array.isArray(modsRes?.data) ? modsRes.data : Array.isArray(modsRes) ? modsRes : []
+    } else if (activeTab.value === 'submodules') {
+      // Los módulos se cargan solo para el filtro por módulo y para elegir el módulo padre al crear un submódulo
       const [modsRes, subModsRes, allSubModsRes] = await Promise.all([
         getModules({ page: 1, limit: 100 }),
         getSubModules({ moduleId: filterModuleId.value, page: 1, limit: 100 }).catch(() => ({ data: [] })),
@@ -1406,7 +1414,8 @@ const platformSubmodules = [
   { id: 'companies', label: 'Empresas', subtitle: 'Administración y parametrización de empresas del sistema ERP.', icon: 'solar:buildings-3-line-duotone' },
   { id: 'branches', label: 'Sucursales', subtitle: 'Sucursales, puntos físicos y matrices de las empresas registradas.', icon: 'solar:shop-2-line-duotone' },
   { id: 'users', label: 'Usuarios Globales', subtitle: 'Usuarios, accesos, asignación multi-empresa y contraseñas.', icon: 'solar:users-group-two-rounded-line-duotone' },
-  { id: 'modules', label: 'Módulos & Submódulos', subtitle: 'Catálogo maestro de módulos y submódulos del sistema.', icon: 'solar:widget-4-line-duotone' },
+  { id: 'modules', label: 'Módulos', subtitle: 'Catálogo maestro de módulos principales del sistema.', icon: 'solar:widget-4-line-duotone' },
+  { id: 'submodules', label: 'Submódulos', subtitle: 'Vistas y rutas hijas asociadas a cada módulo principal.', icon: 'solar:layers-minimalistic-line-duotone' },
   { id: 'subscriptions', label: 'Planes SaaS', subtitle: 'Planes comerciales, precios, límites de usuarios y módulos autorizados.', icon: 'solar:card-line-duotone' },
   { id: 'taxes', label: 'Impuestos', subtitle: 'Catálogo oficial de impuestos SRI para facturación electrónica.', icon: 'solar:calculator-minimalistic-line-duotone' },
   { id: 'document_types', label: 'Tipos de Documentos', subtitle: 'Tipos de identificación (Cédula, RUC, Pasaporte) y documentos comerciales.', icon: 'solar:document-text-line-duotone' },
@@ -1438,6 +1447,7 @@ const switchTab = (tab: any) => {
   showRoleModal.value = false
   showModuleModal.value = false
   showSubModuleModal.value = false
+  showReorderSubModulesModal.value = false
   showPlanModal.value = false
   showTaxModal.value = false
   showDocTypeModal.value = false
@@ -1454,6 +1464,7 @@ watch(
       'branches',
       'users',
       'modules',
+      'submodules',
       'subscriptions',
       'taxes',
       'document_types',
@@ -1476,6 +1487,7 @@ watch(
       showRoleModal.value = false
       showModuleModal.value = false
       showSubModuleModal.value = false
+      showReorderSubModulesModal.value = false
       showPlanModal.value = false
       showTaxModal.value = false
       showDocTypeModal.value = false
@@ -1496,6 +1508,7 @@ const closeAllGlobalSettingsModals = () => {
   showRoleModal.value = false
   showModuleModal.value = false
   showSubModuleModal.value = false
+  showReorderSubModulesModal.value = false
   showPlanModal.value = false
   showTaxModal.value = false
   showDocTypeModal.value = false
@@ -2339,6 +2352,94 @@ const openCreateSubModule = (preselectedModuleId?: number) => {
   showSubModuleModal.value = true
 }
 
+// Orden de los submódulos de un módulo: lista que se reordena arrastrando o con subir y bajar, y se guarda de una vez
+const reorderModule = ref<ModuleItem | null>(null)
+const reorderList = ref<SubModuleItem[]>([])
+const reorderInitialIds = ref<number[]>([])
+const loadingReorder = ref(false)
+
+const reorderHasChanges = computed(() => reorderList.value.some((item, index) => item.id !== reorderInitialIds.value[index]))
+
+const openReorderSubModules = async (mod: ModuleItem) => {
+  reorderModule.value = mod
+  reorderList.value = []
+  reorderInitialIds.value = []
+  errorMsg.value = ''
+  showReorderSubModulesModal.value = true
+  loadingReorder.value = true
+  try {
+    // El listado ya viene ordenado por la columna de orden y, a igual orden, por id
+    const res = await getSubModules({ moduleId: mod.id, page: 1, limit: 500 })
+    reorderList.value = Array.isArray(res?.data) ? res.data : Array.isArray(res) ? res : []
+    reorderInitialIds.value = reorderList.value.map((item) => item.id)
+  } catch (err: any) {
+    errorMsg.value = err.response?.data?.message || 'No se pudieron cargar los submódulos del módulo'
+  } finally {
+    loadingReorder.value = false
+  }
+}
+
+const moveReorderItem = (index: number, direction: -1 | 1) => {
+  const target = index + direction
+  if (target < 0 || target >= reorderList.value.length) return
+  const list = [...reorderList.value]
+  const [item] = list.splice(index, 1)
+  list.splice(target, 0, item!)
+  reorderList.value = list
+}
+
+// Arrastrar y soltar: la fila arrastrada queda en la posición de la fila sobre la que se suelta
+const dragReorderIndex = ref<number | null>(null)
+const dragOverReorderIndex = ref<number | null>(null)
+
+const onReorderDragStart = (index: number, event: DragEvent) => {
+  dragReorderIndex.value = index
+  if (event.dataTransfer) {
+    event.dataTransfer.effectAllowed = 'move'
+    // Firefox no inicia el arrastre sin datos
+    event.dataTransfer.setData('text/plain', String(index))
+  }
+}
+
+const onReorderDragOver = (index: number, event: DragEvent) => {
+  if (dragReorderIndex.value === null) return
+  event.preventDefault()
+  if (event.dataTransfer) event.dataTransfer.dropEffect = 'move'
+  dragOverReorderIndex.value = index
+}
+
+const onReorderDrop = (index: number) => {
+  const from = dragReorderIndex.value
+  if (from !== null && from !== index) {
+    const list = [...reorderList.value]
+    const [item] = list.splice(from, 1)
+    list.splice(index, 0, item!)
+    reorderList.value = list
+  }
+  onReorderDragEnd()
+}
+
+const onReorderDragEnd = () => {
+  dragReorderIndex.value = null
+  dragOverReorderIndex.value = null
+}
+
+const submitReorderSubModules = async () => {
+  if (!reorderModule.value || !reorderHasChanges.value) return
+  loading.value = true
+  errorMsg.value = ''
+  try {
+    await reorderSubModules(reorderModule.value.id, reorderList.value.map((item) => item.id))
+    successMsg.value = 'Orden de submódulos actualizado exitosamente.'
+    showReorderSubModulesModal.value = false
+    await Promise.all([loadCurrentTabData(), authStore.fetchCompanyAccess(currentCompanyId.value)])
+  } catch (err: any) {
+    errorMsg.value = err.response?.data?.message || 'Error al guardar el orden de los submódulos'
+  } finally {
+    loading.value = false
+  }
+}
+
 const openEditSubModule = (subMod: SubModuleItem) => {
   isEditingSubModule.value = true
   editingSubModuleId.value = subMod.id
@@ -2385,6 +2486,7 @@ const submitSubModule = async () => {
       successMsg.value = 'Submódulo creado exitosamente.'
     }
     showSubModuleModal.value = false
+    showReorderSubModulesModal.value = false
     await Promise.all([loadCurrentTabData(), authStore.fetchCompanyAccess(currentCompanyId.value)])
   } catch (err: any) {
     errorMsg.value = err.response?.data?.message || 'Error al guardar el submódulo'
@@ -2533,14 +2635,14 @@ const getPlanNameById = (planId?: number) => {
 }
 
 // Submódulos que se pueden asignar a un plan o a una suscripción. Quedan fuera los de administración global
-// (Módulos & Submódulos, Suscripciones, Impuestos y Tipos de Documentos), que solo existen en Configuración Global
+// (Módulos, Submódulos, Suscripciones, Impuestos y Tipos de Documentos), que solo existen en Configuración Global
 // para el super administrador y no son una pantalla de la empresa.
 const getSubModulesForModule = (modId: number) => {
   return allSubModulesList.value.filter(
     (sm) =>
       sm.moduleId === modId &&
       sm.enabled !== false &&
-      !/[?&]tab=(modules|subscriptions|taxes|document_types)(&|$)/i.test(sm.url_desc || ''),
+      !/[?&]tab=(modules|submodules|subscriptions|taxes|document_types)(&|$)/i.test(sm.url_desc || ''),
   )
 }
 
@@ -3113,7 +3215,7 @@ const toggleSidebar = () => {
     <!-- ======================================================== -->
     <div v-if="activeTab === 'modules'" class="d-flex flex-column gap-4">
       
-      <!-- SUBSECTION 1: MÓDULOS PRINCIPALES (tab_module) -->
+      <!-- MÓDULOS PRINCIPALES (tab_module) -->
       <div class="card rounded-4 border-0 shadow-sm p-4 bg-navy-card">
         <div class="d-flex flex-wrap justify-content-between align-items-center gap-3 mb-4">
           <div>
@@ -3192,6 +3294,12 @@ const toggleSidebar = () => {
                         </a>
                       </li>
                       <li>
+                        <a class="dropdown-item py-2" href="javascript:void(0)" @click="openReorderSubModules(mod)">
+                          <iconify-icon icon="solar:sort-vertical-line-duotone" class="fs-5 text-info"></iconify-icon>
+                          <span>Editar orden de submódulos</span>
+                        </a>
+                      </li>
+                      <li>
                         <a class="dropdown-item py-2" href="javascript:void(0)" @click="openEditModule(mod)">
                           <iconify-icon icon="solar:pen-2-line-duotone" class="fs-5 text-warning"></iconify-icon>
                           <span>Editar Módulo</span>
@@ -3211,7 +3319,13 @@ const toggleSidebar = () => {
         </div>
       </div>
 
-      <!-- SUBSECTION 2: SUBMÓDULOS Y RUTAS (tab_sub_module) -->
+    </div>
+
+    <!-- ======================================================== -->
+    <!-- TAB: SUBMÓDULOS Y RUTAS (tab_sub_module)                 -->
+    <!-- ======================================================== -->
+    <div v-if="activeTab === 'submodules'" class="d-flex flex-column gap-4">
+
       <div class="card rounded-4 border-0 shadow-sm p-4 bg-navy-card">
         <div class="d-flex flex-wrap justify-content-between align-items-center gap-3 mb-4">
           <div>
@@ -3240,7 +3354,7 @@ const toggleSidebar = () => {
             </div>
 
             <button
-              class="btn btn-info text-dark fw-semibold rounded-pill px-4 d-flex align-items-center gap-2"
+              class="btn btn-primary rounded-pill px-4 d-flex align-items-center gap-2"
               :disabled="modulesList.length === 0"
               @click="openCreateSubModule()"
             >
@@ -3838,50 +3952,6 @@ const toggleSidebar = () => {
                   <div class="col-12">
                     <label class="form-label text-secondary fs-2 fw-semibold">Descripción / Actividad económica *</label>
                     <textarea v-model="formCompany.description" class="form-control bg-dark-subtle border-secondary-subtle text-white" rows="2" required></textarea>
-                  </div>
-
-                  <!-- Selector de Ambiente SRI en pestaña General -->
-                  <div class="col-12 mt-2 pt-2 border-top border-dark-subtle">
-                    <label class="form-label text-secondary fs-2 fw-semibold fw-bold d-flex align-items-center gap-2 mb-2">
-                      <iconify-icon icon="solar:server-square-bold-duotone" class="text-primary fs-5"></iconify-icon>
-                      Ambiente de Emisión SRI *
-                    </label>
-                    <div class="row g-2">
-                      <div class="col-md-6">
-                        <div
-                          class="p-3 rounded-3 border transition-all d-flex align-items-center gap-3"
-                          :class="formCompany.sri_environment === '1' ? 'border-warning bg-warning-subtle text-warning' : 'border-secondary-subtle bg-dark-subtle text-secondary'"
-                          @click="formCompany.sri_environment = '1'"
-                          style="cursor: pointer;"
-                        >
-                          <div class="rounded-circle p-2 bg-warning-subtle text-warning border border-warning-subtle d-flex align-items-center justify-content-center" style="width: 38px; height: 38px;">
-                            <iconify-icon icon="solar:test-tube-minimalistic-bold-duotone" class="fs-5"></iconify-icon>
-                          </div>
-                          <div>
-                            <div class="fw-bold fs-3 text-white">1 - Ambiente de Pruebas</div>
-                            <small class="text-white-50 d-block fs-1">Comprobantes de prueba e integración SRI sin validez fiscal.</small>
-                          </div>
-                          <iconify-icon v-if="formCompany.sri_environment === '1'" icon="solar:check-circle-bold" class="fs-5 text-warning ms-auto flex-shrink-0"></iconify-icon>
-                        </div>
-                      </div>
-                      <div class="col-md-6">
-                        <div
-                          class="p-3 rounded-3 border transition-all d-flex align-items-center gap-3"
-                          :class="formCompany.sri_environment === '2' ? 'border-success bg-success-subtle text-success' : 'border-secondary-subtle bg-dark-subtle text-secondary'"
-                          @click="formCompany.sri_environment = '2'"
-                          style="cursor: pointer;"
-                        >
-                          <div class="rounded-circle p-2 bg-success-subtle text-success border border-success-subtle d-flex align-items-center justify-content-center" style="width: 38px; height: 38px;">
-                            <iconify-icon icon="solar:shield-check-bold" class="fs-5"></iconify-icon>
-                          </div>
-                          <div>
-                            <div class="fw-bold fs-3 text-white">2 - Ambiente de Producción</div>
-                            <small class="text-white-50 d-block fs-1">Facturas reales con autorización formal del SRI.</small>
-                          </div>
-                          <iconify-icon v-if="formCompany.sri_environment === '2'" icon="solar:check-circle-bold" class="fs-5 text-success ms-auto flex-shrink-0"></iconify-icon>
-                        </div>
-                      </div>
-                    </div>
                   </div>
                 </div>
 
@@ -5259,6 +5329,112 @@ const toggleSidebar = () => {
           </div>
         </div>
 
+    <!-- 3.7 FORMULARIO EN PÁGINA: EDITAR ORDEN DE SUBMÓDULOS -->
+      <div v-if="showReorderSubModulesModal" id="form-page" class="form-page">
+        <div class="form-page-card">
+          <div class="form-page-header">
+            <div>
+              <div class="d-flex align-items-center gap-2 mb-1">
+                <span class="badge bg-primary-subtle text-primary border border-primary-subtle px-2 py-1 fs-2">
+                  MOD-006 · SUBMÓDULOS DEL SISTEMA
+                </span>
+                <span class="badge bg-info-subtle text-info border border-info-subtle px-2 py-1 fs-2">
+                  ORDEN
+                </span>
+              </div>
+              <h3 class="crud-title mb-0">Editar orden de submódulos</h3>
+              <p class="crud-subtitle mb-0">
+                Módulo: <strong>{{ reorderModule?.description }}</strong>. Arrastra las filas o usa las flechas para subir o bajar; al guardar, la posición de cada fila es su orden en el menú lateral.
+              </p>
+            </div>
+            <button type="button" class="btn btn-outline-secondary d-flex align-items-center gap-1 rounded-pill px-3" @click="showReorderSubModulesModal = false">
+              <iconify-icon icon="solar:alt-arrow-left-line-duotone" class="fs-4"></iconify-icon>
+              <span>Volver al Listado</span>
+            </button>
+          </div>
+          <form @submit.prevent="submitReorderSubModules">
+            <div class="form-page-body">
+              <div v-if="loadingReorder" class="text-center py-4">
+                <div class="spinner-grow spinner-grow-sm text-primary" role="status"><span class="visually-hidden">Cargando...</span></div>
+              </div>
+              <div v-else-if="reorderList.length === 0" class="text-center text-muted py-4">
+                Este módulo no tiene submódulos registrados.
+              </div>
+              <div v-else class="table-responsive reorder-scroll">
+                <table class="table table-hover align-middle mb-0 crud-table app-table">
+                  <thead class="table-primary">
+                    <tr>
+                      <th width="10%">Orden</th>
+                      <th width="8%">Icono</th>
+                      <th width="14%">Código</th>
+                      <th width="26%">Descripción</th>
+                      <th width="22%">Ruta (URL)</th>
+                      <th width="8%">Estado</th>
+                      <th width="12%" class="text-end">Mover</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr
+                      v-for="(item, index) in reorderList"
+                      :key="item.id"
+                      draggable="true"
+                      :style="{
+                        opacity: dragReorderIndex === index ? 0.4 : 1,
+                        boxShadow: dragOverReorderIndex === index && dragReorderIndex !== null && dragReorderIndex !== index ? (dragReorderIndex > index ? 'inset 0 3px 0 var(--bs-primary)' : 'inset 0 -3px 0 var(--bs-primary)') : 'none',
+                      }"
+                      @dragstart="onReorderDragStart(index, $event)"
+                      @dragover="onReorderDragOver(index, $event)"
+                      @drop.prevent="onReorderDrop(index)"
+                      @dragend="onReorderDragEnd"
+                    >
+                      <td class="text-nowrap">
+                        <div class="d-inline-flex align-items-center gap-2">
+                          <iconify-icon icon="solar:hamburger-menu-line-duotone" class="fs-5 text-secondary" style="cursor: grab;" title="Arrastra para mover"></iconify-icon>
+                          <span class="badge bg-info-subtle text-info fw-bold font-monospace fs-2 px-2 py-1">{{ index + 1 }}</span>
+                        </div>
+                      </td>
+                      <td>
+                        <span class="d-inline-flex align-items-center justify-content-center p-1 bg-dark-subtle rounded border border-secondary-subtle">
+                          <iconify-icon :icon="item.desc_icon || 'solar:round-alt-arrow-right-line-duotone'" class="fs-5 text-info"></iconify-icon>
+                        </span>
+                      </td>
+                      <td><span class="badge bg-info-subtle text-info border border-info-subtle fw-bold">{{ item.code }}</span></td>
+                      <td class="text-white fw-semibold">{{ item.description }}</td>
+                      <td><code class="text-warning bg-dark-subtle px-2 py-1 rounded">{{ item.url_desc }}</code></td>
+                      <td>
+                        <span class="badge" :class="item.enabled !== false ? 'bg-success-subtle text-success' : 'bg-danger-subtle text-danger'">
+                          {{ item.enabled !== false ? 'Activo' : 'Inactivo' }}
+                        </span>
+                      </td>
+                      <td class="text-end">
+                        <div class="d-inline-flex gap-1">
+                          <button type="button" class="btn btn-sm btn-outline-secondary rounded-circle" title="Subir" :disabled="index === 0" @click="moveReorderItem(index, -1)">
+                            <iconify-icon icon="solar:alt-arrow-up-line-duotone" class="fs-5"></iconify-icon>
+                          </button>
+                          <button type="button" class="btn btn-sm btn-outline-secondary rounded-circle" title="Bajar" :disabled="index === reorderList.length - 1" @click="moveReorderItem(index, 1)">
+                            <iconify-icon icon="solar:alt-arrow-down-line-duotone" class="fs-5"></iconify-icon>
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+            <div class="form-page-footer">
+              <button type="button" class="btn btn-outline-secondary rounded-pill px-4" @click="showReorderSubModulesModal = false">
+                Cancelar
+              </button>
+              <button type="submit" class="btn btn-primary rounded-pill px-4 fw-semibold d-flex align-items-center gap-2" :disabled="loading || loadingReorder || !reorderHasChanges">
+                <span v-if="loading" class="spinner-grow spinner-grow-sm text-white" role="status" aria-hidden="true"></span>
+                <iconify-icon v-else icon="solar:check-circle-line-duotone" class="fs-4"></iconify-icon>
+                <span>{{ loading ? 'Guardando...' : 'Guardar orden' }}</span>
+              </button>
+            </div>
+          </form>
+        </div>
+      </div>
+
     <!-- 4. FORMULARIO NUEVO / EDITAR PLAN -->
       <div v-if="showPlanModal" id="form-page" class="form-page">
         <div class="form-page-card">
@@ -5732,5 +5908,19 @@ const toggleSidebar = () => {
 .mini-sidebar .brand-logo .logo-img {
   width: 36px;
   overflow: hidden;
+}
+
+/* Tabla del orden de submódulos: scroll vertical propio con la cabecera fija.
+   crud-theme.css fuerza max-height: none y overflow: visible en las tablas de los formularios, por eso va con más especificidad e !important */
+.form-page-card .table-responsive.reorder-scroll {
+  max-height: 60vh !important;
+  overflow-y: auto !important;
+  overflow-x: auto !important;
+}
+
+.form-page-card .table-responsive.reorder-scroll .table thead th {
+  position: sticky !important;
+  top: 0 !important;
+  z-index: 2 !important;
 }
 </style>

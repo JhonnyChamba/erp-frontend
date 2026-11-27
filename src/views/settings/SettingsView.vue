@@ -3070,50 +3070,6 @@ const submitSubscription = async () => {
                     <label class="form-label text-secondary fs-2 fw-semibold">Descripción / Actividad económica *</label>
                     <textarea v-model="formCompany.description" class="form-control bg-dark-subtle border-secondary-subtle text-white" rows="2" required></textarea>
                   </div>
-
-                  <!-- Selector de Ambiente SRI en pestaña General -->
-                  <div class="col-12 mt-2 pt-2 border-top border-dark-subtle">
-                    <label class="form-label text-secondary fs-2 fw-semibold fw-bold d-flex align-items-center gap-2 mb-2">
-                      <iconify-icon icon="solar:server-square-bold-duotone" class="text-primary fs-5"></iconify-icon>
-                      Ambiente de Emisión SRI *
-                    </label>
-                    <div class="row g-2">
-                      <div class="col-md-6">
-                        <div
-                          class="p-3 rounded-3 border transition-all d-flex align-items-center gap-3"
-                          :class="formCompany.sri_environment === '1' ? 'border-warning bg-warning-subtle text-warning' : 'border-secondary-subtle bg-dark-subtle text-secondary'"
-                          @click="formCompany.sri_environment = '1'"
-                          style="cursor: pointer;"
-                        >
-                          <div class="rounded-circle p-2 bg-warning-subtle text-warning border border-warning-subtle d-flex align-items-center justify-content-center" style="width: 38px; height: 38px;">
-                            <iconify-icon icon="solar:test-tube-minimalistic-bold-duotone" class="fs-5"></iconify-icon>
-                          </div>
-                          <div>
-                            <div class="fw-bold fs-3 text-white">1 - Ambiente de Pruebas</div>
-                            <small class="text-white-50 d-block fs-1">Comprobantes de prueba e integración SRI sin validez fiscal.</small>
-                          </div>
-                          <iconify-icon v-if="formCompany.sri_environment === '1'" icon="solar:check-circle-bold" class="fs-5 text-warning ms-auto flex-shrink-0"></iconify-icon>
-                        </div>
-                      </div>
-                      <div class="col-md-6">
-                        <div
-                          class="p-3 rounded-3 border transition-all d-flex align-items-center gap-3"
-                          :class="formCompany.sri_environment === '2' ? 'border-success bg-success-subtle text-success' : 'border-secondary-subtle bg-dark-subtle text-secondary'"
-                          @click="formCompany.sri_environment = '2'"
-                          style="cursor: pointer;"
-                        >
-                          <div class="rounded-circle p-2 bg-success-subtle text-success border border-success-subtle d-flex align-items-center justify-content-center" style="width: 38px; height: 38px;">
-                            <iconify-icon icon="solar:shield-check-bold" class="fs-5"></iconify-icon>
-                          </div>
-                          <div>
-                            <div class="fw-bold fs-3 text-white">2 - Ambiente de Producción</div>
-                            <small class="text-white-50 d-block fs-1">Facturas reales con autorización formal del SRI.</small>
-                          </div>
-                          <iconify-icon v-if="formCompany.sri_environment === '2'" icon="solar:check-circle-bold" class="fs-5 text-success ms-auto flex-shrink-0"></iconify-icon>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
                 </div>
 
                 <!-- SRI -->

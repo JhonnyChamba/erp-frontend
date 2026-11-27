@@ -425,6 +425,12 @@ export const updateSubModule = async (id: number, payload: Partial<SubModuleItem
   return data
 }
 
+// Guarda el orden de los submódulos de un módulo: la posición de cada id en la lista es su nuevo orden (1..n)
+export const reorderSubModules = async (moduleId: number, ids: number[]) => {
+  const { data } = await api.patch('/subModule/reorder', { moduleId, ids })
+  return data
+}
+
 // =================== SUCURSALES (ESTABLECIMIENTOS) ===================
 export interface BranchItem {
   id: number

@@ -342,16 +342,6 @@ const getInventorySubItems = (mod: any) => {
       return item
     })
 
-  // Categorías y Bodegas primero, seguidos de Artículos, Servicios, Subcontratación y Kardex
-  const priority = ['tab=categorias', 'tab=bodegas', 'tab=articulos', 'tab=servicios', 'tab=subcontratacion', 'tab=kardex']
-  children.sort((a: any, b: any) => {
-    const aUrl = (a.url || '').toLowerCase()
-    const bUrl = (b.url || '').toLowerCase()
-    const aIdx = priority.findIndex((p) => aUrl.includes(p))
-    const bIdx = priority.findIndex((p) => bUrl.includes(p))
-    return (aIdx === -1 ? 99 : aIdx) - (bIdx === -1 ? 99 : bIdx)
-  })
-
   return children
 }
 
@@ -393,16 +383,6 @@ const getSalesSubItems = (mod: any) => {
       return item
     })
 
-  // Ordenar: Facturas primero, Notas de Crédito segundo, Puntos de Emisión tercero, luego el resto
-  const order = ['factura', 'notas-credito', 'puntos-emision', 'notas-venta', 'cotizaciones']
-  children.sort((a: any, b: any) => {
-    const aUrl = (a.url || '').toLowerCase()
-    const bUrl = (b.url || '').toLowerCase()
-    const aIdx = order.findIndex((k) => aUrl.includes(k))
-    const bIdx = order.findIndex((k) => bUrl.includes(k))
-    return (aIdx === -1 ? 99 : aIdx) - (bIdx === -1 ? 99 : bIdx)
-  })
-
   return children
 }
 
@@ -417,7 +397,8 @@ const getCampeonatoSubItems = (mod: any) => {
   const operationalSubItems = [
     { code: 'SUB-CAMP-007', description: 'Inscripción de Equipos', url: '/campeonato?tab=teamRegistrations', tab: 'teamRegistrations' },
     { code: 'SUB-CAMP-008', description: 'Inscripción y Carnets', url: '/campeonato?tab=playerRegistrations', tab: 'playerRegistrations' },
-    { code: 'SUB-CAMP-020', description: 'Transferencias de Jugadores', url: '/campeonato?tab=playerTransfers', tab: 'playerTransfers' },
+    // SUB-CAMP-020 es "Grupos de División" en la base: Transferencias usa el 021 y, además, se reconoce por su ruta (hint)
+    { code: 'SUB-CAMP-021', description: 'Transferencias de Jugadores', url: '/campeonato?tab=playerTransfers', tab: 'playerTransfers', hint: 'transferencias' },
     { code: 'SUB-CAMP-011', description: 'Partidos y Encuentros', url: '/campeonato?tab=matches', tab: 'matches' },
     { code: 'SUB-CAMP-017', description: 'Tabla de Posiciones & Goleadores', url: '/campeonato?tab=standings', tab: 'standings' },
     { code: 'SUB-CAMP-012', description: 'Sanciones y Disciplina', url: '/campeonato?tab=sanctions', tab: 'sanctions' },
@@ -425,8 +406,42 @@ const getCampeonatoSubItems = (mod: any) => {
     { code: 'SUB-CAMP-018', description: 'Configuraciones', url: '/campeonato?tab=configuracion', tab: 'configuracion' },
   ]
 
+  const configCodes = [
+    'SUB-CAMP-001',
+    'SUB-CAMP-002',
+    'SUB-CAMP-003',
+    'SUB-CAMP-004',
+    'SUB-CAMP-005',
+    'SUB-CAMP-006',
+    'SUB-CAMP-009',
+    'SUB-CAMP-010',
+    'SUB-CAMP-015',
+    'SUB-CAMP-016',
+    'SUB-CAMP-018',
+  ]
+
+  type OperationalSubItem = { code: string; description: string; url: string; tab: string; hint?: string }
+  const getChildOrderPos = (item: OperationalSubItem) => {
+    if (children.length === 0) return Number.MAX_SAFE_INTEGER
+    if (item.tab === 'configuracion') {
+      const idx18 = children.findIndex((c: any) => c.code === 'SUB-CAMP-018')
+      if (idx18 !== -1) return idx18
+      const cfgIdx = children.findIndex((c: any) => configCodes.includes(c.code))
+      return cfgIdx === -1 ? Number.MAX_SAFE_INTEGER : cfgIdx
+    }
+    const idx = children.findIndex(
+      (c: any) =>
+        c.code === item.code ||
+        (c.url || '').toLowerCase().includes(item.tab.toLowerCase()) ||
+        (item.hint ? (c.url || '').toLowerCase().includes(item.hint) : false),
+    )
+    return idx === -1 ? Number.MAX_SAFE_INTEGER : idx
+  }
+
   if (isSuper || children.length === 0) {
-    return operationalSubItems.map(({ tab, ...rest }) => rest)
+    return [...operationalSubItems]
+      .sort((a, b) => getChildOrderPos(a) - getChildOrderPos(b))
+      .map(({ tab, hint, ...rest }) => rest)
   }
 
   const allowedCodes = children.map((c: any) => c.code)
@@ -435,19 +450,6 @@ const getCampeonatoSubItems = (mod: any) => {
   return operationalSubItems
     .filter((item) => {
       if (item.tab === 'configuracion') {
-        const configCodes = [
-          'SUB-CAMP-001',
-          'SUB-CAMP-002',
-          'SUB-CAMP-003',
-          'SUB-CAMP-004',
-          'SUB-CAMP-005',
-          'SUB-CAMP-006',
-          'SUB-CAMP-009',
-          'SUB-CAMP-010',
-          'SUB-CAMP-015',
-          'SUB-CAMP-016',
-          'SUB-CAMP-018',
-        ]
         return (
           configCodes.some((code) => allowedCodes.includes(code)) ||
           allowedUrls.some((u) => u.includes('configuracion') || u.includes('campeonato')) ||
@@ -456,10 +458,11 @@ const getCampeonatoSubItems = (mod: any) => {
       }
       return (
         allowedCodes.includes(item.code) ||
-        allowedUrls.some((u) => u.includes(item.tab.toLowerCase()) || (item.code && u.includes(item.code.toLowerCase())))
+        allowedUrls.some((u) => u.includes(item.tab.toLowerCase()) || (item.code && u.includes(item.code.toLowerCase())) || (item.hint ? u.includes(item.hint) : false))
       )
     })
-    .map(({ tab, ...rest }) => rest)
+    .sort((a, b) => getChildOrderPos(a) - getChildOrderPos(b))
+    .map(({ tab, hint, ...rest }) => rest)
 }
 
 const isConfigMod = (mod: any) =>
