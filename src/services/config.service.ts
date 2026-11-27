@@ -431,6 +431,11 @@ export const reorderSubModules = async (moduleId: number, ids: number[]) => {
   return data
 }
 
+export const deleteSubModule = async (id: number) => {
+  const { data } = await api.delete(`/subModule/${id}`)
+  return data
+}
+
 // =================== SUCURSALES (ESTABLECIMIENTOS) ===================
 export interface BranchItem {
   id: number

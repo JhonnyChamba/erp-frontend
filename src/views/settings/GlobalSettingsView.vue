@@ -25,6 +25,7 @@ import {
   createSubModule,
   updateSubModule,
   reorderSubModules,
+  deleteSubModule,
   getBranches,
   createBranch,
   updateBranch,
@@ -2495,6 +2496,21 @@ const submitSubModule = async () => {
   }
 }
 
+const handleDeleteSubModule = async (subMod: SubModuleItem) => {
+  if (!window.confirm(`¿Está seguro de eliminar el submódulo "${subMod.description}" (${subMod.code})?`)) return
+  loading.value = true
+  errorMsg.value = ''
+  try {
+    await deleteSubModule(subMod.id)
+    successMsg.value = 'Submódulo eliminado exitosamente.'
+    await Promise.all([loadCurrentTabData(), authStore.fetchCompanyAccess(currentCompanyId.value)])
+  } catch (err: any) {
+    errorMsg.value = err.response?.data?.message || 'Error al eliminar el submódulo'
+  } finally {
+    loading.value = false
+  }
+}
+
 // =================== GESTIÓN Y EDICIÓN DE PLANES SAAS ===================
 const getModuleIconById = (modId?: number) => {
   if (!modId) return 'solar:widget-4-line-duotone'
@@ -3422,6 +3438,13 @@ const toggleSidebar = () => {
                         <a class="dropdown-item py-2" href="javascript:void(0)" @click="openEditSubModule(subMod)">
                           <iconify-icon icon="solar:pen-2-line-duotone" class="fs-5 text-warning"></iconify-icon>
                           <span>Editar Submódulo</span>
+                        </a>
+                      </li>
+                      <li><hr class="dropdown-divider"></li>
+                      <li>
+                        <a class="dropdown-item py-2 text-danger" href="javascript:void(0)" @click="handleDeleteSubModule(subMod)">
+                          <iconify-icon icon="solar:trash-bin-trash-line-duotone" class="fs-5 text-danger"></iconify-icon>
+                          <span>Eliminar Submódulo</span>
                         </a>
                       </li>
                     </ul>
